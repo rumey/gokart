@@ -348,6 +348,31 @@ localforage.getItem('sssOfflineStore').then(function (store) {
 
       var sssTools = [
         {
+          name: 'Fire Boundary',
+          icon: 'dist/static/images/iD-sprite.svg#icon-area',
+          style: fireBoundaryStyle,
+          interactions: [fireBoundaryDraw],
+          scope:["annotation"],
+          showName: true
+        },
+        self.annotations.ui.defaultText,
+        {
+          name: 'Division',
+          icon: 'dist/static/symbols/fire/division.svg',
+          interactions: [divisionDraw, snapToLines],
+          style: self.annotations.getIconStyleFunction(self.tints),
+          selectedTint: 'selectedDivision',
+          scope:["annotation"],
+          showName: true
+        }, {
+          name: 'Sector',
+          icon: 'dist/static/symbols/fire/sector.svg',
+          interactions: [sectorDraw, snapToLines],
+          style: self.annotations.getIconStyleFunction(self.tints),
+          selectedTint: 'selectedDivision',
+          scope:["annotation"],
+          showName: true
+        },{
         /*  name: 'Hot Spot',
           icon: 'fa-circle red',
           interactions: [hotSpotDraw],
@@ -369,31 +394,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
           selectedTint: 'selectedPoint',
           scope:["annotation"],
           showName: true,
-        }, {
-          name: 'Division',
-          icon: 'dist/static/symbols/fire/division.svg',
-          interactions: [divisionDraw, snapToLines],
-          style: self.annotations.getIconStyleFunction(self.tints),
-          selectedTint: 'selectedDivision',
-          scope:["annotation"],
-          showName: true
-        }, {
-          name: 'Sector',
-          icon: 'dist/static/symbols/fire/sector.svg',
-          interactions: [sectorDraw, snapToLines],
-          style: self.annotations.getIconStyleFunction(self.tints),
-          selectedTint: 'selectedDivision',
-          scope:["annotation"],
-          showName: true
-        }, {
-          name: 'Fire Boundary',
-          icon: 'dist/static/images/iD-sprite.svg#icon-area',
-          style: fireBoundaryStyle,
-          interactions: [fireBoundaryDraw],
-          scope:["annotation"],
-          showName: true
         },
-        self.annotations.ui.defaultText,
         self.annotations.ui.defaultLine,
         self.annotations.ui.defaultPolygon
       ]
