@@ -242,6 +242,16 @@
         l.loadLegendFailed = true
         
       },
+      getImageDataURL: function(img,format) {
+        format = format || "image/jpeg"
+        var canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        $(document.body).append($(canvas))
+        var ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0,img.naturalWidth,img.naturalHeight,0,0,canvas.width,canvas.height);
+        return canvas.toDataURL(format,1);
+      },
       printLegends:function() {
         var vm = this
         var paperSize = this.paperSizes["A4"]
@@ -260,15 +270,6 @@
           textColor:[0,0,0],
           lineWidth: 1,
           lineColor:[77,77,77]
-        }
-        var getBase64Image = function(img) {
-          var canvas = document.createElement("canvas");
-          canvas.width = img.naturalWidth;
-          canvas.height = img.naturalHeight;
-          $(document.body).append($(canvas))
-          var ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0,img.naturalWidth,img.naturalHeight,0,0,canvas.width,canvas.height);
-          return canvas.toDataURL("image/png");
         }
         var getImageSize = function(img,textHeight) {
           var width = 0
@@ -311,13 +312,14 @@
                 top = style.top
             } else if (top !=style.top) {
                 top += style.padding
+                doc.setLineWidth(style.lineWidth)
                 doc.line(style.left,top,style.width - style.right,top)
                 top += style.lineWidth
-                top += imageSize[1] + style.padding
+                top += style.padding
             }
             doc.text(style.left,top,$(element).find(".layer-title").text())
             top += style.fontHeight
-            doc.addImage(getBase64Image(imgElement),"PNG",style.left,top,imageSize[0],imageSize[1])
+            doc.addImage(vm.getImageDataURL(imgElement,"image/jpeg"),"JPEG",style.left,top,imageSize[0],imageSize[1])
             top += imageSize[1]
         })
         var filename = vm.finalTitle.replace(' ', '_') + ".legend.pdf"
