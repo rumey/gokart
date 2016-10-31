@@ -132,6 +132,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
       bfrs: function () { return this.$refs.app.$refs.bfrs },
       geojson: function () { return new ol.format.GeoJSON() },
       wgs84Sphere: function () { return new ol.Sphere(6378137) },
+      activeMenu: function() {return this.$refs.app.activeMenu},
       persistentData:function() {
           var vm = this
           $.each(persistentData,function(key,val){

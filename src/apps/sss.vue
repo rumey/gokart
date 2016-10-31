@@ -62,7 +62,7 @@
       components: { gkMap, gkLayers, gkAnnotations, gkTracking, gkLoading },//, gkBfrs },
       methods: {
         init: function() {
-            this.$root.annotations.setTool('Pan')
+            this.$root.annotations.setTool()
         },
         switchMenu: function(menu, initFunc) {
             if (this.activeMenu && this.activeMenu == menu) {

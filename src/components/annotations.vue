@@ -240,6 +240,19 @@
                this.tool == this.ui.defaultText || 
                (this.tool === this.ui.editStyle && this.featureEditing && ([this.ui.defaultLine,this.ui.defaultPolygon,this.ui.defaultText].indexOf(this.getTool(this.featureEditing.get('toolName'))) >= 0))
       },
+      currentTool:{
+        get:function() {
+            var t = this._currentTool[this.$root.activeMenu]
+            if (!t) {
+                t = this.ui.defaultPan
+                this._currentTool[this.$root.activeMenu] = t
+            }
+            return t
+        },
+        set:function(t) {
+            this._currentTool[this.$root.activeMenu] = t
+        }
+      }
     },
     watch:{
       'featureEditing': function(val,oldVal) {
@@ -367,16 +380,25 @@
           this.featureEditing.set(prop, value)
         }
       },
+      setDefaultTool: function(menu,tool) {
+        if (typeof tool === 'string') {
+          tool = this.getTool(tool)
+        }
+        this._currentTool[menu] = tool
+      },
       getTool: function (toolName) {
         return this.tools.filter(function (t) {
           return t.name === toolName
         })[0]
       },
       setTool: function (t) {
+        if (!t) {
+            t = this.currentTool
+        }
         if (typeof t == 'string') {
           t = this.getTool(t)
         }
-        if (this.tool === t) {
+        if ((this.tool === t) && (t === this.ui.defaultPan || this._previousActiveMenu === this.$root.activeMenu)) {
             //choose the same tool, do nothing,
             return
         } else if(this.tool.onUnset) {
@@ -396,14 +418,23 @@
         })
 
         // remove selections
-        this.selectedFeatures.clear()
+        if (t !== this.ui.defaultPan) {
+            //remove selections only if the tool is not Pan
+            if ((this._previousTool && this._previousTool !== t) || (this._previousActiveMenu && this._previousActiveMenu !== this.$root.activeMenu)) {
+                //remove selections only if the current tool is not the same tool as the previous tool.
+                this.selectedFeatures.clear()
+            }
+            this._previousTool = t
+            this._previousActiveMenu = this.$root.activeMenu
+        }
 
         // auto-disable hover info, but remember the user's choice
         this.$root.active.hoverInfo = ((t.name === 'Pan') && (this.$root.active.hoverInfoCache))
 
-        this.tool = t
-
         if (t.onSet) { t.onSet() }
+
+        this.tool = t
+        this.currentTool = t
       },
       selectAll: function () {
         var vm = this
@@ -494,7 +525,7 @@
         }
         // runs on switch to this tab
         this.selectable = [this.featureOverlay]
-        this.setTool('Edit')
+        this.setTool()
       },
       getNoteExtent: function(feature) {
         var note = feature.get('note')
@@ -504,10 +535,20 @@
         var bottomLeftPosition = map.getPixelFromCoordinate(bottomLeftCoordinate)
         var upRightCoordinate = map.getCoordinateFromPixel([bottomLeftPosition[0] + note.size[0],bottomLeftPosition[1] - note.size[1]])
         return [bottomLeftCoordinate[0],bottomLeftCoordinate[1],upRightCoordinate[0],upRightCoordinate[1]]
+      },
+      tintSelectedFeature:function(feature) {
+        feature.set('baseTint', feature.get('tint'),true)
+        var tool = this.getTool(feature.get('toolName'))
+        if (tool) {
+            feature.set('tint', tool.selectedTint || 'selected')
+        } else {
+            feature.set('tint', 'selected')
+        }
       }
     },
     ready: function () {
       var vm = this
+      vm._currentTool = {}
       var annotationStatus = this.loading.register("annotation","Annotation Component", "Initialize")
       var map = this.map
       // collection to store all annotation features
@@ -534,14 +575,7 @@
       })
       // add/remove selected property
       this.selectedFeatures.on('add', function (ev) {
-        var feature = ev.element
-        feature.set('baseTint', feature.get('tint'),true)
-        var tool = vm.getTool(feature.get('toolName'))
-        if (tool) {
-            feature.set('tint', tool.selectedTint || 'selected')
-        } else {
-            feature.set('tint', 'selected')
-        }
+        vm.tintSelectedFeature(ev.element)
       })
       this.selectedFeatures.on('remove', function (ev) {
         var feature = ev.element
@@ -886,6 +920,7 @@
         vm.annotationTools = this.tools.filter(function (t) {
           return t.scope && t.scope.indexOf("annotation") >= 0
         })
+        vm.setDefaultTool('annotations','Edit')
         annotationStatus.end()
       })
 

@@ -65,7 +65,7 @@
                 </select>
               </div>
               <div class="small-6 columns">
-                <input type="search" v-model="search" placeholder="Find a resource" @keyup="updateResourceFilter | debounce 700">
+                <input type="search" v-model="search" placeholder="Find a resource" @keyup="updateResourceFilter">
               </div>
             </div>
             <div class="row">
@@ -84,7 +84,7 @@
                 <div class="columns">
                   <div class="row">
                     <div class="switch tiny">
-                      <input class="switch-input" id="selectedOnly" type="checkbox" v-model="selectedOnly" @change="updateCQLFilter" />
+                      <input class="switch-input" id="selectedOnly" type="checkbox" v-model="selectedOnly" @change="updateCQLFilter('selectedDevice')" />
                       <label class="switch-paddle" for="selectedOnly">
                     <span class="show-for-sr">Show selected only</span>
                  </label>
@@ -178,7 +178,6 @@
         historyToDate: '',
         historyToTime: '',
         historyRangeMilliseconds: 0,
-        loadedIcons:0,
         tints: {
           'red': [[fill,'#ed2727'], [stroke,'#480000']],
           'orange': [[fill,'#ff6600'], [stroke,'#562200']],
@@ -281,7 +280,6 @@
         var vm = this
         //trigger dynamic binding
         var tmp = vm.selectedDevices
-        tmp = this.loadedIcons
         return this.map.getBlob(f, ['icon', 'tint'],this.tints,function(){
             $("#device-icon-" + f.get('id')).attr("src", vm.featureIconSrc(f))
         })
@@ -299,33 +297,46 @@
               this.$root.catalogue.onLayerChange(historyLayer, false)
           }
       },
-      updateCQLFilter: function () {
+      updateCQLFilter: function (updateType) {
         var vm = this
-        var groupFilter = this.cql
-        var deviceFilter = ''
-        // filter by specific devices if "Show selected only" is enabled
-        if ((this.selectedDevices.length > 0) && (this.selectedOnly)) {
-          deviceFilter = 'deviceid in (' + this.selectedDevices.join(',') + ')'
+        if (!vm._updateCQLFilter) {
+            vm._updateCQLFilter = debounce(function(updateType){
+                var groupFilter = vm.cql
+                var deviceFilter = ''
+                // filter by specific devices if "Show selected only" is enabled
+                if ((vm.selectedDevices.length > 0) && (vm.selectedOnly)) {
+                  deviceFilter = 'deviceid in (' + vm.selectedDevices.join(',') + ')'
+                }
+                // CQL statement assembling logic
+                if (groupFilter && deviceFilter) {
+                  vm.trackingLayer.cql_filter = '(' + groupFilter + ') and (' + deviceFilter + ')'
+                } else if (deviceFilter) {
+                  vm.trackingLayer.cql_filter = deviceFilter
+                } else {
+                  vm.trackingLayer.cql_filter = groupFilter
+                }
+                if (!deviceFilter && vm.selectedOnly) {
+                    vm.selectedOnly = false
+                }
+                if (updateType === "selectedDevice" && deviceFilter) {
+                    //chosed some device
+                    var filteredFeatures = vm.trackingMapLayer.getSource().getFeatures().filter(function(f){
+                        return vm.selectedDevices.indexOf(f.get('deviceid')) >= 0
+                    })
+                    vm.trackingMapLayer.getSource().clear()
+                    vm.trackingMapLayer.getSource().addFeatures(filteredFeatures)
+                    $.each(filteredFeatures,function(index,feature){
+                        vm.annotations.tintSelectedFeature(feature)
+                    })
+                    vm.updateResourceFilter(true)
+                } else {
+                    //clear device filter or change other filter
+                    vm.trackingMapLayer.set('updated', moment().toLocaleString())
+                    vm.trackingMapLayer.getSource().loadSource("query")
+                }
+            },500)
         }
-        // CQL statement assembling logic
-        if (groupFilter && deviceFilter) {
-          this.trackingLayer.cql_filter = '(' + groupFilter + ') and (' + deviceFilter + ')'
-        } else if (deviceFilter) {
-          this.trackingLayer.cql_filter = deviceFilter
-        } else {
-          this.trackingLayer.cql_filter = groupFilter
-        }
-        this.trackingMapLayer.set('updated', moment().toLocaleString())
-        this.trackingMapLayer.getSource().loadSource("query")
-      },
-      updateResourceFilter: function () {
-        var mapLayer = this.trackingMapLayer
-        // update vue list for filtered features in the current extent
-        this.extentFeatures = mapLayer.getSource().getFeaturesInExtent(this.$root.export.mapLayout.extent).filter(this.resourceFilter)
-        this.extentFeatures.sort(this.resourceOrder)
-        // update vue list for filtered features
-        this.allFeatures = mapLayer.getSource().getFeatures().filter(this.resourceFilter)
-        this.allFeatures.sort(this.resourceOrder)
+        vm._updateCQLFilter(updateType)
       },
       historyCQLFilter: function () {
         var vm = this
@@ -367,7 +378,7 @@
         var found = !search || this.fields.some(function (key) {
           return ('' + f.get(key)).toLowerCase().indexOf(search) > -1
         })
-        if (this.selectedOnly) {
+        if (this.selectedOnly && this.selectedFeatures.length) {
           return this.selected(f) && found
         };
         return found
@@ -390,32 +401,51 @@
         var map = this.$root.map.olmap
         map.getView().fit(extent, map.getSize())
       },
-      updateTracking: function() {
+      updateResourceFilter: function(runNow) {
         var vm = this
-        // syncing of Resource Tracking features between Vue state and OL source
-        var mapLayer = this.trackingMapLayer
-        if (!mapLayer) { return }
-        var feats = mapLayer.getSource().getFeatures()
-        // update the contents of the selectedFeatures group
-        if (vm.$root.annotations.selectable && vm.$root.annotations.selectable.length == 1 && vm.$root.annotations.selectable[0] == vm.trackingMapLayer) {
-            var deviceIds = this.selectedDevices.slice()
-            this.$root.annotations.selectedFeatures.clear()
-            feats.filter(function(el, index, arr) {
-              var id = el.get('deviceid')
-              if (!id) return false
-              if (deviceIds.indexOf(id) < 0) return false
-              return true
-            }).forEach(function (el) {
-              vm.$root.annotations.selectedFeatures.push(el)
-            })
+        var updateResourceFilterFunc = function() {
+            // syncing of Resource Tracking features between Vue state and OL source
+            var mapLayer = vm.trackingMapLayer
+            if (!mapLayer) { return }
+            // update vue list for filtered features in the current extent
+            vm.extentFeatures = mapLayer.getSource().getFeaturesInExtent(vm.$root.export.mapLayout.extent).filter(vm.resourceFilter)
+            vm.extentFeatures.sort(vm.resourceOrder)
+            // update vue list for filtered features
+            vm.allFeatures = mapLayer.getSource().getFeatures().filter(vm.resourceFilter)
+            vm.allFeatures.sort(vm.resourceOrder)
         }
-
-        // update vue list for filtered features in the current extent
-        this.extentFeatures = mapLayer.getSource().getFeaturesInExtent(this.$root.export.mapLayout.extent).filter(this.resourceFilter)
-        this.extentFeatures.sort(this.resourceOrder)
-        // update vue list for filtered features
-        this.allFeatures = feats.filter(this.resourceFilter)
-        this.allFeatures.sort(this.resourceOrder)
+        if (runNow) {
+            updateResourceFilterFunc()
+        } else {
+            if (!vm._updateResourceFilter) {
+                vm._updateResourceFilter = debounce(function(){
+                    updateResourceFilterFunc()
+                },700)
+            }
+            vm._updateResourceFilter()
+        }
+      },
+      updateViewport: function(runNow) {
+        var vm = this
+        var updateViewportFunc = function() {
+            // syncing of Resource Tracking features between Vue state and OL source
+            var mapLayer = vm.trackingMapLayer
+            if (!mapLayer) { return }
+            var feats = mapLayer.getSource().getFeatures()
+            // update vue list for filtered features in the current extent
+            vm.extentFeatures = mapLayer.getSource().getFeaturesInExtent(vm.$root.export.mapLayout.extent).filter(vm.resourceFilter)
+            vm.extentFeatures.sort(vm.resourceOrder)
+        }
+        if (runNow) {
+            updateViewportFunc()
+        } else {
+            if (!vm._updateViewport) {
+                vm._updateViewport = debounce(function(){
+                    updateViewportFunc()
+                },100)
+            }
+            vm._updateViewport()
+        }
       },
       init: function() {
         // enable resource tracking layer, if disabled
@@ -425,8 +455,7 @@
         }
 
         this.$root.annotations.selectable = [this.trackingMapLayer]
-        this.$root.annotations.setTool('Pan')
-        this.$root.tracking.updateCQLFilter()
+        this.annotations.setTool()
       }
     },
     ready: function () {
@@ -508,7 +537,23 @@
         id: 'dpaw:resource_tracking_live',
         onadd: addResource,
         getFeatureInfo:getFeatureInfo,
-        refresh: 60
+        refresh: 60,
+        onload: function(loadType,vectorSource,features,defaultOnload) {
+            defaultOnload(loadType,vectorSource,features)
+            if (vm.$root.annotations.selectable && vm.$root.annotations.selectable.length == 1 && vm.$root.annotations.selectable[0] == vm.trackingMapLayer) {
+                var deviceIds = vm.selectedDevices.slice()
+                vm.$root.annotations.selectedFeatures.clear()
+                features.filter(function(el, index, arr) {
+                  var id = el.get('deviceid')
+                  if (!id) return false
+                  if (deviceIds.indexOf(id) < 0) return false
+                  return true
+                }).forEach(function (el) {
+                  vm.$root.annotations.selectedFeatures.push(el)
+                })
+            }
+            vm.updateResourceFilter(true)
+        }
       }, {
         type: 'WFSLayer',
         name: 'Resource Tracking History',
@@ -521,11 +566,7 @@
       // post init event hookup
       this.$on('gk-init', function () {
         trackingStatus.progress(80,"Process 'gk-init' event")
-        var viewChanged = global.debounce(function () {
-          vm.updateTracking()
-        }, 100)
-        map.olmap.getView().on('propertychange', viewChanged)
-        viewChanged()
+        map.olmap.getView().on('propertychange', vm.updateViewport)
 
         var layersAdded = global.debounce(function () {
           var mapLayer = vm.trackingMapLayer
@@ -540,13 +581,20 @@
         this.$root.annotations.selectedFeatures.on('add', function (event) {
           if (event.element.get('deviceid')) {
             vm.selectedDevices.push(event.element.get('deviceid'))
+            if (vm.selectedOnly) {
+                vm.updateCQLFilter('selectedDevice')
+            }
           }
         })
         this.$root.annotations.selectedFeatures.on('remove', function (event) {
           if (event.element.get('deviceid')) {
             vm.selectedDevices.$remove(event.element.get('deviceid'))
+            if (vm.selectedOnly) {
+                vm.updateCQLFilter('selectedDevice')
+            }
           }
         })
+        //vm.annotations.setDefaultTool('vehicleTracking','Pan')
         vm.tools = vm.annotations.tools.filter(function (t) {
           return t.scope && t.scope.indexOf("resourcetracking") >= 0
         })
