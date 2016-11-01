@@ -426,12 +426,23 @@
         var timer
         var vm = this
         // wait until map is rendered before continuing
+        var whiteout = vm.olmap.on('precompose', function (event) {
+          var canvas = event.context.canvas
+          var ctx = canvas.getContext('2d')
+          ctx.beginPath()
+          ctx.rect(0, 0, canvas.width, canvas.height)
+          ctx.fillStyle = "white"
+          ctx.fill()
+        })
+
         var composing = vm.olmap.on('postcompose', function (event) {
           timer && clearTimeout(timer)
           timer = setTimeout(function () {
             // remove composing watcher
+            vm.olmap.unByKey(whiteout)
             vm.olmap.unByKey(composing)
             var canvas = event.context.canvas
+            var ctx = canvas.getContext('2d')
             var img = new window.Image()
             var legend = vm.renderLegend()
             var url = legend[0]
@@ -444,8 +455,8 @@
               // legend is 12cm wide
               vm.layout.canvasPxPerMM = canvas.width / vm.layout.width
               var height = 120 * vm.layout.canvasPxPerMM * img.height / img.width
-              canvas.getContext('2d').drawImage(img, 0, 0, 120 * vm.layout.canvasPxPerMM, height)
-              canvas.getContext('2d').drawImage(qrcanvas, 8, height)
+              ctx.drawImage(img, 0, 0, 120 * vm.layout.canvasPxPerMM, height)
+              ctx.drawImage(qrcanvas, 8, height)
               window.URL.revokeObjectURL(url)
               // generate a jpg copy of the canvas contents
               var filename = vm.finalTitle.replace(' ', '_')
