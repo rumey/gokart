@@ -162,6 +162,7 @@
     // parts of the template to be computed live
     computed: {
       loading: function () { return this.$root.loading },
+      annotations: function () { return this.$root.annotations },
       olmap: function () {
         return this.$root.map.olmap
       },
@@ -522,6 +523,74 @@
           }
           reader.readAsText(this.$els.statefile.files[0])
         }
+      },
+      importVector: function(file) {
+        // upload vector  
+        var vm = this
+        var reader = new window.FileReader()
+        reader.onload = function (e) {
+          var data = e.target.result
+          var p = file.name.lastIndexOf('.')
+          var fileFormat = file.name
+          if (p>=0) {
+              fileFormat = file.name.substring(p).toLowerCase()
+          } 
+          if (fileFormat === ".json") {
+              //geo json file 
+              var features = new ol.format.GeoJSON().readFeatures(data,{dataProjection:"EPSG:4326"})
+              if (features && features.length) {
+                  if (features[0].get("toolName")) {
+                      vm.annotations.features.extend(features)
+                  } else {
+                      alert("Importing an external json file is not supported.")
+                  }
+              }
+          } else if (fileFormat === ".gpx") {
+              //gpx file
+              var features = new ol.format.GPX().readFeatures(data,{dataProjection:"EPSG:4326"})
+              var vectors = []
+              if (features && features.length) {
+                  $.each(features,function(index,feature) {
+                      if (feature.getGeometry() instanceof ol.geom.Point) {
+                          //feature.set('toolName','Spot Fire')
+                          console.warn("Ignore point(" + JSON.stringify(feature.getGeometry().getCoordinates()) + ")")
+                      } else if(feature.getGeometry() instanceof ol.geom.LineString) {
+                          var coordinates = feature.getGeometry().getCoordinates()
+                          coordinates.push(coordinates[0])
+                          feature.setGeometry(new ol.geom.Polygon([coordinates]))
+                          feature.set('toolName','Fire Boundary')
+                          vectors.push(feature)
+                      } else if(feature.getGeometry() instanceof ol.geom.MultiLineString) {
+                          //convert each linstring in MultiLineString as a fire boundary
+                          var geom = feature.getGeometry()
+                          feature.setGeometry(null)
+                          var coordinates = null
+                          var f = null
+                          $(geom.getLineStrings(),function(index,linestring) {
+                            f = feature.clone()
+                            coordinates = linestring.getCoordinates()
+                            coordinates.push(coordinates[0])
+                            f.setGeometry(new ol.geom.Polygon([coordinates]))
+                            f.set('toolName','FireBoundary')
+                            vectors.push(f)
+                          })
+                      } else {
+                          console.warn("Ignore " + feature.getGeometryName() + "(" + JSON.stringify(feature.getGeometry().getCoordinates()) + ")")
+                      }
+                  })
+                   
+                  vm.annotations.features.extend(vectors)
+              }
+          } else {
+              if (fileFormat === file.name) {
+                  alert("Unknown file format (" + file.name + ")")
+              } else {
+                  alert("File format(" + fileFormat + ") not support")
+              }
+              return
+          }
+        }
+        reader.readAsText(file)
       },
       reset: function () {
         if (window.confirm('This will clear all of your selected layers and annotations. Are you sure?')) {
