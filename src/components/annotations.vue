@@ -432,7 +432,7 @@
         this.$root.active.hoverInfo = ((t.name === 'Pan') && (this.$root.active.hoverInfoCache))
         
         //change the cursor
-        $(map.olmap.getTargetElement()).css('cursor',t.cursor || 'default')
+        $(map.olmap.getTargetElement()).find(".ol-viewport").css('cursor',t.cursor || 'default')
         
 
         if (t.onSet) { t.onSet() }
