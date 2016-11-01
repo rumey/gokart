@@ -41,7 +41,7 @@
                   <a class="button"><i class="fa fa-repeat" aria-hidden="true"></i> Redo</a>
                 </div>
                 <div class="expanded button-group">
-                  <a class="button"><i class="fa fa-upload" aria-hidden="true"></i> Upload Boundary</a>
+                  <label class="button " for="uploadAnnotations"><i class="fa fa-upload"></i> Upload Boundary </label><input type="file" id="uploadAnnotations" class="show-for-sr" name="annotationsfile" accept="application/json,.gpx" v-model="annotationsfile" v-el:annotationsfile @change="importAnnotations()"/>
                   <a class="button" @click="downloadAnnotations()"><i class="fa fa-download" aria-hidden="true"></i> Export Annotations <br>({{export.vectorFormat}}
                       <i class="fa fa-toggle-down" aria-hidden="true" v-on:click.stop.prevent="shouldShowDataFormatPicker=!shouldShowDataFormatPicker"></i>)
                   </a>
@@ -179,6 +179,7 @@
         // array of layers that are selectable
         selectable: [],
         featureOverlay: {},
+        annotationsfile:'',
         note: {
           style: 'general',
           text: 'Sector: \nChannel: \nCommander: ',
@@ -270,6 +271,11 @@
       }
     },
     methods: {
+      importAnnotations:function() {
+        if (this.$els.annotationsfile.files.length > 0) {
+            this.export.importVector(this.$els.annotationsfile.files[0])
+        }
+      },
       setDataFormat:function(fmt) {
         this.export.vectorFormat = fmt
         this.shouldShowDataFormatPicker = false
@@ -430,6 +436,10 @@
 
         // auto-disable hover info, but remember the user's choice
         this.$root.active.hoverInfo = ((t.name === 'Pan') && (this.$root.active.hoverInfoCache))
+        
+        //change the cursor
+        $(map.olmap.getTargetElement()).find(".ol-viewport").css('cursor',t.cursor || 'default')
+        
 
         if (t.onSet) { t.onSet() }
 
@@ -723,6 +733,7 @@
       this.tool = this.ui.defaultPan = {
         name: 'Pan',
         icon: 'fa-hand-paper-o',
+        cursor:'move',
         scope:["annotation","bushfirereport","resourcetracking"],
         interactions: [
           map.dragPanInter,
@@ -735,6 +746,7 @@
         name: 'Edit Style',
         icon: 'fa-pencil-square-o',
         scope:["annotation"],
+        cursor:'crosshair',
         interactions: [
           this.ui.dragSelectInter,
           this.ui.selectInter,
@@ -748,6 +760,7 @@
         name: 'Select',
         icon: 'fa-mouse-pointer',
         scope:["annotation","resourcetracking"],
+        cursor:'pointer',
         interactions: [
           this.ui.keyboardInter,
           this.ui.dragSelectInter,
@@ -763,6 +776,7 @@
         name: 'Edit',
         icon: 'fa-pencil',
         scope:["annotation"],
+        cursor:'crosshair',
         interactions: [
           this.ui.keyboardInter,
           this.ui.selectInter,
