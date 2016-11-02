@@ -438,7 +438,15 @@
         this.$root.active.hoverInfo = ((t.name === 'Pan') && (this.$root.active.hoverInfoCache))
         
         //change the cursor
-        $(map.olmap.getTargetElement()).find(".ol-viewport").css('cursor',t.cursor || 'default')
+        if (t.cursor && typeof t.cursor === 'string') {
+            $(map.olmap.getTargetElement()).find(".ol-viewport").css('cursor',t.cursor)
+        } else if (t.cursor&& Array.isArray(t.cursor)) {
+            $.each(t.cursor,function(index,value){
+                $(map.olmap.getTargetElement()).find(".ol-viewport").css('cursor',value)
+            })
+        } else {
+            $(map.olmap.getTargetElement()).find(".ol-viewport").css('cursor','default')
+        }
         
 
         if (t.onSet) { t.onSet() }
@@ -730,10 +738,10 @@
         }
       })
       // load default tools
-      this.tool = this.ui.defaultPan = {
+      this.ui.defaultPan = {
         name: 'Pan',
         icon: 'fa-hand-paper-o',
-        cursor:'move',
+        cursor:['-webkit-grab','-moz-grab'],
         scope:["annotation","bushfirereport","resourcetracking"],
         interactions: [
           map.dragPanInter,
@@ -746,7 +754,6 @@
         name: 'Edit Style',
         icon: 'fa-pencil-square-o',
         scope:["annotation"],
-        cursor:'crosshair',
         interactions: [
           this.ui.dragSelectInter,
           this.ui.selectInter,
@@ -760,7 +767,6 @@
         name: 'Select',
         icon: 'fa-mouse-pointer',
         scope:["annotation","resourcetracking"],
-        cursor:'pointer',
         interactions: [
           this.ui.keyboardInter,
           this.ui.dragSelectInter,
@@ -773,10 +779,9 @@
         }
       }
       this.ui.defaultEdit = {
-        name: 'Edit',
+        name: 'Edit Geometry',
         icon: 'fa-pencil',
         scope:["annotation"],
-        cursor:'crosshair',
         interactions: [
           this.ui.keyboardInter,
           this.ui.selectInter,
