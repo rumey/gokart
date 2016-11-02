@@ -557,17 +557,6 @@ input[type="range"] {
     bottom:0px;
 }
 
-#active-layers-legend .print-button{
-    position: absolute;
-    color: #8a8a8a;
-    right: 3rem;
-    top: 1rem;
-    font-size: 1.3em;
-    line-height: 1;
-    cursor: pointer;
-}
-
-
 .feature-row {
     cursor: pointer;
 }
