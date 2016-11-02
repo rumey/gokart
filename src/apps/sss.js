@@ -419,6 +419,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
                 self.$broadcast('gk-init')
                 // after catalogue load trigger a tour
                 $("#menu-tab-layers-label").trigger("click")
+                self.$refs.app.switchMenu("mapLayers",self.$refs.app.init)
                 self.loading.app.end()
             } catch(err) {
                 //some exception happens
