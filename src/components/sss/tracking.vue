@@ -540,7 +540,7 @@
         refresh: 60,
         onload: function(loadType,vectorSource,features,defaultOnload) {
             defaultOnload(loadType,vectorSource,features)
-            if (vm.$root.annotations.selectable && vm.$root.annotations.selectable.length == 1 && vm.$root.annotations.selectable[0] == vm.trackingMapLayer) {
+            if (vm.selectedDevices.length > 0) {
                 var deviceIds = vm.selectedDevices.slice()
                 vm.$root.annotations.selectedFeatures.clear()
                 features.filter(function(el, index, arr) {

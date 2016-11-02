@@ -542,7 +542,7 @@
                   if (features[0].get("toolName")) {
                       vm.annotations.features.extend(features)
                   } else {
-                      alert("Importing an external json file is not supported.")
+                      alert("External json file not supported")
                   }
               }
           } else if (fileFormat === ".gpx") {
