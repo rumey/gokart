@@ -59,7 +59,7 @@
                   <option value="symbolid LIKE '%comms_bus'">Communications Bus</option>
                   <option value="symbolid LIKE '%gang_truck'">Gang Truck</option>
                   <option value="symbolid LIKE '%heavy_duty'">Heavy Duty</option>
-                  <option value="(symbolid LIKE '%heavy_duty' OR symbolid LIKE '%gang_truck')">GT and HD</option>
+                  <option value="(symbolid LIKE '%heavy_duty' OR symbolid LIKE '%gang_truck')">Gang Truck and Heavy Duty</option>
                   <option value="(symbolid LIKE '%dozer' OR symbolid LIKE '%grader' OR symbolid LIKE '%loader')">Machinery</option>
                   <option value="symbolid LIKE '%aircraft'">Aircraft</option>
                 </select>
@@ -540,7 +540,7 @@
         refresh: 60,
         onload: function(loadType,vectorSource,features,defaultOnload) {
             defaultOnload(loadType,vectorSource,features)
-            if (vm.$root.annotations.selectable && vm.$root.annotations.selectable.length == 1 && vm.$root.annotations.selectable[0] == vm.trackingMapLayer) {
+            if (vm.selectedDevices.length > 0) {
                 var deviceIds = vm.selectedDevices.slice()
                 vm.$root.annotations.selectedFeatures.clear()
                 features.filter(function(el, index, arr) {
