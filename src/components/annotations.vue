@@ -41,7 +41,7 @@
                   <a class="button"><i class="fa fa-repeat" aria-hidden="true"></i> Redo</a>
                 </div>
                 <div class="expanded button-group">
-                  <label class="button " for="uploadAnnotations" title="Support GeoJSON(.json), GPS data(.gpx)"><i class="fa fa-upload"></i> Import Annotations </label><input type="file" id="uploadAnnotations" class="show-for-sr" name="annotationsfile" accept="application/json,.gpx" v-model="annotationsfile" v-el:annotationsfile @change="importAnnotations()"/>
+                  <label class="button " for="uploadAnnotations" title="Support GeoJSON(.json), GPS data(.gpx)"><i class="fa fa-upload"></i> Import Annotations </label><input type="file" id="uploadAnnotations" class="show-for-sr" name="annotationsfile" accept="application/json,.gpx" v-model="annotationsfile" v-el:annotationsfile @change="importAnnotations()" @click="shouldShowDataFormatPicker=false"/>
                   <a class="button" @click="downloadAnnotations()"><i class="fa fa-download" aria-hidden="true"></i> Export Annotations <br>({{export.vectorFormat}}
                       <i class="fa fa-toggle-down" aria-hidden="true" v-on:click.stop.prevent="shouldShowDataFormatPicker=!shouldShowDataFormatPicker"></i>)
                   </a>
@@ -398,6 +398,7 @@
         })[0]
       },
       setTool: function (t) {
+        this.shouldShowDataFormatPicker = false
         if (!t) {
             if (this._previousActiveMenu && this._previousActiveMenu !== this.$root.activeMenu && this._previousTool) {
                 //before switching to other menu, a non-pan tool was enabled, choose the 'pan' tool for the current menu to preseve the changes(for example, the selected features) made by the previous non-pan tool
