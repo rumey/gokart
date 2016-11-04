@@ -133,6 +133,8 @@
                 if (!changed) {
                     return
                 }
+            } else {
+                results = results.reverse()
             }
             vm.legendLayers = results 
             if (vm.legendLayers.find(function(layer){return vm.hiddenLayers[layer.id]})) {
