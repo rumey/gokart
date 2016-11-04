@@ -1,11 +1,11 @@
 <template >
-  <div class="reveal" id="active-layers-legend" data-reveal data-v-offset="0px" data-h-offset="auto" data-overlay="true" data-close-on-esc="false" data-close-on-click="false">
-    <h4>Legends ({{displayLegendLayers.length}}/{{legendLayers.length}})</h4>
+  <div class="reveal" id="active-layer-legends" data-reveal data-v-offset="0px" data-overlay="false" data-close-on-esc="false" data-close-on-click="false" >
+    <h4 id="legend-title" @mouseenter="enableMove(true)" @mouseout="enableMove(false)">Legends ({{displayLegendLayers.length}}/{{legendLayers.length}})</h4>
     <div id="active-layer-legend-list">
         <template v-for="l in displayLegendLayers" track-by="id">
-            <div class="layer-legend-row row" >
+            <div class="layer-row layer-legend-row row" >
                 <div class="small-11">
-                    <a class="layer-title" style="cursor:hand">{{ l.name || l.id }} </a>
+                    <h6 class="layer-title" >{{ l.name || l.id }} </h6>
                 </div>
                 <div class="small-1">
                     <a class="button tiny secondary" @click="hideLegend(l)" title="Hide"><i class="fa fa-eye-slash"></i></a>
@@ -14,46 +14,61 @@
                     <img v-bind:src="l.legend" class="cat-legend" @error="loadLegendFailed($index,l)" crossOrigin="use-credentials"/>
                 </div>
             </div>
-         </template>
-     </div>
-     <button v-bind:class={disabled:disableShowall} v-bind:disabled="disableShowall" type="button" class="showall-button" @click="showAll()" title="Show All">
-       <i class="fa fa-eye"></i>
-     </button>
-     <button v-bind:class="{disabled:disablePrint}" v-bind:disabled="disablePrint" type="button" class="print-button" @click="printLegends()" title="Print">
-       <i class="fa fa-print"></i>
-     </button>
-     <button class="close-button" data-close aria-label="Close modal" type="button" title="Close">
-       <span aria-hidden="true">&times;</span>
-     </button>
+        </template>
+    </div>
+    <button v-bind:class={disabled:disableShowall} v-bind:disabled="disableShowall" type="button" class="showall-button" @click="showAll()" title="Show All">
+      <i class="fa fa-eye"></i>
+    </button>
+    <button v-bind:class="{disabled:disablePrint}" v-bind:disabled="disablePrint" type="button" class="print-button" @click="printLegends()" title="Print">
+      <i class="fa fa-print"></i>
+    </button>
+    <button class="close-button" data-close aria-label="Close modal" type="button" title="Close">
+      <span aria-hidden="true">&times;</span>
+    </button>
   </div>
 </template>
 <style>
-#active-layers-legend .disabled{
+#active-layer-legends {
+    height:99%;
+}
+#legend-title {
+    cursor:move;
+}
+#active-layer-legends-list {
+    height:99%;
+}
+#active-layer-legends .disabled{
     color: #8a8a8a;
 }
-#active-layers-legend button{
-    position: absolute;
+#active-layer-legends button{
     color: #2199e8;
-    top: 1rem;
-    font-size: 1.3em;
 }
-#active-layers-legend .showall-button{
+#active-layer-legends .showall-button{
     right: 4.5rem;
+    font-size: 1.3em;
+    position: absolute;
+    top: 1rem;
 }
-#active-layers-legend .print-button{
+#active-layer-legends .print-button{
     right: 2.5rem;
+    font-size: 1.3em;
+    position: absolute;
+    top: 1rem;
 }
-
+.layer-legend-row{
+    padding-bottom:50px
+}
 </style>
 <script>
-  import { saveAs, $, jsPDF } from 'src/vendor.js'
+  import { saveAs, $, jsPDF,interact } from 'src/vendor.js'
   export default {
     store: [ 'dpmm'],
     data: function() {
       return {
           legendLayers:[],
           filteredLegendLayers:[],
-          hiddenLayers:{}
+          hiddenLayers:{},
+          position:"right-top"
       }
     },
     computed: {
@@ -68,6 +83,9 @@
       }
     },
     methods:{
+      enableMove:function(enable) {
+        this._interact.draggable(enable)
+      },
       showAll:function() {
         this.hiddenLayers = {}
         this.filteredLegendLayers = null
@@ -125,7 +143,7 @@
                 vm.filteredLegendLayers = null
             }
         }
-        vm.activeLayerLegends = vm.activeLayerLegends || new Foundation.Reveal($("#active-layers-legend"))
+        vm.activeLayerLegends = vm.activeLayerLegends || new Foundation.Reveal($("#active-layer-legends"))
         if (vm.activeLayerLegends.isActive) {
             vm.activeLayerLegends.close()
             vm.unwatchActiveLayers()
@@ -232,6 +250,90 @@
         saveAs(doc.output("blob"),filename)
 
       },
+      setPosition:function(left,right,top,bottom) {
+        if (left == null) {
+            this._position[0] = right - parseInt($("#active-layer-legends").css('width'))
+        } else {
+            this._position[0] = left
+        } 
+        if (right == null) {
+            this._position[1] = left + parseInt($("#active-layer-legends").css('width'))
+        } else {
+            this._position[1] = right
+        }
+        if (top == null) {
+            this._position[2] = bottom - parseInt($("#active-layer-legends").css('height'))
+        } else {
+            this._position[2] = top
+        }
+        if (bottom == null) {
+            this._position[3] = top + parseInt($("#active-layer-legends").css('height'))
+        } else {
+            this._position[3] = bottom
+        }
+        $("#active-layer-legends").get(0).style.left = this._position[0] + "px"
+        $("#active-layer-legends").get(0).style.right = this._position[1] + "px"
+        $("#active-layer-legends").get(0).style.top = this._position[2] + "px"
+        $("#active-layer-legends").get(0).style.bottom = this._position[3] + "px"
+      },
+    },
+    ready: function () {
+      var vm = this
+      vm._position = null
+      $("#active-layer-legends").on("open.zf.reveal",function(){
+        if (vm._position == null) {
+            vm._position = [null,null,null,null]
+            vm.setPosition(null,parseInt($(document.body).css('width')),0,null)
+        } else {
+            vm.setPosition(vm._position[0],vm._position[1],vm._position[2],vm._position[3])
+        }
+
+      })
+
+      vm._interact = interact($("#active-layer-legends").get(0),{
+        })
+        .resizable({
+            edges:{
+                top:true,
+                left:true,
+                bottom:true,
+                right:false
+            },
+            preserveAspectRatio:false,
+            onmove:function(event){
+                var target = event.target
+
+                // update the element's style
+                target.style.width  = event.rect.width + 'px';
+                target.style.height = event.rect.height + 'px';
+                vm.setPosition(event.rect.left,event.rect.right,event.rect.top,event.rect.bottom)
+            }
+        })
+        .draggable({
+            intertia:true,
+            restrict:{
+                restriction:document.body,
+                endOnly:true,
+                elementRect:{top:0,left:0,bottom:1,right:1}
+            },
+            autoScroll:true,
+            onmove: function(event){
+                var target = event.target
+                // keep the dragged position in the data-x/data-y attributes
+                //console.log("x0 = " + event.x0 +",y0= " + event.y0 + ",clientX0=" + event.clientX0 + ",clientY0=" + event.clientY0 + ",dx=" + event.dx + ",dy=" + event.dy)
+                vm._position[0] = vm._position[0] + event.dx
+                vm._position[1] = vm._position[1] + event.dx
+                vm._position[2] = vm._position[2] + event.dy
+                vm._position[3] = vm._position[3] + event.dy
+                //vm.setPosition(vm._position[0] + event.dx,vm._position[1] + event.dx ,vm._position[2] + event.dy,vm._position[3] + event.dy)
+                vm.setPosition(vm._position[0],vm._position[1] ,vm._position[2],vm._position[3])
+
+            },
+            onend:function(event) {
+                //vm._interact.draggable(false)
+            }
+        })
+      vm._interact.draggable(false)
     }
   }
 </script>
