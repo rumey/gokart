@@ -181,7 +181,7 @@
         var result = {
           title: this.finalTitle,
           author: this.whoami.email,
-          date: 'Printed ' + moment().toLocaleString()
+          date: 'Map last amended ' + moment().toLocaleString()
         }
         if (this.$root.map) {
           result.km = (Math.round(this.$root.map.getScale() * 40) / 1000).toLocaleString()
