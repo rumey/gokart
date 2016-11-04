@@ -435,18 +435,13 @@ input[type="range"] {
 
 /* styling for movable row boxes */
 .layer-row,
-.layer-legend-row,
 .feature-row {
     color: white;
     background-color: rgba(37, 45, 51, 0.5);
     padding: 4px;
 }
 
-.layer-legend-row{
-    padding-bottom:50px
-}
 .layer-row:nth-child(even),
-.layer-legend-row:nth-child(even),
 .feature-row:nth-child(even) {
     background-color: rgba(37, 45, 51, 0.3);
 }
@@ -549,24 +544,6 @@ input[type="range"] {
 .map-control:hover {
     background-color: rgba(37, 45, 51, 0.9);
 }
-
-.reveal-overlay {
-    left:auto;
-    top:0px;
-    right:0px;
-    bottom:0px;
-}
-
-#active-layers-legend .print-button{
-    position: absolute;
-    color: #8a8a8a;
-    right: 3rem;
-    top: 1rem;
-    font-size: 1.3em;
-    line-height: 1;
-    cursor: pointer;
-}
-
 
 .feature-row {
     cursor: pointer;
