@@ -3,7 +3,7 @@
     <div class="row collapse">
       <div class="columns">
         <ul class="tabs" id="annotations-tabs">
-          <li class="tabs-title is-active"><a class="label" aria-selected="true">Editing</a></li>
+          <li class="tabs-title is-active"><a class="label" aria-selected="true">Drawing Tools</a></li>
         </ul>
       </div>
     </div>
@@ -41,8 +41,8 @@
                   <a class="button"><i class="fa fa-repeat" aria-hidden="true"></i> Redo</a>
                 </div>
                 <div class="expanded button-group">
-                  <label class="button " for="uploadAnnotations" title="Support GeoJSON(.json), GPS data(.gpx)"><i class="fa fa-upload"></i> Import Editing </label><input type="file" id="uploadAnnotations" class="show-for-sr" name="annotationsfile" accept="application/json,.gpx" v-model="annotationsfile" v-el:annotationsfile @change="importAnnotations()" @click="shouldShowDataFormatPicker=false"/>
-                  <a class="button" @click="downloadAnnotations()"><i class="fa fa-download" aria-hidden="true"></i> Export Editing <br>({{export.vectorFormat}}
+                  <label class="button " for="uploadAnnotations" title="Support GeoJSON(.json), GPS data(.gpx)"><i class="fa fa-upload"></i> Import Drawing </label><input type="file" id="uploadAnnotations" class="show-for-sr" name="annotationsfile" accept="application/json,.gpx" v-model="annotationsfile" v-el:annotationsfile @change="importAnnotations()" @click="shouldShowDataFormatPicker=false"/>
+                  <a class="button" @click="downloadAnnotations()"><i class="fa fa-download" aria-hidden="true"></i> Export Drawing <br>({{export.vectorFormat}}
                       <i class="fa fa-toggle-down" aria-hidden="true" v-on:click.stop.prevent="shouldShowDataFormatPicker=!shouldShowDataFormatPicker"></i>)
                   </a>
                 </div>

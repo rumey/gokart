@@ -56,12 +56,13 @@
               <div class="small-6 columns">
                 <select name="select" v-model="cql" @change="updateCQLFilter">
                   <option value="" selected>All resources</option> 
+                  <option value="symbolid LIKE '%aircraft'">Aircraft</option>
                   <option value="symbolid LIKE '%comms_bus'">Communications Bus</option>
                   <option value="symbolid LIKE '%gang_truck'">Gang Truck</option>
                   <option value="symbolid LIKE '%heavy_duty'">Heavy Duty</option>
                   <option value="(symbolid LIKE '%heavy_duty' OR symbolid LIKE '%gang_truck')">Gang Truck and Heavy Duty</option>
+                  <option value="symbolid LIKE '%light_unit'">Light Unit</option>
                   <option value="(symbolid LIKE '%dozer' OR symbolid LIKE '%grader' OR symbolid LIKE '%loader')">Machinery</option>
-                  <option value="symbolid LIKE '%aircraft'">Aircraft</option>
                 </select>
               </div>
               <div class="small-6 columns">
@@ -568,7 +569,7 @@
         trackingStatus.progress(80,"Process 'gk-init' event")
         map.olmap.getView().on('propertychange', vm.updateViewport)
 
-        var layersAdded = global.debounce(function () {
+        /*var layersAdded = global.debounce(function () {
           var mapLayer = vm.trackingMapLayer
           if (!mapLayer) { return }
           if (!mapLayer.get('tracking')) {
@@ -576,7 +577,7 @@
           }
         }, 100)
         map.olmap.getLayerGroup().on('change', layersAdded)
-        layersAdded()
+        layersAdded()*/
 
         this.$root.annotations.selectedFeatures.on('add', function (event) {
           if (event.element.get('deviceid')) {
