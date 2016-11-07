@@ -611,7 +611,7 @@
         })
       })
       this.featureOverlay.set('id', 'annotations')
-      this.featureOverlay.set('name', 'My Editing')
+      this.featureOverlay.set('name', 'My Drawing')
       // collection for tracking selected features
 
       // add new points to annotations layer
@@ -934,7 +934,7 @@
       this.$root.catalogue.catalogue.push({
         type: 'Annotations',
         id: 'annotations',
-        name: 'My Editing',
+        name: 'My Drawing',
         getFeatureInfo:getFeatureInfo
       })
 
