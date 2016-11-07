@@ -13,8 +13,7 @@
 
           <div class="tabs-panel is-active" id="annotations-edit" v-cloak>
             <div class="tool-slice row collapse">
-              <div class="small-2"><label class="tool-label">Tool:</label></div>
-              <div class="small-10">
+              <div class="small-12">
                 <div class="expanded button-group">
                   <a v-for="t in annotationTools | filterIf 'showName' undefined" class="button button-tool" v-bind:class="{'selected': t.name == tool.name}"
                     @click="setTool(t)" v-bind:title="t.name">{{{ icon(t) }}}</a>
@@ -29,8 +28,7 @@
             </div>
 
             <div class="tool-slice row collapse">
-              <div class="small-2"><label class="tool-label">Ops:</label></div>
-              <div class="small-10">
+              <div class="small-12">
                 <div class="expanded button-group hide">
                   <a class="button"><i class="fa fa-cut" aria-hidden="true"></i> Cut</a>
                   <a class="button"><i class="fa fa-copy" aria-hidden="true"></i> Copy</a>
@@ -82,7 +80,7 @@
             </div>
 
             <div v-show="shouldShowNoteEditor" class="tool-slice row collapse">
-              <div class="small-2">Note:</div>
+              <div class="small-2"><label class="tool-label">Note:</label></div>
               <div class="small-10">
                 <select name="select" @change="note.text = $event.target.value.split('<br>').join('\n')">
                   <option value="">Text Templates</option> 
