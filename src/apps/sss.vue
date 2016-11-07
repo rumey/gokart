@@ -21,7 +21,7 @@
                         </a>
                     </li>
                     <li class="tabs-title side-button">
-                        <a href="#menu-tab-annotations" title="Annotations" @click="switchMenu('annotations',$root.annotations.init)">
+                        <a href="#menu-tab-annotations" title="Drawing Tools" @click="switchMenu('annotations',$root.annotations.init)">
                             <i class="fa fa-pencil" aria-hidden="true"></i>
                         </a>
                     </li>
