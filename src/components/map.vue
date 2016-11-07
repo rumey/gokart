@@ -241,12 +241,12 @@
       },
       // generate a human-readable scale string
       getScaleString: function (scale) {
-        if (Math.round(scale * 100) / 100 < 1.0) {
-          return '1:' + (Math.round(scale * 100000) / 100).toLocaleString()
+        if (Math.round(scale * 100) / 100 < 10.0) {
+          return '1:' + (Math.round(scale * 1000)).toLocaleString()
         } else if (Math.round(scale * 100) / 100 >= 1000.0) {
-          return '1:' + (Math.round(scale / 10) / 100).toLocaleString() + 'M'
+          return '1:' + (Math.round(scale / 1000)).toLocaleString() + ' M'
         }
-        return '1:' + (Math.round(scale * 100) / 100).toLocaleString() + 'K'
+        return '1:' + (Math.round(scale)).toLocaleString() + ' K'
       },
       // get the decimal degrees representation of some EPSG:4326 coordinates
       getDeg: function(coords) {
