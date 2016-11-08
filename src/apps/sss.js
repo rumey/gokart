@@ -42,7 +42,7 @@ var volatileData = {
   gokartService: env.gokartService,
   oimService:env.oimService,
   sssService:env.sssService,
-  bfrsService:env.bfrsService,
+  //bfrsService:env.bfrsService,
   appType:env.appType,
   // fixed scales for the scale selector (1:1K increments)
   fixedScales: [0.25, 0.5, 1, 2, 2.5, 5, 10, 20, 25, 50, 80, 100, 125, 250, 500, 1000, 2000, 3000, 5000, 10000, 25000],
@@ -129,7 +129,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
       export: function () { return this.$refs.app.$refs.layers.$refs.export },
       annotations: function () { return this.$refs.app.$refs.annotations },
       tracking: function () { return this.$refs.app.$refs.tracking },
-      bfrs: function () { return this.$refs.app.$refs.bfrs },
+      //bfrs: function () { return this.$refs.app.$refs.bfrs },
       geojson: function () { return new ol.format.GeoJSON() },
       wgs84Sphere: function () { return new ol.Sphere(6378137) },
       activeMenu: function() {return this.$refs.app.activeMenu},
@@ -249,54 +249,12 @@ localforage.getItem('sssOfflineStore').then(function (store) {
       }])
 
       // load custom annotation tools
-      /*var hotSpotStyle = new ol.style.Style({
-        image: new ol.style.Circle({
-          fill: new ol.style.Fill({
-            color: '#b43232'
-          }),
-          radius: 8
-        })
-      })*/
-
-      /*var hotSpotDraw = new ol.interaction.Draw({
-        type: 'Point',
-        features: this.annotations.features,
-        style: hotSpotStyle
-      })*/
-
       self.loading.app.progress(20,"Initialize SSS tools")
-      var originPointDraw = self.annotations.iconDrawFactory({
-        icon: 'dist/static/symbols/fire/origin.svg',
-        features:  self.annotations.features,
-        tint: 'default',
-        tints: self.tints
-      })
-      var spotFireDraw = self.annotations.iconDrawFactory({
-        icon: 'dist/static/symbols/fire/spotfire.svg',
-        features:  self.annotations.features,
-        tint: 'default',
-        tints: self.tints
-      })
-      var divisionDraw = self.annotations.iconDrawFactory({
-        icon: 'dist/static/symbols/fire/division.svg',
-        features:  self.annotations.features,
-        tint: 'default',
-        tints: self.tints,
-        perpendicular: true
-      })
-      var sectorDraw = self.annotations.iconDrawFactory({
-        icon: 'dist/static/symbols/fire/sector.svg',
-        features:  self.annotations.features,
-        tint: 'default',
-        tints: self.tints,
-        perpendicular: true
-      })
 
-
-      var fireBoundaryStyle = function() {
+      var fireBoundaryStyle = function(res) {
           var f = this
           var style = null
-          if (f && f.get('tint') == 'selected') {
+          if (f && f['tint'] == 'selected') {
               style = [
                   new ol.style.Style({
                     fill: new ol.style.Fill({
@@ -333,26 +291,12 @@ localforage.getItem('sssOfflineStore').then(function (store) {
           }
           return style
       }
-
-      var fireBoundaryDraw = new ol.interaction.Draw({
-        type: 'Polygon',
-        features: self.annotations.features,
-        style: self.annotations.getStyleFunction(fireBoundaryStyle)
-      })
-
-      var snapToLines = new ol.interaction.Snap({
-        features: self.annotations.features,
-        edge: true,
-        vertex: false,
-        pixelTolerance: 16
-      })
-
       var sssTools = [
         {
           name: 'Fire Boundary',
           icon: 'dist/static/images/iD-sprite.svg#icon-area',
           style: fireBoundaryStyle,
-          interactions: [fireBoundaryDraw],
+          interactions: [self.annotations.polygonDrawFactory()],
           scope:["annotation"],
           showName: true
         },
@@ -360,16 +304,22 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         {
           name: 'Division',
           icon: 'dist/static/symbols/fire/division.svg',
-          interactions: [divisionDraw, snapToLines],
+          tints: self.tints,
+          perpendicular: true,
+          interactions: [self.annotations.pointDrawFactory(), self.annotations.snapToLineFactory()],
           style: self.annotations.getIconStyleFunction(self.tints),
+          sketchStyle: self.annotations.getIconStyleFunction(self.tints),
           selectedTint: 'selectedDivision',
           scope:["annotation"],
           showName: true
         }, {
           name: 'Sector',
           icon: 'dist/static/symbols/fire/sector.svg',
-          interactions: [sectorDraw, snapToLines],
+          tints: self.tints,
+          perpendicular: true,
+          interactions: [self.annotations.pointDrawFactory(), self.annotations.snapToLineFactory()],
           style: self.annotations.getIconStyleFunction(self.tints),
+          sketchStyle: self.annotations.getIconStyleFunction(self.tints),
           selectedTint: 'selectedDivision',
           scope:["annotation"],
           showName: true
@@ -382,16 +332,20 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         }, {*/
           name: 'Origin Point',
           icon: 'dist/static/symbols/fire/origin.svg',
-          interactions: [originPointDraw],
+          tints: self.tints,
+          interactions: [self.annotations.pointDrawFactory()],
           style: self.annotations.getIconStyleFunction(self.tints),
+          sketchStyle: self.annotations.getIconStyleFunction(self.tints),
           selectedTint: 'selectedPoint',
           scope:["annotation"],
           showName: true,
         }, {
           name: 'Spot Fire',
           icon: 'dist/static/symbols/fire/spotfire.svg',
-          interactions: [spotFireDraw],
+          tints: self.tints,
+          interactions: [self.annotations.pointDrawFactory()],
           style: self.annotations.getIconStyleFunction(self.tints),
+          sketchStyle: self.annotations.getIconStyleFunction(self.tints),
           selectedTint: 'selectedPoint',
           scope:["annotation"],
           showName: true,
@@ -423,7 +377,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
                 self.loading.app.end()
             } catch(err) {
                 //some exception happens
-                self.loading.app.failed()
+                self.loading.app.failed(err)
                 throw err
             }
             if (self.store.settings.tourVersion !== tour.version) {
@@ -434,7 +388,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
           })
       } catch(err) {
           //some exception happens
-          self.loading.app.failed()
+          self.loading.app.failed(err)
           throw err
       }
     }

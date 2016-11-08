@@ -168,6 +168,7 @@
   }
 
   export default {
+    store: ['dpmm'],
     data: function () {
       return {
         ui: {},
@@ -200,12 +201,16 @@
           ['grey', '#555753'],
           ['black', '#000000']
         ],
-        advanced: false
+        advanced: false,
+        tints: {
+          'test': [['#006400ff', '#2199e8']],
+        }
       }
     },
     computed: {
       map: function () { return this.$root.$refs.app.$refs.map },
       export: function () { return this.$root.export },
+      measure: function () { return this.$root.measure },
       loading: function () { return this.$root.loading },
       featureEditing: function() {
         if (this.tool == this.ui.editStyle && this.selectedFeatures.getLength() > 0) {
@@ -280,12 +285,6 @@
         this.export.vectorFormat = fmt
         this.shouldShowDataFormatPicker = false
       },
-      getStyleFunction: function(featureStyleFunction,thisArg) {
-        var func = function(feat,res) {
-            return featureStyleFunction.call(thisArg || feat,res)
-        }
-        return func
-      },
       downloadAnnotations: function() {
         this.$root.export.exportVector(this.features.getArray(), 'annotations')
       },
@@ -347,27 +346,70 @@
         var normal = Math.atan2(-offset[1], offset[0])
         return normal
       },
-      iconDrawFactory : function (options) {
+      snapToLineFactory: function(options) {
+        return new ol.interaction.Snap({
+            features: (options && options.features) || this.features,
+            edge: (!options || options.edge === undefined)?true:options.edge,
+            vertex: (!options || options.vertex == undefined)?false:options.vertex,
+            pixelTolerance: (options && options.pixelTolerance) || 16
+          })
+      },
+      linestringDrawFactory : function (options) {
         var vm = this
-        var defaultFeat = new ol.Feature({
-            'icon': options.icon,
-            'tint': options.tint
-        })
+        return function(tool) {
+            var draw =  new ol.interaction.Draw({
+              type: 'LineString',
+              features: tool.features || vm.features,
+            })
+            draw.on('drawstart', function (ev) {
+              // set parameters
+              ev.feature.set('toolName',tool.name)
+              ev.feature.setStyle(tool.style)
+            })
+            return draw
+        }
+      },
+      polygonDrawFactory : function (options) {
+        var vm = this
+        return function(tool) {
+            var draw =  new ol.interaction.Draw({
+              type: 'Polygon',
+              features: tool.features || vm.features,
+            })
+            draw.on('drawend', function (ev) {
+              // set parameters
+              ev.feature.set('toolName',tool.name)
+              ev.feature.setStyle(tool.style)
+            })
+            return draw
+        }
+      },
+      pointDrawFactory : function (options) {
+        var vm = this
+        return function(tool) {
+            var sketchStyle = undefined
+            if (tool.sketchStyle) {
+                var defaultFeat = new ol.Feature($.extend({'toolName': tool.name},options||{}))
+                sketchStyle = function(res) {return tool.sketchStyle.apply(defaultFeat,res);}
+            }
 
-        var draw =  new ol.interaction.Draw({
-          type: 'Point',
-          features: options.features,
-          style: vm.getStyleFunction(vm.getIconStyleFunction(options.tints || {}),defaultFeat)
-        })
-        draw.on('drawstart', function (ev) {
-          // set parameters
-          ev.feature.set('icon', options.icon)
-          if (options.perpendicular) {
-            var coords = ev.feature.getGeometry().getCoordinates()
-            ev.feature.set('rotation', vm.getPerpendicular(coords))
-          }
-        })
-        return draw
+            var draw =  new ol.interaction.Draw({
+              type: 'Point',
+              features: tool.features || vm.features,
+              style: sketchStyle
+            })
+
+            draw.on('drawstart', function (ev) {
+              // set parameters
+              ev.feature.set('toolName',tool.name)
+              ev.feature.setStyle(tool.style)
+              if (tool.perpendicular) {
+                var coords = ev.feature.getGeometry().getCoordinates()
+                ev.feature.set('rotation', vm.getPerpendicular(coords))
+              }
+            })
+            return draw
+        }
       },
       icon: function (t) {
         if (t.icon.startsWith('fa-')) {
@@ -562,13 +604,20 @@
         return [bottomLeftCoordinate[0],bottomLeftCoordinate[1],upRightCoordinate[0],upRightCoordinate[1]]
       },
       tintSelectedFeature:function(feature) {
-        feature.set('baseTint', feature.get('tint'),true)
-        var tool = this.getTool(feature.get('toolName'))
-        if (tool) {
-            feature.set('tint', tool.selectedTint || 'selected')
-        } else {
-            feature.set('tint', 'selected')
+        var tool = feature.get('toolName')?this.getTool(feature.get('toolName')):false
+        feature['tint'] = (tool && tool.selectedTint) || 'selected'
+        if (tool && tool.typeIcon) {
+            feature['typeIconTint'] = tool.typeIconSelectedTint || 'selected'
         }
+        feature.changed()
+      },
+      tintUnselectedFeature:function(feature) {
+        delete feature['tint']
+        var tool = feature.get('toolName')?this.getTool(feature.get('toolName')):false
+        if (tool && tool.typeIcon) {
+            delete feature['typeIconTint']
+        }
+        feature.changed()
       }
     },
     ready: function () {
@@ -578,23 +627,21 @@
       var map = this.map
       // collection to store all annotation features
       this.features.on('add', function (ev) {
-        var feature = ev.element
-        var tool = null
-        if (feature.get('toolName')) {
-          tool = vm.getTool(feature.get('toolName'))
-        } else {
-          feature.set('toolName', vm.tool.name)
-          tool = vm.tool
-        }
-        feature.set('tint', tool.tint || 'default')
+        tool = vm.getTool(ev.element.get('toolName'))
         if (tool.onAdd) {
-          tool.onAdd(feature)
+          tool.onAdd(ev.element)
         }
-        feature.setStyle(tool.style || null)
       })
       var savedFeatures = this.$root.geojson.readFeatures(this.$root.store.annotations)
       this.$on('gk-init', function () {
         if (savedFeatures) {
+          //set feature style
+          $.each(savedFeatures,function(index,feature){
+            var tool = feature.get('toolName')?vm.getTool(feature.get('toolName')):false
+            if (tool) {
+                feature.setStyle(tool.style)
+            }
+          })
           this.features.extend(savedFeatures)
         }
       })
@@ -603,8 +650,7 @@
         vm.tintSelectedFeature(ev.element)
       })
       this.selectedFeatures.on('remove', function (ev) {
-        var feature = ev.element
-        feature.set('tint', feature.get('baseTint'))
+        vm.tintUnselectedFeature(ev.element)
       })
       // layer/source for modifying annotation features
       this.featureOverlay = new ol.layer.Vector({
@@ -615,24 +661,6 @@
       this.featureOverlay.set('id', 'annotations')
       this.featureOverlay.set('name', 'My Editing')
       // collection for tracking selected features
-
-      // add new points to annotations layer
-      this.ui.pointInter = new ol.interaction.Draw({
-        type: 'Point',
-        features: this.features
-      })
-
-      // add new lines to annotations layer
-      this.ui.lineInter = new ol.interaction.Draw({
-        type: 'LineString',
-        features: this.features
-      })
-
-      // add new polygons to annotations layer
-      this.ui.polyInter = new ol.interaction.Draw({
-        type: 'Polygon',
-        features: this.features
-      })
 
       // the following interacts are bundled into the Select and Edit tools.
       // main difference is that Select allows movement of whole features around the map,
@@ -816,7 +844,7 @@
         } else {
           return null
         }
-        var tint = f.get('tint') || "notselected"
+        var tint = f['tint'] || f.get('tint') || "notselected"
         if (!noteStyleCache[url]) {
             noteStyleCache[url] = []
         }
@@ -833,15 +861,11 @@
         }
         return noteStyleCache[url][tint]
       }
-      var noteDraw = new ol.interaction.Draw({
-        type: 'Point',
-        features: this.features
-      })
       this.ui.defaultText = {
         name: 'Text Note',
         icon: 'fa-comment',
         style: noteStyle,
-        interactions: [noteDraw],
+        interactions: [vm.pointDrawFactory()],
         showName: true,
         scope:["annotation"],
         onAdd: function (f) {
@@ -857,6 +881,7 @@
           f.set('note', $.extend({}, vm.note))
         },
       }
+
       var customAdd = function (f) {
         if (!f.get('size')) { 
           f.set('size', vm.size)
@@ -865,10 +890,11 @@
           f.set('colour', vm.colour)
         }
       }
+
       var vectorStyle = function () {
         var f = this
-        var style = vm.map.cacheStyle(function (f) {
-          if (f.get('tint') === 'selected') {
+        return vm.map.cacheStyle(function (f) {
+          if (f['tint'] === 'selected') {
             return [
               new ol.style.Style({
                 fill: new ol.style.Fill({
@@ -898,12 +924,114 @@
             })
           }
         },f,['size','colour','tint'])
-        return style
       }
+
+      var typedVectorStyleFunc = function (tints) {
+        return function() {
+            var f = this
+            var basicStyle = vectorStyle.apply(f)
+            //get the type symbol style if have 
+            var typeStyle = null
+            var tool = null
+            if (f.get('toolName')) {
+                tool = vm.getTool(f.get('toolName'))
+            } else {
+                tool = vm.tool
+            }
+            if (tool && f.getGeometry() instanceof ol.geom.Polygon && tool.typeIcon) {
+                //draw typeSymbol along the line.
+                typeStyle = []
+                var src = vm.map.getBlob(f, ['typeIcon', 'typeIconTint','typeIconDims'],tints || {})
+                if (!src) { return false }
+                var rot = 0.0
+                if (f['typeSymbolStyle']) {
+                    typeStyle = f['typeSymboleStyle']
+                } else {
+                    var segmentIndex = 0 
+                    var segmentMetadata = null
+                    var metadata = f.get('typeSymbolMetadata')
+                    if (!metadata) {
+                        metadata = {}
+                        f.set('typeSymbolMetadata',metadata,true)
+                    }
+                    var linestring = new ol.geom.LineString(f.getGeometry().getCoordinates()[0])
+                    var perimeter = 0
+                    if (!metadata['segments']) {
+                        var segmentsMetadata=[]
+                        linestring.forEachSegment(function(start,end){
+                            segmentMetadata = {
+                                length:vm.measure.getLength([start,end]),
+                                rotation: (Math.atan2(end[1] - start[1],end[0] - start[0]) + Math.PI * 2 + Math.PI * (30 / 180)) % (Math.PI * 2)
+                            }
+                            segmentsMetadata.push(segmentMetadata)
+                            perimeter += segmentMetadata['length']
+                        })
+                        metadata['perimeter'] = perimeter
+                        //get the position of each segment's end point in overall linestring
+                        var  len = 0
+                        $.each(segmentsMetadata,function(index,segmentMetadata){
+                            len += segmentMetadata['length']
+                            segmentMetadata['position'] = len / perimeter
+                        })
+                        metadata['segments'] = segmentsMetadata
+                    }
+                    if (!metadata['points']) {
+                        var pointsMetadata = {}
+                        pointsMetadata['scale'] = vm.map.getScale()
+                        var perimeterInPixes = (metadata['perimeter'] / (pointsMetadata['scale'] * 1000)) * 1000 * vm.dpmm
+                        pointsMetadata['symbolSize'] = parseInt(perimeterInPixes / (tool['typeIconDims']?tool['typeIconDims'][0]:48)) //each symbol occupy 2 times symbol size
+
+                        metadata['points'] = pointsMetadata
+                    }
+                    var symbolSize = metadata['points']['symbolSize']
+                    var symbolPercentage = 1 / symbolSize
+                    
+                    var segmentIndex = 0
+                    var segmentMetadata = metadata['segments'][segmentIndex]
+                    var symbolPoints = []
+                    var symbolStyle = null
+                    for (var i = 0;i <= symbolSize ;i++) {
+                        if (i == symbolSize || segmentMetadata['position'] < i * symbolPercentage) {
+                            typeStyle.push(new ol.style.Style({
+                                geometry:function(f) {
+                                    for (var i = 0;i < typeSymbolNumbers ;i++) {
+                                        points.push(linestring.getCoordinateAt(i * percentagePerSymbol))
+                                    }
+                                    return new ol.geom.MultiPoint(symbolPoints)
+                                },
+                                image: new ol.style.Icon({
+                                  src: src,
+                                  rotation: segmentMetadata['rotation'],
+                                  rotateWithView: true,
+                                  snapToPixel: true
+                                })
+                            }))
+                            if (i == symbolSize) {
+                                break;
+                            }
+                            segmentIndex += 1
+                            segmentMetadata = metadata['segments'][segmentIndex]
+                            symbolPoints = []
+                        }
+                        symbolPoints.push(linestring.getCoordinateAt(i * symbolPercentage))
+                    }
+                    f['typeSymbolStyle'] = typeStyle
+                }
+                if (Array.isArray(basicStyle)) {
+                    return basicStyle.concat(typeStyle)
+                } else {
+                    return [basicStyle].concat(typeStyle)
+                }
+            } else {
+                return basicStyle
+            }
+        }
+      }
+
       this.ui.defaultLine = {
         name: 'Custom Line',
         icon: 'dist/static/images/iD-sprite.svg#icon-line',
-        interactions: [this.ui.lineInter],
+        interactions: [this.linestringDrawFactory()],
         showName: true,
         scope:["annotation"],
         onAdd: customAdd,
@@ -912,11 +1040,15 @@
       this.ui.defaultPolygon = {
         name: 'Custom Area',
         icon: 'dist/static/images/iD-sprite.svg#icon-area',
-        interactions: [this.ui.polyInter],
+        typeIcon: 'dist/static/symbols/fire/plus.svg',
+        typeIconSelectedTint: 'test',
+        typeIconDims: [20,20],
+        interactions: [this.polygonDrawFactory()],
         showName: true,
         scope:["annotation"],
         onAdd: customAdd,
-        style: vectorStyle
+        style: typedVectorStyleFunc(this.tints)
+        //style: vectorStyle
       }
 
       var getFeatureInfo = function(feature) {
@@ -939,17 +1071,23 @@
         name: 'My Editing',
         getFeatureInfo:getFeatureInfo
       })
-
       annotationStatus.wait(30,"Listen 'gk-init' event")
       this.$on("gk-init",function() {
         annotationStatus.progress(80,"Process 'gk-init' event")
+        //initialize tool's interaction
+        $.each(vm.tools,function(index, tool){
+            $.each(tool.interactions,function(subindex,interact){
+                if (typeof interact === 'function') {
+                    tool.interactions[subindex] = interact(tool)
+                }
+            })
+        })
         vm.annotationTools = this.tools.filter(function (t) {
           return t.scope && t.scope.indexOf("annotation") >= 0
         })
         vm.setDefaultTool('annotations','Edit')
         annotationStatus.end()
       })
-
     }
 
   }

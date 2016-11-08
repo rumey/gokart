@@ -148,16 +148,18 @@
             element.parentNode.removeChild(element);
         }
       },
-      formatLength : function(line) {
-        var length
-        var coordinates = line.getCoordinates()
-        length = 0
+      getLength: function(coordinates) {
+        var length = 0
         var sourceProj = this.$root.map.olmap.getView().getProjection()
         for (var i = 0, ii = coordinates.length - 1; i < ii; ++i) {
           var c1 = ol.proj.transform(coordinates[i], sourceProj, 'EPSG:4326')
           var c2 = ol.proj.transform(coordinates[i + 1], sourceProj, 'EPSG:4326')
           length += this.wgs84Sphere.haversineDistance(c1, c2)
         }
+        return length
+      },
+      formatLength : function(line) {
+        var length = this.getLength(line.getCoordinates())
         var output
         if (length > 100) {
           output = (Math.round(length / 1000 * 100) / 100) +
