@@ -203,7 +203,6 @@
         ],
         advanced: false,
         tints: {
-          'test': [['#006400ff', '#2199e8']],
         }
       }
     },
@@ -361,7 +360,7 @@
               type: 'LineString',
               features: tool.features || vm.features,
             })
-            draw.on('drawstart', function (ev) {
+            draw.on('drawend', function (ev) {
               // set parameters
               ev.feature.set('toolName',tool.name)
               ev.feature.setStyle(tool.style)
@@ -618,6 +617,183 @@
             delete feature['typeIconTint']
         }
         feature.changed()
+      },
+      getStyleProperty:function(f,property,defaultValue,tool) {
+        return f[property] || f.get(property) || (tool || this.getTool(f.get('toolName')) || {})[property] || ((defaultValue === undefined)?'default':defaultValue)
+      },
+      getVectorStyleFunc: function (tints) {
+        var vm = this
+        return function() {
+            var f = this
+            var tool = null
+            if (f.get('toolName')) {
+                tool = vm.getTool(f.get('toolName')) || vm.tool
+            } else {
+                tool = vm.tool
+            }
+            var baseStyle = vm.map.cacheStyle(function (f) {
+              if (f['tint'] === 'selected') {
+                return [
+                  new ol.style.Style({
+                    fill: new ol.style.Fill({
+                      color: vm.getStyleProperty(f,'selectedFillColour','rgba(255, 255, 255, 0.2)',tool)
+                    }),
+                    stroke: new ol.style.Stroke({
+                      color: vm.getStyleProperty(f,'selectedColour','#2199e8',tool),
+                      width: 2 * vm.getStyleProperty(f,'size',1,tool) + 2
+                    })
+                  }),
+                  new ol.style.Style({
+                    stroke: new ol.style.Stroke({
+                      color: '#ffffff',
+                      width: 2 * vm.getStyleProperty(f,'size',1,tool) 
+                    })
+                  }),
+               ]
+              } else {
+                return new ol.style.Style({
+                  fill: new ol.style.Fill({
+                    color: vm.getStyleProperty(f,'fillColour','rgba(255, 255, 255, 0.2)',tool)
+                  }),
+                  stroke: new ol.style.Stroke({
+                    color: vm.getStyleProperty(f,'colour','rgba(0,0,0,1.0)',tool),
+                    width: 2 * vm.getStyleProperty(f,'size',1,tool) 
+                  })
+                })
+              }
+            },f,['size','colour','tint'])
+    
+            //get type icon style
+            var typeIconStyle = null
+            if (!vm.getStyleProperty(f,'typeIcon',false,tool)) {
+                return baseStyle
+            }
+            //draw typeSymbol along the line.
+            if (f['typeIconStyle']) {
+                var diffs = vm.map.getScale() / f.get('typeIconMetadata')['points']['scale']
+                var typeIconTint = f['typeIconTint'] || f.get('typeIconTint') || tool['typeIconTint'] || 'default'
+                if (diffs >= 0.5 && diffs <= 1.5) {
+                    if (typeIconTint === f.get('typeIconMetadata')['points']['tint']) {
+                        typeIconStyle = f['typeIconStyle']
+                    } else {
+                        typeIconStyle = f['typeIconStyle']
+                        var newStyle = []
+                        var src = vm.map.getBlob(f, ['typeIcon', 'typeIconTint','typeIconDims'],tints || {})
+                        if (!src) { return baseStyle }
+
+                        $.each(typeIconStyle,function(index,item){
+                            newStyle.push(new ol.style.Style({
+                                geometry:item.getGeometry(),
+                                image: new ol.style.Icon({
+                                  src: src,
+                                  rotation: item.getImage().getRotation(),
+                                  rotateWithView: item.getImage().getRotateWithView(),
+                                  snapToPixel: item.getImage().getSnapToPixel()
+                                })
+                            }))
+                        })
+                        f['typeIconStyle'] = newStyle
+                        f.get('typeIconMetadata')['points']['tint'] = typeIconTint
+                        typeIconStyle = newStyle
+                    }
+                } else {
+                    f.get('typeIconMetadata')['points'] = false
+                }
+            } 
+            if (!typeIconStyle) {
+                var linestring = null
+                if (f.getGeometry() instanceof ol.geom.Polygon) {
+                    linestring = new ol.geom.LineString(f.getGeometry().getCoordinates()[0])
+                } else if (f.getGeometry() instanceof ol.geom.LineString) {
+                    linestring = f.getGeometry()
+                } else {
+                    return baseStyle
+                }
+
+                var src = vm.map.getBlob(f, ['typeIcon', 'typeIconTint','typeIconDims'],tints || {})
+                if (!src) { return baseStyle }
+
+                typeIconStyle = []
+                var segmentIndex = 0 
+                var segmentMetadata = null
+                var metadata = f.get('typeIconMetadata')
+                if (!metadata) {
+                    metadata = {}
+                    f.set('typeIconMetadata',metadata,true)
+                }
+                var perimeter = 0
+                if (!metadata['segments']) {
+                    var segmentsMetadata=[]
+                    linestring.forEachSegment(function(start,end){
+                        var angle = Math.atan2(end[1] - start[1],end[0] - start[0])
+                        segmentMetadata = {
+                            length:vm.measure.getLength([start,end]),
+                            rotation: -1 * Math.atan2(end[1] - start[1],end[0] - start[0]) + Math.PI * 1/4
+                        }
+                        segmentsMetadata.push(segmentMetadata)
+                        perimeter += segmentMetadata['length']
+                    })
+                    metadata['perimeter'] = perimeter
+                    metadata['closed'] = (linestring.getFirstCoordinate()[0] === linestring.getLastCoordinate()[0]) && (linestring.getFirstCoordinate()[1] === linestring.getLastCoordinate()[1])
+                    //get the position of each segment's end point in overall linestring
+                    var  len = 0
+                    $.each(segmentsMetadata,function(index,segmentMetadata){
+                        len += segmentMetadata['length']
+                        segmentMetadata['position'] = len / perimeter
+                    })
+                    metadata['segments'] = segmentsMetadata
+                }
+                if (!metadata['points']) {
+                    var pointsMetadata = {}
+                    pointsMetadata['scale'] = vm.map.getScale()
+                    var perimeterInPixes = (metadata['perimeter'] / (pointsMetadata['scale'] * 1000)) * 1000 * vm.dpmm
+                    pointsMetadata['symbolSize'] = parseInt(perimeterInPixes / ((tool['typeIconDims']?tool['typeIconDims'][0]:48) * 2))//each symbol occupy 2 times symbol size
+                    pointsMetadata['tint'] = f['typeIconTint'] || f.get('typeIconTint') || tool['typeIconTint'] || 'default'
+                    metadata['points'] = pointsMetadata
+                }
+                var symbolSize = metadata['points']['symbolSize']
+                var symbolPercentage = 1 / symbolSize
+                if (!metadata['closed']) {
+                    //geomoetry is not closed, drop a symbol at the end
+                    symbolSize += 1
+                }
+                
+                
+                var segmentIndex = 0
+                var segmentMetadata = metadata['segments'][segmentIndex]
+                var symbolPoints = []
+                var symbolStyle = null
+                var fromStartLength = segmentMetadata.length
+                for (var i = 0;i <= symbolSize ;i++) {
+                    if (i == symbolSize || segmentMetadata['position'] < i * symbolPercentage) {
+                        //console.log("segment " + segmentIndex + ", points = " + symbolPoints.length + ",i = " + i + ",percentage = " + symbolPercentage + ",segments = " + JSON.stringify(segmentMetadata) + ",size = " + parseInt(((fromStartLength / (metadata['points']['scale'] * 1000)) * 1000 * vm.dpmm) / ((tool['typeIconDims']?tool['typeIconDims'][0]:48) * 2)) )
+                        typeIconStyle.push(new ol.style.Style({
+                            geometry:new ol.geom.MultiPoint(symbolPoints),
+                            image: new ol.style.Icon({
+                              src: src,
+                              rotation: segmentMetadata['rotation'],
+                              rotateWithView: true,
+                              snapToPixel: true
+                            })
+                        }))
+                        if (i == symbolSize) {
+                            break;
+                        }
+                        segmentIndex += 1
+                        segmentMetadata = metadata['segments'][segmentIndex]
+                        fromStartLength += segmentMetadata.length
+                        symbolPoints = []
+                    }
+                    symbolPoints.push(linestring.getCoordinateAt(i * symbolPercentage))
+                }
+                f['typeIconStyle'] = typeIconStyle
+            }
+            if (Array.isArray(baseStyle)) {
+                return baseStyle.concat(typeIconStyle)
+            } else {
+                return [baseStyle].concat(typeIconStyle)
+            }
+        }
       }
     },
     ready: function () {
@@ -671,9 +847,34 @@
         layers: [this.featureOverlay],
         features: this.selectedFeatures
       })
+      this.ui.translateInter.on("translateend",function(ev){
+          ev.features.forEach(function(f){
+            if (f.get('toolName')) {
+                tool = vm.getTool(f.get('toolName'))
+                if (tool && tool.typeIcon) {
+                    delete f['typeIconStyle']
+                    f.set('typeIconMetadata',undefined,true)
+                    f.changed()
+                }
+            }
+          })
+      })
+
       // allow modifying features by click+dragging
       this.ui.modifyInter = new ol.interaction.Modify({
         features: this.features
+      })
+      this.ui.modifyInter.on("modifyend",function(ev){
+          ev.features.forEach(function(f){
+            if (f.get('toolName')) {
+                tool = vm.getTool(f.get('toolName'))
+                if (tool && tool.typeIcon) {
+                    delete f['typeIconStyle']
+                    f.set('typeIconMetadata',undefined,true)
+                    f.changed()
+                }
+            }
+          })
       })
 
       // allow dragbox selection of features
@@ -891,143 +1092,6 @@
         }
       }
 
-      var vectorStyle = function () {
-        var f = this
-        return vm.map.cacheStyle(function (f) {
-          if (f['tint'] === 'selected') {
-            return [
-              new ol.style.Style({
-                fill: new ol.style.Fill({
-                  color: 'rgba(255, 255, 255, 0.2)'
-                }),
-                stroke: new ol.style.Stroke({
-                  color: '#2199e8',
-                  width: 2 * f.get('size') + 2
-                })
-              }),
-              new ol.style.Style({
-                stroke: new ol.style.Stroke({
-                  color: '#ffffff',
-                  width: 2 * f.get('size')
-                })
-              }),
-           ]
-          } else {
-            return new ol.style.Style({
-              fill: new ol.style.Fill({
-                color: 'rgba(255, 255, 255, 0.2)'
-              }),
-              stroke: new ol.style.Stroke({
-                color: f.get('colour'),
-                width: 2 * f.get('size')
-              })
-            })
-          }
-        },f,['size','colour','tint'])
-      }
-
-      var typedVectorStyleFunc = function (tints) {
-        return function() {
-            var f = this
-            var basicStyle = vectorStyle.apply(f)
-            //get the type symbol style if have 
-            var typeStyle = null
-            var tool = null
-            if (f.get('toolName')) {
-                tool = vm.getTool(f.get('toolName'))
-            } else {
-                tool = vm.tool
-            }
-            if (tool && f.getGeometry() instanceof ol.geom.Polygon && tool.typeIcon) {
-                //draw typeSymbol along the line.
-                typeStyle = []
-                var src = vm.map.getBlob(f, ['typeIcon', 'typeIconTint','typeIconDims'],tints || {})
-                if (!src) { return false }
-                var rot = 0.0
-                if (f['typeSymbolStyle']) {
-                    typeStyle = f['typeSymboleStyle']
-                } else {
-                    var segmentIndex = 0 
-                    var segmentMetadata = null
-                    var metadata = f.get('typeSymbolMetadata')
-                    if (!metadata) {
-                        metadata = {}
-                        f.set('typeSymbolMetadata',metadata,true)
-                    }
-                    var linestring = new ol.geom.LineString(f.getGeometry().getCoordinates()[0])
-                    var perimeter = 0
-                    if (!metadata['segments']) {
-                        var segmentsMetadata=[]
-                        linestring.forEachSegment(function(start,end){
-                            segmentMetadata = {
-                                length:vm.measure.getLength([start,end]),
-                                rotation: (Math.atan2(end[1] - start[1],end[0] - start[0]) + Math.PI * 2 + Math.PI * (30 / 180)) % (Math.PI * 2)
-                            }
-                            segmentsMetadata.push(segmentMetadata)
-                            perimeter += segmentMetadata['length']
-                        })
-                        metadata['perimeter'] = perimeter
-                        //get the position of each segment's end point in overall linestring
-                        var  len = 0
-                        $.each(segmentsMetadata,function(index,segmentMetadata){
-                            len += segmentMetadata['length']
-                            segmentMetadata['position'] = len / perimeter
-                        })
-                        metadata['segments'] = segmentsMetadata
-                    }
-                    if (!metadata['points']) {
-                        var pointsMetadata = {}
-                        pointsMetadata['scale'] = vm.map.getScale()
-                        var perimeterInPixes = (metadata['perimeter'] / (pointsMetadata['scale'] * 1000)) * 1000 * vm.dpmm
-                        pointsMetadata['symbolSize'] = parseInt(perimeterInPixes / (tool['typeIconDims']?tool['typeIconDims'][0]:48)) //each symbol occupy 2 times symbol size
-
-                        metadata['points'] = pointsMetadata
-                    }
-                    var symbolSize = metadata['points']['symbolSize']
-                    var symbolPercentage = 1 / symbolSize
-                    
-                    var segmentIndex = 0
-                    var segmentMetadata = metadata['segments'][segmentIndex]
-                    var symbolPoints = []
-                    var symbolStyle = null
-                    for (var i = 0;i <= symbolSize ;i++) {
-                        if (i == symbolSize || segmentMetadata['position'] < i * symbolPercentage) {
-                            typeStyle.push(new ol.style.Style({
-                                geometry:function(f) {
-                                    for (var i = 0;i < typeSymbolNumbers ;i++) {
-                                        points.push(linestring.getCoordinateAt(i * percentagePerSymbol))
-                                    }
-                                    return new ol.geom.MultiPoint(symbolPoints)
-                                },
-                                image: new ol.style.Icon({
-                                  src: src,
-                                  rotation: segmentMetadata['rotation'],
-                                  rotateWithView: true,
-                                  snapToPixel: true
-                                })
-                            }))
-                            if (i == symbolSize) {
-                                break;
-                            }
-                            segmentIndex += 1
-                            segmentMetadata = metadata['segments'][segmentIndex]
-                            symbolPoints = []
-                        }
-                        symbolPoints.push(linestring.getCoordinateAt(i * symbolPercentage))
-                    }
-                    f['typeSymbolStyle'] = typeStyle
-                }
-                if (Array.isArray(basicStyle)) {
-                    return basicStyle.concat(typeStyle)
-                } else {
-                    return [basicStyle].concat(typeStyle)
-                }
-            } else {
-                return basicStyle
-            }
-        }
-      }
-
       this.ui.defaultLine = {
         name: 'Custom Line',
         icon: 'dist/static/images/iD-sprite.svg#icon-line',
@@ -1035,20 +1099,16 @@
         showName: true,
         scope:["annotation"],
         onAdd: customAdd,
-        style: vectorStyle
+        style: vm.getVectorStyleFunc(this.tints)
       }
       this.ui.defaultPolygon = {
         name: 'Custom Area',
         icon: 'dist/static/images/iD-sprite.svg#icon-area',
-        typeIcon: 'dist/static/symbols/fire/plus.svg',
-        typeIconSelectedTint: 'test',
-        typeIconDims: [20,20],
         interactions: [this.polygonDrawFactory()],
         showName: true,
         scope:["annotation"],
         onAdd: customAdd,
-        style: typedVectorStyleFunc(this.tints)
-        //style: vectorStyle
+        style: vm.getVectorStyleFunc(this.tints)
       }
 
       var getFeatureInfo = function(feature) {

@@ -114,7 +114,9 @@ localforage.getItem('sssOfflineStore').then(function (store) {
       touring: false,
       tints: {
         'selectedPoint': [['#b43232', '#2199e8']],
-        'selectedDivision': [['#000000', '#2199e8'], ['#7c3100','#2199e8'], ['#ff6600', '#ffffff']]
+        'selectedDivision': [['#000000', '#2199e8'], ['#7c3100','#2199e8'], ['#ff6600', '#ffffff']],
+        'selectedRoadClosurePoint': [['#000000', '#2199e8']],
+        'selectedPlusIcon': [['#006400', '#2199e8']],
       }
     },
     computed: {
@@ -251,51 +253,14 @@ localforage.getItem('sssOfflineStore').then(function (store) {
       // load custom annotation tools
       self.loading.app.progress(20,"Initialize SSS tools")
 
-      var fireBoundaryStyle = function(res) {
-          var f = this
-          var style = null
-          if (f && f['tint'] == 'selected') {
-              style = [
-                  new ol.style.Style({
-                    fill: new ol.style.Fill({
-                      color: [0, 0, 0, 0.25]
-                    }),
-                    stroke: new ol.style.Stroke({
-                      color: '#2199e8',
-                      width: 6
-                    })
-                  }),
-                  new ol.style.Style({
-                    stroke: new ol.style.Stroke({
-                      color: '#ffffff',
-                      width: 4
-                    })
-                  }),
-              ]
-          } else {
-              style = new ol.style.Style({
-                stroke: new ol.style.Stroke({
-                  width: 4.0,
-                  color: [0, 0, 0, 1.0]
-                }),
-                fill: new ol.style.Fill({
-                  color: [0, 0, 0, 0.25]
-                }),
-                image: new ol.style.Circle({
-                  radius: 5,
-                  fill: new ol.style.Fill({
-                  color: 'rgb(0, 153, 255)'
-                  })
-                })
-              })
-          }
-          return style
-      }
       var sssTools = [
         {
           name: 'Fire Boundary',
           icon: 'dist/static/images/iD-sprite.svg#icon-area',
-          style: fireBoundaryStyle,
+          style: self.annotations.getVectorStyleFunc(self.tints),
+          selectedFillColour:[0, 0, 0, 0.25],
+          fillColour:[0, 0, 0, 0.25],
+          size:2,
           interactions: [self.annotations.polygonDrawFactory()],
           scope:["annotation"],
           showName: true
@@ -349,6 +314,27 @@ localforage.getItem('sssOfflineStore').then(function (store) {
           selectedTint: 'selectedPoint',
           scope:["annotation"],
           showName: true,
+        }, {
+          name: 'Road Closure',
+          icon: 'dist/static/symbols/fire/road_closure_point.svg',
+          tints: self.tints,
+          interactions: [self.annotations.pointDrawFactory()],
+          style: self.annotations.getIconStyleFunction(self.tints),
+          sketchStyle: self.annotations.getIconStyleFunction(self.tints),
+          showName: true,
+          selectedTint: 'selectedRoadClosurePoint',
+          scope:["annotation"],
+        }, {
+          name: 'Control Line',
+          icon: 'dist/static/images/iD-sprite.svg#icon-line',
+          interactions: [self.annotations.linestringDrawFactory()],
+          size:3,
+          typeIcon: 'dist/static/symbols/fire/plus.svg',
+          typeIconSelectedTint: 'selectedPlusIcon',
+          typeIconDims: [20,20],
+          showName: true,
+          scope:["annotation"],
+          style: self.annotations.getVectorStyleFunc(this.tints)
         },
         self.annotations.ui.defaultLine,
         self.annotations.ui.defaultPolygon
