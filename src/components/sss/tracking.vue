@@ -512,20 +512,19 @@
         if (f.get('age') <= 1) {
           tint = 'green'
         };
-        f.set('icon', 'dist/static/symbols/device/' + f.get('symbolid') + '.svg')
-        f.set('tint', tint)
-        f.set('baseTint', tint)
+        f.set('icon', 'dist/static/symbols/device/' + f.get('symbolid') + '.svg',true)
+        f.set('tint', tint,true)
         if (f.get('district') == null){
-            f.set('label', f.get('callsign') +' '+ f.get('name'))
+            f.set('label', f.get('callsign') +' '+ f.get('name'),true)
         } else {
-            f.set('label', f.get('district') +' '+ f.get('callsign') +' '+ f.get('name'))
+            f.set('label', f.get('district') +' '+ f.get('callsign') +' '+ f.get('name'),true)
         }
-        f.set('time', moment(f.get('seen')).toLocaleString())
+        f.set('time', moment(f.get('seen')).toLocaleString(),true)
         // Set a different vue template for rendering
-        f.set('partialId', 'resourceInfo')
+        f.set('partialId', 'resourceInfo',true)
         // Set id for select tools
-        f.set('selectId', f.get('deviceid'))
-        f.setStyle(resourceTrackingStyle)
+        f.set('selectId', f.get('deviceid'),true)
+        f.setStyle(resourceTrackingStyle,true)
       }
 
       var getFeatureInfo = function (f) {
