@@ -45,6 +45,7 @@
     // parts of the template to be computed live
     computed: {
       loading: function () { return this.$root.loading },
+      annotations: function () { return this.$root.annotations    },
       // because the viewport size changes when the tab pane opens, don't cache the map width and height
       width: {
         cache: false,
@@ -75,13 +76,15 @@
         })
         return svgstring
       },
+      //keys:[url,tint?,dims?]
       getBlob: function(feature, keys,tintSettings,callback) {
         // method to precache SVGs as raster (PNGs)
         // workaround for Firefox missing the SurfaceCache when blitting to canvas
         // returns a url or undefined if svg isn't baked yet
         var vm = this
+        var tool = feature.get('toolName')?vm.annotations.getTool(feature.get('toolName')):{}
         var key = keys.map(function(k) {
-          return feature.get(k)
+          return vm.annotations.getStyleProperty(feature,k,'default',tool)
         }).join(";")
         if (this.svgBlobs[key]) {
           return this.svgBlobs[key]
@@ -91,10 +94,13 @@
                 if (callback) {callback()}
           })
         } else {
-          var dims = feature.get('dims') || [48, 48]
-          var tint = feature.get('tint')
-          tint = (tintSettings)?tintSettings[tint]:[]
-          var url = feature.get('icon')
+          var dimsKey = (keys.length >= 3)?keys[2]:'dims'
+          var tintKey = (keys.length >= 2)?keys[1]:'tint'
+
+          var dims = tool[dimsKey] || [48, 48]
+          var tint = vm.annotations.getStyleProperty(feature,tintKey,'default',tool)
+          tint = (tintSettings && tintSettings[tint])?tintSettings[tint]:[]
+          var url = feature.get(keys[0]) || tool[keys[0]]
           if (typeof tint === "string") {
             //tint is not just a color replacement, is a totally different icon
             url = tint
@@ -141,10 +147,10 @@
             var req = new window.XMLHttpRequest()
             req.withCredentials = true
             req.onload = function () {
-              //console.log('addSVG: XHR returned for '+key)
               if (!this.responseText) {
                 return
               }
+              //console.log('addSVG: XHR returned for '+key)
               vm.svgTemplates[url] = this.responseText
               resolve()
             }
@@ -178,9 +184,10 @@
         })
       },
       cacheStyle: function(styleFunc, feature, keys) {
+        var vm = this
         if (feature) {
             var key = keys.map(function(k) {
-              return feature.get(k)
+              return vm.annotations.getStyleProperty(feature,k,'default')
             }).join(";")
             var style = this.cachedStyles[key]
             if (style) { 
@@ -617,7 +624,7 @@
         return vector
       },
       createAnnotations: function (layer) {
-        return this.$root.annotations.featureOverlay
+        return this.annotations.featureOverlay
       },
       // loader to create a WMTS layer from a kmi datasource
       createTileLayer: function (layer) {
