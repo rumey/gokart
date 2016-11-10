@@ -765,6 +765,7 @@
                 var symbolPoints = []
                 var symbolStyle = null
                 var fromStartLength = segmentMetadata.length
+                var fraction = null
                 for (var i = 0;i <= symbolSize ;i++) {
                     if (i == symbolSize || segmentMetadata['position'] < i * symbolPercentage) {
                         //console.log("segment " + segmentIndex + ", points = " + symbolPoints.length + ",i = " + i + ",percentage = " + symbolPercentage + ",segments = " + JSON.stringify(segmentMetadata) + ",size = " + parseInt(((fromStartLength / (metadata['points']['scale'] * 1000)) * 1000 * vm.dpmm) / ((tool['typeIconDims']?tool['typeIconDims'][0]:48) * 2)) )
@@ -785,7 +786,9 @@
                         fromStartLength += segmentMetadata.length
                         symbolPoints = []
                     }
-                    symbolPoints.push(linestring.getCoordinateAt(i * symbolPercentage))
+                    fraction = i * symbolPercentage
+                    fraction = (fraction < 0)?0:((fraction > 1)?1:fraction)
+                    symbolPoints.push(linestring.getCoordinateAt(fraction))
                 }
                 f['typeIconStyle'] = typeIconStyle
             }
