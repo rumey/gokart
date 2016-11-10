@@ -1,7 +1,7 @@
 var env = {
     envType: "prod",
     appType: (window.location.protocol == "file:")?"cordova":"webapp",
-    cswService: "https://oim.dpaw.wa.gov.au/catalogue/api/records",
+    cswService: "https://oim.dpaw.wa.gov.au/catalogue/api/records/",
     wmtsService: "https://kmi.dpaw.wa.gov.au/geoserver/gwc/service/wmts",
     wfsService: "https://kmi.dpaw.wa.gov.au/geoserver/wfs",
     legendSrc: "https://kmi.dpaw.wa.gov.au/geoserver/gwc/service/wms?REQUEST=GetLegendGraphic&VERSION=1.0.0&FORMAT=image/png&LAYER=",
