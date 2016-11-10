@@ -41,22 +41,12 @@
                   <a class="button"><i class="fa fa-repeat" aria-hidden="true"></i> Redo</a>
                 </div>
                 <div class="expanded button-group">
-                  <label class="button " for="uploadAnnotations" title="Support GeoJSON(.json), GPS data(.gpx)"><i class="fa fa-upload"></i> Import Editing </label><input type="file" id="uploadAnnotations" class="show-for-sr" name="annotationsfile" accept="application/json,.gpx" v-model="annotationsfile" v-el:annotationsfile @change="importAnnotations()" @click="shouldShowDataFormatPicker=false"/>
-                  <a class="button" @click="downloadAnnotations()"><i class="fa fa-download" aria-hidden="true"></i> Export Editing <br>({{export.vectorFormat}}
-                      <i class="fa fa-toggle-down" aria-hidden="true" v-on:click.stop.prevent="shouldShowDataFormatPicker=!shouldShowDataFormatPicker"></i>)
+                  <label class="button " for="uploadAnnotations" title="Support GeoJSON(.json), GPS data(.gpx)"><i class="fa fa-upload"></i> Import Editing </label><input type="file" id="uploadAnnotations" class="show-for-sr" name="annotationsfile" accept="application/json,.gpx" v-model="annotationsfile" v-el:annotationsfile @change="importAnnotations()"/>
+                  <a class="button" @click="downloadAnnotations('json')" title="Export Editing as GeoJSON"><i class="fa fa-download" aria-hidden="true"></i> Export Editing <br>(json)
+                  </a>
+                  <a class="button" @click="downloadAnnotations('gpkg')" title="Export Editing as GeoPackage"><i class="fa fa-download" aria-hidden="true"></i> Export Editing <br>(gpkg)
                   </a>
                 </div>
-              </div>
-            </div>
-
-            <div v-show="shouldShowDataFormatPicker" class="tool-slice row collapse">
-              <div class="small-2"><label class="tool-label">Format:<br/>({{ export.vectorFormat }})</label></div>
-              <div class="small-10">
-                  <div class="row resetmargin" >
-                    <div class="small-6" v-for="f in export.vectorFormats" v-bind:class="{'rightmargin': $index % 2 === 0}"`>
-                      <a @click="setDataFormat(f.format)" v-bind:class="{'selected': export.vectorFormat === f.format}" class="expanded button" title="{{f.title}}">{{f.name}}</a>
-                    </div>
-                  </div>
               </div>
             </div>
 
@@ -91,6 +81,20 @@
                 <textarea @blur="updateNote(true)" class="notecontent" v-el:notecontent @keyup="updateNote(false)" @click="updateNote(true)" @mouseup="updateNote(false)">{{ note.text }}</textarea>
               </div>
             </div>
+
+            <div v-show="shouldShowComments" class="tool-slice row collapse">
+              <hr class="small-12"/>
+              <template v-for="comment in tool.comments">
+                  <div class="small-2">{{comment.name}}:</div>
+                  <div class="small-10">
+                    <template v-for="description in comment.description">
+                        {{description}}
+                        <br>
+                    </template>
+                  </div>
+              </template>
+            </div>
+
             <div class="tool-slice row collapse">
               <div class="small-12 canvaspane">
                 <canvas v-show="shouldShowNoteEditor" v-el:textpreview></canvas>
@@ -187,7 +191,6 @@
           colour: '#000000'
         },
         notes: {},
-        shouldShowDataFormatPicker:false,
         size: 2,
         colour: '#000000',
         colours: [
@@ -245,6 +248,12 @@
                this.tool == this.ui.defaultText || 
                (this.tool === this.ui.editStyle && this.featureEditing && ([this.ui.defaultLine,this.ui.defaultPolygon,this.ui.defaultText].indexOf(this.getTool(this.featureEditing.get('toolName'))) >= 0))
       },
+      shouldShowComments: function () {
+        if (!this.tool || !this.tool.name) {
+          return false
+        }
+        return this.tool.comments && true
+      },
       currentTool:{
         get:function() {
             var t = this._currentTool[this.$root.activeMenu]
@@ -257,7 +266,7 @@
         set:function(t) {
             this._currentTool[this.$root.activeMenu] = t
         }
-      }
+      },
     },
     watch:{
       'featureEditing': function(val,oldVal) {
@@ -280,11 +289,8 @@
             this.export.importVector(this.$els.annotationsfile.files[0])
         }
       },
-      setDataFormat:function(fmt) {
+      downloadAnnotations: function(fmt) {
         this.export.vectorFormat = fmt
-        this.shouldShowDataFormatPicker = false
-      },
-      downloadAnnotations: function() {
         this.$root.export.exportVector(this.features.getArray(), 'annotations')
       },
       getIconStyleFunction : function(tints) {
@@ -439,7 +445,6 @@
         })[0]
       },
       setTool: function (t) {
-        this.shouldShowDataFormatPicker = false
         if (!t) {
             if (this._previousActiveMenu && this._previousActiveMenu !== this.$root.activeMenu && this._previousTool) {
                 //before switching to other menu, a non-pan tool was enabled, choose the 'pan' tool for the current menu to preseve the changes(for example, the selected features) made by the previous non-pan tool
@@ -794,6 +799,12 @@
                 return [baseStyle].concat(typeIconStyle)
             }
         }
+      },
+      initFeature:function(feature) {
+        var tool = feature.get('toolName')?this.getTool(feature.get('toolName')):false
+        if (tool) {
+            feature.setStyle(tool.style)
+        }
       }
     },
     ready: function () {
@@ -813,10 +824,7 @@
         if (savedFeatures) {
           //set feature style
           $.each(savedFeatures,function(index,feature){
-            var tool = feature.get('toolName')?vm.getTool(feature.get('toolName')):false
-            if (tool) {
-                feature.setStyle(tool.style)
-            }
+            vm.initFeature(feature)
           })
           this.features.extend(savedFeatures)
         }
@@ -1099,7 +1107,10 @@
         showName: true,
         scope:["annotation"],
         onAdd: customAdd,
-        style: vm.getVectorStyleFunc(this.tints)
+        style: vm.getVectorStyleFunc(this.tints),
+          comments:[
+            {name:"Tips",description:["Hold down the 'SHIFT' key during drawing to enable freehand mode. "]}
+          ]
       }
       this.ui.defaultPolygon = {
         name: 'Custom Area',
@@ -1108,7 +1119,10 @@
         showName: true,
         scope:["annotation"],
         onAdd: customAdd,
-        style: vm.getVectorStyleFunc(this.tints)
+        style: vm.getVectorStyleFunc(this.tints),
+        comments:[
+          {name:"Tips",description:["Hold down the 'SHIFT' key during drawing to enable freehand mode. "]}
+        ]
       }
 
       var getFeatureInfo = function(feature) {

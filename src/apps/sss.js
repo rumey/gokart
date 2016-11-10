@@ -263,7 +263,10 @@ localforage.getItem('sssOfflineStore').then(function (store) {
           size:2,
           interactions: [self.annotations.polygonDrawFactory()],
           scope:["annotation"],
-          showName: true
+          showName: true,
+          comments:[
+            {name:"Tips",description:["Hold down the 'SHIFT' key during drawing to enable freehand mode. "]}
+          ]
         },
         self.annotations.ui.defaultText,
         {

@@ -395,22 +395,22 @@
           if (p>=0) {
               fileFormat = file.name.substring(p).toLowerCase()
           } 
+          var features = null
           if (fileFormat === ".json") {
               //geo json file 
-              var features = new ol.format.GeoJSON().readFeatures(data,{dataProjection:"EPSG:4326"})
+              features = new ol.format.GeoJSON().readFeatures(data,{dataProjection:"EPSG:4326"})
               if (features && features.length) {
-                  if (features[0].get("toolName")) {
-                      vm.annotations.features.extend(features)
-                  } else {
+                  if (!features[0].get("toolName")) {
+                      features = null
                       alert("External json file not supported")
                   }
               }
           } else if (fileFormat === ".gpx") {
               //gpx file
-              var features = new ol.format.GPX().readFeatures(data,{dataProjection:"EPSG:4326"})
-              var vectors = []
-              if (features && features.length) {
-                  $.each(features,function(index,feature) {
+              var vectors = new ol.format.GPX().readFeatures(data,{dataProjection:"EPSG:4326"})
+              features = []
+              if (vectors && vectors.length) {
+                  $.each(vectors,function(index,feature) {
                       if (feature.getGeometry() instanceof ol.geom.Point) {
                           //feature.set('toolName','Spot Fire')
                           console.warn("Ignore point(" + JSON.stringify(feature.getGeometry().getCoordinates()) + ")")
@@ -419,7 +419,7 @@
                           coordinates.push(coordinates[0])
                           feature.setGeometry(new ol.geom.Polygon([coordinates]))
                           feature.set('toolName','Fire Boundary')
-                          vectors.push(feature)
+                          features.push(feature)
                       } else if(feature.getGeometry() instanceof ol.geom.MultiLineString) {
                           //convert each linstring in MultiLineString as a fire boundary
                           var geom = feature.getGeometry()
@@ -432,14 +432,12 @@
                             coordinates.push(coordinates[0])
                             f.setGeometry(new ol.geom.Polygon([coordinates]))
                             f.set('toolName','FireBoundary')
-                            vectors.push(f)
+                            features.push(f)
                           })
                       } else {
                           console.warn("Ignore " + feature.getGeometryName() + "(" + JSON.stringify(feature.getGeometry().getCoordinates()) + ")")
                       }
                   })
-                   
-                  vm.annotations.features.extend(vectors)
               }
           } else {
               if (fileFormat === file.name) {
@@ -447,7 +445,12 @@
               } else {
                   alert("File format(" + fileFormat + ") not support")
               }
-              return
+          }
+          if (features && features.length > 0) {
+              $.each(features,function(index,feature){
+                vm.annotations.initFeature(feature)
+              })            
+              vm.annotations.features.extend(features)
           }
         }
         reader.readAsText(file)
