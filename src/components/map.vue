@@ -268,7 +268,7 @@
       getMGA: function(coords) {
         var mga = this.getMGARaw(coords)
         if (mga) {
-            return 'MGA '+mga.mgaZone+' '+Math.round(mga.mgaEast)+'mE '+Math.round(mga.mgaNorth)+'mN'
+            return 'MGA '+mga.mgaZone+' '+Math.round(mga.mgaEast)+'E '+Math.round(mga.mgaNorth)+'N'
         }
         return ''
       },

@@ -3,7 +3,7 @@
     <div class="row collapse">
       <div class="columns">
         <ul class="tabs" id="annotations-tabs">
-          <li class="tabs-title is-active"><a class="label" aria-selected="true">Editing</a></li>
+          <li class="tabs-title is-active"><a class="label" aria-selected="true">Drawing Tools</a></li>
         </ul>
       </div>
     </div>
@@ -13,8 +13,7 @@
 
           <div class="tabs-panel is-active" id="annotations-edit" v-cloak>
             <div class="tool-slice row collapse">
-              <div class="small-2"><label class="tool-label">Tool:</label></div>
-              <div class="small-10">
+              <div class="small-12">
                 <div class="expanded button-group">
                   <a v-for="t in annotationTools | filterIf 'showName' undefined" class="button button-tool" v-bind:class="{'selected': t.name == tool.name}"
                     @click="setTool(t)" v-bind:title="t.name">{{{ icon(t) }}}</a>
@@ -29,8 +28,7 @@
             </div>
 
             <div class="tool-slice row collapse">
-              <div class="small-2"><label class="tool-label">Ops:</label></div>
-              <div class="small-10">
+              <div class="small-12">
                 <div class="expanded button-group hide">
                   <a class="button"><i class="fa fa-cut" aria-hidden="true"></i> Cut</a>
                   <a class="button"><i class="fa fa-copy" aria-hidden="true"></i> Copy</a>
@@ -42,10 +40,8 @@
                 </div>
                 <div class="expanded button-group">
                   <label class="button " for="uploadAnnotations" title="Support GeoJSON(.json), GPS data(.gpx)"><i class="fa fa-upload"></i> Import Editing </label><input type="file" id="uploadAnnotations" class="show-for-sr" name="annotationsfile" accept="application/json,.gpx" v-model="annotationsfile" v-el:annotationsfile @change="importAnnotations()"/>
-                  <a class="button" @click="downloadAnnotations('json')" title="Export Editing as GeoJSON"><i class="fa fa-download" aria-hidden="true"></i> Export Editing <br>(json)
-                  </a>
-                  <a class="button" @click="downloadAnnotations('gpkg')" title="Export Editing as GeoPackage"><i class="fa fa-download" aria-hidden="true"></i> Export Editing <br>(gpkg)
-                  </a>
+                  <a class="button" @click="downloadAnnotations('json')" title="Export Editing as GeoJSON"><i class="fa fa-download" aria-hidden="true"></i> Export Editing <br>(json) </a>
+                  <a class="button" @click="downloadAnnotations('gpkg')" title="Export Editing as GeoPackage"><i class="fa fa-download" aria-hidden="true"></i> Export Editing <br>(gpkg)</a>
                 </div>
               </div>
             </div>
@@ -72,7 +68,7 @@
             </div>
 
             <div v-show="shouldShowNoteEditor" class="tool-slice row collapse">
-              <div class="small-2">Note:</div>
+              <div class="small-2"><label class="tool-label">Note:</label></div>
               <div class="small-10">
                 <select name="select" @change="note.text = $event.target.value.split('<br>').join('\n')">
                   <option value="">Text Templates</option> 
@@ -843,7 +839,7 @@
         })
       })
       this.featureOverlay.set('id', 'annotations')
-      this.featureOverlay.set('name', 'My Editing')
+      this.featureOverlay.set('name', 'My Drawing')
       // collection for tracking selected features
 
       // the following interacts are bundled into the Select and Edit tools.
@@ -1142,7 +1138,7 @@
       this.$root.catalogue.catalogue.push({
         type: 'Annotations',
         id: 'annotations',
-        name: 'My Editing',
+        name: 'My Drawing',
         getFeatureInfo:getFeatureInfo
       })
       annotationStatus.wait(30,"Listen 'gk-init' event")

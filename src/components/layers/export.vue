@@ -121,7 +121,7 @@
     components: { gkLegend,gkLayerlegends },
     data: function () {
       return {
-        minDPI: 200,
+        minDPI: 300,
         paperSizes: {
           A0: [1189, 841],
           A1: [841, 594],
@@ -131,6 +131,7 @@
         },
         paperSize: 'A3',
         layout: {},
+        oldLayout: {},
         title: '',
         statefile: '',
         vectorFormat: 'json',
@@ -202,6 +203,7 @@
           var req = new window.XMLHttpRequest()
           req.open('POST', this.gokartService + '/ogr/' + this.vectorFormat)
           req.responseType = 'blob'
+          req.withCredentials = true
           req.onload = function (event) {
             if (req.status >= 400) {
                 var reader = new FileReader()
@@ -230,6 +232,9 @@
       // resize map to page dimensions (in mm) for printing, save layout
       setSize: function () {
         $('body').css('cursor', 'progress')
+        this.oldLayout.size = this.olmap.getSize()
+        this.oldLayout.scale = this.$root.map.getScale()
+        this.oldLayout.dpmm = this.dpmm
         this.layout = this.mapLayout
         this.dpmm = this.minDPI / this.mmPerInch
         this.olmap.setSize([this.dpmm * this.layout.width, this.dpmm * this.layout.height])
@@ -240,10 +245,10 @@
       },
       // restore map to viewport dimensions
       resetSize: function () {
-        this.olmap.setSize(this.layout.size)
-        this.dpmm = this.layout.dpmm
-        this.olmap.getView().fit(this.layout.extent, this.olmap.getSize())
-        this.$root.map.setScale(this.layout.scale)
+        this.dpmm = this.oldLayout.dpmm
+        this.olmap.setSize(this.oldLayout.size)
+        this.$root.map.setScale(this.oldLayout.scale)
+        // this.olmap.getView().fit(this.layout.extent, this.olmap.getSize())
         $('body').css('cursor', 'default')
       },
       // generate legend block, scale ruler is 40mm wide
@@ -261,6 +266,7 @@
         formData.append('author', this.legendInfo().author)
         var req = new window.XMLHttpRequest()
         req.open('POST', this.gokartService + '/gdal/' + format)
+        req.withCredentials = true
         req.responseType = 'blob'
         var vm = this
         req.onload = function (event) {
