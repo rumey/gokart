@@ -84,7 +84,7 @@
         var vm = this
         var tool = feature.get('toolName')?vm.annotations.getTool(feature.get('toolName')):{}
         var key = keys.map(function(k) {
-          return feature[k] || feature.get(k) || tool[k] || 'default'
+          return vm.annotations.getStyleProperty(feature,k,'default',tool)
         }).join(";")
         if (this.svgBlobs[key]) {
           return this.svgBlobs[key]
@@ -98,7 +98,7 @@
           var tintKey = (keys.length >= 2)?keys[1]:'tint'
 
           var dims = tool[dimsKey] || [48, 48]
-          var tint = feature[tintKey]|| feature.get(tintKey) || tool[tintKey] || 'default'
+          var tint = vm.annotations.getStyleProperty(feature,tintKey,'default',tool)
           tint = (tintSettings && tintSettings[tint])?tintSettings[tint]:[]
           var url = feature.get(keys[0]) || tool[keys[0]]
           if (typeof tint === "string") {
@@ -187,7 +187,7 @@
         var vm = this
         if (feature) {
             var key = keys.map(function(k) {
-              return feature[k] || feature.get(k) || function() { var toolName = feature.get('toolName'); return toolName?vm.annotations.getTool(toolName)[k]:false;}() || 'default'
+              return vm.annotations.getStyleProperty(feature,k,'default')
             }).join(";")
             var style = this.cachedStyles[key]
             if (style) { 
@@ -268,7 +268,7 @@
       getMGA: function(coords) {
         var mga = this.getMGARaw(coords)
         if (mga) {
-            return 'MGA '+mga.mgaZone+' '+Math.round(mga.mgaEast)+'mE '+Math.round(mga.mgaNorth)+'mN'
+            return 'MGA '+mga.mgaZone+' '+Math.round(mga.mgaEast)+'E '+Math.round(mga.mgaNorth)+'N'
         }
         return ''
       },
