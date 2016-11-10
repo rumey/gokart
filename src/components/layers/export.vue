@@ -337,14 +337,14 @@
           localforage.getItem('sssStateStore').then(function (store) {
             if (key in store) {
               var blob = new window.Blob([JSON.stringify(store[key], null, 2)], {type: 'application/json;charset=utf-8'})
-              saveAs(blob, key+'.sss.json')
+              saveAs(blob, key+'.sss')
             }
           })
         } else {
           // download JSON blob of the current state
           localforage.getItem('sssOfflineStore').then(function (store) {
             var blob = new window.Blob([JSON.stringify(store, null, 2)], {type: 'application/json;charset=utf-8'})
-            saveAs(blob, 'sss_view_' +moment().format('YYYY-MM-DD-HHmm')+'.sss.json')
+            saveAs(blob, 'sss_view_' +moment().format('YYYY-MM-DD-HHmm')+'.sss')
           })
         }
       },
