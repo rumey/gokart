@@ -329,12 +329,13 @@ localforage.getItem('sssOfflineStore').then(function (store) {
           scope:["annotation"],
         }, {
           name: 'Control Line',
-          icon: 'dist/static/images/iD-sprite.svg#icon-line',
+          icon: 'dist/static/symbols/fire/controlline.svg',
           interactions: [self.annotations.linestringDrawFactory()],
-          size:3,
+          size: 1,
           typeIcon: 'dist/static/symbols/fire/plus.svg',
           typeIconSelectedTint: 'selectedPlusIcon',
           typeIconDims: [20,20],
+          colour: 'rgba(0, 0, 0, 0.1)',
           showName: true,
           scope:["annotation"],
           style: self.annotations.getVectorStyleFunc(this.tints)
