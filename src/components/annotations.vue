@@ -746,49 +746,72 @@
                 }
                 if (!metadata['points']) {
                     var pointsMetadata = {}
+                    var iconSize = tool['typeIconDims']?tool['typeIconDims'][0]:48
                     pointsMetadata['scale'] = vm.map.getScale()
-                    var perimeterInPixes = (metadata['perimeter'] / (pointsMetadata['scale'] * 1000)) * 1000 * vm.dpmm
-                    pointsMetadata['symbolSize'] = parseInt(perimeterInPixes / ((tool['typeIconDims']?tool['typeIconDims'][0]:48) * 2))//each symbol occupy 2 times symbol size
+                    var perimeterInPixes = parseInt((metadata['perimeter'] / (pointsMetadata['scale'] * 1000)) * 1000 * vm.dpmm)
+                    if (perimeterInPixes < iconSize) {
+                        pointsMetadata['symbolSize'] = 1
+                        pointsMetadata['symbolPercentage'] = 0.5
+                    } else if (perimeterInPixes < iconSize * 2) {
+                        pointsMetadata['symbolSize'] = 2
+                        pointsMetadata['symbolPercentage'] = metadata['closed']?0.5:1
+                    } else {
+                        pointsMetadata['symbolSize'] = parseInt(perimeterInPixes / ( iconSize * 2)) //each symbol occupy 2 times symbol size
+                        pointsMetadata['symbolPercentage'] = 1 / pointsMetadata['symbolSize']
+                        if (!metadata['closed']) {
+                            //geomoetry is not closed, drop a symbol at the end
+                            pointsMetadata['symbolSize'] = pointsMetadata['symbolSize'] + 1
+                        }
+
+                    }
                     pointsMetadata['tint'] = f['typeIconTint'] || f.get('typeIconTint') || tool['typeIconTint'] || 'default'
                     metadata['points'] = pointsMetadata
                 }
                 var symbolSize = metadata['points']['symbolSize']
-                var symbolPercentage = 1 / symbolSize
-                if (!metadata['closed']) {
-                    //geomoetry is not closed, drop a symbol at the end
-                    symbolSize += 1
-                }
+                var symbolPercentage = metadata['points']['symbolPercentage']
                 
-                
-                var segmentIndex = 0
-                var segmentMetadata = metadata['segments'][segmentIndex]
-                var symbolPoints = []
-                var symbolStyle = null
-                var fromStartLength = segmentMetadata.length
-                var fraction = null
-                for (var i = 0;i <= symbolSize ;i++) {
-                    if (i == symbolSize || segmentMetadata['position'] < i * symbolPercentage) {
-                        //console.log("segment " + segmentIndex + ", points = " + symbolPoints.length + ",i = " + i + ",percentage = " + symbolPercentage + ",segments = " + JSON.stringify(segmentMetadata) + ",size = " + parseInt(((fromStartLength / (metadata['points']['scale'] * 1000)) * 1000 * vm.dpmm) / ((tool['typeIconDims']?tool['typeIconDims'][0]:48) * 2)) )
-                        typeIconStyle.push(new ol.style.Style({
-                            geometry:new ol.geom.MultiPoint(symbolPoints),
-                            image: new ol.style.Icon({
-                              src: src,
-                              rotation: segmentMetadata['rotation'],
-                              rotateWithView: true,
-                              snapToPixel: true
-                            })
-                        }))
-                        if (i == symbolSize) {
-                            break;
+                if (symbolSize == 1) {
+                    var segmentIndex = metadata['segments'].findIndex(function(segment){return segment.position >= symbolPercentage})
+
+                    typeIconStyle.push(new ol.style.Style({
+                        geometry:new ol.geom.Point(linestring.getCoordinateAt(symbolPercentage)),
+                        image: new ol.style.Icon({
+                          src: src,
+                          rotation: metadata['segments'][segmentIndex]['rotation'],
+                          rotateWithView: true,
+                          snapToPixel: true
+                        })
+                    }))
+                } else {
+                    var segmentIndex = 0
+                    var segmentMetadata = metadata['segments'][segmentIndex]
+                    var symbolPoints = []
+                    var symbolStyle = null
+                    var fromStartLength = segmentMetadata.length
+                    var fraction = null
+                    for (var i = 0;i <= symbolSize ;i++) {
+                        if (i == symbolSize || segmentMetadata['position'] < i * symbolPercentage) {
+                            typeIconStyle.push(new ol.style.Style({
+                                geometry:new ol.geom.MultiPoint(symbolPoints),
+                                image: new ol.style.Icon({
+                                  src: src,
+                                  rotation: segmentMetadata['rotation'],
+                                  rotateWithView: true,
+                                  snapToPixel: true
+                                })
+                            }))
+                            if (i == symbolSize) {
+                                break;
+                            }
+                            segmentIndex += 1
+                            segmentMetadata = metadata['segments'][segmentIndex]
+                            fromStartLength += segmentMetadata.length
+                            symbolPoints = []
                         }
-                        segmentIndex += 1
-                        segmentMetadata = metadata['segments'][segmentIndex]
-                        fromStartLength += segmentMetadata.length
-                        symbolPoints = []
+                        fraction = i * symbolPercentage
+                        fraction = (fraction < 0)?0:((fraction > 1)?1:fraction)
+                        symbolPoints.push(linestring.getCoordinateAt(fraction))
                     }
-                    fraction = i * symbolPercentage
-                    fraction = (fraction < 0)?0:((fraction > 1)?1:fraction)
-                    symbolPoints.push(linestring.getCoordinateAt(fraction))
                 }
                 f['typeIconStyle'] = typeIconStyle
             }
