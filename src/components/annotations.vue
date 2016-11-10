@@ -769,11 +769,6 @@
                 }
                 var symbolSize = metadata['points']['symbolSize']
                 var symbolPercentage = metadata['points']['symbolPercentage']
-                if (!metadata['closed']) {
-                    //geomoetry is not closed, drop a symbol at the end
-                    symbolSize += 1
-                }
-                
                 
                 if (symbolSize == 1) {
                     var segmentIndex = metadata['segments'].findIndex(function(segment){return segment.position >= symbolPercentage})
