@@ -47,6 +47,10 @@ def generate_app_profile():
     })
     package.update(commit_info)
 
+    #tranform value to json string
+    for k,v in package.iteritems():
+        package[k] = json.dumps(v)
+
     profile = profile_template.safe_substitute(package)
     with open(profile_name,'wb') as f:
         f.write(profile)
