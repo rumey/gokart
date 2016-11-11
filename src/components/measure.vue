@@ -18,7 +18,6 @@
   export default {
     data: function () {
       return {
-        show:true
       }
     },
     // parts of the template to be computed live

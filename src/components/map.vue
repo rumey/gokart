@@ -920,13 +920,11 @@
       }
     },
     ready: function () {
-      var vm = this
       var mapStatus = this.loading.register("olmap","Open layer map Component","Initialize")
       this.svgBlobs = {}
       this.svgTemplates = {}
       this.cachedStyles = {}
       this.jobs = {}
-
 
       // generate matrix IDs from name and level number
       $.each(this.matrixSets, function (projection, innerMatrixSets) {
