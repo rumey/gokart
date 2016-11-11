@@ -37,7 +37,7 @@
                         </a>
                     </li-->
                     <li class="tabs-title side-button">
-                        <a href="#menu-tab-setting" title="System Setting" @click="switchMenu('setting',$root.setting.init)">
+                        <a href="#menu-tab-setting" title="System Settings" @click="switchMenu('setting',$root.setting.init)">
                             <i class="fa fa-cog" aria-hidden="true"></i>
                         </a>
                     </li>

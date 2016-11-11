@@ -17,7 +17,7 @@ tour.on('cancel', function () {
 })
 
 tour.addStep('welcome', {
-  text: 'Would you like a tour of the Spatial Support System? If you exit now, you can always rerun the tour by clicking "Take Tour" in <b>Layers > Save & Print</b>.',
+  text: 'Would you like a tour of the Spatial Support System? If you exit now, you can always rerun the tour by clicking "Take Tour" in <b>System Settings</b>.',
   buttons: [
     {
       text: 'Exit',
