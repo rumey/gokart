@@ -22,6 +22,17 @@ def generate_app_profile():
     app_name = package["config"]["app"]
     profile_name = os.path.join(base_path,"src/apps","{}-profile.js".format(app_name))
 
+    now = datetime.datetime.now(pytz.timezone('Australia/Perth'))
+
+    package.update(package['config'])
+    package.update({
+        "build_datetime":now.strftime("%Y-%m-%d %H:%M:%S %Z(%z)"),
+        "build_date":now.strftime("%Y-%m-%d %Z(%z)"),
+        "build_time":now.strftime("%H-%M-%S %Z(%z)"),
+        "build_platform":platform.system(),
+        "build_host":socket.gethostname()
+    })
+
     #get the latest git commit.
     latest_commit = subprocess.check_output(["git","log","-n","1"]).splitlines()
     commit_info = {}
@@ -35,17 +46,18 @@ def generate_app_profile():
                         commit_info[v] = line[len(k):].strip()
                 break
 
-    now = datetime.datetime.now(pytz.timezone('Australia/Perth'))
-
-    package.update(package['config'])
-    package.update({
-        "build_datetime":now.strftime("%Y-%m-%d %H:%M:%S %Z(%z)"),
-        "build_date":now.strftime("%Y-%m-%d %Z(%z)"),
-        "build_time":now.strftime("%H-%M-%S %Z(%z)"),
-        "build_platform":platform.system(),
-        "build_host":socket.gethostname()
-    })
     package.update(commit_info)
+
+    #get the branch info
+    branch = [b for b in subprocess.check_output(["git","branch"]).splitlines() if b.strip().startswith("*")][0].strip()[1:].strip()
+    
+    #if branch.startswith("(detached from"):
+    #    branch = branch[len("(detached from"):len(branch) - 1].strip()
+
+    package["repository_branch"]=branch
+
+
+
 
     #tranform value to json string
     for k,v in package.iteritems():

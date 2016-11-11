@@ -70,6 +70,8 @@
               <span class="small-8">{{profile.description}}</span>
               <h6 class="small-4">Version:</h6>
               <span class="small-8">{{profile.version}}</span>
+              <h6 class="small-4">Branch:</h6>
+              <span class="small-8">{{profile.repositoryBranch}}</span>
               <h6 class="small-4">Last Commit:</h6>
               <span class="small-8">{{profile.lastCommit}}</span>
               <h6 class="small-4">Commit Date:</h6>
