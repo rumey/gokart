@@ -679,7 +679,7 @@
                     } else {
                         typeIconStyle = f['typeIconStyle']
                         var newStyle = []
-                        var src = vm.map.getBlob(f, ['typeIcon', 'typeIconTint','typeIconDims'],tints || {})
+                        var src = vm.map.getBlob(f, ['typeIcon', 'typeIconTint', 'typeIconDims'],tints || {})
                         if (!src) { return baseStyle }
 
                         $.each(typeIconStyle,function(index,item){
@@ -737,7 +737,7 @@
                     metadata['perimeter'] = perimeter
                     metadata['closed'] = (linestring.getFirstCoordinate()[0] === linestring.getLastCoordinate()[0]) && (linestring.getFirstCoordinate()[1] === linestring.getLastCoordinate()[1])
                     //get the position of each segment's end point in overall linestring
-                    var  len = 0
+                    var len = 0
                     $.each(segmentsMetadata,function(index,segmentMetadata){
                         len += segmentMetadata['length']
                         segmentMetadata['position'] = len / perimeter
@@ -808,8 +808,7 @@
                             fromStartLength += segmentMetadata.length
                             symbolPoints = []
                         }
-                        fraction = i * symbolPercentage
-                        fraction = (fraction < 0)?0:((fraction > 1)?1:fraction)
+                        fraction = Math.min( Math.max( i * symbolPercentage, 0 ), 1 )
                         symbolPoints.push(linestring.getCoordinateAt(fraction))
                     }
                 }
