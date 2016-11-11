@@ -10,6 +10,7 @@ import {
 } from 'src/vendor.js'
 import App from './sss.vue'
 import tour from './sss-tour.js'
+import profile from './sss-profile.js'
 
 global.tour = tour
 
@@ -131,10 +132,12 @@ localforage.getItem('sssOfflineStore').then(function (store) {
       export: function () { return this.$refs.app.$refs.layers.$refs.export },
       annotations: function () { return this.$refs.app.$refs.annotations },
       tracking: function () { return this.$refs.app.$refs.tracking },
+      setting: function () { return this.$refs.app.$refs.setting },
       //bfrs: function () { return this.$refs.app.$refs.bfrs },
       geojson: function () { return new ol.format.GeoJSON() },
       wgs84Sphere: function () { return new ol.Sphere(6378137) },
       activeMenu: function() {return this.$refs.app.activeMenu},
+      profile: function(){return profile},
       persistentData:function() {
           var vm = this
           $.each(persistentData,function(key,val){

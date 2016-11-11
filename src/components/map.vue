@@ -19,6 +19,7 @@
     data: function () {
       return {
         scale: 0,
+        mapControls:{},
         graticule: new ol.LabelGraticule(),
         dragPanInter: new ol.interaction.DragPan({
           condition: function (mapBrowserEvent) {
@@ -46,6 +47,7 @@
     computed: {
       loading: function () { return this.$root.loading },
       annotations: function () { return this.$root.annotations    },
+      measure: function () { return this.$root.measure    },
       // because the viewport size changes when the tab pane opens, don't cache the map width and height
       width: {
         cache: false,
@@ -62,6 +64,41 @@
     },
     // methods callable from inside the template
     methods: {
+      //enable or disable a control
+      enableControl:function(controlName,enable) {
+        var vm = this
+        var control = this.mapControls[controlName]
+        if (control) {
+            if (Array.isArray(control)) {
+                $.each(control,function(index,c){
+                    if (enable) {
+                        if (!c['enabled']) {
+                            vm.olmap.addControl(c)
+                            c['enabled'] = true
+                        }
+                    } else {
+                        if (c['enabled']) {
+                            vm.olmap.removeControl(c)
+                            c['enabled'] = false
+                        }
+                        
+                    }
+                })
+            } else {
+                if (enable) {
+                    if (!control['enabled']) {
+                        vm.olmap.addControl(control)
+                        control['enabled'] = true
+                    }
+                } else {
+                    if (control['enabled']) {
+                        vm.olmap.removeControl(control)
+                        control['enabled'] = false
+                    }
+                }
+            }
+        }
+      },
       editResource: function(event) {
         var target = (event.target.nodeName == "A")?event.target:event.target.parentNode;
         if (env.appType == "cordova") {
@@ -784,37 +821,7 @@
             maxZoom: 21,
             minZoom: 5
           }),
-          controls: [
-            new ol.control.Zoom({
-              target: $('#external-controls').get(0)   
-            }),
-            new ol.control.ScaleLine(),
-            new ol.control.MousePosition({
-                coordinateFormat: function(coordinate) {
-                    return vm.getDeg(coordinate)+'<br/>'+vm.getDMS(coordinate)+'<br/>'+vm.getMGA(coordinate)
-                }
-            }),
-            new ol.control.FullScreen({
-              source: $('body').get(0),
-              target: $('#external-controls').get(0),
-              label: $('<i/>', {
-                class: 'fa fa-expand'
-              })[0]
-            }),
-            new ol.control.Control({
-              element: $('#menu-scale').get(0),
-              target: $('#external-controls').get(0)
-            }),
-            new ol.control.Control({
-              element: $('#map-search').get(0),
-              target: $('#external-controls').get(0)
-            }),
-            new ol.control.Control({
-              element: $('#map-search-button').get(0),
-              target: $('#external-controls').get(0)
-            }),
-            new ol.control.Attribution()
-          ],
+          controls:[],
           interactions: ol.interaction.defaults({
             altShiftDragRotate: false,
             pinchRotate: false,
@@ -822,6 +829,52 @@
             doubleClickZoom: false,
             keyboard: false
           })
+        })
+
+        vm.mapControls = {
+            "zoom": new ol.control.Zoom({
+                  target: $('#external-controls').get(0)   
+            }),
+            "scaleLine": new ol.control.ScaleLine(),
+            "mousePosition": new ol.control.MousePosition({
+                coordinateFormat: function(coordinate) {
+                    return vm.getDeg(coordinate)+'<br/>'+vm.getDMS(coordinate)+'<br/>'+vm.getMGA(coordinate)
+                }
+            }),
+            "fullScreen": new ol.control.FullScreen({
+                source: $('body').get(0),
+                target: $('#external-controls').get(0),
+                label: $('<i/>', {
+                    class: 'fa fa-expand'
+                })[0]
+            }),
+            "scale": new ol.control.Control({
+                element: $('#menu-scale').get(0),
+                target: $('#external-controls').get(0)
+            }),
+            "search": [
+                new ol.control.Control({
+                    element: $('#map-search').get(0),
+                    target: $('#external-controls').get(0)
+                  }),
+                new ol.control.Control({
+                    element: $('#map-search-button').get(0),
+                    target: $('#external-controls').get(0)
+                })
+            ],
+            "attribution": new ol.control.Attribution(),
+            "measure": vm.measure.mapControl
+        }
+        $.each(vm.mapControls,function(key,control){
+            if (Array.isArray(control)) {
+                $.each(control,function(index,c) {
+                    vm.olmap.addControl(c)
+                    c['enabled'] = true
+                })
+            } else {
+                vm.olmap.addControl(control)
+                control['enabled'] = true
+            }
         })
 
         this.setScale(this.view.scale / 1000)
@@ -867,11 +920,13 @@
       }
     },
     ready: function () {
+      var vm = this
       var mapStatus = this.loading.register("olmap","Open layer map Component","Initialize")
       this.svgBlobs = {}
       this.svgTemplates = {}
       this.cachedStyles = {}
       this.jobs = {}
+
 
       // generate matrix IDs from name and level number
       $.each(this.matrixSets, function (projection, innerMatrixSets) {

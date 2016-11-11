@@ -18,6 +18,7 @@
   export default {
     data: function () {
       return {
+        show:true
       }
     },
     // parts of the template to be computed live
@@ -42,6 +43,15 @@
       isMeasureArea:function() {
         return this.measureType == "MeasureArea"
       },
+      mapControl:function() {
+        if (!this._controller) {
+            this._controller = new ol.control.Control({
+              element: $('#map-measure').get(0),
+        	  target: $('#external-controls').get(0)
+            })
+        }
+        return this._controller
+      }
     },
     // methods callable from inside the template
     methods: {
@@ -304,15 +314,7 @@
       })
 
       this.wgs84Sphere = new ol.Sphere(6378137);
-      measureStatus.wait(40,"Listen 'gk-init' event")
-      this.$on("gk-init",function(){
-        measureStatus.progress(80,"Process 'gk-init' event")
-        vm.$root.map.olmap.addControl(new ol.control.Control({
-          element: $('#map-measure').get(0),
-    	  target: $('#external-controls').get(0)
-        }))
-        measureStatus.end()
-      })
+      measureStatus.end()
     }
   }
 </script>

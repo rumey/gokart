@@ -91,18 +91,6 @@
           </div>
         </div>
       </div>
-      <hr class="row"/>
-      <div class="tool-slice row collapse">
-        <div class="small-3">
-          <label class="tool-label">Reset:</label>
-        </div>
-        <div class="small-9">
-          <div class="expanded button-group">
-            <a id="reset-sss" class="button alert" title="Clear current config and annotations" @click="reset()"><i class="fa fa-refresh"></i> Reset SSS</a>
-            <a id="take-tour" class="button" title="Take tour" @click="$root.takeTour()"><i class="fa fa-book"></i> Take Tour</a>
-          </div>
-        </div>
-      </div>
 
       <div class="hide" v-el:legendsvg>
         <gk-legend></gk-legend>
@@ -460,14 +448,6 @@
           }
         }
         reader.readAsText(file)
-      },
-      reset: function () {
-        if (window.confirm('This will clear all of your selected layers and annotations. Are you sure?')) {
-          //except settings, clear everything
-          localforage.setItem('sssOfflineStore', {settings:this.$root.persistentData.settings}).then(function (v) {
-            document.location.reload()
-          })
-        }
       },
       saveStateButton: function () {
         var key = this.$els.savestatename.value

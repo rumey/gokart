@@ -484,7 +484,7 @@
         }
 
         // auto-disable hover info, but remember the user's choice
-        this.$root.active.hoverInfo = ((t.name === 'Pan') && (this.$root.active.hoverInfoCache))
+        this.$root.setting.hoverInfo = ((t.name === 'Pan') && (this.$root.setting.hoverInfoCache))
         
         //change the cursor
         if (t.cursor && typeof t.cursor === 'string') {

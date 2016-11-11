@@ -5,6 +5,7 @@
             <div class="off-canvas position-left" id="offCanvasLeft" data-off-canvas>
                 <a id="side-pane-close" class="button alert hide-for-medium">&#x2715;</a>
                 <div class="tabs-content vertical" data-tabs-content="menu-tabs">
+                    <gk-setting v-ref:setting></gk-setting>
                     <gk-layers v-ref:layers></gk-layers>
                     <gk-annotations v-ref:annotations></gk-annotations>
                     <gk-tracking v-ref:tracking></gk-tracking>
@@ -35,6 +36,11 @@
                             <i class="fa fa-fire" aria-hidden="true"></i>
                         </a>
                     </li-->
+                    <li class="tabs-title side-button">
+                        <a href="#menu-tab-setting" title="System Setting" @click="switchMenu('setting',$root.setting.init)">
+                            <i class="fa fa-cog" aria-hidden="true"></i>
+                        </a>
+                    </li>
                 </ul>
                 <gk-map v-ref:map></gk-map>
             </div>
@@ -49,6 +55,7 @@
     import gkAnnotations from '../components/annotations.vue'
     import gkTracking from '../components/sss/tracking.vue'
     import gkLoading from '../components/loading.vue'
+    import gkSetting from '../components/setting.vue'
     //import gkBfrs from '../components/sss/bfrs.vue'
     import { ol } from 'src/vendor.js'
 
@@ -59,7 +66,7 @@
             activeMenu : null
         }
       },
-      components: { gkMap, gkLayers, gkAnnotations, gkTracking, gkLoading },//, gkBfrs },
+      components: { gkMap, gkLayers, gkAnnotations, gkTracking, gkLoading,gkSetting },//, gkBfrs },
       methods: {
         init: function() {
             this.$root.annotations.setTool()

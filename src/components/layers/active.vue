@@ -4,25 +4,6 @@
     <div class="layers-topframe scroller row">
       <div class="columns">
 
-        <div class="row">
-          <div class="switch tiny">
-            <input class="switch-input" id="toggleGraticule" type="checkbox" v-bind:checked="graticule" @change="toggleGraticule" />
-            <label class="switch-paddle" for="toggleGraticule">
-                    <span class="show-for-sr">Display graticule</span>
-                  </label>
-          </div>
-          <label for="toggleGraticule" class="side-label">Display graticule</label>
-        </div>
-        <div class="row show-for-medium">
-          <div class="switch tiny">
-            <input class="switch-input" id="toggleHoverInfo" type="checkbox" v-bind:checked="hoverInfo" @change="toggleHoverInfo" />
-            <label class="switch-paddle" for="toggleHoverInfo">
-              <span class="show-for-sr">Display hovering feature info</span>
-            </label>
-          </div>
-          <label for="toggleHoverInfo" class="side-label">Display hovering feature info</label>
-        </div>
-
         <div id="layers-active-list">
           <div v-for="l in olLayers.slice().reverse()" class="row feature-row status-row" v-bind:class="layerRefreshProgress(l)" data-id="{{ l.get('id') }}"
             track-by="values_.id" @click="layer = getLayer(l.get('id'))">
@@ -76,30 +57,11 @@
         layerRefreshStopped:false,
         refreshRevision:0,
         olLayers: [],
-        hoverInfoCache: false,
         timeIndex: 0
       }
     },
     // parts of the template to be computed live
     computed: {
-      graticule: {
-        cache: false,
-        get: function () {
-          return this.$root.map && this.$root.map.graticule && this.$root.map.graticule.getMap() === this.$root.map.olmap
-        }
-      },
-      hoverInfo: {
-        cache: false,
-        get: function () {
-          return this.$root.map && this.$root.info && this.$root.info.enabled
-        },
-        set: function (val) {
-          this.$root.info.enabled = val
-        }
-      },
-      hoverInfoSwitchable: function () {
-        return this.$root.annotations.tool && this.$root.annotations.tool.name === "Pan"
-      },
       sliderTimeline: {
         get: function () {
           this.timeIndex = this.mapLayer().get('timeIndex')
@@ -222,18 +184,6 @@
       },
       getLayer: function (id) {
         return this.$root.catalogue.getLayer(id)
-      },
-      toggleGraticule: function () {
-        var map = this.$root.map
-        if (this.graticule) {
-          map.graticule.setMap(null)
-        } else {
-          map.graticule.setMap(map.olmap)
-        }
-      },
-      toggleHoverInfo: function (ev) {
-        this.hoverInfoCache = ev.target.checked
-        this.hoverInfo = ev.target.checked
       },
       update: function () {
         var vm = this
