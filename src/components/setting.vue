@@ -39,7 +39,7 @@
                   <span class="show-for-sr">Show Right Hand Tools</span>
                 </label>
               </div>
-              <label for="toggleHoverInfo" class="side-label">Show Right Hand Tools</label>
+              <label for="toggleRightHandTools" class="side-label">Show Right Hand Tools</label>
             </div>
 
            <div class="tool-slice row collapse">
