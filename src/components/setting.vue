@@ -49,7 +49,7 @@
                </div>
                <div class="small-9">
                   <div class="expanded button-group">
-                    <a id="reset-sss" class="button alert" title="Clear current config and annotations" @click="reset()"><i class="fa fa-refresh"></i> Reset SSS</a>
+                    <a id="reset-sss" class="button alert" title="Clear the current drawing and layer selection (saved views will be retained)" @click="reset()"><i class="fa fa-refresh"></i> Reset SSS</a>
                   </div>
                </div>
                <div class="small-3">
@@ -57,7 +57,7 @@
                </div>
                <div class="small-9">
                   <div class="expanded button-group">
-                    <a id="take-tour" class="button" title="Take tour" @click="$root.takeTour()"><i class="fa fa-book"></i> Take Tour</a>
+                    <a id="take-tour" class="button" title="Take a tour of the new SSS interface" @click="$root.takeTour()"><i class="fa fa-book"></i> Take Tour</a>
                   </div>
                </div>
             </div>
