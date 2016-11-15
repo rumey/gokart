@@ -36,10 +36,10 @@
               <div class="switch tiny">
                 <input class="switch-input" id="toggleRightHandTools" type="checkbox" v-bind:checked="showRightHandTools" @change="toggleRightHandTools" />
                 <label class="switch-paddle" for="toggleRightHandTools">
-                  <span class="show-for-sr">Show Right Hand Tools</span>
+                  <span class="show-for-sr">Show right hand tools</span>
                 </label>
               </div>
-              <label for="toggleRightHandTools" class="side-label">Show Right Hand Tools</label>
+              <label for="toggleRightHandTools" class="side-label">Show right hand tools</label>
             </div>
 
            <div class="tool-slice row collapse">
