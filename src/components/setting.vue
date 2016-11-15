@@ -61,21 +61,23 @@
                   </div>
                </div>
             </div>
+            
 
-            <div class="tool-slice row collapse">
-              <hr class="small-12">
-              <h6 class="small-4">Name:</h6>
-              <span class="small-8">{{profile.name}}</span>
-              <h6 class="small-4">Description:</h6>
-              <span class="small-8">{{profile.description}}</span>
-              <h6 class="small-4">Version:</h6>
+            <div class="about-pane row collapse about-pane">
+              <hr class="small-12"/>
+              <h5 class="small-12">{{profile.description}}</h5>
+              <div class="small-4">Version:</div>
               <span class="small-8">{{profile.version}}</span>
-              <h6 class="small-4">Branch:</h6>
+              <div class="small-4">Branch:</div>
               <span class="small-8">{{profile.repositoryBranch}}</span>
-              <h6 class="small-4">Last Commit:</h6>
+              <div class="small-4">Last commit:</div>
               <span class="small-8">{{profile.lastCommit}}</span>
-              <h6 class="small-4">Commit Date:</h6>
+              <div class="small-4">Commit date:</div>
               <span class="small-8">{{profile.commitDate}}</span>
+              <div class="small-12">
+                <p><br/>© 2016 Government of Western Australia<br/>Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a> (the "License"). Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.</p>
+                <p><b>DISCLAIMER:</b> The Department of Parks and Wildlife does not guarantee that this map is without flaw of any kind and disclaims all liability for any error, or loss or other consequence which may arise from relying on any information depicted. Apart from any use permitted under the Copyright Act, no part of this map may be reproduced by any process without the written permission of the authors. Crown copyright reserved.</p>
+              </div>
             </div>
           </div>
         </div>
@@ -86,6 +88,10 @@
 </template>
 
 <style>
+.about-pane {
+    font-size: 12px;
+}
+
 </style>
 
 <script>
