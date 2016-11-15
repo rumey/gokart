@@ -33,23 +33,26 @@ def generate_app_profile():
         "build_host":socket.gethostname()
     })
 
+
     #get the latest git commit.
     latest_commit = subprocess.check_output(["git","log","-n","1"]).splitlines()
     commit_info = {}
     for line in latest_commit:
-        for k,v in [("commit","commit"),("Author:","commit_author"),("Merge:",""),("Date:","commit_date"),("","commit_message")]:
+        for k,v in [(b"commit","commit"),(b"Author:","commit_author"),(b"Merge:",""),(b"Date:","commit_date"),(b"","commit_message")]:
             if line[:len(k)] == k:
                 if v and line[len(k):].strip() :
                     if v in commit_info:
-                        commit_info[v] =  "{}\\n{}".format(commit_info[v],line[len(k):].strip())
+                        commit_info[v] =  "{}\\n{}".format(commit_info[v],line[len(k):].strip().decode('utf-8'))
                     else:
-                        commit_info[v] = line[len(k):].strip()
+                        commit_info[v] = line[len(k):].strip().decode('utf-8')
                 break
+    if 'commit' in commit_info:
+        commit_info['commit'] = commit_info['commit'][:7]
 
     package.update(commit_info)
 
     #get the branch info
-    branch = [b for b in subprocess.check_output(["git","branch"]).splitlines() if b.strip().startswith("*")][0].strip()[1:].strip()
+    branch = [b for b in subprocess.check_output(["git", "branch"]).splitlines() if b.strip().startswith(b"*")][0].strip()[1:].strip().decode('utf-8')
     
     #if branch.startswith("(detached from"):
     #    branch = branch[len("(detached from"):len(branch) - 1].strip()
@@ -58,13 +61,19 @@ def generate_app_profile():
 
 
 
-
     #tranform value to json string
-    for k,v in package.iteritems():
+    for k,v in package.items():
         package[k] = json.dumps(v)
 
+    for key, val in package.items():
+        print('{}: {}'.format(key, val))
+
     profile = profile_template.safe_substitute(package)
-    with open(profile_name,'wb') as f:
+
+    print('\nPROFILE:')
+    print(profile)
+
+    with open(profile_name,'w') as f:
         f.write(profile)
 
 if __name__ == "__main__":
