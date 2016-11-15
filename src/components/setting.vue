@@ -42,6 +42,11 @@
               <label for="toggleHoverInfo" class="side-label">Show Right Hand Tools</label>
             </div>
 
+            <div class="tool-slice row collapse">
+              <div class="columns small-4"><label class="tool-label">Undo Limit:<br/>{{ undoLimitDesc }}</label></div>
+              <div class="columns small-8"><input class="layer-opacity" type="range" min="0" max="1000" step="10" v-model="settings.undoLimit"></div>
+            </div>
+
            <div class="tool-slice row collapse">
                <hr class="small-12"/>
                <div class="small-3">
@@ -91,6 +96,7 @@
 <script>
   import { $,Vue } from 'src/vendor.js'
   export default {
+    store: ['settings'],
     data: function () {
       return {
         hoverInfoCache: false,
@@ -102,6 +108,9 @@
       profile: function () { return this.$root.profile },
       measure: function () { return this.$root.measure },
       map: function () { return this.$root.map },
+      undoLimitDesc:function() {
+        return this.settings.undoLimit?this.settings.undoLimit:"Unlimited"
+      },
       graticule: {
         cache: false,
         get: function () {

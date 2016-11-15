@@ -88,9 +88,13 @@ var persistentData = {
     type: 'FeatureCollection',
     features: []
   },
+  drawingLogs:[],
+  redoPointer:0,//pointer to the next redo log 
+  drawingSequence:0,
   //data in settings will survive across reset
   settings:{
-    tourVersion: null
+    tourVersion: null,
+    undoLimit:0
   }
 }
 
@@ -101,6 +105,11 @@ global.$ = $
 
 Vue.use(VueStash)
 localforage.getItem('sssOfflineStore').then(function (store) {
+  console.log(JSON.stringify(store))
+  var settings = $.extend({},persistentData.settings,store?(store.settings || {}):{})
+  var storedData = $.extend({}, persistentData, store || {}, volatileData)
+  storedData.settings = settings
+
   global.gokart = new Vue({
     el: 'body',
     components: {
@@ -108,7 +117,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
     },
     data: {
       // store contains state we want to reload/persist
-      store: $.extend({}, persistentData, store || {}, volatileData),
+      store: storedData,
       pngs: {},
       fixedLayers:[],
       saved: null,
@@ -359,14 +368,16 @@ localforage.getItem('sssOfflineStore').then(function (store) {
           self.catalogue.loadRemoteCatalogue(self.store.remoteCatalogue, function () {
             //add default layers
             try {
-                self.loading.app.progress(70,"Initialize Active Layers")
+                self.loading.app.progress(50,"Initialize Active Layers")
                 self.map.initLayers(self.fixedLayers, self.store.activeLayers)
                 // tell other components map is ready
-                self.loading.app.progress(80,"Broadcast 'gk-init' event")
+                self.loading.app.progress(60,"Broadcast 'gk-init' event")
                 self.$broadcast('gk-init')
                 // after catalogue load trigger a tour
                 $("#menu-tab-layers-label").trigger("click")
                 self.$refs.app.switchMenu("mapLayers",self.$refs.app.init)
+                self.loading.app.progress(90,"Broadcast 'gk-postinit' event")
+                self.$broadcast('gk-postinit')
                 self.loading.app.end()
             } catch(err) {
                 //some exception happens

@@ -442,6 +442,8 @@
           }
           if (features && features.length > 0) {
               $.each(features,function(index,feature){
+                vm.drawingSequence += 1
+                feature.set('id',vm.drawingSequence)
                 vm.annotations.initFeature(feature)
               })            
               vm.annotations.features.extend(features)
