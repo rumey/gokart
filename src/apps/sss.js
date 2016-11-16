@@ -56,12 +56,13 @@ var volatileData = {
     ['basemap', 'Base Imagery'],
     ['boundaries', 'Admin Boundaries'],
     ['communications', 'Communications'],
-    ['operations', 'DPaW Operations'],
-    ['bushfire', 'Fire'],
-    ['infrastructure', 'Infrastructure'],
+    ['fire', 'Fire Operations'],
     ['meteorology', 'Meteorology'],
-    ['relief', 'Relief'],
-    ['sensitive', 'Sensitive Sites']
+    ['vegetation', 'Vegetation'],
+    ['tenure', 'Tenure and Land Use'],
+    ['infrastructure', 'Infrastructure'],
+    ['grid', 'Grid Systems'],
+    ['resources', 'Resource Tracking']
   ],
   matrixSets: {
     'EPSG:4326': {
