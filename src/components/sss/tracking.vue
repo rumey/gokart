@@ -74,23 +74,23 @@
                 <div class="columns">
                   <div class="row">
                     <div class="switch tiny">
-                      <input class="switch-input" id="resourceHistory" type="checkbox" v-model="toggleHistory" @change="clearHistory" />
-                      <label class="switch-paddle" for="resourceHistory">
-                    <span class="show-for-sr">Query history</span>
-                  </label>
-                    </div>
-                    <label for="resourceHistory" class="side-label">Query history</label>
-                  </div>
-                </div>
-                <div class="columns">
-                  <div class="row">
-                    <div class="switch tiny">
                       <input class="switch-input" id="selectedOnly" type="checkbox" v-model="selectedOnly" @change="updateCQLFilter('selectedDevice')" />
                       <label class="switch-paddle" for="selectedOnly">
                     <span class="show-for-sr">Show selected only</span>
                  </label>
                     </div>
                     <label for="selectedOnly" class="side-label">Show selected only</label>
+                  </div>
+                </div>
+                <div class="columns">
+                  <div class="row">
+                    <div class="switch tiny">
+                      <input class="switch-input" id="resourceHistory" type="checkbox" v-model="toggleHistory" @change="clearHistory" />
+                      <label class="switch-paddle" for="resourceHistory">
+                    <span class="show-for-sr">Query history</span>
+                  </label>
+                    </div>
+                    <label for="resourceHistory" class="side-label">Query history</label>
                   </div>
                 </div>
               </div>
