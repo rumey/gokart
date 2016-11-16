@@ -1,7 +1,7 @@
 <template>
     <a class="button drawinglog" v-bind:disabled="undoSteps == 0" @click="undo()"><i class="fa fa-undo" aria-hidden="true"></i> Undo ({{undoSteps}}/{{drawingLogs.length}})</a>
     <a class="button drawinglog" v-bind:disabled="redoSteps == 0" @click="redo()"><i class="fa fa-repeat" aria-hidden="true"></i> Redo ({{redoSteps}}/{{drawingLogs.length}})</a>
-    <a class="button drawinglog" v-bind:disabled="drawingLogs.length == 0" @click="cleanLogs()"><i class="fa fa-repeat" aria-hidden="true"></i> Clean ({{drawingLogs.length}})</a>
+    <a class="button drawinglog" v-bind:disabled="drawingLogs.length == 0" @click="cleanLogs()"><i class="fa fa-trash" aria-hidden="true"></i> Clean ({{drawingLogs.length}})</a>
 </template>
 <style>
 .drawinglog {
@@ -13,7 +13,7 @@
     import { ol,$ } from 'src/vendor.js'
 
     export default { 
-      store: ['drawingLogs','redoPointer'],
+      store: ['drawingLogs','redoPointer','settings'],
       data: function() {
         return {
             modifyingFeatures:{}
@@ -21,14 +21,185 @@
       },
       computed: {
         annotations: function() {return this.$root.annotations},
+        loading: function () { return this.$root.loading },
         undoSteps:function() {
             return this.drawingLogs.length && this.redoPointer
         },
         redoSteps:function() {
             return this.drawingLogs.length && this.drawingLogs.length - this.redoPointer
         },
+        size:{
+            get:function() {
+                return this.settings.undoLimit
+            },
+            set:function(val) {
+                //Setting log size will not truncate log immediately
+                //Log will be resized in the next addLog call.
+                if (val < 0) {
+                    //want to disable drawing logs
+                    if (this.settings.undoLimit >= 0) {
+                        //currently, logs is enabled, turn it off
+                        this.off()
+                    }
+                } else {
+                    //want to enable drawing logs
+                    if (this.settings.undoLimit < 0) {
+                        //currently, logs is disabled, turn it on
+                        this.on(val)
+                    } else {
+                        this.settings.undoLimit = val
+                    }
+                }
+            }
+        }
       },
       methods:{
+        on:function(limit) {
+            limit = limit || 0
+            if (limit < 0) {
+                //limit is less than 0, disable the feature
+                this.off()
+                return
+            }
+            //Write logs for creating features(drawn features and imported features),removing features , moving features and modifying features.
+            var vm = this
+
+            var attachChangeEventListener = function(feature) {
+                var featureId = feature.get('id')
+                feature.getGeometry()._changeListenerId = feature.getGeometry()._changeListenerId || feature.getGeometry().on("change",vm._eventHandlers["geometry:change"](feature,featureId))
+            
+                var tool = feature.get('toolName')?vm.annotations.getTool(feature.get('toolName')):false
+                if (!tool) {return}
+                if (tool === vm.annotations.ui.defaultText) {
+                    //for note feature, set the previous note data to current note data. 
+                    //Previous note data is used to check whether note data is changed or not, if changed then record a modify log; otherwise, ignore
+                    var previousNote = {}
+                    var note = feature.get('note')
+                    if (note) {
+                        $.each(note,function(key,value){
+                            previousNote[key] = value
+                        })
+                        feature['previousNote'] = previousNote
+                    }
+                    feature._propertyChangeListenerId = feature._propertyChangeListenerId || feature.on("propertychange",vm._eventHandlers["text:propertychange"](feature))
+                } else if (tool === vm.annotations.ui.defaultLine || tool === vm.annotations.ui.defaultPolygon) {
+                    feature._propertyChangeListenerId = feature._propertyChangeListenerId || feature.on("propertychange",vm._eventHandlers["vector:propertychange"](feature))
+                }
+            }
+            //add event handlers for existing features
+            vm.annotations.features.forEach(function(feature){
+                attachChangeEventListener(feature)
+            })
+
+            //add event listeners to record modifying logs
+            vm._eventListenerIds["features:change"] = vm._eventListenerIds["features:change"] || vm.annotations.features.on('add',function(ev) {
+                attachChangeEventListener(ev.element)
+            })
+
+
+            //add event listeners to record logs
+            vm._eventListenerIds["features:add"] = vm._eventListenerIds["features:add"] || vm.annotations.features.on('add',function(ev) {
+                if (vm._undoRedoMode) { return }
+                vm.addFeatures(ev.element)
+            })
+
+            vm._eventListenerIds["features:remove"] = vm._eventListenerIds["features:remove"] || vm.annotations.features.on('remove',function(ev) {
+                if (vm._undoRedoMode) { return }
+                vm.removeFeatures(ev.element)
+            })
+
+            vm._eventListenerIds["translateInter:translateend"] = vm._eventListenerIds["translateInter:translateend"] || vm.annotations.ui.translateInter.on("translateend",function(ev){
+                if (vm._undoRedoMode) { return }
+                vm.modifyFeatures(ev.features)
+            })
+
+            vm._eventListenerIds["modifyInter:modifyend"] = vm._eventListenerIds["modifyInter:modifyend"] || vm.annotations.ui.modifyInter.on("modifyend",function(ev){
+                if (vm._undoRedoMode) { return }
+                vm.modifyFeatures(ev.features)
+            })
+            
+            //add control-z and control-r  for undo and redo
+            vm._keyboardInter = vm._keyboardInter || new ol.interaction.Interaction({
+                handleEvent: function (mapBrowserEvent) {
+                    var stopEvent = false
+                    if (mapBrowserEvent.type === ol.events.EventType.KEYDOWN) {
+                       var keyEvent = mapBrowserEvent.originalEvent
+                       switch (keyEvent.keyCode) {
+                         case 90: // z
+                           if (keyEvent.ctrlKey) {
+                              vm.undo()
+                              stopEvent = true
+                            }
+                            break
+                          case 89: // y
+                            vm.redo()
+                            stopEvent = true
+                            break
+                          default:
+                            break
+                        }
+                    }
+                    // if we intercept a key combo, disable any browser behaviour
+                    if (stopEvent) {
+                        keyEvent.preventDefault()
+                    }
+                    return !stopEvent
+                }
+            })
+            vm.$root.map.olmap.addInteraction(vm._keyboardInter)
+
+            vm.settings.undoLimit = limit
+            
+        },
+        off:function() {
+            var vm = this
+            //remove event listeners from existing features
+            vm.annotations.features.forEach(function(feature) {
+                if (feature.getGeometry()._changeListenerId) {
+                    feature.getGeometry().unByKey(feature.getGeometry()._changeListenerId)
+                    delete feature.getGeometry()._changeListenerId
+                }
+                if (feature._propertyChangeListenerId) {
+                    feature.unByKey(feature._propertyChangeListenerId)
+                    delete feature._propertyChangeListenerId
+                }
+            })
+
+            //remove event listeners from features collection
+            if (vm._eventListenerIds["features:change"]) {
+                vm.annotations.features.unByKey(vm._eventListenerIds["features:change"])
+                delete vm._eventListenerIds["features:change"]
+            }
+
+            if (vm._eventListenerIds["features:add"]) {
+                vm.annotations.features.unByKey(vm._eventListenerIds["features:add"])
+                delete vm._eventListenerIds["features:add"]
+            }
+
+            if (vm._eventListenerIds["features:remove"]) {
+                vm.annotations.features.unByKey(vm._eventListenerIds["features:remove"])
+                delete vm._eventListenerIds["features:remove"]
+            }
+
+            if (vm._eventListenerIds["translateInter:translateend"]) {
+                vm.annotations.ui.translateInter.unByKey(vm._eventListenerIds["translateInter:translateend"])
+                delete vm._eventListenerIds["translateInter:translateend"]
+            }
+
+            if (vm._eventListenerIds["modifyInter:modifyend"]) {
+                vm.annotations.ui.modifyInter.unByKey(vm._eventListenerIds["modifyInter:modifyend"])
+                delete vm._eventListenerIds["modifyInter:modifyend"] 
+            }
+
+            if (vm._keyboardInter) {
+                vm.$root.map.olmap.removeInteraction(vm._keyboardInter)
+            }
+
+            vm.drawingLogs.splice(0,vm.drawingLogs.length)
+            vm.redoPointer = 0
+
+            vm.settings.undoLimit = -1
+        },
         addFeatures:function(features) {
             if (features instanceof ol.Collection) {
                 features = features.getArray()
@@ -71,7 +242,10 @@
         },
         addLog: function(log){
             this.drawingLogs.splice(this.redoPointer,this.drawingLogs.length - this.redoPointer,log)
-            console.log(this.redoPointer + ":" + JSON.stringify(log))
+            if (this.size > 0 && this.drawingLogs.length > this.size) {
+                //truncate the log if log is exceed the log size.
+                this.drawingLogs.splice(0, this.drawingLogs.length - this.size)
+            }
             this.redoPointer = this.drawingLogs.length
         },
         cleanLogs: function() {
@@ -117,11 +291,13 @@
                         var index = vm.annotations.features.getArray().findIndex(function(f){return f.get('id') === feature.get('id')})
                         if (index >= 0) {
                             var f = vm.annotations.features.item(index)
-                            if (f.getGeometry()._logHandler) {
-                                f.getGeometry().unByKey(f.getGeometry()._logHandler)
+                            var tool = f.get('toolName')?vm.annotations.getTool(f.get('toolName')):false
+                            if (tool && tool.typeIcon) {
+                                delete f['typeIconStyle']
+                                f.set('typeIconMetadata',undefined,true)
                             }
                             f.setGeometry(feature.getGeometry())
-                            f.getGeometry()._logHandler = f.getGeometry().on("change",vm._eventHandlers["geometry:change"](f,feature.get('id')))
+                            f.getGeometry().on("change",vm._eventHandlers["geometry:change"](f,feature.get('id')))
                         }
                     })
                 } else if (vm.drawingLogs[undoIndex][0] === 'P') {
@@ -187,11 +363,13 @@
                         var index = vm.annotations.features.getArray().findIndex(function(f){return f.get('id') === feature.get('id')})
                         if (index >= 0) {
                             var f = vm.annotations.features.item(index)
-                            if (f.getGeometry()._logHandler) {
-                                f.getGeometry().unByKey(f.getGeometry()._logHandler)
+                            var tool = f.get('toolName')?vm.annotations.getTool(f.get('toolName')):false
+                            if (tool && tool.typeIcon) {
+                                delete f['typeIconStyle']
+                                f.set('typeIconMetadata',undefined,true)
                             }
                             f.setGeometry(feature.getGeometry())
-                            f.getGeometry()._logHandler = f.getGeometry().on("change",vm._eventHandlers["geometry:change"](f,feature.get('id')))
+                            f.getGeometry().on("change",vm._eventHandlers["geometry:change"](f,feature.get('id')))
                         }
                     })
                 } else if (vm.drawingLogs[vm.redoPointer][0] === 'P') {
@@ -224,18 +402,23 @@
             } finally {
                 vm._undoRedoMode = false
             }
+        },
+        changeUndoLimit:function() {
         }
       },
       ready:function(){
         var vm = this
+        var logStatus = this.loading.register("drawinglogs","Drawing Logs Component", "Initialize")
         vm._undoRedoMode = false
         vm._modifyingFeatures = []
         vm._modifyingFeatureIds = {}
         vm._eventHandlers = {}
+        vm._eventListenerIds = {}
+
+        logStatus.wait(10,"Declare event handlers")
         vm._eventHandlers["geometry:change"] = function(feature,featureId) {
             return function(ev) {
                 if (vm._undoRedoMode) { return }
-                console.log("feature's geometry is changed " + featureId)
                 if ( featureId in vm._modifyingFeatureIds) {
                     return
                 }
@@ -283,50 +466,11 @@
             }
         }
 
-        vm.annotations.features.on('add',function(ev) {
-            //Write logs for modifying feature geometry and feature properties
-            var feature = ev.element
-            var featureId = feature.get('id')
-            feature.getGeometry()._logHandler = feature.getGeometry().on("change",vm._eventHandlers["geometry:change"](feature,featureId))
-            
-            var tool = feature.get('toolName')?vm.annotations.getTool(feature.get('toolName')):false
-            if (!tool) {return}
-            if (tool === vm.annotations.ui.defaultText) {
-                var previousNote = {}
-                var note = feature.get('note')
-                if (note) {
-                    $.each(note,function(key,value){
-                        previousNote[key] = value
-                    })
-                    feature['previousNote'] = previousNote
-                }
-                feature.on("propertychange",vm._eventHandlers["text:propertychange"](feature))
-            } else if (tool === vm.annotations.ui.defaultLine || tool === vm.annotations.ui.defaultPolygon) {
-                feature.on("propertychange",vm._eventHandlers["vector:propertychange"](feature))
-            }
-        })
-
+        logStatus.wait(30,"Listen 'gk-postinit' event")
         vm.$on('gk-postinit',function(){
-            //Write logs for creating features(drawn features and imported features),removing features , moving features and modifying features.
-            vm.annotations.features.on('add',function(ev) {
-                if (vm._undoRedoMode) { return }
-                vm.addFeatures(ev.element)
-            })
-
-            vm.annotations.features.on('remove',function(ev) {
-                if (vm._undoRedoMode) { return }
-                vm.removeFeatures(ev.element)
-            })
-
-            vm.annotations.ui.translateInter.on("translateend",function(ev){
-                if (vm._undoRedoMode) { return }
-                vm.modifyFeatures(ev.features)
-            })
-
-            vm.annotations.ui.modifyInter.on("modifyend",function(ev){
-                if (vm._undoRedoMode) { return }
-                vm.modifyFeatures(ev.features)
-            })
+            logStatus.wait(70,"Attach event handlers for recording logs")
+            this.on(vm.settings.undoLimit)
+            logStatus.end()
         })
       }
     }

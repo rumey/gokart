@@ -768,6 +768,7 @@
                     var pointsMetadata = {}
                     var iconSize = tool['typeIconDims']?tool['typeIconDims'][0]:48
                     pointsMetadata['scale'] = vm.map.getScale()
+                    pointsMetadata['geometryRevision'] = f.getGeometry().getRevision()
                     var perimeterInPixes = parseInt((metadata['perimeter'] / (pointsMetadata['scale'] * 1000)) * 1000 * vm.dpmm)
                     if (perimeterInPixes < iconSize) {
                         pointsMetadata['symbolSize'] = 1
@@ -921,7 +922,7 @@
           ev.features.forEach(function(f){
             if (f.get('toolName')) {
                 tool = vm.getTool(f.get('toolName'))
-                if (tool && tool.typeIcon) {
+                if (tool && tool.typeIcon && f.get('typeIconMetadata')['points']['geometryRevision'] !== f.getGeometry().getRevision()) {
                     delete f['typeIconStyle']
                     f.set('typeIconMetadata',undefined,true)
                     f.changed()

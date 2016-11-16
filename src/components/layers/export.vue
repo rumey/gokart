@@ -105,7 +105,7 @@
   import gkLegend from './legend.vue'
   import gkLayerlegends from './layerlegends.vue'
   export default {
-    store: ['whoami', 'dpmm', 'view', 'mmPerInch', 'gokartService'],
+    store: ['whoami', 'dpmm', 'view', 'mmPerInch', 'gokartService','drawingSequence'],
     components: { gkLegend,gkLayerlegends },
     data: function () {
       return {

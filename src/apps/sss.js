@@ -105,7 +105,6 @@ global.$ = $
 
 Vue.use(VueStash)
 localforage.getItem('sssOfflineStore').then(function (store) {
-  console.log(JSON.stringify(store))
   var settings = $.extend({},persistentData.settings,store?(store.settings || {}):{})
   var storedData = $.extend({}, persistentData, store || {}, volatileData)
   storedData.settings = settings
