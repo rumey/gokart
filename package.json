@@ -6,8 +6,8 @@
   "repository": "https://github.com/parksandwildlife",
   "config": {
     "app": "sss",
-    "description":"Spatial Support System",
-    "version":"v1.0"
+    "description":"Spatial Support System v3",
+    "version":"16.11.1"
   },
   "scripts": {
     "serve": "uwsgi -i uwsgi.ini",

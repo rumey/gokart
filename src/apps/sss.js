@@ -56,12 +56,13 @@ var volatileData = {
     ['basemap', 'Base Imagery'],
     ['boundaries', 'Admin Boundaries'],
     ['communications', 'Communications'],
-    ['operations', 'DPaW Operations'],
-    ['bushfire', 'Fire'],
-    ['infrastructure', 'Infrastructure'],
+    ['fire', 'Fire Operations'],
     ['meteorology', 'Meteorology'],
-    ['relief', 'Relief'],
-    ['sensitive', 'Sensitive Sites']
+    ['vegetation', 'Vegetation'],
+    ['tenure', 'Tenure and Land Use'],
+    ['infrastructure', 'Infrastructure'],
+    ['grid', 'Grid Systems'],
+    ['resources', 'Resource Tracking']
   ],
   matrixSets: {
     'EPSG:4326': {
@@ -169,7 +170,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
       $(document).foundation()
       svg4everybody()
       // set title
-      $('title').text('Spatial Support System v3')
+      $('title').text(profile.description)
       // calculate screen res
       $('body').append('<div id="dpi" style="width:1in;display:none"></div>')
       self.dpi = parseFloat($('#dpi').width())
