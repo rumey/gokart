@@ -174,7 +174,7 @@
         }
         if (this.$root.map) {
           result.km = (Math.round(this.$root.map.getScale() * 40) / 1000).toLocaleString()
-          result.scale = this.paperSize + ' ' + this.$root.map.scaleString
+          result.scale = this.paperSize + ' ' + this.$root.scales.scaleString
         }
         return result
       },
