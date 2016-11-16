@@ -7,11 +7,11 @@
         <div id="layers-active-list">
           <div v-for="l in olLayers.slice().reverse()" class="row feature-row status-row" v-bind:class="layerRefreshProgress(l)" data-id="{{ l.get('id') }}"
             track-by="values_.id" @click="layer = getLayer(l.get('id'))">
-            <div class="small-9">
+            <div class="small-10">
               <div class="layer-title">{{ l.get("name") || l.get("id") }} - {{ Math.round(l.getOpacity() * 100) }}%</div>
               <small v-if="layerRefreshStatus(l)">Updated: {{ layerRefreshStatus(l) }}</small>
             </div>
-            <div class="small-3">
+            <div class="small-2">
               <div class="text-right">
                 <a @click="removeLayer(l)" class="button alert remove-layer">&#x2715;</a>
               </div>
