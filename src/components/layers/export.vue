@@ -105,7 +105,7 @@
   import gkLegend from './legend.vue'
   import gkLayerlegends from './layerlegends.vue'
   export default {
-    store: ['whoami', 'dpmm', 'view', 'mmPerInch', 'gokartService'],
+    store: ['whoami', 'dpmm', 'view', 'mmPerInch', 'gokartService','drawingSequence'],
     components: { gkLegend,gkLayerlegends },
     data: function () {
       return {
@@ -442,6 +442,8 @@
           }
           if (features && features.length > 0) {
               $.each(features,function(index,feature){
+                vm.drawingSequence += 1
+                feature.set('id',vm.drawingSequence)
                 vm.annotations.initFeature(feature)
               })            
               vm.annotations.features.extend(features)

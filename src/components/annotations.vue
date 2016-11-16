@@ -34,10 +34,11 @@
                   <a class="button"><i class="fa fa-copy" aria-hidden="true"></i> Copy</a>
                   <a class="button"><i class="fa fa-paste" aria-hidden="true"></i> Paste</a>
                 </div>
-                <div class="expanded button-group hide">
-                  <a class="button"><i class="fa fa-undo" aria-hidden="true"></i> Undo</a>
-                  <a class="button"><i class="fa fa-repeat" aria-hidden="true"></i> Redo</a>
+
+                <div class="expanded button-group">
+                  <gk-drawinglogs v-ref:drawinglogs></gk-drawinglogs>
                 </div>
+
                 <div class="expanded button-group">
                   <label class="button " for="uploadAnnotations" title="Support GeoJSON(.json), GPS data(.gpx)"><i class="fa fa-upload"></i> Import Editing </label><input type="file" id="uploadAnnotations" class="show-for-sr" name="annotationsfile" accept="application/json,.gpx" v-model="annotationsfile" v-el:annotationsfile @change="importAnnotations()"/>
                   <a class="button" @click="downloadAnnotations('json')" title="Export Editing as GeoJSON"><i class="fa fa-download" aria-hidden="true"></i> Export Editing <br>(json) </a>
@@ -139,6 +140,7 @@
 
 <script>
   import { $, ol, Vue } from 'src/vendor.js'
+  import gkDrawinglogs from './drawinglogs.vue'
 
   Vue.filter('filterIf', function (list, prop, value) {
     if (!list) { return }
@@ -168,7 +170,8 @@
   }
 
   export default {
-    store: ['dpmm'],
+    store: ['dpmm','drawingSequence','whoami'],
+    components: { gkDrawinglogs },
     data: function () {
       return {
         ui: {},
@@ -210,6 +213,7 @@
       export: function () { return this.$root.export },
       measure: function () { return this.$root.measure },
       loading: function () { return this.$root.loading },
+      drawinglogs: function () { return this.$refs.drawinglogs    },
       featureEditing: function() {
         if (this.tool == this.ui.editStyle && this.selectedFeatures.getLength() > 0) {
             return this.selectedFeatures.item(0)
@@ -364,8 +368,12 @@
             })
             draw.on('drawend', function (ev) {
               // set parameters
+              vm.drawingSequence += 1
+              ev.feature.set('id',vm.drawingSequence)
               ev.feature.set('toolName',tool.name)
               ev.feature.setStyle(tool.style)
+              ev.feature.set('author',vm.whoami.email)
+              ev.feature.set('createTime',Date.now())
             })
             return draw
         }
@@ -379,8 +387,12 @@
             })
             draw.on('drawend', function (ev) {
               // set parameters
+              vm.drawingSequence += 1
+              ev.feature.set('id',vm.drawingSequence)
               ev.feature.set('toolName',tool.name)
               ev.feature.setStyle(tool.style)
+              ev.feature.set('author',vm.whoami.email)
+              ev.feature.set('createTime',Date.now())
             })
             return draw
         }
@@ -400,10 +412,14 @@
               style: sketchStyle
             })
 
-            draw.on('drawstart', function (ev) {
+            draw.on('drawend', function (ev) {
               // set parameters
+              vm.drawingSequence += 1
+              ev.feature.set('id',vm.drawingSequence)
               ev.feature.set('toolName',tool.name)
               ev.feature.setStyle(tool.style)
+              ev.feature.set('author',vm.whoami.email)
+              ev.feature.set('createTime',Date.now())
               if (tool.perpendicular) {
                 var coords = ev.feature.getGeometry().getCoordinates()
                 ev.feature.set('rotation', vm.getPerpendicular(coords))
@@ -425,7 +441,8 @@
       },
       setProp: function (prop, value) {
         this[prop] = value
-        if (this.featureEditing instanceof ol.Feature) {
+        if (this.featureEditing instanceof ol.Feature && !this.featureEditing.get('note')) {
+          //note's property will be set by updateNote
           this.featureEditing.set(prop, value)
         }
       },
@@ -531,11 +548,13 @@
             //draw mode
             note = this.note
         }
+        var previousColour = note.colour
         note.text = this.$els.notecontent.value
-        note.width = $(this.$els.notecontent).width()
-        note.height = $(this.$els.notecontent).height()
         note.colour = this.colour
         this.drawNote(note, save)
+        if ((save || previousColour !== this.colour) && this.tool ===  this.ui.editStyle) {
+            this.featureEditing.set('noteRevision', (this.featureEditing.get('noteRevision') || 0) + 1)
+        }
       },
       drawNote: function (note, save) {
         if (!note) { return }
@@ -546,8 +565,8 @@
         $(noteCanvas).clearCanvas()
         if ((note.style) && (note.style in noteStyles)) {
           //draw
-          $(noteCanvas).attr('height', note.height + noteOffset)
-          $(noteCanvas).attr('width', note.width + noteOffset)
+          $(noteCanvas).attr('height', $(this.$els.notecontent).height() + noteOffset)
+          $(noteCanvas).attr('width', $(this.$els.notecontent).width() + noteOffset)
           noteStyles[note.style](note).forEach(function (cmd) {
             $(noteCanvas)[cmd[0]](cmd[1])
           })
@@ -574,6 +593,7 @@
               // Set canvas back to the vm's note
               vm.drawNote(vm.note, false)
             }, 'image/png')
+            
           }
         }
       },
@@ -748,6 +768,7 @@
                     var pointsMetadata = {}
                     var iconSize = tool['typeIconDims']?tool['typeIconDims'][0]:48
                     pointsMetadata['scale'] = vm.map.getScale()
+                    pointsMetadata['geometryRevision'] = f.getGeometry().getRevision()
                     var perimeterInPixes = parseInt((metadata['perimeter'] / (pointsMetadata['scale'] * 1000)) * 1000 * vm.dpmm)
                     if (perimeterInPixes < iconSize) {
                         pointsMetadata['symbolSize'] = 1
@@ -845,6 +866,10 @@
         if (savedFeatures) {
           //set feature style
           $.each(savedFeatures,function(index,feature){
+            if (!feature.get('id')) {
+                vm.drawingSequence += 1
+                feature.set('id',vm.drawingSequence)
+            }
             vm.initFeature(feature)
           })
           this.features.extend(savedFeatures)
@@ -897,7 +922,7 @@
           ev.features.forEach(function(f){
             if (f.get('toolName')) {
                 tool = vm.getTool(f.get('toolName'))
-                if (tool && tool.typeIcon) {
+                if (tool && tool.typeIcon && f.get('typeIconMetadata')['points']['geometryRevision'] !== f.getGeometry().getRevision()) {
                     delete f['typeIconStyle']
                     f.set('typeIconMetadata',undefined,true)
                     f.changed()
