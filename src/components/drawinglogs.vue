@@ -84,6 +84,8 @@
                     feature._propertyChangeListenerId = feature._propertyChangeListenerId || feature.on("propertychange",vm._eventHandlers["text:propertychange"](feature))
                 } else if (tool === vm.annotations.ui.defaultLine || tool === vm.annotations.ui.defaultPolygon) {
                     feature._propertyChangeListenerId = feature._propertyChangeListenerId || feature.on("propertychange",vm._eventHandlers["vector:propertychange"](feature))
+                } else if (tool === vm.annotations.ui.defaultPoint) {
+                    feature._propertyChangeListenerId = feature._propertyChangeListenerId || feature.on("propertychange",vm._eventHandlers["pointer:propertychange"](feature))
                 }
             }
             //add event handlers for existing features
@@ -461,6 +463,15 @@
             return function(ev) {
                 if (vm._undoRedoMode) { return }
                 if (vm.annotations.tool === vm.annotations.ui.editStyle && (ev.key === "colour" || ev.key === "size")) {
+                    vm.modifyFeaturesProperty(feature,ev.key,ev.oldValue,feature.get(ev.key))
+                }
+            }
+        }
+
+        vm._eventHandlers["pointer:propertychange"] = function(feature) {
+            return function(ev) {
+                if (vm._undoRedoMode) { return }
+                if (vm.annotations.tool === vm.annotations.ui.editStyle && (ev.key === "colour" || ev.key === "shape")) {
                     vm.modifyFeaturesProperty(feature,ev.key,ev.oldValue,feature.get(ev.key))
                 }
             }

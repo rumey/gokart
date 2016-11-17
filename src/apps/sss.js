@@ -353,7 +353,8 @@ localforage.getItem('sssOfflineStore').then(function (store) {
           style: self.annotations.getVectorStyleFunc(this.tints)
         },
         self.annotations.ui.defaultLine,
-        self.annotations.ui.defaultPolygon
+        self.annotations.ui.defaultPolygon,
+        self.annotations.ui.defaultPoint
       ]
 
       sssTools.forEach(function (tool) {

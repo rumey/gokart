@@ -47,6 +47,17 @@
               </div>
             </div>
 
+            <div v-show="shouldShowShapePicker" class="tool-slice row collapse">
+              <div class="small-2"><label class="tool-label">Shape:</label></div>
+              <div class="small-10">
+                <div class="expanded button-group">
+                  <template v-for="s in pointShapes" >
+                    <a @click="setProp('shape', s)" v-bind:class="{'selected': s == shape}" class="button pointshape"><img src="{{s[0]}}"/></a>
+                  </template>
+                </div>
+              </div>
+            </div>
+
             <div v-show="shouldShowSizePicker" class="tool-slice row collapse">
               <div class="small-2"><label class="tool-label">Size:<br/>({{ size }})</label></div>
               <div class="small-10">
@@ -136,6 +147,10 @@
   .fa.red {
     color: #b43232;
   }
+  .pointshape {
+    padding-left:5px;
+    padding-right:5px;
+  }
 </style>
 
 <script>
@@ -205,7 +220,18 @@
         ],
         advanced: false,
         tints: {
-        }
+        },
+        pointShapes:[
+            // point image url, point title, [border colur,filling colour]
+            ["dist/static/symbols/points/circle.svg","Circle",[null,'#000000']],
+            ["dist/static/symbols/points/square.svg","Square",[null,'#000000']],
+            ["dist/static/symbols/points/triangle.svg","Triangle",[null,'#000000']],
+            ["dist/static/symbols/points/star.svg","Star",[null,'#000000']],
+            ["dist/static/symbols/points/plus.svg","Star",[null,'#000000']],
+            ["dist/static/symbols/points/minus.svg","Star",[null,'#000000']],
+            ["dist/static/symbols/points/Fire_Advice.svg","Star",['#000000','#000000']],
+        ],
+        shape: null
       }
     },
     computed: {
@@ -229,6 +255,14 @@
         return this.tool === this.ui.defaultText || 
             (this.tool === this.ui.editStyle && this.featureEditing && this.getTool(this.featureEditing.get('toolName')) === this.ui.defaultText)
       },
+      shouldShowShapePicker: function () {
+        if (!this.tool || !this.tool.name) {
+          return false
+        }
+        // FIXME: replace this with a tool property
+        return this.tool === this.ui.defaultPoint ||
+               (this.tool == this.ui.editStyle && this.featureEditing && this.getTool(this.featureEditing.get('toolName')) === this.ui.defaultPoint)
+      },
       shouldShowSizePicker: function () {
         if (!this.tool || !this.tool.name) {
           return false
@@ -246,7 +280,8 @@
         return this.tool === this.ui.defaultLine || 
                this.tool === this.ui.defaultPolygon || 
                this.tool == this.ui.defaultText || 
-               (this.tool === this.ui.editStyle && this.featureEditing && ([this.ui.defaultLine,this.ui.defaultPolygon,this.ui.defaultText].indexOf(this.getTool(this.featureEditing.get('toolName'))) >= 0))
+               this.tool == this.ui.defaultPoint || 
+               (this.tool === this.ui.editStyle && this.featureEditing && ([this.ui.defaultLine,this.ui.defaultPolygon,this.ui.defaultPoint,this.ui.defaultText].indexOf(this.getTool(this.featureEditing.get('toolName'))) >= 0))
       },
       shouldShowComments: function () {
         if (!this.tool || !this.tool.name) {
@@ -276,6 +311,9 @@
                 this.note = val.get('note')
                 this.drawNote(this.note)
                 this.colour = this.note.colour || this.colour
+            } else if (val.get('shape')) {
+                this.shape = val.get('shape') || this.shape
+                this.colour = val.get('colour') || this.colour
             } else {
                 this.size = val.get('size') || this.size
                 this.colour = val.get('colour') || this.colour
@@ -429,20 +467,36 @@
         }
       },
       icon: function (t) {
-        if (t.icon.startsWith('fa-')) {
-          return '<i class="fa ' + t.icon + '" aria-hidden="true"></i>'
-        } else if (t.icon.search('#') === -1) {
+        var iconUrl = null
+        if (typeof t.icon === "function") {
+            iconUrl = t.icon()
+        } else {
+            iconUrl = t.icon
+        }
+        if (iconUrl.startsWith('fa-')) {
+          return '<i class="fa ' + iconUrl + '" aria-hidden="true"></i>'
+        } else if (iconUrl.search('#') === -1) {
           // plain svg/image
-          return '<img class="icon" src="' + t.icon + '" />'
+          return '<img class="icon" src="' + iconUrl + '" />'
         } else {
           // svg reference
-          return '<svg class="icon"><use xlink:href="' + t.icon + '"></use></svg>'
+          return '<svg class="icon"><use xlink:href="' + iconUrl + '"></use></svg>'
         }
+      },
+      getCustomPointTint:function(shape,colours) {
+        var tint = []
+        $.each(shape[2],function(index,srcColour) {
+            var targetColour = Array.isArray(colours)?colours[index]:colours
+            if (srcColour && targetColour && srcColour !== targetColour) {
+                tint.push([srcColour,targetColour])
+            }
+        })
+        return tint
       },
       setProp: function (prop, value) {
         this[prop] = value
+        //note's property will be set by updateNote
         if (this.featureEditing instanceof ol.Feature && !this.featureEditing.get('note')) {
-          //note's property will be set by updateNote
           this.featureEditing.set(prop, value)
         }
       },
@@ -625,7 +679,16 @@
       },
       tintSelectedFeature:function(feature) {
         var tool = feature.get('toolName')?this.getTool(feature.get('toolName')):false
-        feature['tint'] = (tool && tool.selectedTint) || 'selected'
+        if (tool && tool.selectedTint) {
+            if (typeof tool.selectedTint === "function") {
+                feature['tint'] = tool.selectedTint(feature)
+            } else {
+                feature['tint'] = tool.selectedTint
+
+            }
+        } else {
+            feature['tint'] = 'selected'
+        }
         if (tool && tool.typeIcon) {
             feature['typeIconTint'] = tool.typeIconSelectedTint || 'selected'
         }
@@ -640,7 +703,8 @@
         feature.changed()
       },
       getStyleProperty:function(f,property,defaultValue,tool) {
-        return f[property] || f.get(property) || (tool || this.getTool(f.get('toolName')) || {})[property] || ((defaultValue === undefined)?'default':defaultValue)
+        var result = f[property] || f.get(property) || (tool || this.getTool(f.get('toolName')) || {})[property] || ((defaultValue === undefined)?'default':defaultValue)
+        return (typeof result === "function")?result(f):result
       },
       getVectorStyleFunc: function (tints) {
         var vm = this
@@ -852,6 +916,7 @@
     ready: function () {
       var vm = this
       vm._currentTool = {}
+      vm.shape = vm.pointShapes[0]
       var annotationStatus = this.loading.register("annotation","Annotation Component", "Initialize")
       var map = this.map
       // collection to store all annotation features
@@ -1146,6 +1211,69 @@
         }
       }
 
+      var customPointAdd = function (f) {
+        if (!f.get('shape')) {
+            f.set('shape',vm.shape)
+        }
+        if (!f.get('colour')) {
+            f.set('colour',vm.colour)
+        }
+        
+      }
+
+      this.ui.defaultPoint = {
+        name: 'Custom Point',
+        icon: function(feature){
+            if (feature) {
+                return feature.get('shape')[0]
+            } else {
+                return 'dist/static/symbols/fire/custom_point.svg'
+            }
+        },
+        interactions: [this.pointDrawFactory()],
+        showName: true,
+        scope:["annotation"],
+        onAdd: customPointAdd,
+        style: vm.getIconStyleFunction(vm.tints),
+        sketchStyle: function (res) {
+            var feat = this
+            feat.set('shape',vm.shape,true)
+            feat.set('colour',vm.colour,true)
+            var style = vm.map.cacheStyle(function (feat) {
+              var src = vm.map.getBlob(feat, ['icon', 'tint'],vm.tints || {})
+              if (!src) { return false }
+              var rot = feat.get('rotation') || 0.0
+              return new ol.style.Style({
+                image: new ol.style.Icon({
+                  src: src,
+                  scale: 0.5,
+                  rotation: rot,
+                  rotateWithView: true,
+                  snapToPixel: true
+                })
+              })
+            }, feat, ['icon', 'tint', 'rotation'])
+            return style
+          },
+          tint: function(feature) {
+            var shape = feature.get('shape')
+            var colour = feature.get('colour')
+            if (shape) {
+                return vm.getCustomPointTint(shape,[null,colour])
+            } else {
+                return "default"
+            }
+          },
+          selectedTint: function(feature) {
+            var shape = feature.get('shape')
+            if (shape) {
+                return vm.getCustomPointTint(shape,['#2199e8','#2199e8'])
+            } else {
+                return "selected"
+            }
+          }
+      }
+
       this.ui.defaultLine = {
         name: 'Custom Line',
         icon: 'dist/static/images/iD-sprite.svg#icon-line',
@@ -1154,10 +1282,11 @@
         scope:["annotation"],
         onAdd: customAdd,
         style: vm.getVectorStyleFunc(this.tints),
-          comments:[
-            {name:"Tips",description:["Hold down the 'SHIFT' key during drawing to enable freehand mode. "]}
-          ]
+        comments:[
+          {name:"Tips",description:["Hold down the 'SHIFT' key during drawing to enable freehand mode. "]}
+        ]
       }
+
       this.ui.defaultPolygon = {
         name: 'Custom Area',
         icon: 'dist/static/images/iD-sprite.svg#icon-area',
