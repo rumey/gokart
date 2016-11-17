@@ -136,8 +136,11 @@
 
           var dims = tool[dimsKey] || [48, 48]
           var tint = vm.annotations.getStyleProperty(feature,tintKey,'default',tool)
-          tint = (tintSettings && tintSettings[tint])?tintSettings[tint]:[]
-          var url = feature.get(keys[0]) || tool[keys[0]]
+          if (!Array.isArray(tint)) {
+              //tint is a named tint,get the tint setting from tints object
+              tint = (tintSettings && tintSettings[tint])?tintSettings[tint]:[]
+          }
+          var url = vm.annotations.getStyleProperty(feature,keys[0],null,tool)
           if (typeof tint === "string") {
             //tint is not just a color replacement, is a totally different icon
             url = tint
