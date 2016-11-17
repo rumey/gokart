@@ -58,8 +58,8 @@
         <div v-el:layerdetails class="hide">
           <div class="layerdetails row">
             <div class="columns small-12">
-              {{ layer.name }}<br>
-              Details: TODO
+              <h5>{{ layer.name }}</h5>
+              <p>{{ layer.abstract }}</p>
               <img v-if="layer.legend" v-bind:src="layer.legend" class="cat-legend"/>
             </div>
           </div>
@@ -112,6 +112,18 @@ div.ol-overviewmap.ol-uncollapsible {
     text-align: center;
 }
 
+.layerdetails {
+    position: absolute;
+    background-color: rgba(39,48,55,0.7);
+    width: 100%;
+    padding-bottom: 0.5em;
+}
+
+.layerdetails p {
+    white-space: pre-wrap;
+    font-size: 12px;
+}
+
 </style>
 
 <script>
@@ -159,7 +171,7 @@ div.ol-overviewmap.ol-uncollapsible {
           })
         }
         l.preview.setMap(this.$root.map.olmap)
-        var previewEl = $(l.preview.getOverviewMap().getTargetElement())
+        var previewEl = $(l.preview.getOverviewMap().getViewport())
         this.layer = l
         if (!previewEl.find('.layerdetails').length > 0) {
           this.$nextTick(function() {
