@@ -82,7 +82,7 @@ var persistentData = {
   // id followed by properties to merge into catalogue
   activeLayers: [
     ['dpaw:resource_tracking_live', {}],
-    ['cddp:smb_250K', {}]
+    ['cddp:state_map_base', {}]
   ],
   // blank annotations
   annotations: {
@@ -253,7 +253,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
       }, {
         type: 'TileLayer',
         name: 'State Map Base',
-        id: 'cddp:smb_250K',
+        id: 'cddp:state_map_base',
         base: true
       }, {
         type: 'TileLayer',
