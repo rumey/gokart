@@ -528,7 +528,7 @@
       }
 
       var getFeatureInfo = function (f) {
-        return {name:f.get("label"), img:map.getBlob(f, ['icon', 'tint']), comments:"seen '" +  moment(f.get("seen")).fromNow()}
+        return {name:f.get("label"), img:map.getBlob(f, ['icon', 'tint']), comments:"(" +  vm.ago(f.get("seen")) + ")"}
       }
 
       this.$root.fixedLayers.push({
