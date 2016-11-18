@@ -43,6 +43,7 @@ var volatileData = {
   gokartService: env.gokartService,
   oimService:env.oimService,
   sssService:env.sssService,
+  s3Service:env.s3Service,
   //bfrsService:env.bfrsService,
   appType:env.appType,
   // fixed scales for the scale selector (1:1K increments)

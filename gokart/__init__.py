@@ -16,6 +16,8 @@ from email.mime.text import MIMEText
 
 dotenv.load_dotenv(dotenv.find_dotenv())
 
+from . import s3
+
 bottle.TEMPLATE_PATH.append('./gokart')
 bottle.debug(True)
 
@@ -62,9 +64,11 @@ def himawari8(target):
 def gdal(fmt):
     # needs gdal 1.10+
     extent = bottle.request.forms.get("extent").split(" ")
+    bucket_key = bottle.request.forms.get("bucket_key")
     jpg = bottle.request.files.get("jpg")
     workdir = tempfile.mkdtemp()
     path = os.path.join(workdir, jpg.filename)
+    output_filepath = path + "." + fmt
     jpg.save(workdir)
     extra = []
     if fmt == "tif":
@@ -82,12 +86,17 @@ def gdal(fmt):
         "-co", "PRODUCER={}".format(subprocess.check_output(["gdalinfo", "--version"])),
         "-co", "SUBJECT={}".format(bottle.request.headers.get('Referer', "gokart")),
         "-co", "CREATION_DATE={}".format(datetime.strftime(datetime.utcnow(), "%Y%m%d%H%M%SZ'00'"))] + extra + [
-        path, path + "." + fmt
+        path, output_filepath
     ])
-    output = open(path + "." + fmt)
+    output_filename = jpg.filename.replace("jpg", fmt)
+    #upload to s3
+    if bucket_key:
+        #only upload to s3 if bucket_key is not empty
+        s3.upload_map(bucket_key,output_filepath)
+    output = open(output_filepath)
     shutil.rmtree(workdir)
     bottle.response.set_header("Content-Type", ct)
-    bottle.response.set_header("Content-Disposition", "attachment;filename='{}'".format(jpg.filename.replace("jpg", fmt)))
+    bottle.response.set_header("Content-Disposition", "attachment;filename='{}'".format(output_filename))
     return output
 
 
