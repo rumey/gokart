@@ -11,6 +11,7 @@ map_bucket_name = os.environ.get("GOKART_MAP_BUCKET")
 
 exc_info = None
 map_bucket = None
+
 try:
     if not access_key or not secret_access_key: 
         raise Exception("Please configure S3 credential")
@@ -46,12 +47,18 @@ finally:
             exc_info = sys.exc_info()
 
 
-def upload_map(bucket_key,filename):
+def upload_map(bucket_key,base_filename,content_type,filename):
     if not map_bucket:
         traceback.print_exception(*exc_info)
     else:
         try:
-            map_bucket.Object(bucket_key).upload_file(filename)
+            with open(filename) as f:
+                map_bucket.Object(bucket_key).put(
+                    Body = f,
+                    ContentDisposition="attachment;filename='{}'".format(base_filename),
+                    ContentType=content_type,
+                )
+
         except:
            traceback.print_exc()
 
