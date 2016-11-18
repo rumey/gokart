@@ -78,6 +78,9 @@ def gdal(fmt):
     elif fmt == "pdf":
         of = "PDF"
         ct = "application/pdf"
+    else:
+        raise Exception("File format({}) Not Support".format(fmt))
+
     subprocess.check_call([
         "gdal_translate", "-of", of, "-a_ullr", extent[0], extent[3], extent[2], extent[1],
         "-a_srs", "EPSG:4326", "-co", "DPI={}".format(bottle.request.forms.get("dpi", 150)),
@@ -92,7 +95,7 @@ def gdal(fmt):
     #upload to s3
     if bucket_key:
         #only upload to s3 if bucket_key is not empty
-        s3.upload_map(bucket_key,output_filepath)
+        s3.upload_map(bucket_key,output_filename,ct,output_filepath)
     output = open(output_filepath)
     shutil.rmtree(workdir)
     bottle.response.set_header("Content-Type", ct)
