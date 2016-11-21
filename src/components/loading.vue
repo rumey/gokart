@@ -33,9 +33,9 @@
       </div>
       <div v-if="hasError">
           <hr class="row" style="border-width:4px;">
-          <div v-for="(index,error) in errors" class="row"  >
+          <div v-for="error in errors" class="row"  track_by="id">
             <div class="small-12">
-                <a class="error">{{index + 1}} : {{error}} </a>
+                <a class="error">{{error.id}} : {{error.message}} </a>
             </div>
           </div>
       </div>
@@ -207,12 +207,12 @@
             return function(args) {
                 if (arguments.length == 1) {
                     if (typeof arguments[0] === "string") {
-                        vm.errors.push(arguments[0])
+                        vm.errors.push({"id": vm.errors.length + 1 ,"message":arguments[0]})
                     } else {
-                        vm.errors.push(JSON.stringify(arguments[0]))
+                        vm.errors.push({"id": vm.errors.length + 1 ,"message":JSON.stringify(arguments[0])})
                     }
                 } else {
-                    vm.errors.push(JSON.stringify(arguments))
+                    vm.errors.push({"id": vm.errors.length + 1 ,"message":JSON.stringify(argumentsa)})
                 }
                 originFunc.apply(this,arguments)
             }

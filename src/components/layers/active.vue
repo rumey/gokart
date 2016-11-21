@@ -138,7 +138,7 @@
       },
       layerRefreshConfigable:function(id) {
         var layer = id?this.getLayer(id):this.layer
-        return (layer.type === "WFSLayer" || layer.type === "TileLayer") && layer.refresh && true
+        return layer && (layer.type === "WFSLayer" || layer.type === "TileLayer") && layer.refresh && true
       },
       layerRefreshIntervalConfigable:function(id) {
         var layer = id?this.getLayer(id):this.layer
