@@ -186,19 +186,20 @@
         }
         return result
       },
-      exportVector: function(features, name) {
+      exportVector: function(features, name,format) {
         var vm = this
         //add applicaiton name and timestamp
         var name = (name || '') + "." + this.$root.profile.name + "_export_" + moment().format("YYYYMMDD_HHmm")
         var result = this.$root.geojson.writeFeatures(features)
         var blob = new window.Blob([result], {type: 'application/json;charset=utf-8'})
-        if (this.vectorFormat === 'json') {
+        format = format || this.vectorFormat
+        if (format === 'json') {
           saveAs(blob, name + '.geo.json')
         } else {
           var formData = new window.FormData()
           formData.append('json', blob, name + '.json')
           var req = new window.XMLHttpRequest()
-          req.open('POST', this.gokartService + '/ogr/' + this.vectorFormat)
+          req.open('POST', this.gokartService + '/ogr/' + format)
           req.responseType = 'blob'
           req.withCredentials = true
           req.onload = function (event) {

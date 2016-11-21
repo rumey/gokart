@@ -328,8 +328,7 @@
         }
       },
       downloadAnnotations: function(fmt) {
-        this.export.vectorFormat = fmt
-        this.$root.export.exportVector(this.features.getArray(), 'annotations')
+        this.$root.export.exportVector(this.features.getArray(), 'annotations',fmt)
       },
       getIconStyleFunction : function(tints) {
         var vm = this
