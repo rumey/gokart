@@ -911,6 +911,10 @@
                 vm.$root.catalogue.catalogue.push(layer)
             }
         })
+        //ignore the active layers which does not exist in the catalogue layers.
+        layers = layers.filter(function(value){
+            return vm.$root.catalogue.getLayer(value[0]) && true
+        })
         //create active open layers 
         var initialLayers = layers.reverse().map(function (value) {
           var layer = $.extend(vm.$root.catalogue.getLayer(value[0]), value[1])

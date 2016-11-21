@@ -101,11 +101,11 @@
   </div>
 </template>
 <script>
-  import { kjua, saveAs, moment, $, localforage} from 'src/vendor.js'
+  import { kjua, saveAs, moment, $, localforage,hash} from 'src/vendor.js'
   import gkLegend from './legend.vue'
   import gkLayerlegends from './layerlegends.vue'
   export default {
-    store: ['whoami', 'dpmm', 'view', 'mmPerInch', 'gokartService','drawingSequence'],
+    store: ['whoami', 'dpmm', 'view', 'mmPerInch', 'gokartService','drawingSequence','s3Service'],
     components: { gkLegend,gkLayerlegends },
     data: function () {
       return {
@@ -161,7 +161,15 @@
       finalTitle:function() {
         this.title = this.title.trim()
         return (this.title.length == 0)?"Quick Print":this.title
-      }
+      },
+      bucketKey: function() {
+        return hash.MD5({
+            'extent':this.layout.extent.join(' '),
+            'author': this.legendInfo().author,
+            'filename':this.finalTitle,
+            'time': Date.now()
+        })
+      },
     },
     // methods callable from inside the template
     methods: {
@@ -180,11 +188,12 @@
       },
       exportVector: function(features, name) {
         var vm = this
-        var name = name || ''
+        //add applicaiton name and timestamp
+        var name = (name || '') + "." + this.$root.profile.name + "_export_" + moment().format("YYYYMMDD_HHmm")
         var result = this.$root.geojson.writeFeatures(features)
         var blob = new window.Blob([result], {type: 'application/json;charset=utf-8'})
         if (this.vectorFormat === 'json') {
-          saveAs(blob, name + '_' + moment().add(moment().utcOffset(), 'minutes').toISOString().split('.')[0] + '.geo.json')
+          saveAs(blob, name + '.geo.json')
         } else {
           var formData = new window.FormData()
           formData.append('json', blob, name + '.json')
@@ -198,7 +207,6 @@
                 reader.readAsText(req.response)
                 reader.addEventListener("loadend",function(e){
                     alert(e.target.result)
-                    
                 })
             } else {
                 var filename = null
@@ -207,7 +215,11 @@
                         vm._filename_re = new RegExp("filename=[\'\"](.+)[\'\"]")
                     }
                     var matches = vm._filename_re.exec(req.getResponseHeader("Content-Disposition"))
-                    filename = (matches && matches[1])? matches[1]: (name + "." + this.vectorFormat)
+                    filename = (matches && matches[1])? matches[1]: null
+                }
+                if (filename) {
+                    //get the file extension from response header
+                    filename = name + filename.substring(filename.lastIndexOf('.'))
                 } else {
                     filename = name + "." + this.vectotFormat
                 }
@@ -240,18 +252,19 @@
         $('body').css('cursor', 'default')
       },
       // generate legend block, scale ruler is 40mm wide
-      renderLegend: function () {
-        var qrcanvas = kjua({text: 'http://dpaw.io/sss?' + this.shortUrl, render: 'canvas', size: 100})
+      renderLegend: function (bucketKey) {
+        var qrcanvas = kjua({text: this.s3Service + bucketKey, render: 'canvas', size: 100})
         return ['data:image/svg+xml;utf8,' + encodeURIComponent(this.$els.legendsvg.innerHTML), qrcanvas]
       },
       // POST a generated JPG to the gokart server backend to convert to GeoPDF
-      blobGDAL: function (blob, name, format) {
+      blobGDAL: function (blob, name, format,bucketKey) {
         var formData = new window.FormData()
         formData.append('extent', this.layout.extent.join(' '))
         formData.append('jpg', blob, name + '.jpg')
         formData.append('dpi', Math.round(this.layout.canvasPxPerMM * 25.4))
         formData.append('title', this.finalTitle)
         formData.append('author', this.legendInfo().author)
+        formData.append('bucket_key',bucketKey)
         var req = new window.XMLHttpRequest()
         req.open('POST', this.gokartService + '/gdal/' + format)
         req.withCredentials = true
@@ -288,7 +301,8 @@
             var canvas = event.context.canvas
             var ctx = canvas.getContext('2d')
             var img = new window.Image()
-            var legend = vm.renderLegend()
+            var bucketKey = vm.bucketKey
+            var legend = vm.renderLegend(bucketKey)
             var url = legend[0]
             var qrcanvas = legend[1]
             // wait until legend is rendered
@@ -309,7 +323,7 @@
                   saveAs(blob, filename + '.jpg')
                   vm.resetSize()
                 } else {
-                  vm.blobGDAL(blob, filename, format)
+                  vm.blobGDAL(blob, filename, format,bucketKey)
                 }
               }, 'image/jpeg', 0.9)
             }

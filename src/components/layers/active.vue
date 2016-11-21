@@ -22,10 +22,10 @@
     </div>
     <div class="row collapse">
       <div id="layer-config" class="columns">
-        <h4 v-if="mapLayer()">{{ layer.name }}</h4>
+        <h4 v-if="layer && mapLayer()">{{ layer.name }}</h4>
         <div class="tool-slice row" v-if="layerRefreshConfigable()">
-          <div class="columns small-2"><label class="tool-label">Refresh:<br/>{{ formattedLayerRefreshInterval }}</label></div>
-          <div class="columns small-9">
+          <div class="columns small-3"><label class="tool-label">Refresh:<br/>{{ formattedLayerRefreshInterval }}</label></div>
+          <div class="columns small-8">
             <input class="layer-opacity" v-if="layerRefreshIntervalConfigable()" type="range" :min="layer.min_interval" :max="layer.max_interval" :step="layer.interval_step || 1" v-model="layerRefreshInterval">
           </div>
           <div class="columns small-1">
@@ -33,13 +33,13 @@
             <a title="Start auto refresh" v-if="layerRefreshStopped"class="button tiny secondary float-right" @click="startLayerRefresh()" ><i class="fa fa-play"></i></a>
           </div>
         </div>
-        <div class="tool-slice row" v-if="mapLayer()">
-          <div class="columns small-2"><label class="tool-label">Opacity:<br/>{{ layerOpacity }}%</label></div>
-          <div class="columns small-10"><input class="layer-opacity" type="range" min="1" max="100" step="1" v-model="layerOpacity"></div>
+        <div class="tool-slice row" v-if="layer && mapLayer()">
+          <div class="columns small-3"><label class="tool-label">Transparency:<br/>{{ layerOpacity }}%</label></div>
+          <div class="columns small-9"><input class="layer-opacity" type="range" min="1" max="100" step="1" v-model="layerOpacity"></div>
         </div>
         <div class="tool-slice row" v-if="layer.timeline">
-          <div class="columns small-2"><label class="tool-label">Timeline:<br/>{{ timelineTS }}</label></div>
-          <div class="columns small-10"><input type="range" v-bind:max="sliderMax" min="0" step="1" v-model="sliderTimeline"></div>
+          <div class="columns small-3"><label class="tool-label">Timeline:<br/>{{ timelineTS }}</label></div>
+          <div class="columns small-9"><input type="range" v-bind:max="sliderMax" min="0" step="1" v-model="sliderTimeline"></div>
         </div>
       </div>
     </div>
@@ -138,7 +138,7 @@
       },
       layerRefreshConfigable:function(id) {
         var layer = id?this.getLayer(id):this.layer
-        return (layer.type === "WFSLayer" || layer.type === "TileLayer") && layer.refresh && true
+        return layer && (layer.type === "WFSLayer" || layer.type === "TileLayer") && layer.refresh && true
       },
       layerRefreshIntervalConfigable:function(id) {
         var layer = id?this.getLayer(id):this.layer
