@@ -217,10 +217,7 @@
                     var matches = vm._filename_re.exec(req.getResponseHeader("Content-Disposition"))
                     filename = (matches && matches[1])? matches[1]: null
                 }
-                if (filename) {
-                    //get the file extension from response header
-                    filename = name + filename.substring(filename.lastIndexOf('.'))
-                } else {
+                if (!filename) {
                     filename = name + "." + this.vectotFormat
                 }
                 saveAs(req.response, filename)

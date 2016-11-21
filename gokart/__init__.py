@@ -109,7 +109,8 @@ def ogr(fmt):
     # needs gdal 1.10+
     json = bottle.request.files.get("json")
     workdir = tempfile.mkdtemp()
-    layername = os.path.splitext(json.filename)[0]
+    #if json.filename contains '.', only use the left part of the first '.' as the layername
+    layername =  json.filename if (json.filename.find('.') < 0) else json.filename[:json.filename.find('.')]
     json.save(workdir)
     jsonfile = os.path.join(workdir, json.filename)
     extra = []
@@ -134,7 +135,7 @@ def ogr(fmt):
         return "Not supported format({})".format(fmt)
 
     subprocess.check_call([
-        "ogr2ogr","-overwrite" , "-progress","-a_srs","EPSG:4326","-nln",layername, "-f", f,dst_datasource, jsonfile]) 
+        "ogr2ogr","-overwrite" ,"-a_srs","EPSG:4326","-nln",layername, "-f", f,dst_datasource, jsonfile]) 
 
     if fmt == "shp":
         shutil.make_archive(path.replace('geojson', 'zip'), 'zip', workdir, workdir)
