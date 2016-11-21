@@ -911,14 +911,14 @@
                 vm.$root.catalogue.catalogue.push(layer)
             }
         })
+        //ignore the active layers which does not exist in the catalogue layers.
+        layers = layers.filter(function(value){
+            return vm.$root.catalogue.getLayer(value[0]) && true
+        })
         //create active open layers 
         var initialLayers = layers.reverse().map(function (value) {
-          var catLayer = vm.$root.catalogue.getLayer(value[0])
-          //ignore the active layers which does not exist in the catalogue layers.
-          if (catLayer) {
-              var layer = $.extend(catLayer, value[1])
-              return vm['create' + layer.type](layer)
-          }
+          var layer = $.extend(vm.$root.catalogue.getLayer(value[0]), value[1])
+          return vm['create' + layer.type](layer)
         })
         //add active layers into map
         $.each(initialLayers,function(index,layer){

@@ -22,7 +22,7 @@
     </div>
     <div class="row collapse">
       <div id="layer-config" class="columns">
-        <h4 v-if="mapLayer()">{{ layer.name }}</h4>
+        <h4 v-if="layer && mapLayer()">{{ layer.name }}</h4>
         <div class="tool-slice row" v-if="layerRefreshConfigable()">
           <div class="columns small-2"><label class="tool-label">Refresh:<br/>{{ formattedLayerRefreshInterval }}</label></div>
           <div class="columns small-9">
@@ -33,7 +33,7 @@
             <a title="Start auto refresh" v-if="layerRefreshStopped"class="button tiny secondary float-right" @click="startLayerRefresh()" ><i class="fa fa-play"></i></a>
           </div>
         </div>
-        <div class="tool-slice row" v-if="mapLayer()">
+        <div class="tool-slice row" v-if="layer && mapLayer()">
           <div class="columns small-2"><label class="tool-label">Opacity:<br/>{{ layerOpacity }}%</label></div>
           <div class="columns small-10"><input class="layer-opacity" type="range" min="1" max="100" step="1" v-model="layerOpacity"></div>
         </div>
