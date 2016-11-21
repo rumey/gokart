@@ -34,7 +34,7 @@
           </div>
         </div>
         <div class="tool-slice row" v-if="layer && mapLayer()">
-          <div class="columns small-3"><label class="tool-label">Transaparency:<br/>{{ layerOpacity }}%</label></div>
+          <div class="columns small-3"><label class="tool-label">Transparency:<br/>{{ layerOpacity }}%</label></div>
           <div class="columns small-9"><input class="layer-opacity" type="range" min="1" max="100" step="1" v-model="layerOpacity"></div>
         </div>
         <div class="tool-slice row" v-if="layer.timeline">
