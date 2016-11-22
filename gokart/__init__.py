@@ -70,6 +70,8 @@ def gdal(fmt):
     path = os.path.join(workdir, jpg.filename)
     output_filepath = path + "." + fmt
     jpg.save(workdir)
+    legends_path = None
+    
     extra = []
     if fmt == "tif":
         of = "GTiff"
@@ -78,6 +80,11 @@ def gdal(fmt):
     elif fmt == "pdf":
         of = "PDF"
         ct = "application/pdf"
+        legends = bottle.request.files.get("legends")
+        if legends:
+            legends_path = os.path.join(workdir, legends.filename)
+            legends.save(workdir)
+            
     else:
         raise Exception("File format({}) Not Support".format(fmt))
 
@@ -92,6 +99,12 @@ def gdal(fmt):
         path, output_filepath
     ])
     output_filename = jpg.filename.replace("jpg", fmt)
+    #merge map pdf and legend pdf
+    if fmt == "pdf" and legends_path:
+        merged_filepath = ".merged".join(os.path.splitext(output_filepath))
+        subprocess.check_call(["pdftk",output_filepath,legends_path,"output",merged_filepath])
+        output_filepath = merged_filepath
+
     #upload to s3
     if bucket_key:
         #only upload to s3 if bucket_key is not empty
