@@ -55,7 +55,7 @@ def upload_map(bucket_key,base_filename,content_type,filename):
             with open(filename) as f:
                 map_bucket.Object(bucket_key).put(
                     Body = f,
-                    ContentDisposition="attachment;filename='{}'".format(base_filename),
+                    ContentDisposition="attachment;filename={}".format(base_filename),
                     ContentType=content_type,
                 )
 
