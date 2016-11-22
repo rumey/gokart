@@ -8,7 +8,7 @@
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    height="53.149605"
-   width="549.21259"
+   width="556.29919"
    version="1.1"
    y="0"
    x="0"
@@ -43,12 +43,12 @@
      showgrid="false"
      units="mm"
      inkscape:zoom="1.7396984"
-     inkscape:cx="302.26211"
+     inkscape:cx="303.41173"
      inkscape:cy="-35.745445"
      inkscape:window-x="0"
      inkscape:window-y="25"
      inkscape:window-maximized="1"
-     inkscape:current-layer="svg3127" />
+     inkscape:current-layer="g3129" />
   <g
      font-size="none"
      mix-blend-mode="normal"
@@ -60,7 +60,7 @@
      id="g3129">
     <rect
        height="51.377998"
-       width="341.42001"
+       width="346.80063"
        stroke-miterlimit="10"
        y="-29.372999"
        x="-0.44898"
@@ -158,7 +158,7 @@
        font-size="13.791px"
        line-height="125%"
        transform="scale(0.89796,1.1136)"
-       style="font-size:13.79100037px;line-height:125%;letter-spacing:0px;word-spacing:0px"
+       style="font-size:13.46952534px;line-height:125%;letter-spacing:0px;word-spacing:0px"
        y="-0.54994416"
        x="2.8649783"
        xml:space="preserve"
@@ -166,12 +166,13 @@
        sodipodi:linespacing="125%"><tspan
          y="-0.54994416"
          x="2.8649783"
-         id="tspan3171">{{ title }}</tspan></text>
+         id="tspan3171"
+         style="font-size:13.46952534px">{{ legendInfo.title }}</tspan></text>
     <text
        font-size="11.225px"
        line-height="125%"
        transform="scale(0.89796,1.1136)"
-       style="font-size:11.22500038px;line-height:125%;letter-spacing:0px;word-spacing:0px"
+       style="font-size:10.77562046px;line-height:125%;letter-spacing:0px;word-spacing:0px"
        y="12.774043"
        x="3.1857841"
        xml:space="preserve"
@@ -179,7 +180,8 @@
        sodipodi:linespacing="125%"><tspan
          y="12.774043"
          x="3.1857841"
-         id="tspan3175">{{ legendInfo.author }}</tspan></text>
+         id="tspan3175"
+         style="font-size:10.77562046px">{{ legendInfo.author }}</tspan></text>
     <text
        font-size="8.9796px"
        line-height="125%"
@@ -195,7 +197,7 @@
          id="tspan3179">{{ legendInfo.date }}</tspan></text>
   </g>
   <g
-     transform="translate(98,6.0000016)"
+     transform="translate(104,6.0000016)"
      id="g3181">
     <line
        style="font-size:12px;stroke:#000000;stroke-width:1.11360002;stroke-miterlimit:10"
@@ -341,18 +343,28 @@
        id="text3217">{{ legendInfo.scale }}</text>
   </g>
   <g
-     transform="matrix(0.086033,0,0,0.086031,320.26,4.7060016)"
+     transform="matrix(0.086033,0,0,0.086031,326.26,4.7060016)"
      id="g3219"
-     style="stroke:#000000">
+     style="stroke:#000000;stroke-width:1">
     <g
        transform="matrix(0.4431,0,0,0.4431,253.34,54.222)"
        id="g3221"
-       style="stroke:#000000">
+       style="stroke:#000000;stroke-width:1">
       <path
          d="m 373.75,91.496 c -0.95,-1.132 -74.87,153.23 -164.19,343.02 -160.8,341.68 -162.27,345.16 -156.49,350.27 3.203,2.83 6.954,4.79 8.319,4.34 1.365,-0.46 71.171,-73.88 155.14,-163.1 83.97,-89.22 153.66,-162.83 154.87,-163.56 1.2,-0.72 71.42,72.34 156.04,162.29 84.62,89.95 155.21,163.82 156.95,164.19 1.74,0.37 5.57,-1.19 8.5,-3.44 5.04,-3.86 -3.75,-23.46 -156.04,-348 -88.77,-189.18 -162.15,-344.88 -163.1,-346.01 z m -2.72,42.694 c 1.4,-1.53 2.45,63.91 2.45,148.36 V 433.62 L 231.18,584.96 C 106.57,717.42 87.38,737.82 86.08,738.47 c 0.143,-0.35 1.009,-1.57 1.361,-2.26 0.81,-1.59 64.409,-137.07 141.3,-301.05 76.89,-163.99 140.93,-299.45 142.29,-300.97 z m -99.77,642 V 1021 h 32.11 V 816.18 L 411.92,1021 h 44.6 V 776.19 h -32.11 v 204.8 L 315.85,776.19 h -44.59 z"
          id="path3223"
          inkscape:connector-curvature="0"
-         style="stroke:#000000" />
+         style="stroke:#000000;stroke-width:1" />
     </g>
   </g>
-</svg>
+  <flowRoot
+     xml:space="preserve"
+     id="flowRoot3029"
+     style="font-size:40px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"><flowRegion
+       id="flowRegion3031"><rect
+         id="rect3033"
+         width="707.59393"
+         height="202.33392"
+         x="-16.669556"
+         y="-43.418858" /></flowRegion><flowPara
+       id="flowPara3035"></flowPara></flowRoot></svg>

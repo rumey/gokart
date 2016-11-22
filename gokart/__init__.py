@@ -69,8 +69,8 @@ def gdal(fmt):
     extent = bottle.request.forms.get("extent").split(" ")
     bucket_key = bottle.request.forms.get("bucket_key")
     jpg = bottle.request.files.get("jpg")
-    title = bottle.request.files.get("title") or "Quick Print"
-    author = bottle.request.files.get("author") or "Anonymous"
+    title = bottle.request.forms.get("title") or "Quick Print"
+    author = bottle.request.forms.get("author") or "Anonymous"
     workdir = tempfile.mkdtemp()
     path = os.path.join(workdir, jpg.filename)
     output_filepath = path + "." + fmt
@@ -96,8 +96,8 @@ def gdal(fmt):
     subprocess.check_call([
         "gdal_translate", "-of", of, "-a_ullr", extent[0], extent[3], extent[2], extent[1],
         "-a_srs", "EPSG:4326", "-co", "DPI={}".format(bottle.request.forms.get("dpi", 150)),
-        "-co", "TITLE={}".format(bottle.request.forms.get("title", title)),
-        "-co", "AUTHOR={}".format(bottle.request.forms.get("author", author)),
+        "-co", "TITLE={}".format(title),
+        "-co", "AUTHOR={}".format("Department of Parks and Wildlife"),
         "-co", "PRODUCER={}".format(gdalinfo),
         "-co", "SUBJECT={}".format(bottle.request.headers.get('Referer', "gokart")),
         "-co", "CREATION_DATE={}".format(datetime.strftime(datetime.utcnow(), "%Y%m%d%H%M%SZ'00'"))] + extra + [

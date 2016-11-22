@@ -177,7 +177,7 @@
       legendInfo: function () {
         var result = {
           title: this.finalTitle,
-          author: this.whoami.email,
+          author: "Produced by the Department of Parks and Wildlife", //this.whoami.email,
           date: 'Map last amended ' + moment().toLocaleString()
         }
         if (this.$root.map) {
@@ -249,7 +249,7 @@
       },
       // generate legend block, scale ruler is 40mm wide
       renderLegend: function (bucketKey) {
-        var qrcanvas = kjua({text: this.s3Service + bucketKey, render: 'canvas', size: 100})
+        var qrcanvas = bucketKey?kjua({text: this.s3Service + bucketKey, render: 'canvas', size: 100}):null
         return ['data:image/svg+xml;utf8,' + encodeURIComponent(this.$els.legendsvg.innerHTML), qrcanvas]
       },
       // POST a generated JPG to the gokart server backend to convert to GeoPDF
@@ -265,7 +265,9 @@
             formData.append('dpi', Math.round(vm.layout.canvasPxPerMM * 25.4))
             formData.append('title', vm.finalTitle)
             formData.append('author', vm.legendInfo().author)
-            formData.append('bucket_key',bucketKey)
+            if (bucketKey) {
+                formData.append('bucket_key',bucketKey)
+            }
             var req = new window.XMLHttpRequest()
             req.open('POST', vm.gokartService + '/gdal/' + format)
             req.withCredentials = true
@@ -311,9 +313,10 @@
             vm.olmap.unByKey(composing)
             var canvas = event.context.canvas
             var ctx = canvas.getContext('2d')
+
             var img = new window.Image()
-            var bucketKey = vm.bucketKey
-            var legend = vm.renderLegend(bucketKey)
+            var bucketKey = (format !== 'jpg')?vm.bucketKey:null
+            var legend = vm.renderLegend((format === 'pdf')?bucketKey:null)
             var url = legend[0]
             var qrcanvas = legend[1]
             // wait until legend is rendered
@@ -325,7 +328,9 @@
               vm.layout.canvasPxPerMM = canvas.width / vm.layout.width
               var height = 120 * vm.layout.canvasPxPerMM * img.height / img.width
               ctx.drawImage(img, 0, 0, 120 * vm.layout.canvasPxPerMM, height)
-              ctx.drawImage(qrcanvas, 8, height)
+              if (qrcanvas) {
+                  ctx.drawImage(qrcanvas, 8, height)
+              }
               window.URL.revokeObjectURL(url)
               // generate a jpg copy of the canvas contents
               var filename = vm.finalTitle.replace(/ +/g, '_')
