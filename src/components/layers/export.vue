@@ -109,7 +109,7 @@
     components: { gkLegend,gkLayerlegends },
     data: function () {
       return {
-        minDPI: 300,
+        minDPI: 150,
         paperSizes: {
           A0: [1189, 841],
           A1: [841, 594],
@@ -147,7 +147,7 @@
         return {
           width: dims[0], height: dims[1], size: size,
           extent: this.olmap.getView().calculateExtent(size),
-          scale: this.scale, dpmm: this.dpmm
+          scale: this.scale
         }
       },
       shortUrl: {
@@ -186,19 +186,20 @@
         }
         return result
       },
-      exportVector: function(features, name) {
+      exportVector: function(features, name,format) {
         var vm = this
         //add applicaiton name and timestamp
         var name = (name || '') + "." + this.$root.profile.name + "_export_" + moment().format("YYYYMMDD_HHmm")
         var result = this.$root.geojson.writeFeatures(features)
         var blob = new window.Blob([result], {type: 'application/json;charset=utf-8'})
-        if (this.vectorFormat === 'json') {
+        format = format || this.vectorFormat
+        if (format === 'json') {
           saveAs(blob, name + '.geo.json')
         } else {
           var formData = new window.FormData()
           formData.append('json', blob, name + '.json')
           var req = new window.XMLHttpRequest()
-          req.open('POST', this.gokartService + '/ogr/' + this.vectorFormat)
+          req.open('POST', this.gokartService + '/ogr/' + format)
           req.responseType = 'blob'
           req.withCredentials = true
           req.onload = function (event) {
@@ -217,10 +218,7 @@
                     var matches = vm._filename_re.exec(req.getResponseHeader("Content-Disposition"))
                     filename = (matches && matches[1])? matches[1]: null
                 }
-                if (filename) {
-                    //get the file extension from response header
-                    filename = name + filename.substring(filename.lastIndexOf('.'))
-                } else {
+                if (!filename) {
                     filename = name + "." + this.vectotFormat
                 }
                 saveAs(req.response, filename)
@@ -234,10 +232,9 @@
         $('body').css('cursor', 'progress')
         this.oldLayout.size = this.olmap.getSize()
         this.oldLayout.scale = this.$root.map.getScale()
-        this.oldLayout.dpmm = this.dpmm
         this.layout = this.mapLayout
-        this.dpmm = this.minDPI / this.mmPerInch
-        this.olmap.setSize([this.dpmm * this.layout.width, this.dpmm * this.layout.height])
+        var dpmm = this.minDPI / this.mmPerInch
+        this.olmap.setSize([dpmm * this.layout.width, dpmm * this.layout.height])
         this.olmap.getView().fit(this.layout.extent, this.olmap.getSize())
         this.$root.map.setScale(this.$root.map.getFixedScale())
         //extent is changed because the scale is adjusted to the closest fixed scale, recalculated the extent again
@@ -245,7 +242,6 @@
       },
       // restore map to viewport dimensions
       resetSize: function () {
-        this.dpmm = this.oldLayout.dpmm
         this.olmap.setSize(this.oldLayout.size)
         this.$root.map.setScale(this.oldLayout.scale)
         // this.olmap.getView().fit(this.layout.extent, this.olmap.getSize())
@@ -258,23 +254,38 @@
       },
       // POST a generated JPG to the gokart server backend to convert to GeoPDF
       blobGDAL: function (blob, name, format,bucketKey) {
-        var formData = new window.FormData()
-        formData.append('extent', this.layout.extent.join(' '))
-        formData.append('jpg', blob, name + '.jpg')
-        formData.append('dpi', Math.round(this.layout.canvasPxPerMM * 25.4))
-        formData.append('title', this.finalTitle)
-        formData.append('author', this.legendInfo().author)
-        formData.append('bucket_key',bucketKey)
-        var req = new window.XMLHttpRequest()
-        req.open('POST', this.gokartService + '/gdal/' + format)
-        req.withCredentials = true
-        req.responseType = 'blob'
         var vm = this
-        req.onload = function (event) {
-          saveAs(req.response, name + '.' + format)
-          vm.resetSize()
+        var _func = function(legendData) {
+            var formData = new window.FormData()
+            formData.append('extent', vm.layout.extent.join(' '))
+            formData.append('jpg', blob, name + '.jpg')
+            if (format === "pdf") {
+                formData.append('legends', legendData, name + '.legend.pdf')
+            }
+            formData.append('dpi', Math.round(vm.layout.canvasPxPerMM * 25.4))
+            formData.append('title', vm.finalTitle)
+            formData.append('author', vm.legendInfo().author)
+            formData.append('bucket_key',bucketKey)
+            var req = new window.XMLHttpRequest()
+            req.open('POST', vm.gokartService + '/gdal/' + format)
+            req.withCredentials = true
+            req.responseType = 'blob'
+            req.onload = function (event) {
+              saveAs(req.response, name + '.' + format)
+              vm.resetSize()
+            }
+            req.onerror = function () {
+              vm.resetSize()
+            }
+            req.send(formData)
         }
-        req.send(formData)
+        if (format === "pdf") {
+            vm.layerlegends.getLegendBlob(true,true,function(legendData){
+                _func(legendData)
+            })
+        } else {
+            _func()
+        }
       },
       // make a printable raster from the map
       print: function (format) {
@@ -317,7 +328,7 @@
               ctx.drawImage(qrcanvas, 8, height)
               window.URL.revokeObjectURL(url)
               // generate a jpg copy of the canvas contents
-              var filename = vm.finalTitle.replace(' ', '_')
+              var filename = vm.finalTitle.replace(/ +/g, '_')
               canvas.toBlob(function (blob) {
                 if (format === 'jpg') {
                   saveAs(blob, filename + '.jpg')
