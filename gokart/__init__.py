@@ -25,6 +25,9 @@ BASE_PATH = os.path.dirname(__file__)
 
 
 ENV_TYPE = (os.environ.get("ENV_TYPE") or "prod").lower()
+
+gdalinfo = subprocess.check_output(["gdalinfo", "--version"])
+
 # serve up map apps
 @bottle.route('/<app>')
 def index(app):
@@ -66,6 +69,8 @@ def gdal(fmt):
     extent = bottle.request.forms.get("extent").split(" ")
     bucket_key = bottle.request.forms.get("bucket_key")
     jpg = bottle.request.files.get("jpg")
+    title = bottle.request.files.get("title") or "Quick Print"
+    author = bottle.request.files.get("author") or "Anonymous"
     workdir = tempfile.mkdtemp()
     path = os.path.join(workdir, jpg.filename)
     output_filepath = path + "." + fmt
@@ -91,9 +96,9 @@ def gdal(fmt):
     subprocess.check_call([
         "gdal_translate", "-of", of, "-a_ullr", extent[0], extent[3], extent[2], extent[1],
         "-a_srs", "EPSG:4326", "-co", "DPI={}".format(bottle.request.forms.get("dpi", 150)),
-        "-co", "TITLE={}".format(bottle.request.forms.get("title", "Quick Print")),
-        "-co", "AUTHOR={}".format(bottle.request.forms.get("author", "Anonymous")),
-        "-co", "PRODUCER={}".format(subprocess.check_output(["gdalinfo", "--version"])),
+        "-co", "TITLE={}".format(bottle.request.forms.get("title", title)),
+        "-co", "AUTHOR={}".format(bottle.request.forms.get("author", author)),
+        "-co", "PRODUCER={}".format(gdalinfo),
         "-co", "SUBJECT={}".format(bottle.request.headers.get('Referer', "gokart")),
         "-co", "CREATION_DATE={}".format(datetime.strftime(datetime.utcnow(), "%Y%m%d%H%M%SZ'00'"))] + extra + [
         path, output_filepath
@@ -101,9 +106,16 @@ def gdal(fmt):
     output_filename = jpg.filename.replace("jpg", fmt)
     #merge map pdf and legend pdf
     if fmt == "pdf" and legends_path:
+        #dump meta data
+        metadata_file = output_filepath + ".txt"
+        subprocess.check_call(["pdftk",output_filepath,"dump_data_utf8","output",metadata_file])
+        #merge two pdfs
         merged_filepath = ".merged".join(os.path.splitext(output_filepath))
         subprocess.check_call(["pdftk",output_filepath,legends_path,"output",merged_filepath])
-        output_filepath = merged_filepath
+        #update meta data
+        updated_filepath = ".updated".join(os.path.splitext(output_filepath))
+        subprocess.check_call(["pdftk",merged_filepath,"update_info_utf8",metadata_file,"output",updated_filepath])
+        output_filepath = updated_filepath
 
     #upload to s3
     if bucket_key:

@@ -328,7 +328,7 @@
               ctx.drawImage(qrcanvas, 8, height)
               window.URL.revokeObjectURL(url)
               // generate a jpg copy of the canvas contents
-              var filename = vm.finalTitle.replace(' ', '_')
+              var filename = vm.finalTitle.replace(/ +/g, '_')
               canvas.toBlob(function (blob) {
                 if (format === 'jpg') {
                   saveAs(blob, filename + '.jpg')
