@@ -90,7 +90,7 @@
         get: function() {
             var finished = true
             $("#active-layer-legend-list").find("img").each(function(index,img){
-                if (img.naturalWidth === 0 || img.naturalWidth === undefined) {
+                if (img.naturalWidth === 0 || img.naturalWidth === undefined || img.naturalHeight === 0 || img.naturalHeight === undefined) {
                     finished = false
                     return false
                 }
@@ -314,7 +314,7 @@
             if (!sync || vm.loadFinished) {
                 printFunc()
             } else {
-                setTimeout(syncedFunc,50)
+                setTimeout(syncedFunc,500)
             }
         }
 
