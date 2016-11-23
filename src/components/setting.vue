@@ -43,6 +43,16 @@
             </div>
 
             <div class="tool-slice row collapse">
+              <div class="switch tiny">
+                <input class="switch-input" id="toggleMaintainScaleWhenPrinting" type="checkbox" v-bind:checked="settings.maintainScaleWhenPrinting" @change="toggleMaintainScaleWhenPrinting"/>
+                <label class="switch-paddle" for="toggleMaintainScaleWhenPrinting">
+                  <span class="show-for-sr">Maintain scale when printing</span>
+                </label>
+              </div>
+              <label for="toggleMaintainScaleWhenPrinting" class="side-label">Maintain scale when printing</label>
+            </div>
+
+            <div class="tool-slice row collapse">
               <div class="columns small-4"><label class="tool-label">Undo Limit:<br/>{{ undoLimitDesc }}</label></div>
               <div class="columns small-7"><input class="layer-opacity" type="range" min="0" max="1000" step="10" v-model="undoLimitInSetting" v-bind:disabled="!undoEnabled"></div>
               <div class="columns small-1">
@@ -119,6 +129,7 @@
       loading: function () { return this.$root.loading },
       profile: function () { return this.$root.profile },
       measure: function () { return this.$root.measure },
+      export: function () { return this.$root.export },
       drawinglogs: function () { return this.$root.annotations.drawinglogs },
       map: function () { return this.$root.map },
       undoLimitDesc:function() {
@@ -193,6 +204,10 @@
       toggleHoverInfo: function (ev) {
         this.hoverInfoCache = ev.target.checked
         this.hoverInfo = ev.target.checked
+      },
+      toggleMaintainScaleWhenPrinting:function(ev) {
+        this.settings.maintainScaleWhenPrinting = !this.settings.maintainScaleWhenPrinting
+        this.export.saveState()
       },
       reset: function () {
         if (window.confirm('This will clear all of your selected layers and annotations. Are you sure?')) {

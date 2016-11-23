@@ -80,6 +80,23 @@
       },
       disablePrint:function() {
         return this.displayLegendLayers.length == 0
+      },
+      legendsPanel:function() {
+        this._legendsPanel = this._legendsPanel || new Foundation.Reveal($("#active-layer-legends"))
+        return this._legendsPanel
+      },
+      loadFinished: {
+        cache: false,
+        get: function() {
+            var finished = true
+            $("#active-layer-legend-list").find("img").each(function(index,img){
+                if (img.naturalWidth === 0 || img.naturalWidth === undefined || img.naturalHeight === 0 || img.naturalHeight === undefined) {
+                    finished = false
+                    return false
+                }
+            })
+            return finished
+        }
       }
     },
     methods:{
@@ -94,7 +111,7 @@
       hideLegend:function(l) {
         if (this.hiddenLayers[l.id]) return
         this.hiddenLayers[l.id] = true
-        if (this.showLengendLayers == null) {
+        if (this.filteredLegendLayers == null) {
             var vm = this
             this.filteredLegendLayers = this.legendLayers.filter(function(layer){
                 return !vm.hiddenLayers[layer.id]
@@ -103,62 +120,64 @@
             this.filteredLegendLayers.splice(this.filteredLegendLayers.indexOf(l),1)
         }
       },
+      //return true if changed, otherwise return false
+      syncLegendLayers: function(){
+        var vm = this
+        var catalogue = vm.$root.catalogue
+        var results = []
+        var legendLen = 0
+        vm.$root.active.olLayers.every(function (layer) {
+          var catLayer = catalogue.getLayer(layer)
+          if (catLayer) {
+            if (catLayer.legend && (catLayer.loadLegendFailed == undefined || !catLayer.loadLegendFailed)) {
+                results.push(catLayer)
+                legendLen += catLayer.hidden?0:1
+            }
+            return true
+          } else {
+            return false
+          }
+        })
+        if (results.length == vm.legendLayers) {
+            results = results.reverse()
+            var changed = false
+            for(var i = 0;i < results.length; i++) {
+                if (results[i].id != vm.legendLayers.id) {
+                    changed = true
+                    break
+                }
+            }
+            if (!changed) {
+                return false
+            }
+        } else {
+            results = results.reverse()
+        }
+        vm.legendLayers = results 
+        if (vm.legendLayers.find(function(layer){return vm.hiddenLayers[layer.id]})) {
+            vm.filteredLegendLayers = vm.legendLayers.filter(function(layer){
+                return !vm.hiddenLayers[layer.id]
+            })
+        } else {
+            vm.filteredLegendLayers = null
+        }
+        return true
+      },
       toggleLegends: function() {
         var vm = this
-        var watchActiveLayers = function(){
-            var catalogue = vm.$root.catalogue
-            var results = []
-            var showLegendLen = 0
-            vm.$root.active.olLayers.every(function (layer) {
-              var catLayer = catalogue.getLayer(layer)
-              if (catLayer) {
-                if (catLayer.legend && (catLayer.loadLegendFailed == undefined || !catLayer.loadLegendFailed)) {
-                    results.push(catLayer)
-                    showLegendLen += catLayer.hidden?0:1
-                }
-                return true
-              } else {
-                return false
-              }
-            })
-            if (results.length == vm.legendLayers) {
-                results = results.reverse()
-                var changed = false
-                for(var i = 0;i < results.length; i++) {
-                    if (results[i].id != vm.legendLayers.id) {
-                        changed = true
-                        break
-                    }
-                }
-                if (!changed) {
-                    return
-                }
-            } else {
-                results = results.reverse()
-            }
-            vm.legendLayers = results 
-            if (vm.legendLayers.find(function(layer){return vm.hiddenLayers[layer.id]})) {
-                vm.filteredLegendLayers = vm.legendLayers.filter(function(layer){
-                    return !vm.hiddenLayers[layer.id]
-                })
-            } else {
-                vm.filteredLegendLayers = null
-            }
-        }
-        vm.activeLayerLegends = vm.activeLayerLegends || new Foundation.Reveal($("#active-layer-legends"))
-        if (vm.activeLayerLegends.isActive) {
-            vm.activeLayerLegends.close()
+        if (vm.legendsPanel.isActive) {
+            vm.legendsPanel.close()
             vm.unwatchActiveLayers()
             vm.unwatchActiveLayers = false
             return
         }
         if (!vm.unwatchActiveLayers) {
-            watchActiveLayers()
+            this.syncLegendLayers()
             vm.unwatchActiveLayers = this.$root.active.$watch("olLayers",function(newVal,oldVal){
-                watchActiveLayers()
+                vm.syncLegendLayers()
             })
         }
-        vm.activeLayerLegends.open()
+        vm.legendsPanel.open()
       },
       loadLegendFailed:function(index,l) {
         this.legendLayers.splice(index,1)
@@ -180,77 +199,130 @@
       },
       printLegends:function() {
         var vm = this
-        var paperSize = this.$root.export.paperSizes["A4"]
-        var style = { 
-          top: 20, 
-          bottom: 20, 
-          left: 20,
-          right:20,
-          width: paperSize[1],
-          height:paperSize[0],
-          fontHeight:10,
-          padding:5,
-          font:"helvetica",
-          fontType:"bold",
-          fontSize:10,
-          textColor:[0,0,0],
-          lineWidth: 1,
-          lineColor:[77,77,77]
-        }
-        var getImageSize = function(img,textHeight) {
-          var width = 0
-          var height = 0
-          var maxImageSize = [style.width - style.left - style.right,style.height - style.top - style.bottom - textHeight]
-          var imgSize = [Math.floor(img.naturalWidth / vm.dpmm), Math.floor(img.naturalHeight / vm.dpmm)]
-        
-          if (imgSize[0] / imgSize[1] > maxImageSize[0] /maxImageSize[1]) {
-            if (imgSize[0] <= maxImageSize[0]) {
-                width = imgSize[0]
-                height = imgSize[1]
-            } else {
-                width = maxImageSize[0]
-                height = (imgSize[1] * width) / imgSize[0]
-            }
-          } else {
-            if (imgSize[1] <= maxImageSize[1]) {
-                height = imgSize[1]
-                width = imgSize[0]
-            } else {
-                height = maxImageSize[1]
-                width = (imgSize[0] * height) / imgSize[1]
-            }
-          }
-          return [width,height]
-        }
-        var doc = new jsPDF();
-        doc.setFontSize(style.fontSize)
-        doc.setFont(style.font)
-        doc.setFontType(style.fontType)
-        doc.setTextColor(style.textColor[0],style.textColor[1],style.textColor[2])
-        doc.setLineWidth(style.lineWidth)
-        doc.setDrawColor(style.lineColor[0],style.lineColor[1],style.lineColor[2])
-        var top = style.top
-        $("#active-layer-legend-list .layer-legend-row").each(function(index,element){
-            var imgElement = $(element).find("img").get(0)
-            var imageSize = getImageSize(imgElement,style.fontHeight)
-            if (top != style.top && top + style.fontHeight + imageSize[1] + style.bottom + 2 * style.padding + style.lineWidth > style.height) {
-                doc.addPage()
-                top = style.top
-            } else if (top !=style.top) {
-                top += style.padding
-                doc.setLineWidth(style.lineWidth)
-                doc.line(style.left,top,style.width - style.right,top)
-                top += style.lineWidth
-                top += style.padding
-            }
-            doc.text(style.left,top,$(element).find(".layer-title").text())
-            top += style.fontHeight
-            doc.addImage(vm.getImageDataURL(imgElement,"image/jpeg"),"JPEG",style.left,top,imageSize[0],imageSize[1])
-            top += imageSize[1]
+        this.getLegendBlob(false,false,function(blobData){
+            var filename = vm.$root.export.finalTitle.replace(' ', '_') + ".legend.pdf"
+            saveAs(blobData,filename)
         })
-        var filename = this.$root.export.finalTitle.replace(' ', '_') + ".legend.pdf"
-        saveAs(doc.output("blob"),filename)
+      },
+      getLegendBlob:function(printAll,sync,callback) {
+        var vm = this
+        printAll = printAll || false
+        sync = sync || false
+        var hiddenLayers = null
+        var filteredLegendLayers = null
+        var nextTick = false
+        var temporaryActivated = false
+        if (!vm.legendsPanel.isActive) {
+            //legend panel is not active, data is outdated.
+            nextTick = vm.syncLegendLayers()
+            //$("#active-layer-legends").css("zIndex",-999)
+            //vm.legendsPanel.open()
+            //temporaryActivated = true
+        }
+        if (printAll && vm.filteredLegendLayers != null) {
+            //show all legends for printing
+            hiddenLayers = vm.hiddenLayers
+            filteredLegendLayers = vm.filteredLegendLayers
+            vm.showAll()
+            nextTick = true
+        }
+        var printFunc = function() {
+            try {
+                var paperSize = vm.$root.export.paperSizes["A4"]
+                var style = { 
+                  top: 20, 
+                  bottom: 20, 
+                  left: 20,
+                  right:20,
+                  width: paperSize[1],
+                  height:paperSize[0],
+                  fontHeight:10,
+                  padding:5,
+                  font:"helvetica",
+                  fontType:"bold",
+                  fontSize:10,
+                  textColor:[0,0,0],
+                  lineWidth: 1,
+                  lineColor:[77,77,77]
+                }
+                var getImageSize = function(img,textHeight) {
+                  var width = 0
+                  var height = 0
+                  var maxImageSize = [style.width - style.left - style.right,style.height - style.top - style.bottom - textHeight]
+                  var imgSize = [Math.floor(img.naturalWidth / vm.dpmm), Math.floor(img.naturalHeight / vm.dpmm)]
+                
+                  if (imgSize[0] / imgSize[1] > maxImageSize[0] /maxImageSize[1]) {
+                    if (imgSize[0] <= maxImageSize[0]) {
+                        width = imgSize[0]
+                        height = imgSize[1]
+                    } else {
+                        width = maxImageSize[0]
+                        height = (imgSize[1] * width) / imgSize[0]
+                    }
+                  } else {
+                    if (imgSize[1] <= maxImageSize[1]) {
+                        height = imgSize[1]
+                        width = imgSize[0]
+                    } else {
+                        height = maxImageSize[1]
+                        width = (imgSize[0] * height) / imgSize[1]
+                    }
+                  }
+                  return [width,height]
+                }
+                var doc = new jsPDF();
+                doc.setFontSize(style.fontSize)
+                doc.setFont(style.font)
+                doc.setFontType(style.fontType)
+                doc.setTextColor(style.textColor[0],style.textColor[1],style.textColor[2])
+                doc.setLineWidth(style.lineWidth)
+                doc.setDrawColor(style.lineColor[0],style.lineColor[1],style.lineColor[2])
+                var top = style.top
+                $("#active-layer-legend-list .layer-legend-row").each(function(index,element){
+                    var imgElement = $(element).find("img").get(0)
+                    var imageSize = getImageSize(imgElement,style.fontHeight)
+                    if (top != style.top && top + style.fontHeight + imageSize[1] + style.bottom + 2 * style.padding + style.lineWidth > style.height) {
+                        doc.addPage()
+                        top = style.top
+                    } else if (top !=style.top) {
+                        top += style.padding
+                        doc.setLineWidth(style.lineWidth)
+                        doc.line(style.left,top,style.width - style.right,top)
+                        top += style.lineWidth
+                        top += style.padding
+                    }
+                    doc.text(style.left,top,$(element).find(".layer-title").text())
+                    top += style.fontHeight
+                    doc.addImage(vm.getImageDataURL(imgElement,"image/jpeg"),"JPEG",style.left,top,imageSize[0],imageSize[1])
+                    top += imageSize[1]
+                })
+                callback(doc.output("blob"))
+            } finally {
+                if (hiddenLayers) {
+                    //restore the legend panel
+                    vm.hiddenLayers = hiddenLayers
+                    vm.filteredLegendLayers = filteredLegendLayers
+                }
+                if (temporaryActivated) {
+                    vm.legendsPanel.open()
+                    $("#active-layer-legends").css("zIndex",0)
+                }
+            }
+        }
+        var syncedFunc = null
+        syncedFunc = function() {
+            if (!sync || vm.loadFinished) {
+                printFunc()
+            } else {
+                setTimeout(syncedFunc,500)
+            }
+        }
 
+        if (nextTick) {
+            vm.$nextTick(syncedFunc)
+        } else {
+            syncedFunc()
+        }
       },
       setPosition:function(left,right,top,bottom) {
         if (left == null) {

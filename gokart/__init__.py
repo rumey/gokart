@@ -16,6 +16,8 @@ from email.mime.text import MIMEText
 
 dotenv.load_dotenv(dotenv.find_dotenv())
 
+from . import s3
+
 bottle.TEMPLATE_PATH.append('./gokart')
 bottle.debug(True)
 
@@ -23,6 +25,9 @@ BASE_PATH = os.path.dirname(__file__)
 
 
 ENV_TYPE = (os.environ.get("ENV_TYPE") or "prod").lower()
+
+gdalinfo = subprocess.check_output(["gdalinfo", "--version"])
+
 # serve up map apps
 @bottle.route('/<app>')
 def index(app):
@@ -62,10 +67,16 @@ def himawari8(target):
 def gdal(fmt):
     # needs gdal 1.10+
     extent = bottle.request.forms.get("extent").split(" ")
+    bucket_key = bottle.request.forms.get("bucket_key")
     jpg = bottle.request.files.get("jpg")
+    title = bottle.request.forms.get("title") or "Quick Print"
+    author = bottle.request.forms.get("author") or "Anonymous"
     workdir = tempfile.mkdtemp()
     path = os.path.join(workdir, jpg.filename)
+    output_filepath = path + "." + fmt
     jpg.save(workdir)
+    legends_path = None
+    
     extra = []
     if fmt == "tif":
         of = "GTiff"
@@ -74,20 +85,46 @@ def gdal(fmt):
     elif fmt == "pdf":
         of = "PDF"
         ct = "application/pdf"
+        legends = bottle.request.files.get("legends")
+        if legends:
+            legends_path = os.path.join(workdir, legends.filename)
+            legends.save(workdir)
+            
+    else:
+        raise Exception("File format({}) Not Support".format(fmt))
+
     subprocess.check_call([
         "gdal_translate", "-of", of, "-a_ullr", extent[0], extent[3], extent[2], extent[1],
         "-a_srs", "EPSG:4326", "-co", "DPI={}".format(bottle.request.forms.get("dpi", 150)),
-        "-co", "TITLE={}".format(bottle.request.forms.get("title", "Quick Print")),
-        "-co", "AUTHOR={}".format(bottle.request.forms.get("author", "Anonymous")),
-        "-co", "PRODUCER={}".format(subprocess.check_output(["gdalinfo", "--version"])),
+        "-co", "TITLE={}".format(title),
+        "-co", "AUTHOR={}".format("Department of Parks and Wildlife"),
+        "-co", "PRODUCER={}".format(gdalinfo),
         "-co", "SUBJECT={}".format(bottle.request.headers.get('Referer', "gokart")),
         "-co", "CREATION_DATE={}".format(datetime.strftime(datetime.utcnow(), "%Y%m%d%H%M%SZ'00'"))] + extra + [
-        path, path + "." + fmt
+        path, output_filepath
     ])
-    output = open(path + "." + fmt)
+    output_filename = jpg.filename.replace("jpg", fmt)
+    #merge map pdf and legend pdf
+    if fmt == "pdf" and legends_path:
+        #dump meta data
+        metadata_file = output_filepath + ".txt"
+        subprocess.check_call(["pdftk",output_filepath,"dump_data_utf8","output",metadata_file])
+        #merge two pdfs
+        merged_filepath = ".merged".join(os.path.splitext(output_filepath))
+        subprocess.check_call(["pdftk",output_filepath,legends_path,"output",merged_filepath])
+        #update meta data
+        updated_filepath = ".updated".join(os.path.splitext(output_filepath))
+        subprocess.check_call(["pdftk",merged_filepath,"update_info_utf8",metadata_file,"output",updated_filepath])
+        output_filepath = updated_filepath
+
+    #upload to s3
+    if bucket_key:
+        #only upload to s3 if bucket_key is not empty
+        s3.upload_map(bucket_key,output_filename,ct,output_filepath)
+    output = open(output_filepath)
     shutil.rmtree(workdir)
     bottle.response.set_header("Content-Type", ct)
-    bottle.response.set_header("Content-Disposition", "attachment;filename='{}'".format(jpg.filename.replace("jpg", fmt)))
+    bottle.response.set_header("Content-Disposition", "attachment;filename='{}'".format(output_filename))
     return output
 
 
@@ -97,7 +134,8 @@ def ogr(fmt):
     # needs gdal 1.10+
     json = bottle.request.files.get("json")
     workdir = tempfile.mkdtemp()
-    layername = os.path.splitext(json.filename)[0]
+    #if json.filename contains '.', only use the left part of the first '.' as the layername
+    layername =  json.filename if (json.filename.find('.') < 0) else json.filename[:json.filename.find('.')]
     json.save(workdir)
     jsonfile = os.path.join(workdir, json.filename)
     extra = []
@@ -122,7 +160,7 @@ def ogr(fmt):
         return "Not supported format({})".format(fmt)
 
     subprocess.check_call([
-        "ogr2ogr","-overwrite" , "-progress","-a_srs","EPSG:4326","-nln",layername, "-f", f,dst_datasource, jsonfile]) 
+        "ogr2ogr","-overwrite" ,"-a_srs","EPSG:4326","-nln",layername, "-f", f,dst_datasource, jsonfile]) 
 
     if fmt == "shp":
         shutil.make_archive(path.replace('geojson', 'zip'), 'zip', workdir, workdir)
