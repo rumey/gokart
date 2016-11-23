@@ -409,7 +409,7 @@
             var mapLayer = vm.trackingMapLayer
             if (!mapLayer) { return }
             // update vue list for filtered features in the current extent
-            vm.extentFeatures = mapLayer.getSource().getFeaturesInExtent(vm.$root.export.mapLayout.extent).filter(vm.resourceFilter)
+            vm.extentFeatures = mapLayer.getSource().getFeaturesInExtent(vm.$root.map.extent).filter(vm.resourceFilter)
             vm.extentFeatures.sort(vm.resourceOrder)
             // update vue list for filtered features
             vm.allFeatures = mapLayer.getSource().getFeatures().filter(vm.resourceFilter)
@@ -434,7 +434,7 @@
             if (!mapLayer) { return }
             var feats = mapLayer.getSource().getFeatures()
             // update vue list for filtered features in the current extent
-            vm.extentFeatures = mapLayer.getSource().getFeaturesInExtent(vm.$root.export.mapLayout.extent).filter(vm.resourceFilter)
+            vm.extentFeatures = mapLayer.getSource().getFeaturesInExtent(vm.$root.map.extent).filter(vm.resourceFilter)
             vm.extentFeatures.sort(vm.resourceOrder)
         }
         if (runNow) {

@@ -60,6 +60,9 @@
         get: function get () {
           return $("#map").height()
         }
+      },
+      extent: function() {
+        return this.olmap.getView().calculateExtent(this.olmap.getSize())
       }
     },
     // methods callable from inside the template
@@ -68,36 +71,28 @@
       enableControl:function(controlName,enable) {
         var vm = this
         var control = this.mapControls[controlName]
-        if (control) {
-            if (Array.isArray(control)) {
-                $.each(control,function(index,c){
+        if (!control || control.enabled === enable) {
+            //already enabled or disabled
+            return
+        }
+        if (control.controls) {
+            if (Array.isArray(control.controls)) {
+                $.each(control.controls,function(index,c){
                     if (enable) {
-                        if (!c['enabled']) {
-                            vm.olmap.addControl(c)
-                            c['enabled'] = true
-                        }
+                        vm.olmap.addControl(c)
                     } else {
-                        if (c['enabled']) {
-                            vm.olmap.removeControl(c)
-                            c['enabled'] = false
-                        }
-                        
+                        vm.olmap.removeControl(c)
                     }
                 })
             } else {
                 if (enable) {
-                    if (!control['enabled']) {
-                        vm.olmap.addControl(control)
-                        control['enabled'] = true
-                    }
+                    vm.olmap.addControl(control.controls)
                 } else {
-                    if (control['enabled']) {
-                        vm.olmap.removeControl(control)
-                        control['enabled'] = false
-                    }
+                    vm.olmap.removeControl(control.controls)
                 }
             }
         }
+        control.enabled = enable
       },
       editResource: function(event) {
         var target = (event.target.nodeName == "A")?event.target:event.target.parentNode;
@@ -275,9 +270,9 @@
         var distance = this.$root.wgs84Sphere.haversineDistance([extent[0], center[1]], center) * 2
         return distance * this.dpmm / size[0]
       },
-      // get the fixed scale (1:1K increments) closest to current scale
-      getFixedScale: function () {
-        var scale = this.getScale()
+      // get the fixed scale (1:1K increments) closest to specified or the current scale
+      getFixedScale: function (scale) {
+        scale = scale || this.getScale()
         var closest = null
         $.each(this.fixedScales, function () {
           if (closest === null || Math.abs(this - scale) < Math.abs(closest - scale)) {
@@ -835,49 +830,64 @@
         })
 
         vm.mapControls = {
-            "zoom": new ol.control.Zoom({
+            "zoom": {
+                enabled:false,
+                controls:new ol.control.Zoom({
                   target: $('#external-controls').get(0)   
-            }),
-            "scaleLine": new ol.control.ScaleLine(),
-            "mousePosition": new ol.control.MousePosition({
-                coordinateFormat: function(coordinate) {
-                    return vm.getDeg(coordinate)+'<br/>'+vm.getDMS(coordinate)+'<br/>'+vm.getMGA(coordinate)
-                }
-            }),
-            "fullScreen": new ol.control.FullScreen({
-                source: $('body').get(0),
-                target: $('#external-controls').get(0),
-                label: $('<i/>', {
-                    class: 'fa fa-expand'
-                })[0]
-            }),
-            "scale": new ol.control.Control({
-                element: $('#menu-scale').get(0),
-                target: $('#external-controls').get(0)
-            }),
-            "search": [
-                new ol.control.Control({
-                    element: $('#map-search').get(0),
-                    target: $('#external-controls').get(0)
-                  }),
-                new ol.control.Control({
-                    element: $('#map-search-button').get(0),
-                    target: $('#external-controls').get(0)
                 })
-            ],
-            "attribution": new ol.control.Attribution(),
-            "measure": vm.measure.mapControl
+            },
+            "scaleLine": {
+                enabled:false,
+                controls:new ol.control.ScaleLine()
+            },
+            "mousePosition": {
+                enabled:false,
+                controls:new ol.control.MousePosition({
+                    coordinateFormat: function(coordinate) {
+                        return vm.getDeg(coordinate)+'<br/>'+vm.getDMS(coordinate)+'<br/>'+vm.getMGA(coordinate)
+                    }
+                })
+            },
+            "fullScreen": {
+                enabled:false,
+                controls:new ol.control.FullScreen({
+                    source: $('body').get(0),
+                    target: $('#external-controls').get(0),
+                    label: $('<i/>', {
+                        class: 'fa fa-expand'
+                    })[0]
+                })
+            },
+            "scale": {
+                enabled:false,
+                controls:new ol.control.Control({
+                    element: $('#menu-scale').get(0),
+                    target: $('#external-controls').get(0)
+            })},
+            "search": {
+                enabled:false,
+                controls: [
+                    new ol.control.Control({
+                        element: $('#map-search').get(0),
+                        target: $('#external-controls').get(0)
+                      }),
+                    new ol.control.Control({
+                        element: $('#map-search-button').get(0),
+                        target: $('#external-controls').get(0)
+                    })
+                ]
+            },
+            "attribution": {
+                enabled:false,
+                controls:new ol.control.Attribution()
+            },
+            "measure": {
+                enabled:false,
+                controls:vm.measure.mapControl
+            }
         }
         $.each(vm.mapControls,function(key,control){
-            if (Array.isArray(control)) {
-                $.each(control,function(index,c) {
-                    vm.olmap.addControl(c)
-                    c['enabled'] = true
-                })
-            } else {
-                vm.olmap.addControl(control)
-                control['enabled'] = true
-            }
+            vm.enableControl(key,true)
         })
 
         this.setScale(this.view.scale / 1000)

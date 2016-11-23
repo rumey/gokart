@@ -513,7 +513,7 @@
       setTool: function (t) {
         if (!t) {
             if (this._previousActiveMenu && this._previousActiveMenu !== this.$root.activeMenu && this._previousTool) {
-                //before switching to other menu, a non-pan tool was enabled, choose the 'pan' tool for the current menu to preseve the changes(for example, the selected features) made by the previous non-pan tool
+                //before switching to other menu, if a non-pan tool was enabled, choose the 'pan' tool for the current menu to preseve the changes(for example, the selected features) made by the previous non-pan tool
                 t = this.ui.defaultPan
             } else {
                 t = this.currentTool
@@ -1301,14 +1301,21 @@
 
       var getFeatureInfo = function(feature) {
         var tool = vm.getTool(feature.get('toolName'))
-        if (tool.icon.startsWith('fa-')) {
-          return {name:tool.name, icon:"fa " + tool.icon}
-        } else if (tool.icon.search('#') === -1) {
+        var icon = tool.icon
+        if (typeof icon === "function") {
+            icon = icon(feature)
+        }
+
+        if (!icon) {
+          return {name:tool.name}
+        } else if (icon.startsWith('fa-')) {
+          return {name:tool.name, icon:"fa " + icon}
+        } else if (icon.search('#') === -1) {
           // plain svg/image
-          return {name:tool.name, img:tool.icon}
+          return {name:tool.name, img:icon}
         } else {
           // svg reference
-          return {name:tool.name, svg:tool.icon}
+          return {name:tool.name, svg:icon}
         }
       }
 

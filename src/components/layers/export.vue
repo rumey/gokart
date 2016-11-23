@@ -65,7 +65,7 @@
           <label class="tool-label">Name:</label>
         </div>
         <div class="small-9">
-          <input id="export-name" type="text" v-model="title" placeholder="Quick Print"/>
+          <input id="export-name" type="text" v-model="title" placeholder="Map Name"/>
         </div>
       </div>
       <div class="tool-slice row collapse">
@@ -105,7 +105,7 @@
   import gkLegend from './legend.vue'
   import gkLayerlegends from './layerlegends.vue'
   export default {
-    store: ['whoami', 'dpmm', 'view', 'mmPerInch', 'gokartService','drawingSequence','s3Service'],
+    store: ['whoami', 'dpmm', 'view', 'mmPerInch', 'gokartService','drawingSequence','s3Service','settings'],
     components: { gkLegend,gkLayerlegends },
     data: function () {
       return {
@@ -118,8 +118,10 @@
           A4: [297, 210]
         },
         paperSize: 'A3',
-        layout: {},
-        oldLayout: {},
+        printStatus: {
+            oldLayout: {},
+            layout:{}
+        },
         title: '',
         statefile: '',
         vectorFormat: 'json',
@@ -137,18 +139,9 @@
       loading: function () { return this.$root.loading },
       annotations: function () { return this.$root.annotations },
       layerlegends:function() {return this.$refs.layerlegends},
+      map:function() {return this.$root.map},
       olmap: function () {
         return this.$root.map.olmap
-      },
-      // map viewport settings to use for generating the print raster
-      mapLayout: function () {
-        var dims = this.paperSizes[this.paperSize]
-        var size = this.olmap.getSize()
-        return {
-          width: dims[0], height: dims[1], size: size,
-          extent: this.olmap.getView().calculateExtent(size),
-          scale: this.scale
-        }
       },
       shortUrl: {
         cache: false,
@@ -164,7 +157,7 @@
       },
       bucketKey: function() {
         return hash.MD5({
-            'extent':this.layout.extent.join(' '),
+            'extent':this.printStatus.layout.extent.join(' '),
             'author': this.legendInfo().author,
             'filename':this.finalTitle,
             'time': Date.now()
@@ -228,24 +221,76 @@
         }
       },
       // resize map to page dimensions (in mm) for printing, save layout
-      setSize: function () {
+      prepareMapForPrinting: function () {
+        var vm = this
         $('body').css('cursor', 'progress')
-        this.oldLayout.size = this.olmap.getSize()
-        this.oldLayout.scale = this.$root.map.getScale()
-        this.layout = this.mapLayout
-        var dpmm = this.minDPI / this.mmPerInch
-        this.olmap.setSize([dpmm * this.layout.width, dpmm * this.layout.height])
-        this.olmap.getView().fit(this.layout.extent, this.olmap.getSize())
-        this.$root.map.setScale(this.$root.map.getFixedScale())
+        if (!this.printStatus.jobs) {
+            //no print job is processing, get the map size and scale for recovering.
+            this.printStatus.oldLayout.size = this.olmap.getSize()
+            this.printStatus.oldLayout.scale = this.$root.map.getScale()
+            this.printStatus.oldLayout.extent = this.olmap.getView().calculateExtent(this.olmap.getSize())
+
+            this.printStatus.dpmm = this.minDPI / this.mmPerInch
+
+            //disable the interactions to prevent the user from operating the map
+            this.printStatus.interactions = this.olmap.getInteractions().getArray().slice(0)
+            $.each(this.printStatus.interactions,function(index,interact) {
+                vm.olmap.removeInteraction(interact)
+            })
+
+            //disable the controls to prevent the user from operating the map
+            this.printStatus.controls = []
+            $.each(this.map.mapControls,function(key,control) {
+                if (control.enabled) {
+                    vm.printStatus.controls.push(key)
+                    vm.map.enableControl(key,false)
+                }
+            })
+
+
+            this.printStatus.startTime = new Date()
+        }
+
+        this.printStatus.jobs = this.printStatus.jobs?(this.printStatus.jobs + 1):1
+
+        this.printStatus.layout.width = this.paperSizes[this.paperSize][0]
+        this.printStatus.layout.height = this.paperSizes[this.paperSize][1]
+        //adjust the map for printing.
+        if (this.settings.maintainScaleWhenPrinting) {
+            this.printStatus.layout.scale = this.$root.map.getFixedScale(this.printStatus.oldLayout.scale)
+            this.printStatus.layout.size = [this.printStatus.dpmm * this.printStatus.layout.width, this.printStatus.dpmm * this.printStatus.layout.height]
+            this.olmap.setSize(this.printStatus.layout.size)
+            this.$root.map.setScale(this.printStatus.layout.scale)
+        } else {
+            this.printStatus.layout.size = [this.printStatus.dpmm * this.printStatus.layout.width, this.printStatus.dpmm * this.printStatus.layout.height]
+            this.olmap.setSize(this.printStatus.layout.size)
+            this.olmap.getView().fit(this.printStatus.oldLayout.extent, this.olmap.getSize())
+            this.printStatus.layout.scale = this.$root.map.getFixedScale()
+            this.$root.map.setScale(this.printStatus.layout.scale)
+        }
         //extent is changed because the scale is adjusted to the closest fixed scale, recalculated the extent again
-        this.layout.extent = this.olmap.getView().calculateExtent(this.olmap.getSize())
+        this.printStatus.layout.extent = this.olmap.getView().calculateExtent(this.olmap.getSize())
       },
       // restore map to viewport dimensions
-      resetSize: function () {
-        this.olmap.setSize(this.oldLayout.size)
-        this.$root.map.setScale(this.oldLayout.scale)
-        // this.olmap.getView().fit(this.layout.extent, this.olmap.getSize())
-        $('body').css('cursor', 'default')
+      restoreMapFromPrinting: function () {
+        var vm = this
+        this.printStatus.jobs -= 1
+        if (this.printStatus.jobs <= 0) {
+            //all print jobs are done
+            //restore the map size and map scale
+            this.olmap.setSize(this.printStatus.oldLayout.size)
+            this.$root.map.setScale(this.printStatus.oldLayout.scale)
+            //restore the interactions
+            $.each(this.printStatus.interactions,function(index,interact) {
+                vm.olmap.addInteraction(interact)
+            })
+            //restore controls
+            $.each(this.printStatus.controls,function(index,controlKey) {
+                vm.map.enableControl(controlKey,true)
+            })
+            this.printStatus.endTime = new Date()
+            $('body').css('cursor', 'default')
+        }
       },
       // generate legend block, scale ruler is 40mm wide
       renderLegend: function (bucketKey) {
@@ -257,12 +302,12 @@
         var vm = this
         var _func = function(legendData) {
             var formData = new window.FormData()
-            formData.append('extent', vm.layout.extent.join(' '))
+            formData.append('extent', vm.printStatus.layout.extent.join(' '))
             formData.append('jpg', blob, name + '.jpg')
             if (format === "pdf") {
                 formData.append('legends', legendData, name + '.legend.pdf')
             }
-            formData.append('dpi', Math.round(vm.layout.canvasPxPerMM * 25.4))
+            formData.append('dpi', Math.round(vm.printStatus.layout.canvasPxPerMM * 25.4))
             formData.append('title', vm.finalTitle)
             formData.append('author', vm.legendInfo().author)
             if (bucketKey) {
@@ -274,10 +319,6 @@
             req.responseType = 'blob'
             req.onload = function (event) {
               saveAs(req.response, name + '.' + format)
-              vm.resetSize()
-            }
-            req.onerror = function () {
-              vm.resetSize()
             }
             req.send(formData)
         }
@@ -292,7 +333,7 @@
       // make a printable raster from the map
       print: function (format) {
         // rig the viewport to have printing dimensions
-        this.setSize()
+        this.prepareMapForPrinting()
         var timer
         var vm = this
         // wait until map is rendered before continuing
@@ -322,12 +363,13 @@
             // wait until legend is rendered
             img.onerror = function (err) {
               window.alert(JSON.stringify(err))
+              vm.restoreMapFromPrinting()
             }
             img.onload = function () {
               // legend is 12cm wide
-              vm.layout.canvasPxPerMM = canvas.width / vm.layout.width
-              var height = 120 * vm.layout.canvasPxPerMM * img.height / img.width
-              ctx.drawImage(img, 0, 0, 120 * vm.layout.canvasPxPerMM, height)
+              vm.printStatus.layout.canvasPxPerMM = canvas.width / vm.printStatus.layout.width
+              var height = 120 * vm.printStatus.layout.canvasPxPerMM * img.height / img.width
+              ctx.drawImage(img, 0, 0, 120 * vm.printStatus.layout.canvasPxPerMM, height)
               if (qrcanvas) {
                   ctx.drawImage(qrcanvas, 8, height)
               }
@@ -335,9 +377,9 @@
               // generate a jpg copy of the canvas contents
               var filename = vm.finalTitle.replace(/ +/g, '_')
               canvas.toBlob(function (blob) {
+                vm.restoreMapFromPrinting()
                 if (format === 'jpg') {
                   saveAs(blob, filename + '.jpg')
-                  vm.resetSize()
                 } else {
                   vm.blobGDAL(blob, filename, format,bucketKey)
                 }
