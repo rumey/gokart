@@ -513,7 +513,7 @@
       setTool: function (t) {
         if (!t) {
             if (this._previousActiveMenu && this._previousActiveMenu !== this.$root.activeMenu && this._previousTool) {
-                //before switching to other menu, a non-pan tool was enabled, choose the 'pan' tool for the current menu to preseve the changes(for example, the selected features) made by the previous non-pan tool
+                //before switching to other menu, if a non-pan tool was enabled, choose the 'pan' tool for the current menu to preseve the changes(for example, the selected features) made by the previous non-pan tool
                 t = this.ui.defaultPan
             } else {
                 t = this.currentTool

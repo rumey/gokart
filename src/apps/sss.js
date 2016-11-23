@@ -96,7 +96,8 @@ var persistentData = {
   //data in settings will survive across reset
   settings:{
     tourVersion: null,
-    undoLimit:0
+    undoLimit:0,
+    maintainScaleWhenPrinting:true
   }
 }
 
