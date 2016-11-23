@@ -65,7 +65,7 @@
           <label class="tool-label">Name:</label>
         </div>
         <div class="small-9">
-          <input id="export-name" type="text" v-model="title" placeholder="Quick Print"/>
+          <input id="export-name" type="text" v-model="title" placeholder="Map Name"/>
         </div>
       </div>
       <div class="tool-slice row collapse">
