@@ -363,7 +363,7 @@
             // wait until legend is rendered
             img.onerror = function (err) {
               window.alert(JSON.stringify(err))
-              vm.restoreMapFromPrinting
+              vm.restoreMapFromPrinting()
             }
             img.onload = function () {
               // legend is 12cm wide
