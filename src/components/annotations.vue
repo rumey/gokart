@@ -1301,14 +1301,21 @@
 
       var getFeatureInfo = function(feature) {
         var tool = vm.getTool(feature.get('toolName'))
-        if (tool.icon.startsWith('fa-')) {
-          return {name:tool.name, icon:"fa " + tool.icon}
-        } else if (tool.icon.search('#') === -1) {
+        var icon = tool.icon
+        if (typeof icon === "function") {
+            icon = icon(feature)
+        }
+
+        if (!icon) {
+          return {name:tool.name}
+        } else if (icon.startsWith('fa-')) {
+          return {name:tool.name, icon:"fa " + icon}
+        } else if (icon.search('#') === -1) {
           // plain svg/image
-          return {name:tool.name, img:tool.icon}
+          return {name:tool.name, img:icon}
         } else {
           // svg reference
-          return {name:tool.name, svg:tool.icon}
+          return {name:tool.name, svg:icon}
         }
       }
 
