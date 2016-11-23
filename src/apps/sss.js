@@ -262,6 +262,11 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         name: 'Virtual Mosaic',
         id: 'landgate:LGATE-V001',
         base: true
+      }, {
+        type: 'TileLayer',
+        name: 'DFES Active Fireshapes',
+        id: 'landgate:dfes_active_fireshapes',
+        refresh: 60
       }])
 
       // load custom annotation tools
