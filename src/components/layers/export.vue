@@ -96,6 +96,8 @@
         <gk-legend></gk-legend>
       </div>
 
+      <img id="map-disclaimer" class="hide" src="/dist/static/images/map-disclaimer.svg"/>
+
       <gk-layerlegends v-ref:layerlegends></gk-layerlegends>
     </div>
   </div>
@@ -370,6 +372,14 @@
               vm.printStatus.layout.canvasPxPerMM = canvas.width / vm.printStatus.layout.width
               var height = 120 * vm.printStatus.layout.canvasPxPerMM * img.height / img.width
               ctx.drawImage(img, 0, 0, 120 * vm.printStatus.layout.canvasPxPerMM, height)
+
+              var disclaimerImg = $("#map-disclaimer").get(0)
+              height = disclaimerImg.height
+              ctx.drawImage(disclaimerImg, 
+                canvas.width - disclaimerImg.width, 
+                canvas.height - height, 
+                disclaimerImg.width, 
+                height)
               if (qrcanvas) {
                   ctx.drawImage(qrcanvas, 8, height)
               }
