@@ -97,6 +97,9 @@ var persistentData = {
   settings:{
     tourVersion: null,
     undoLimit:0,
+    lengthUnit:"km",
+    areaUnit:"ha",
+    measureAnnotation:false,
     maintainScaleWhenPrinting:true
   }
 }
@@ -283,6 +286,8 @@ localforage.getItem('sssOfflineStore').then(function (store) {
           interactions: [self.annotations.polygonDrawFactory()],
           scope:["annotation"],
           showName: true,
+          measureLength:true,
+          measureArea:true,
           comments:[
             {name:"Tips",description:["Hold down the 'SHIFT' key during drawing to enable freehand mode. "]}
           ]
