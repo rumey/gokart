@@ -53,7 +53,42 @@
             </div>
 
             <div class="tool-slice row collapse">
-              <div class="columns small-4"><label class="tool-label">Undo Limit:<br/>{{ undoLimitDesc }}</label></div>
+              <div class="switch tiny">
+                <input class="switch-input" id="toggleMeasureAnnotation" type="checkbox" v-bind:checked="settings.measureAnnotation" @change="toggleMeasureAnnotation"/>
+                <label class="switch-paddle" for="toggleMeasureAnnotation">
+                  <span class="show-for-sr">Measure annotation</span>
+                </label>
+              </div>
+              <label for="toggleMeasureAnnotation" class="side-label">Measure annotation</label>
+            </div>
+
+            <div class="tool-slice row collapse">
+                <div class="small-4">
+                    <label class="tool-label">Distance unit:</label>
+                </div>
+                <div class="small-8">
+                    <select name="lengthUnit" v-model="settings.lengthUnit" @change="saveState()">
+                        <option value="nm">Nautical Mile</option>      
+                        <option value="mile">Mile</option>      
+                        <option value="km">Kilometer</option>      
+                    </select>
+                </div>
+            </div>
+
+            <div class="tool-slice row collapse">
+                <div class="small-4">
+                    <label class="tool-label">Area unit:</label>
+                </div>
+                <div class="small-8">
+                    <select name="areaUnit" v-model="settings.areaUnit" @change="saveState()">
+                        <option value="ha">Hectare</option>      
+                        <option value="km2">km<sup>2</sup></option>      
+                    </select>
+                </div>
+            </div>
+
+            <div class="tool-slice row collapse">
+              <div class="columns small-4"><label class="tool-label">Undo limit:<br/>{{ undoLimitDesc }}</label></div>
               <div class="columns small-7"><input class="layer-opacity" type="range" min="0" max="1000" step="10" v-model="undoLimitInSetting" v-bind:disabled="!undoEnabled"></div>
               <div class="columns small-1">
                 <a title="Disable undo feature" v-if="undoEnabled" class="button tiny secondary float-right" @click="enableUndo(false)" ><i class="fa fa-stop"></i></a>
@@ -129,6 +164,7 @@
       loading: function () { return this.$root.loading },
       profile: function () { return this.$root.profile },
       measure: function () { return this.$root.measure },
+      annotations: function () { return this.$root.annotations },
       export: function () { return this.$root.export },
       drawinglogs: function () { return this.$root.annotations.drawinglogs },
       map: function () { return this.$root.map },
@@ -175,7 +211,10 @@
     },
     methods: {
       init: function() {
-        this.setTool()
+        this.annotations.setTool()
+      },
+      saveState:function() {
+        this.export.saveState()
       },
       enableUndo:function(enable) {
         if (enable) {
@@ -207,6 +246,10 @@
       },
       toggleMaintainScaleWhenPrinting:function(ev) {
         this.settings.maintainScaleWhenPrinting = !this.settings.maintainScaleWhenPrinting
+        this.export.saveState()
+      },
+      toggleMeasureAnnotation:function(ev) {
+        this.settings.measureAnnotation = !this.settings.measureAnnotation
         this.export.saveState()
       },
       reset: function () {
