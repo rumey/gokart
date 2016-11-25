@@ -47,16 +47,17 @@ finally:
             exc_info = sys.exc_info()
 
 
-def upload_map(bucket_key,base_filename,content_type,filename):
+def upload_map(bucket_key, filename, base_filename, content_type, meta):
     if not map_bucket:
         traceback.print_exception(*exc_info)
     else:
         try:
-            with open(filename) as f:
+            with open(filename, 'rb') as f:
                 map_bucket.Object(bucket_key).put(
                     Body = f,
                     ContentDisposition="attachment;filename={}".format(base_filename),
                     ContentType=content_type,
+                    Metadata=meta
                 )
 
         except:

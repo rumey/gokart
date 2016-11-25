@@ -31,6 +31,8 @@ gdalinfo = subprocess.check_output(["gdalinfo", "--version"])
 # serve up map apps
 @bottle.route('/<app>')
 def index(app):
+    print([x for x in bottle.request.headers.items()])
+    print(bottle.request.headers.get('X-email', 'ohnoes'))
     return bottle.template('index.html', app=app,envType=ENV_TYPE)
 
 # WMS shim for Himawari 8
@@ -70,7 +72,7 @@ def gdal(fmt):
     bucket_key = bottle.request.forms.get("bucket_key")
     jpg = bottle.request.files.get("jpg")
     title = bottle.request.forms.get("title") or "Quick Print"
-    author = bottle.request.forms.get("author") or "Anonymous"
+    sso_user = bottle.request.headers.get("X-email", "unknown")
     workdir = tempfile.mkdtemp()
     path = os.path.join(workdir, jpg.filename)
     output_filepath = path + "." + fmt
@@ -117,10 +119,14 @@ def gdal(fmt):
         subprocess.check_call(["pdftk",merged_filepath,"update_info_utf8",metadata_file,"output",updated_filepath])
         output_filepath = updated_filepath
 
+    meta = {
+        'SSOUser': sso_user
+    }
+
     #upload to s3
     if bucket_key:
         #only upload to s3 if bucket_key is not empty
-        s3.upload_map(bucket_key,output_filename,ct,output_filepath)
+        s3.upload_map(bucket_key, output_filepath, output_filename, ct, meta)
     output = open(output_filepath)
     shutil.rmtree(workdir)
     bottle.response.set_header("Content-Type", ct)
