@@ -502,14 +502,16 @@
       }
 
       var addResource = function (f) {
+        var now = moment()
+        var timestamp = moment(f.get('seen'))
         var tint = 'red'
-        if (f.get('age') < 24) {
+        if (now.diff(timestamp, 'hours') < 24) {
           tint = 'orange'
         };
-        if (f.get('age') < 3) {
+        if (now.diff(timestamp, 'hours') < 3) {
           tint = 'yellow'
         };
-        if (f.get('age') <= 1) {
+        if (now.diff(timestamp, 'hours') < 1) {
           tint = 'green'
         };
         f.set('icon', 'dist/static/symbols/device/' + f.get('symbolid') + '.svg',true)
@@ -519,7 +521,7 @@
         } else {
             f.set('label', f.get('district') +' '+ f.get('callsign') +' '+ f.get('name'),true)
         }
-        f.set('time', moment(f.get('seen')).toLocaleString(),true)
+        f.set('time', timestamp.toLocaleString(),true)
         // Set a different vue template for rendering
         f.set('partialId', 'resourceInfo',true)
         // Set id for select tools

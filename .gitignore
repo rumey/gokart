@@ -5,6 +5,7 @@ dist/www/dist
 dist/www/gokart.html
 dist/platforms
 dist/release/static/js/dev.env.js
+gokart/static
 gokart/tmp
 src/apps/*-profile.js
 
