@@ -97,7 +97,7 @@ var persistentData = {
   settings:{
     tourVersion: null,
     undoLimit:0,
-    lengthUnit:"nm",
+    lengthUnit:"km",
     areaUnit:"ha",
     measureAnnotation:false,
     maintainScaleWhenPrinting:true
