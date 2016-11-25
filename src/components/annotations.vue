@@ -506,9 +506,7 @@
         this._currentTool[menu] = tool
       },
       getTool: function (toolName) {
-        return this.tools.filter(function (t) {
-          return t.name === toolName
-        })[0]
+        return (toolName)?this.tools.filter(function (t) {return t.name === toolName })[0]:null
       },
       setTool: function (t) {
         if (!t) {
@@ -831,7 +829,6 @@
                     var pointsMetadata = {}
                     var iconSize = tool['typeIconDims']?tool['typeIconDims'][0]:48
                     pointsMetadata['scale'] = vm.map.getScale()
-                    pointsMetadata['geometryRevision'] = f.getGeometry().getRevision()
                     var perimeterInPixes = parseInt((metadata['perimeter'] / (pointsMetadata['scale'] * 1000)) * 1000 * vm.dpmm)
                     if (perimeterInPixes < iconSize) {
                         pointsMetadata['symbolSize'] = 1
@@ -982,11 +979,22 @@
       this.ui.modifyInter = new ol.interaction.Modify({
         features: this.features
       })
+      this.ui.modifyInter.on("modifystart",function(ev){
+          ev.features.forEach(function(f) {
+            f.geometryRevision = f.getGeometry().getRevision()
+          })
+      }) 
       this.ui.modifyInter.on("modifyend",function(ev){
+          var modifiedFeatures = new ol.Collection(ev.features.getArray().filter(function(feature){
+            return feature.geometryRevision != feature.getGeometry().getRevision()
+          }))
+          vm.ui.modifyInter.dispatchEvent(new ol.interaction.Modify.Event("featuresmodified",modifiedFeatures,ev))
+      })
+      this.ui.modifyInter.on("featuresmodified",function(ev){
           ev.features.forEach(function(f){
             if (f.get('toolName')) {
                 tool = vm.getTool(f.get('toolName'))
-                if (tool && tool.typeIcon && f.get('typeIconMetadata')['points']['geometryRevision'] !== f.getGeometry().getRevision()) {
+                if (tool && tool.typeIcon ) {
                     delete f['typeIconStyle']
                     f.set('typeIconMetadata',undefined,true)
                     f.changed()
@@ -1294,6 +1302,8 @@
         scope:["annotation"],
         onAdd: customAdd,
         style: vm.getVectorStyleFunc(this.tints),
+        measureLength:true,
+        measureArea:true,
         comments:[
           {name:"Tips",description:["Hold down the 'SHIFT' key during drawing to enable freehand mode. "]}
         ]

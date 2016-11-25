@@ -300,6 +300,7 @@
                             }
                             f.setGeometry(feature.getGeometry())
                             f.getGeometry().on("change",vm._eventHandlers["geometry:change"](f,feature.get('id')))
+                            vm.annotations.ui.modifyInter.dispatchEvent(new ol.interaction.Modify.Event("featuresmodified",new ol.Collection([f]),null))
                         }
                     })
                 } else if (vm.drawingLogs[undoIndex][0] === 'P') {
@@ -372,6 +373,7 @@
                             }
                             f.setGeometry(feature.getGeometry())
                             f.getGeometry().on("change",vm._eventHandlers["geometry:change"](f,feature.get('id')))
+                            vm.annotations.ui.modifyInter.dispatchEvent(new ol.interaction.Modify.Event("featuresmodified",new ol.Collection([f]),null))
                         }
                     })
                 } else if (vm.drawingLogs[vm.redoPointer][0] === 'P') {
