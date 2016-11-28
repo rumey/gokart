@@ -13,11 +13,11 @@
             </div>
             <div class="small-3">
               <div class="text-right">
-                <a @click.stop="toggleHidden(l)" class="button">
+                <a @click.stop="toggleHidden(l)" class="button small">
                     <i class="fa fa-eye" v-if="isHidden(l)" > </i>
                     <i class="fa fa-eye-slash" v-if="!isHidden(l)"> </i>
                 </a>
-                <a @click="removeLayer(l)" class="button alert remove-layer">&#x2715;</a>
+                <a @click="removeLayer(l)" class="button small alert remove-layer">&#x2715;</a>
               </div>
             </div>
           </div>
