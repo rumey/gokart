@@ -494,6 +494,21 @@
         if (style.getText) {
           if ((res < 0.003) & (vm.resourceLabels)) {
             style.getText().setText(feat.get('label'))
+            var heading = feat.get('heading')
+            if (heading !== undefined) {
+                //style.getImage().setRotation( (heading + 90) / 180 * Math.PI )
+                if (!vm.directionStyle) {
+                    vm.directionStyle = new ol.style.Style({
+                        image: new ol.style.Icon({
+                            src: "/dist/static/symbols/device/direction.svg",
+                            scale:2.5,
+                            snapToPixel:true
+                        })
+                    })
+                }
+                vm.directionStyle.getImage().setRotation(heading / 180 * Math.PI)
+                style =  [vm.directionStyle,style]
+            }
           } else {
             style.getText().setText('')
           }
