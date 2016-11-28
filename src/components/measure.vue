@@ -26,6 +26,7 @@
     computed: {
       loading: function () { return this.$root.loading },
       map: function () { return this.$root.map },
+      active: function () { return this.$root.active },
       annotations: function () { 
         return this.$root.$refs.app.$refs.annotations 
       },
@@ -107,7 +108,9 @@
             })
         },
         measureAnnotation:function(newValue,oldValue) {
-            this.enableAnnotationMeasurement(newValue)
+            if (this.map.getMapLayer("annotations") && !this.active.isHidden(this.map.getMapLayer("annotations"))) {
+                this.enableAnnotationMeasurement(newValue)
+            }
         },
         measureType:function(newVal,oldVal){
             if (newVal == "") {
@@ -140,13 +143,18 @@
         var vm = this
         if(enable) {
             //enable
-            this.annotations.features.forEach(function(feature){
+            $.each(this.annotations.features.getArray(),function(index,feature){
                 var tool = vm.annotations.getTool(feature.get('toolName'))
                 if (!tool) {return}
                 if (!tool.measureLength && !tool.measureArea) {return}
                 if (feature.tooltip) {
-                    vm.$root.map.olmap.addOverlay(feature.tooltip)
-                    feature.tooltip.setOffset([0, -7])
+                    if (feature.tooltip.getMap()) {
+                        //already enabled, return
+                        return false
+                    } else {
+                        vm.$root.map.olmap.addOverlay(feature.tooltip)
+                        feature.tooltip.setOffset([0, -7])
+                    }
                 } else {
                     vm.createTooltip(feature,tool.measureLength,tool.measureArea)
                     vm.measuring(feature,tool.measureLength,tool.measureArea)
@@ -226,12 +234,22 @@
       showTooltip:function(features,show) {
         var vm = this
         if (features) {
-            features.forEach(function(f){
+            $.each(features.getArray(),function(index,f){
                 if (f['tooltip']) {
                     if (show) {
-                        vm.$root.map.olmap.addOverlay(f['tooltip'])
+                        if (f['tooltip'].getMap()) {
+                            //already show,return
+                            return false
+                        } else {
+                            vm.$root.map.olmap.addOverlay(f['tooltip'])
+                        }
                     } else {
-                        vm.$root.map.olmap.removeOverlay(f['tooltip'])
+                        if (f['tooltip'].getMap()) {
+                            vm.$root.map.olmap.removeOverlay(f['tooltip'])
+                        } else {
+                            //already removed, return
+                            return false
+                        }
                     }
                 }
             })
@@ -239,7 +257,7 @@
       },
       createTooltip: function (feature,measureLength,measureArea) {
         if (!feature.tooltipElement) {
-            console.log("Create measure tooltip element")
+            //console.log("Create measure tooltip element")
             var measureTooltipElement = $("<div></div>")
             if (measureLength) {
                 measureTooltipElement.append("<div class='length'></div>")
@@ -253,7 +271,7 @@
             feature['tooltipElement'] = measureTooltipElement.get(0)
         }
         if (!feature.tooltip) {
-            console.log("Create measure tooltip overlay")
+            //console.log("Create measure tooltip overlay")
             var measureTooltip = new ol.Overlay({
               element: feature.tooltipElement,
               offset: [0, -15],
@@ -442,14 +460,16 @@
       })
 
       this.annotations.features.on("add",function(ev){
-        var feature = ev.element
-        var tool = vm.annotations.getTool(feature.get('toolName'))
-        if (!tool) {return}
-        if (tool.measureLength || tool.measureArea) {
-            if (vm.measureAnnotation) {
-                vm.createTooltip(feature,tool.measureLength,tool.measureArea)
-                vm.measuring(feature,tool.measureLength,tool.measureArea)
-                vm.endMeasure(feature)
+        if (vm.map.getMapLayer("annotations")) {
+            var feature = ev.element
+            var tool = vm.annotations.getTool(feature.get('toolName'))
+            if (!tool) {return}
+            if (tool.measureLength || tool.measureArea) {
+                if (vm.measureAnnotation) {
+                    vm.createTooltip(feature,tool.measureLength,tool.measureArea)
+                    vm.measuring(feature,tool.measureLength,tool.measureArea)
+                    vm.endMeasure(feature)
+                }
             }
         }
 
@@ -468,10 +488,10 @@
                 if (vm.measureAnnotation) {
                     vm.measuring(feature,tool.measureLength,tool.measureArea)
                     vm.endMeasure(feature)
-                    console.log("Recalculated")
+                    //console.log("Recalculated")
                 } else {
                     vm.removeTooltip(feature,false)
-                    console.log("Remove tooltip because feature is changed")
+                    //console.log("Remove tooltip because feature is changed")
                 }
             }
         })
@@ -482,7 +502,43 @@
       this.annotations.tools.push(measureArea)
 
       this.wgs84Sphere = new ol.Sphere(6378137);
-      measureStatus.end()
+
+      measureStatus.wait(30,"Listen 'gk-init' event")
+      this.$on("gk-init",function() {
+          measureStatus.progress(80,"Process 'gk-init' event")
+        
+          //add measure tooltips when adding annotation layer and measureAnnotation is true
+          var changeOpacityHandler = function(ev) {
+            if (!vm.measureAnnotation) { return }
+            if (ev.target.get(ev.key) === 0) {
+                vm.enableAnnotationMeasurement(false)
+            } else if(ev.oldValue === 0) {
+                vm.enableAnnotationMeasurement(true)
+            }
+          }
+
+          if (vm.map.getMapLayer("annotations")) {
+            vm.map.getMapLayer("annotations").on("change:opacity",changeOpacityHandler)
+          }
+          vm.map.olmap.getLayers().on("add",function(ev){
+              if (ev.element.get('id') === "annotations") {
+                  if (vm.measureAnnotation) {
+                      vm.enableAnnotationMeasurement(true)
+                  }
+                  ev.element.on("change:opacity",changeOpacityHandler)
+              }
+          })
+
+          //remove measure tooltips when removing annotation layer
+          vm.map.olmap.getLayers().on("remove",function(ev){
+              if (ev.element.get('id') === "annotations") {
+                  if (vm.measureAnnotation) {
+                      vm.enableAnnotationMeasurement(false)
+                  }
+              }
+          })
+          measureStatus.end()
+      })
     }
   }
 </script>
