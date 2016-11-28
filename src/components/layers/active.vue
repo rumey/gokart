@@ -7,13 +7,17 @@
         <div id="layers-active-list">
           <div v-for="l in olLayers.slice().reverse()" class="row feature-row status-row" v-bind:class="layerRefreshProgress(l)" data-id="{{ l.get('id') }}"
             track-by="values_.id" @click="layer = getLayer(l.get('id'))">
-            <div class="small-10">
+            <div class="small-9">
               <div class="layer-title">{{ l.get("name") || l.get("id") }} - {{ Math.round(l.getOpacity() * 100) }}%</div>
               <small v-if="layerRefreshStatus(l)">Updated: {{ layerRefreshStatus(l) }}</small>
             </div>
-            <div class="small-2">
+            <div class="small-3">
               <div class="text-right">
-                <a @click="removeLayer(l)" class="button alert remove-layer">&#x2715;</a>
+                <a @click.stop="toggleHidden(l)" class="button small">
+                    <i class="fa fa-eye" v-if="isHidden(l)" > </i>
+                    <i class="fa fa-eye-slash" v-if="!isHidden(l)"> </i>
+                </a>
+                <a @click="removeLayer(l)" class="button small alert remove-layer">&#x2715;</a>
               </div>
             </div>
           </div>
@@ -35,7 +39,7 @@
         </div>
         <div class="tool-slice row" v-if="layer && mapLayer()">
           <div class="columns small-3"><label class="tool-label">Transparency:<br/>{{ layerOpacity }}%</label></div>
-          <div class="columns small-9"><input class="layer-opacity" type="range" min="1" max="100" step="1" v-model="layerOpacity"></div>
+          <div class="columns small-9"><input class="layer-opacity" type="range" min="0" max="100" step="1" v-model="layerOpacity"></div>
         </div>
         <div class="tool-slice row" v-if="layer.timeline">
           <div class="columns small-3"><label class="tool-label">Timeline:<br/>{{ timelineTS }}</label></div>
@@ -126,6 +130,16 @@
     },
     // methods callable from inside the template
     methods: {
+      isHidden:function(layer) {
+        return this.$root.map.getMapLayer(layer.get('id')).getOpacity() === 0
+      },
+      toggleHidden:function(layer) {
+        if (this.isHidden(layer)) {
+            this.$root.map.getMapLayer(layer.get('id')).setOpacity(1)
+        } else {
+            this.$root.map.getMapLayer(layer.get('id')).setOpacity(0)
+        }
+      },
       stopLayerRefresh:function() {
         this.mapLayer().stopAutoRefresh()
         this.layer.autoRefreshStopped = true

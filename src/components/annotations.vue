@@ -237,6 +237,7 @@
     computed: {
       map: function () { return this.$root.$refs.app.$refs.map },
       export: function () { return this.$root.export },
+      active: function () { return this.$root.active },
       measure: function () { return this.$root.measure },
       loading: function () { return this.$root.loading },
       drawinglogs: function () { return this.$refs.drawinglogs    },
@@ -660,6 +661,8 @@
         var catalogue = this.$root.catalogue
         if (!this.map.getMapLayer('annotations')) {
           catalogue.onLayerChange(catalogue.getLayer('annotations'), true)
+        } else if (this.active.isHidden(this.map.getMapLayer('annotations'))) {
+          this.active.toggleHidden(this.map.getMapLayer('annotations'))
         }
         // runs on switch to this tab
         this.selectable = [this.featureOverlay]
