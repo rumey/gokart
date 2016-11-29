@@ -40,8 +40,8 @@
                 </div>
 
                 <div class="expanded button-group">
-                  <label class="button " for="uploadAnnotations" title="Support GeoJSON(.json), GPS data(.gpx)"><i class="fa fa-upload"></i> Import Editing </label><input type="file" id="uploadAnnotations" class="show-for-sr" name="annotationsfile" accept="application/json,.gpx" v-model="annotationsfile" v-el:annotationsfile @change="importAnnotations()"/>
-                  <a class="button" @click="downloadAnnotations('json')" title="Export Editing as GeoJSON"><i class="fa fa-download" aria-hidden="true"></i> Export Editing <br>(json) </a>
+                  <label class="button " for="uploadAnnotations" title="Support GeoJSON(.geojson), GPS data(.gpx)"><i class="fa fa-upload"></i> Import Editing </label><input type="file" id="uploadAnnotations" class="show-for-sr" name="annotationsfile" accept=".json,.geojson,.gpx" v-model="annotationsfile" v-el:annotationsfile @change="importAnnotations()"/>
+                  <a class="button" @click="downloadAnnotations('geojson')" title="Export Editing as GeoJSON"><i class="fa fa-download" aria-hidden="true"></i> Export Editing <br>(geojson) </a>
                   <a class="button" @click="downloadAnnotations('gpkg')" title="Export Editing as GeoPackage"><i class="fa fa-download" aria-hidden="true"></i> Export Editing <br>(gpkg)</a>
                 </div>
               </div>
