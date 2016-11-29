@@ -145,6 +145,7 @@ def ogr(fmt):
     json.save(workdir)
     jsonfile = os.path.join(workdir, json.filename)
     extra = []
+    split = False
     if fmt == "shp" and False:
         #Disable now
         f = "ESRI Shapefile"
@@ -157,6 +158,7 @@ def ogr(fmt):
         f = "GPKG"
         ct = "application/x-sqlite3"
         dst_datasource = os.path.splitext(jsonfile)[0] + ".gpkg"
+        split = True
     elif fmt == 'csv':
         f = "CSV"
         ct = "text/csv"
@@ -165,8 +167,22 @@ def ogr(fmt):
         bottle.response.status = 400
         return "Not supported format({})".format(fmt)
 
-    subprocess.check_call([
-        "ogr2ogr","-overwrite" ,"-a_srs","EPSG:4326","-nln",layername, "-f", f,dst_datasource, jsonfile]) 
+    if split:
+        subprocess.check_call([
+            "ogr2ogr", "-overwrite", "-where", "OGR_GEOMETRY='POINT'",
+            "-a_srs", "EPSG:4326", "-nln", layername+"_points", "-f", f, dst_datasource, jsonfile
+        ])
+        subprocess.check_call([
+            "ogr2ogr", "-update", "-append", "-where", "OGR_GEOMETRY='LINESTRING'",
+            "-a_srs", "EPSG:4326", "-nln", layername+"_linestrings", "-f", f, dst_datasource, jsonfile
+        ])
+        subprocess.check_call([
+            "ogr2ogr", "-update", "-append", "-where", "OGR_GEOMETRY='POLYGON'",
+            "-a_srs", "EPSG:4326", "-nln", layername+"_polygons", "-f", f, dst_datasource, jsonfile
+        ])
+    else:
+        subprocess.check_call([
+            "ogr2ogr","-overwrite" ,"-a_srs","EPSG:4326","-nln",layername, "-f", f,dst_datasource, jsonfile]) 
 
     if fmt == "shp":
         shutil.make_archive(path.replace('geojson', 'zip'), 'zip', workdir, workdir)

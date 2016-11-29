@@ -126,10 +126,10 @@
         },
         title: '',
         statefile: '',
-        vectorFormat: 'json',
+        vectorFormat: 'geojson',
         states: [],
         vectorFormats:[
-            {format:"json",title:"GeoJSON (web GIS)",name:"GeoJSON"},
+            {format:"geojson",title:"GeoJSON (web GIS)",name:"GeoJSON"},
             {format:"sqlite",title:"SQLite",name:"SQLite"},
             {format:"gpkg",title:"GeoPackage",name:"GeoPackage"},
             {format:"csv",title:"CSV (Spreadsheet/Excel)",name:"CSV"}
@@ -472,7 +472,7 @@
               fileFormat = file.name.substring(p).toLowerCase()
           } 
           var features = null
-          if (fileFormat === ".geojson") {
+          if ((fileFormat === ".geojson") || (fileFormat === ".json")) {
               //geo json file 
               features = new ol.format.GeoJSON().readFeatures(data,{dataProjection:"EPSG:4326"})
               if (features && features.length) {
