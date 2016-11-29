@@ -281,7 +281,7 @@
         var vm = this
         //trigger dynamic binding
         var tmp = vm.selectedDevices
-        return this.map.getBlob(f, ['icon', 'tint'],this.tints,function(){
+        return this.map.getBlob(f, ['icon', 'originalTint'],this.tints,function(){
             $("#device-icon-" + f.get('id')).attr("src", vm.featureIconSrc(f))
         })
       },
@@ -531,6 +531,7 @@
         };
         f.set('icon', 'dist/static/symbols/device/' + f.get('symbolid') + '.svg',true)
         f.set('tint', tint,true)
+        f.set('originalTint', tint,true)
         if (f.get('district') == null){
             f.set('label', f.get('callsign') +' '+ f.get('name'),true)
         } else {

@@ -311,8 +311,11 @@
         }
         var syncedFunc = null
         syncedFunc = function() {
-            if (!sync || vm.loadFinished) {
+            if (!sync) {
                 printFunc()
+            } else if (vm.loadFinished) {
+                //wait 2 seconds to let browser draw the image.
+                setTimeout(printFunc,2000)
             } else {
                 setTimeout(syncedFunc,500)
             }
