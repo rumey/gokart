@@ -188,8 +188,8 @@
         var result = this.$root.geojson.writeFeatures(features)
         var blob = new window.Blob([result], {type: 'application/json;charset=utf-8'})
         format = format || this.vectorFormat
-        if (format === 'json') {
-          saveAs(blob, name + '.geo.json')
+        if (format === 'geojson') {
+          saveAs(blob, name + '.geojson')
         } else {
           var formData = new window.FormData()
           formData.append('json', blob, name + '.json')
@@ -472,7 +472,7 @@
               fileFormat = file.name.substring(p).toLowerCase()
           } 
           var features = null
-          if (fileFormat === ".json") {
+          if (fileFormat === ".geojson") {
               //geo json file 
               features = new ol.format.GeoJSON().readFeatures(data,{dataProjection:"EPSG:4326"})
               if (features && features.length) {
