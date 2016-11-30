@@ -472,14 +472,69 @@
               fileFormat = file.name.substring(p).toLowerCase()
           } 
           var features = null
+          var ignoredFeatures = []
+          var feature = null
           if ((fileFormat === ".geojson") || (fileFormat === ".json")) {
-              //geo json file 
+              //geo json file
               features = new ol.format.GeoJSON().readFeatures(data,{dataProjection:"EPSG:4326"})
-              if (features && features.length) {
-                  if (!features[0].get("toolName")) {
-                      features = null
-                      alert("External json file not supported")
-                  }
+              var f = null
+              var clearProperties = function(feature){
+                  $.each(feature.getKeys(),function(index,key){
+                        if ([feature.getGeometryName()].indexOf(key) < 0) {
+                            feature.unset(key)
+                        }
+                    })
+              }
+              for(var i = features.length - 1;i >= 0;i--) {
+                feature = features[i]
+                if (!vm.annotations.getTool(feature.get("toolName"))) {
+                    //external feature.
+                    if (feature.getGeometry() instanceof ol.geom.Point) {
+                        clearProperties(feature)
+                        feature.set('toolName','Custom Point',true)
+                        feature.set('shape',vm.annotations.pointShapes[0],true)
+                        feature.set('colour',"#000000",true)
+                    } else if (feature.getGeometry() instanceof ol.geom.LineString) {
+                        clearProperties(feature)
+                        feature.set('toolName','Custom Line',true)
+                        feature.set('size',2,true)
+                        feature.set('colour',"#000000",true)
+                    } else if (feature.getGeometry() instanceof ol.geom.Polygon) {
+                        clearProperties(feature)
+                        feature.set('toolName','Custom Area',true)
+                        feature.set('size',2,true)
+                        feature.set('colour',"#000000",true)
+                    } else if (
+                            feature.getGeometry() instanceof ol.geom.MultiPoint ||
+                            feature.getGeometry() instanceof ol.geom.MultiLineString ||
+                            feature.getGeometry() instanceof ol.geom.MultiPolygon ||
+                            feature.getGeometry() instanceof ol.geom.GeometryCollection
+                        ) {
+                        //remove the MultiPoint feature
+                        features.splice(i,1)
+                        //split the gemoetry collection into mutiple features
+                        var geometries = null
+                        if (feature.getGeometry() instanceof ol.geom.MultiPoint) {
+                            geometries = feature.getGeometry().getPoints()
+                        } else if (feature.getGeometry() instanceof ol.geom.MultiLineString) {
+                            geometries = feature.getGeometry().getLineStrings()
+                        } else if (feature.getGeometry() instanceof ol.geom.MultiPolygon) {
+                            geometries = feature.getGeometry().getPolygons()
+                        } else if (feature.getGeometry() instanceof ol.geom.GeometryCollection) {
+                            geometries = feature.getGeometry().getGeometries()
+                        }
+                                        
+                        //split MultiPoint to multiple point feature
+                        $.each(geometries,function(index,geometry){
+                            f = new ol.Feature({ geometry:geometry}) 
+                            features.splice(i,0,f)
+                            i += 1
+                        })
+
+                    } else {
+                        ignoredFeatures.push(feature)
+                    }  
+                }
               }
           } else if (fileFormat === ".gpx") {
               //gpx file
@@ -489,7 +544,7 @@
                   $.each(vectors,function(index,feature) {
                       if (feature.getGeometry() instanceof ol.geom.Point) {
                           //feature.set('toolName','Spot Fire')
-                          console.warn("Ignore point(" + JSON.stringify(feature.getGeometry().getCoordinates()) + ")")
+                          ignoredFeatures.push(feature)
                       } else if(feature.getGeometry() instanceof ol.geom.LineString) {
                           var coordinates = feature.getGeometry().getCoordinates()
                           coordinates.push(coordinates[0])
@@ -511,7 +566,7 @@
                             features.push(f)
                           })
                       } else {
-                          console.warn("Ignore " + feature.getGeometryName() + "(" + JSON.stringify(feature.getGeometry().getCoordinates()) + ")")
+                          ignoredFeatures.push(feature)
                       }
                   })
               }
@@ -521,6 +576,9 @@
               } else {
                   alert("File format(" + fileFormat + ") not support")
               }
+          }
+          if (ignoredFeatures.length) {
+            console.warn("The following features are ignored.\r\n" + vm.$root.geojson.writeFeatures(features))
           }
           if (features && features.length > 0) {
               $.each(features,function(index,feature){

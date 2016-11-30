@@ -40,7 +40,7 @@
                 </div>
 
                 <div class="expanded button-group">
-                  <label class="button " for="uploadAnnotations" title="Support GeoJSON(.geojson), GPS data(.gpx)"><i class="fa fa-upload"></i> Import Editing </label><input type="file" id="uploadAnnotations" class="show-for-sr" name="annotationsfile" accept=".json,.geojson,.gpx" v-model="annotationsfile" v-el:annotationsfile @change="importAnnotations()"/>
+                  <label class="button " for="uploadAnnotations" title="Support GeoJSON(.geojson .json), GPS data(.gpx)"><i class="fa fa-upload"></i> Import Editing </label><input type="file" id="uploadAnnotations" class="show-for-sr" name="annotationsfile" accept=".json,.geojson,.gpx" v-model="annotationsfile" v-el:annotationsfile @change="importAnnotations()"/>
                   <a class="button" @click="downloadAnnotations('geojson')" title="Export Editing as GeoJSON"><i class="fa fa-download" aria-hidden="true"></i> Export Editing <br>(geojson) </a>
                   <a class="button" @click="downloadAnnotations('gpkg')" title="Export Editing as GeoPackage"><i class="fa fa-download" aria-hidden="true"></i> Export Editing <br>(gpkg)</a>
                 </div>
@@ -52,7 +52,7 @@
               <div class="small-10">
                 <div class="expanded button-group">
                   <template v-for="s in pointShapes" >
-                    <a @click="setProp('shape', s)" v-bind:class="{'selected': s == shape}" class="button pointshape"><img src="{{s[0]}}"/></a>
+                    <a @click="setProp('shape', s)" v-bind:class="{'selected': shape && (s[0] === shape[0])}" class="button pointshape"><img src="{{s[0]}}"/></a>
                   </template>
                 </div>
               </div>
