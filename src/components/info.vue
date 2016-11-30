@@ -13,7 +13,7 @@
             <img v-if="featureInfo(f[0],f[1]).img" class="feature-icon" v-bind:src="featureInfo(f[0],f[1]).img"/>
             <svg v-if="featureInfo(f[0],f[1]).svg" class="feature-icon"><use v-bind="{'xlink:href':featureInfo(f[0],f[1]).svg}"></use></svg>
             <i v-if="featureInfo(f[0],f[1]).icon" class="feature-icon" v-bind:class="featureInfo(f[0],f[1]).icon" aria-hidden="true"></i>
-            {{featureInfo(f[0],f[1]).name}} <i v-if="featureInfo(f[0],f[1]).comments"><small>{{featureInfo(f[0],f[1]).comments}}</small></i>
+            {{featureInfo(f[0],f[1]).name}} <i v-if="featureInfo(f[0],f[1]).comments"><small>{{{featureInfo(f[0],f[1]).comments}}}</small></i>
           </div>
         </div>
       </div>

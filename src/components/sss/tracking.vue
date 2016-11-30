@@ -240,7 +240,7 @@
         return this.$root.catalogue.getLayer('dpaw:resource_tracking_live')
       },
       trackingMapLayer: function() {
-        return this.$root.map.getMapLayer(this.trackingLayer)
+        return this.$root.map?this.$root.map.getMapLayer(this.trackingLayer):undefined
       },
       historyLayer: function() {
         return this.$root.catalogue.getLayer('dpaw:resource_tracking_history')
@@ -583,7 +583,7 @@
       }
 
       var getFeatureInfo = function (f) {
-        return {name:f.get("label"), img:map.getBlob(f, ['icon', 'tint']), comments:"(" + vm.ago(f.get("seen")) + " ago, Heading:" + f.get("heading") + ")"}
+        return {name:f.get("label"), img:map.getBlob(f, ['icon', 'tint']), comments:"(" + vm.ago(f.get("seen")) + " ago, Heading:" + f.get("heading") + "&deg;)"}
       }
 
       this.$root.fixedLayers.push({
