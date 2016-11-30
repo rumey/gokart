@@ -337,6 +337,7 @@
         return output
       },
       formatArea : function(feature,drawing) {
+        var vm = this
         var area = drawing?undefined:feature.get('area')
         if (area === undefined) {
             var geom = feature.getGeometry()
@@ -345,8 +346,13 @@
             var geom = (polygon.clone().transform(
                 sourceProj, 'EPSG:4326'))
             */
-            var coordinates = geom.getLinearRing(0).getCoordinates()
-            area = Math.abs(this.wgs84Sphere.geodesicArea(coordinates))
+            $.each(geom.getLinearRings(),function(index,linearRing){
+                if (index === 0) {
+                    area = Math.abs(vm.wgs84Sphere.geodesicArea(linearRing.getCoordinates()))
+                } else {
+                    area -= Math.abs(vm.wgs84Sphere.geodesicArea(linearRing.getCoordinates()))
+                }
+            })
             feature.set('area',area,true)
         }
         var output = null

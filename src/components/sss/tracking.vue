@@ -45,6 +45,15 @@
             </div>
             <div class="row">
               <div class="switch tiny">
+                <input class="switch-input" id="toggleResourceDirections" type="checkbox" v-bind:checked="resourceDirections" @change="toggleResourceDirections" />
+                <label class="switch-paddle" for="toggleResourceDirections">
+                  <span class="show-for-sr">Display resource directions</span>
+                </label>
+              </div>
+              <label for="toggleResourceDirections" class="side-label">Display resource directions</label>
+            </div>
+            <div class="row">
+              <div class="switch tiny">
                 <input class="switch-input" id="toggleResourceInfo" type="checkbox" v-bind:disabled="!$root.setting.hoverInfoSwitchable" v-bind:checked="$root.setting.hoverInfo" @change="$root.setting.toggleHoverInfo" />
                 <label class="switch-paddle" for="toggleResourceInfo">
                   <span class="show-for-sr">Display hovering resource info</span>
@@ -165,6 +174,7 @@
         viewportOnly: true,
         toggleHistory: false,
         resourceLabels: true,
+        resourceDirections: true,
         selectedOnly: false,
         search: '',
         cql: '',
@@ -200,6 +210,9 @@
           return this.allFeatures
         }
       },
+      isTrackingMapLayerHidden:function() {
+        return this.$root.active.isHidden(this.trackingMapLayer)
+      },
       selectedFeatures: function () {
         return this.features.filter(this.selected)
       },
@@ -227,10 +240,27 @@
         return this.$root.catalogue.getLayer('dpaw:resource_tracking_live')
       },
       trackingMapLayer: function() {
-        return this.$root.map.getMapLayer(this.trackingLayer)
+        return this.$root.map?this.$root.map.getMapLayer(this.trackingLayer):undefined
       },
       historyLayer: function() {
         return this.$root.catalogue.getLayer('dpaw:resource_tracking_history')
+      }
+    },
+    watch:{
+      isTrackingMapLayerHidden:function(newValue,oldValue) {
+        if (newValue === undefined || oldValue === undefined) {
+            //layer is turned on or turned off
+            return
+        } else if (!this.resourceLabels) {
+            //label is turned off
+            return
+        } else if (this.map.resolution >= 0.003) {
+            //label is turned on, but resolution is not less than 0.003
+            return
+        } else {
+            //label is enabled, hiding/showing tracking layer requires resetting the style text.
+            this.trackingMapLayer.changed() 
+        }
       }
     },
     methods: {
@@ -275,6 +305,10 @@
       },
       toggleResourceLabels: function () {
         this.resourceLabels = !this.resourceLabels
+        this.catalogue.getMapLayer("dpaw:resource_tracking_live").changed()
+      },
+      toggleResourceDirections: function () {
+        this.resourceDirections = !this.resourceDirections
         this.catalogue.getMapLayer("dpaw:resource_tracking_live").changed()
       },
       featureIconSrc:function(f) {
@@ -492,25 +526,28 @@
           })
         }, feat, ['icon', 'tint'])
         if (style.getText) {
-          if ((res < 0.003) & (vm.resourceLabels)) {
+          if (res < 0.003 && vm.resourceLabels && !vm.isTrackingMapLayerHidden) {
             style.getText().setText(feat.get('label'))
-            var heading = feat.get('heading')
-            if (heading !== undefined) {
-                //style.getImage().setRotation( (heading + 90) / 180 * Math.PI )
-                if (!vm.directionStyle) {
-                    vm.directionStyle = new ol.style.Style({
-                        image: new ol.style.Icon({
-                            src: "/dist/static/symbols/device/direction.svg",
-                            scale:2.5,
-                            snapToPixel:true
-                        })
-                    })
-                }
-                vm.directionStyle.getImage().setRotation(heading / 180 * Math.PI)
-                style =  [vm.directionStyle,style]
-            }
           } else {
             style.getText().setText('')
+          }
+        }
+        if (res < 0.003 && vm.resourceDirections) {
+          var heading = feat.get('heading')
+          var speed = feat.get('velocity')
+          if (heading !== undefined && (heading !== 0 || speed !== 0)) {
+              //style.getImage().setRotation( (heading + 90) / 180 * Math.PI )
+              if (!vm.directionStyle) {
+                  vm.directionStyle = new ol.style.Style({
+                      image: new ol.style.Icon({
+                          src: "/dist/static/symbols/device/direction.svg",
+                          scale:1,
+                          snapToPixel:true
+                      })
+                  })
+              }
+              vm.directionStyle.getImage().setRotation(heading / 180 * Math.PI)
+              style =  [vm.directionStyle,style]
           }
         }
         return style
@@ -546,7 +583,7 @@
       }
 
       var getFeatureInfo = function (f) {
-        return {name:f.get("label"), img:map.getBlob(f, ['icon', 'tint']), comments:"(" +  vm.ago(f.get("seen")) + ")"}
+        return {name:f.get("label"), img:map.getBlob(f, ['icon', 'tint']), comments:"(" + vm.ago(f.get("seen")) + " ago, Heading:" + f.get("heading") + "&deg;)"}
       }
 
       this.$root.fixedLayers.push({

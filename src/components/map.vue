@@ -63,6 +63,9 @@
       },
       extent: function() {
         return this.olmap.getView().calculateExtent(this.olmap.getSize())
+      },
+      resolution:function() {
+        return this.olmap.getView().getResolution()
       }
     },
     // methods callable from inside the template

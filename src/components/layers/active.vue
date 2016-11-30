@@ -131,13 +131,13 @@
     // methods callable from inside the template
     methods: {
       isHidden:function(layer) {
-        return this.$root.map.getMapLayer(layer.get('id')).getOpacity() === 0
+        return layer?(layer.getOpacity() === 0):undefined
       },
       toggleHidden:function(layer) {
         if (this.isHidden(layer)) {
-            this.$root.map.getMapLayer(layer.get('id')).setOpacity(1)
+            layer.setOpacity(1)
         } else {
-            this.$root.map.getMapLayer(layer.get('id')).setOpacity(0)
+            layer.setOpacity(0)
         }
       },
       stopLayerRefresh:function() {
