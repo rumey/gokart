@@ -785,6 +785,7 @@
       },
 
       getMapLayer: function (id) {
+        if (!this.olmap) { return undefined}
         if (id && id.id) { id = id.id } // if passed a catalogue layer, get actual id
         return this.olmap.getLayers().getArray().find(function (layer) {
           return layer.get('id') === id
