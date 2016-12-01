@@ -188,13 +188,14 @@ div.ol-overviewmap.ol-uncollapsible {
         $(this.$el).find('#ctlgsw' + index).trigger('click')
       },
       // toggle a layer in the Layer Catalogue
+      //return true if layer's state is changed; otherwise return false
       onLayerChange: function (layer, checked) {
         var vm = this
         var active = this.$root.active
         var map = this.$root.map
         // if layer matches state, return
         if (checked === (map.getMapLayer(layer) !== undefined)) {
-          return
+          return false
         }
         // make the layer match the state
         if (checked) {
@@ -218,6 +219,7 @@ div.ol-overviewmap.ol-uncollapsible {
         } else {
           active.removeLayer(map.getMapLayer(layer))
         }
+        return true
       },
       // helper to populate the catalogue from a remote service
       loadRemoteCatalogue: function (url, callback,failedCallback) {
