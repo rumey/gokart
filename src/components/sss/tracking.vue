@@ -213,6 +213,9 @@
       isTrackingMapLayerHidden:function() {
         return this.$root.active.isHidden(this.trackingMapLayer)
       },
+      isHistoryMapLayerHidden:function() {
+        return this.$root.active.isHidden(this.historyMapLayer)
+      },
       selectedFeatures: function () {
         return this.features.filter(this.selected)
       },
@@ -244,6 +247,9 @@
       },
       historyLayer: function() {
         return this.$root.catalogue.getLayer('dpaw:resource_tracking_history')
+      },
+      historyMapLayer: function() {
+        return this.$root.map?this.$root.map.getMapLayer(this.historyLayer):undefined
       }
     },
     watch:{
@@ -251,15 +257,24 @@
         if (newValue === undefined || oldValue === undefined) {
             //layer is turned on or turned off
             return
-        } else if (!this.resourceLabels) {
-            //label is turned off
-            return
         } else if (this.map.resolution >= 0.003) {
             //label is turned on, but resolution is not less than 0.003
             return
         } else {
             //label is enabled, hiding/showing tracking layer requires resetting the style text.
             this.trackingMapLayer.changed() 
+        }
+      },
+      isHistoryMapLayerHidden:function(newValue,oldValue) {
+        if (newValue === undefined || oldValue === undefined) {
+            //layer is turned on or turned off
+            return
+        } else if (this.map.resolution >= 0.003) {
+            //label is turned on, but resolution is not less than 0.003
+            return
+        } else {
+            //label is enabled, hiding/showing tracking layer requires resetting the style text.
+            this.historyMapLayer.changed() 
         }
       }
     },
@@ -304,12 +319,22 @@
         }
       },
       toggleResourceLabels: function () {
+        var vm = this
         this.resourceLabels = !this.resourceLabels
-        this.catalogue.getMapLayer("dpaw:resource_tracking_live").changed()
+        $.each([this.trackingMapLayer,this.historyMapLayer],function(index,mapLayer){
+            if (mapLayer && !vm.$root.active.isHidden(mapLayer)) {
+                mapLayer.changed()
+            }
+        })
       },
       toggleResourceDirections: function () {
+        var vm = this
         this.resourceDirections = !this.resourceDirections
-        this.catalogue.getMapLayer("dpaw:resource_tracking_live").changed()
+        $.each([this.trackingMapLayer,this.historyMapLayer],function(index,mapLayer){
+            if (mapLayer && !vm.$root.active.isHidden(mapLayer)) {
+                mapLayer.changed()
+            }
+        })
       },
       featureIconSrc:function(f) {
         var vm = this
@@ -378,35 +403,11 @@
         var historyLayer = this.historyLayer
         var deviceFilter = 'deviceid in (' + this.selectedDevices.join(',') + ')'
         historyLayer.cql_filter = deviceFilter + "and seen between '" + this.historyFromDate + ' ' + this.historyFromTime + ":00' and '" + this.historyToDate + ' ' + this.historyToTime + ":00'"
-        this.$root.catalogue.onLayerChange(historyLayer, true)
-        var source = this.$root.map.getMapLayer(historyLayer).getSource()
-        source.loadSource("query",function () {
-          // callback to draw the line trail after the points information is loaded
-          var devices = {}
-          // group by device
-          source.getFeatures().forEach(function (feature) {
-            var props = feature.getProperties()
-            if (!(props.name in devices)) {
-              devices[props.name] = []
-            }
-            devices[props.name].push(feature)
-          })
-          Object.keys(devices).forEach(function (device) {
-            // sort by timestamp
-            devices[device].sort(vm.resourceOrder)
-            // pull the coordinates
-            var coords = devices[device].map(function (point) {
-              point.set('label', moment(point.get('seen')).format('MMM DD HH:mm')) 
-              return point.getGeometry().getCoordinates()
-            })
-            // create a new linestring
-            var feature = new ol.Feature({
-              name: device + ' path',
-              geometry: new ol.geom.LineString(coords)
-            })
-            source.addFeature(feature)
-          })
-        })
+        if (!this.$root.catalogue.onLayerChange(historyLayer, true)) {
+            //history layer is already turned on, manually load the history source
+            var source = this.$root.map.getMapLayer(historyLayer).getSource()
+            source.loadSource("query")
+        }
       },
       resourceFilter: function (f) {
         var search = ('' + this.search).toLowerCase()
@@ -498,100 +499,102 @@
       var trackingStatus = this.loading.register("tracking","Resource Tracking Component","Initialize")
       var map = this.$root.map
 
-      var resourceTrackingStyle = function (res) {
-        var feat = this
-        // cache styles for performance
-        var style = vm.map.cacheStyle(function (feat) {
-          var src = vm.map.getBlob(feat, ['icon', 'tint'],vm.tints)
-          if (!src) { return false }
-          return new ol.style.Style({
-            image: new ol.style.Icon({
-              src: src,
-              scale: 0.5,
-              snapToPixel: true
-            }),
-            text: new ol.style.Text({
-              offsetX: 12,
-              textAlign: 'left',
-              font: '12px Helvetica,Roboto,Arial,sans-serif',
-              stroke: new ol.style.Stroke({
-                color: '#fff',
-                width: 4
-              })
-            }),
-            stroke: new ol.style.Stroke({
-              color: [52, 101, 164, 0.6],
-              width: 4.0
-            })
-          })
-        }, feat, ['icon', 'tint'])
-        if (style.getText) {
-          if (res < 0.003 && vm.resourceLabels && !vm.isTrackingMapLayerHidden) {
-            style.getText().setText(feat.get('label'))
-          } else {
-            style.getText().setText('')
-          }
-        }
-        if (res < 0.003 && vm.resourceDirections) {
-          var heading = feat.get('heading')
-          var speed = feat.get('velocity')
-          if (heading !== undefined && (heading !== 0 || speed !== 0)) {
-              //style.getImage().setRotation( (heading + 90) / 180 * Math.PI )
-              if (!vm.directionStyle) {
-                  vm.directionStyle = new ol.style.Style({
-                      image: new ol.style.Icon({
-                          src: "/dist/static/symbols/device/direction.svg",
-                          scale:1,
-                          snapToPixel:true
-                      })
+      var resourceTrackingStyleFunc = function(layerId){
+        return function (res) {
+            var feat = this
+            // cache styles for performance
+            var style = vm.map.cacheStyle(function (feat) {
+              var src = vm.map.getBlob(feat, ['icon', 'tint'],vm.tints)
+              if (!src) { return false }
+              return new ol.style.Style({
+                image: new ol.style.Icon({
+                  src: src,
+                  scale: 0.5,
+                  snapToPixel: true
+                }),
+                text: new ol.style.Text({
+                  offsetX: 12,
+                  textAlign: 'left',
+                  font: '12px Helvetica,Roboto,Arial,sans-serif',
+                  stroke: new ol.style.Stroke({
+                    color: '#fff',
+                    width: 4
                   })
+                }),
+                stroke: new ol.style.Stroke({
+                  color: [52, 101, 164, 0.6],
+                  width: 4.0
+                })
+              })
+            }, feat, ['icon', 'tint'])
+            if (style.getText) {
+              if (res < 0.003 && vm.resourceLabels && !vm.$root.active.isHidden(vm.map.getMapLayer(layerId))) {
+                style.getText().setText(feat.get('label'))
+              } else {
+                style.getText().setText('')
               }
-              vm.directionStyle.getImage().setRotation(heading / 180 * Math.PI)
-              style =  [vm.directionStyle,style]
+            }
+            if (res < 0.003 && vm.resourceDirections) {
+              var heading = feat.get('heading')
+              var speed = feat.get('velocity')
+              if (heading !== undefined && (heading !== 0 || speed !== 0)) {
+                  //style.getImage().setRotation( (heading + 90) / 180 * Math.PI )
+                  if (!vm.directionStyle) {
+                      vm.directionStyle = new ol.style.Style({
+                          image: new ol.style.Icon({
+                              src: "/dist/static/symbols/device/direction.svg",
+                              scale:1,
+                              snapToPixel:true
+                          })
+                      })
+                  }
+                  vm.directionStyle.getImage().setRotation(heading / 180 * Math.PI)
+                  style =  [vm.directionStyle,style]
+              }
+            }
+            return style
           }
-        }
-        return style
       }
 
-      var addResource = function (f) {
-        var now = moment()
-        var timestamp = moment(f.get('seen'))
-        var tint = 'red'
-        if (now.diff(timestamp, 'hours') < 24) {
-          tint = 'orange'
-        };
-        if (now.diff(timestamp, 'hours') < 3) {
-          tint = 'yellow'
-        };
-        if (now.diff(timestamp, 'hours') < 1) {
-          tint = 'green'
-        };
-        f.set('icon', 'dist/static/symbols/device/' + f.get('symbolid') + '.svg',true)
-        f.set('tint', tint,true)
-        f.set('originalTint', tint,true)
-        if (f.get('district') == null){
-            f.set('label', f.get('callsign') +' '+ f.get('name'),true)
-        } else {
-            f.set('label', f.get('district') +' '+ f.get('callsign') +' '+ f.get('name'),true)
+      var addResourceFunc = function(styleFunc) {
+        return function (f) {
+            var now = moment()
+            var timestamp = moment(f.get('seen'))
+            var tint = 'red'
+            if (now.diff(timestamp, 'hours') < 24) {
+              tint = 'orange'
+            };
+            if (now.diff(timestamp, 'hours') < 3) {
+              tint = 'yellow'
+            };
+            if (now.diff(timestamp, 'hours') < 1) {
+              tint = 'green'
+            };
+            f.set('icon', 'dist/static/symbols/device/' + f.get('symbolid') + '.svg',true)
+            f.set('tint', tint,true)
+            f.set('originalTint', tint,true)
+            if (f.get('district') == null){
+                f.set('label', f.get('callsign') +' '+ f.get('name'),true)
+            } else {
+                f.set('label', f.get('district') +' '+ f.get('callsign') +' '+ f.get('name'),true)
+            }
+            f.set('time', timestamp.toLocaleString(),true)
+            // Set a different vue template for rendering
+            f.set('partialId', 'resourceInfo',true)
+            // Set id for select tools
+            f.set('selectId', f.get('deviceid'),true)
+            f.setStyle(styleFunc,true)
         }
-        f.set('time', timestamp.toLocaleString(),true)
-        // Set a different vue template for rendering
-        f.set('partialId', 'resourceInfo',true)
-        // Set id for select tools
-        f.set('selectId', f.get('deviceid'),true)
-        f.setStyle(resourceTrackingStyle,true)
-      }
-
-      var getFeatureInfo = function (f) {
-        return {name:f.get("label"), img:map.getBlob(f, ['icon', 'tint']), comments:"(" + vm.ago(f.get("seen")) + " ago, Heading:" + f.get("heading") + "&deg;)"}
       }
 
       this.$root.fixedLayers.push({
         type: 'WFSLayer',
         name: 'Resource Tracking',
         id: 'dpaw:resource_tracking_live',
-        onadd: addResource,
-        getFeatureInfo:getFeatureInfo,
+        onadd: addResourceFunc(resourceTrackingStyleFunc('dpaw:resource_tracking_live')),
+        getFeatureInfo:function (f) {
+            return {name:f.get("label"), img:map.getBlob(f, ['icon', 'tint']), comments:"(" + vm.ago(f.get("seen")) + " ago, Heading:" + f.get("heading") + "&deg;)"}
+        },
         refresh: 60,
         onload: function(loadType,vectorSource,features,defaultOnload) {
             defaultOnload(loadType,vectorSource,features)
@@ -613,8 +616,67 @@
         type: 'WFSLayer',
         name: 'Resource Tracking History',
         id: 'dpaw:resource_tracking_history',
-        onadd: addResource,
-        cql_filter: false
+        onadd: function(addResource) {
+            return function(f){
+                if (f.getGeometry() instanceof ol.geom.Point) {
+                    addResource(f)
+                }
+            }
+        }(addResourceFunc(resourceTrackingStyleFunc('dpaw:resource_tracking_history'))),
+        cql_filter: false,
+        getFeatureInfo:function (f) {
+            if (f.getGeometry() instanceof ol.geom.Point) {
+                var name = ''
+                if (f.get('district') == null){
+                    name = f.get('callsign') +' '+ f.get('name')
+                } else {
+                    name = f.get('district') +' '+ f.get('callsign') +' '+ f.get('name')
+                }
+                return {name:name, img:map.getBlob(f, ['icon', 'tint']), comments:"(" + f.get("label") + ", Heading:" + f.get("heading") + "&deg;)"}
+            } else {
+                return {name:f.get("name"), img:map.getBlob(f, ['icon', 'tint']), comments:"(" + f.get("startTime") + " - " + f.get("endTime") + ")"}
+            }
+        },
+        onload: function(loadType,vectorSource,features,defaultOnload) {
+            defaultOnload(loadType,vectorSource,features)
+            // callback to draw the line trail after the points information is loaded
+            var devices = {}
+            // group by device
+            features.forEach(function (feature) {
+                var props = feature.getProperties()
+                if (!(props.name in devices)) {
+                  devices[props.name] = []
+                }
+                devices[props.name].push(feature)
+            })
+            Object.keys(devices).forEach(function (device) {
+                // sort by timestamp
+                devices[device].sort(vm.resourceOrder)
+                // pull the coordinates
+                var coords = devices[device].map(function (point) {
+                    point.set('label', moment(point.get('seen')).format('MMM DD HH:mm')) 
+                    return point.getGeometry().getCoordinates()
+                })
+                // create a new linestring
+                var name = ''
+                var f = devices[device][0]
+                if (f.get('district') == null){
+                    name = f.get('callsign') +' '+ f.get('name')
+                } else {
+                    name = f.get('district') +' '+ f.get('callsign') +' '+ f.get('name')
+                }
+                var feature = new ol.Feature({
+                  name: name + ' path',
+                  icon: f.get('icon'),
+                  tint: f.get('tint'),
+                  endTime: moment(f.get('seen')).format('MMM DD HH:mm'),
+                  startTime: moment(devices[device][devices[device].length - 1].get('seen')).format('MMM DD HH:mm'),
+                  geometry: new ol.geom.LineString(coords)
+                })
+                vectorSource.addFeature(feature)
+            })
+        }
+
       })
 
       trackingStatus.wait(40,"Listen 'gk-init' event")

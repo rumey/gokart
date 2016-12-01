@@ -19,7 +19,7 @@
             <label for="switchBaseLayers" class="side-label">Toggle all</label>
           </div>
           <div class="small-2 text-right">
-            <div class="switch tiny">
+            <div class="switch tiny" title="Toggle all filtered layers">
               <input class="switch-input" title="Toggle all filtered layers" id="ctlgswall" @change="toggleAll($event.target.checked, $event)" type="checkbox" />
               <label class="switch-paddle" for="ctlgswall">
                 <span class="show-for-sr">Toggle all</span>
@@ -44,7 +44,7 @@
             </div>
             <div class="small-2">
               <div class="text-right">
-                <div class="switch tiny" @click.stop>
+                <div class="switch tiny" @click.stop v-bind:title="getMapLayer(l) === undefined?'Add to map':'Remove from map'">
                   <input class="switch-input ctlgsw" id="ctlgsw{{ $index }}" @change="onLayerChange(l, $event.target.checked)" v-bind:checked="getMapLayer(l) !== undefined"
                     type="checkbox" />
                   <label class="switch-paddle" for="ctlgsw{{ $index }}">
@@ -188,13 +188,14 @@ div.ol-overviewmap.ol-uncollapsible {
         $(this.$el).find('#ctlgsw' + index).trigger('click')
       },
       // toggle a layer in the Layer Catalogue
+      //return true if layer's state is changed; otherwise return false
       onLayerChange: function (layer, checked) {
         var vm = this
         var active = this.$root.active
         var map = this.$root.map
         // if layer matches state, return
         if (checked === (map.getMapLayer(layer) !== undefined)) {
-          return
+          return false
         }
         // make the layer match the state
         if (checked) {
@@ -218,6 +219,7 @@ div.ol-overviewmap.ol-uncollapsible {
         } else {
           active.removeLayer(map.getMapLayer(layer))
         }
+        return true
       },
       // helper to populate the catalogue from a remote service
       loadRemoteCatalogue: function (url, callback,failedCallback) {
