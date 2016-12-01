@@ -139,7 +139,7 @@ div.ol-overviewmap.ol-uncollapsible {
         catalogue: new ol.Collection(),
         swapBaseLayers: true,
         search: '',
-        searchAttrs: ['name', 'id', 'tags','abstract'],
+        searchAttrs: ['name', 'id', 'tags'],
         overview: false,
         layerDetails: false
       }
