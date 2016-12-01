@@ -239,10 +239,14 @@ div.ol-overviewmap.ol-uncollapsible {
             if (l.tags.some(function (t) { return t.name === 'overlaymap' })) {
                 l.opacity = 0.5
             }
-            // set the refresh interval to 10 minutes
-            if (l.tags.some(function (t) { return t.name === 'livemap' })) {
+            // set the live map refresh interval
+            if (l.tags.some(function (t) { return t.name === 'livemap_10min' })) {
                 l.refresh = 600
             }
+            if (l.tags.some(function (t) { return t.name === 'livemap_2min' })) {
+                l.refresh = 120
+            }
+
             // 
             vm.catalogue.push(l)
           })
