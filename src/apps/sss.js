@@ -4,6 +4,7 @@ import {
   ol,
   proj4,
   moment,
+  momentTimezone,
   localforage,
   Vue,
   VueStash
@@ -270,6 +271,46 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         name: 'DFES Active Fireshapes',
         id: 'landgate:dfes_active_fireshapes',
         refresh: 60
+      }, {
+        type: 'TileLayer',
+        name: 'Forest Fire Danger Index',
+        id: 'bom:forest_fire_danger_index',
+        timelineSize:72,
+        updateTime:[["06:00:00","18:00:00"],"HH:mm:ss","EST"],
+        getLayerId: function(latestUpdateTime,timelineIndex) {
+            return "bom:IDZ71117" + (timelineIndex < 10?"00":(timelineIndex < 100?"0":"")) + timelineIndex
+        },
+        layerTimeInterval:3600 * 1000
+      }, {
+        type: 'TileLayer',
+        name: 'Maximum Forest Fire Danger Index',
+        id: 'bom:maximum_forest_fire_danger_index',
+        timelineSize:4,
+        updateTime:[["06:00:00","18:00:00"],"HH:mm:ss","EST"],
+        getLayerId: function(latestUpdateTime,timelineIndex) {
+            return "bom:IDZ71118" + (timelineIndex < 10?"00":(timelineIndex < 100?"0":"")) + timelineIndex
+        },
+        layerTimeInterval:24 * 3600 * 1000
+      }, {
+        type: 'TileLayer',
+        name: 'Grassland Fire Danger Index',
+        id: 'bom:grass_fire_danger_index',
+        timelineSize:72,
+        updateTime:[["06:00:00","18:00:00"],"HH:mm:ss","EST"],
+        getLayerId: function(latestUpdateTime,timelineIndex) {
+            return "bom:IDZ71122" + (timelineIndex < 10?"00":(timelineIndex < 100?"0":"")) + timelineIndex
+        },
+        layerTimeInterval:3600 * 1000
+      }, {
+        type: 'TileLayer',
+        name: 'Maximum Grassland Fire Danger Index',
+        id: 'bom:maximum_grass_fire_danger_index',
+        timelineSize:4,
+        updateTime:[["06:00:00","18:00:00"],"HH:mm:ss","EST"],
+        getLayerId: function(latestUpdateTime,timelineIndex) {
+            return "bom:IDZ71123" + (timelineIndex < 10?"00":(timelineIndex < 100?"0":"")) + timelineIndex
+        },
+        layerTimeInterval:24 * 3600 * 1000
       }])
 
       // load custom annotation tools
