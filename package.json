@@ -71,6 +71,7 @@
     "kjua": "^0.1.1",
     "localforage": "^1.4.2",
     "moment": "^2.14.1",
+    "moment-timezone": "^0.5.10",
     "openlayers": "^3.19.1",
     "proj4": "^2.3.14",
     "svg4everybody": "^2.1.0",

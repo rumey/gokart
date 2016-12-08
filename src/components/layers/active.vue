@@ -41,9 +41,10 @@
           <div class="columns small-3"><label class="tool-label">Transparency:<br/>{{ layerOpacity }}%</label></div>
           <div class="columns small-9"><input class="layer-opacity" type="range" min="0" max="100" step="1" v-model="layerOpacity"></div>
         </div>
-        <div class="tool-slice row" v-if="layer.timeline">
-          <div class="columns small-3"><label class="tool-label">Timeline:<br/>{{ timelineTS }}</label></div>
+        <div class="tool-slice row" v-if="layer.timeline && mapLayer()">
+          <div class="columns small-3"><label class="tool-label">Timeline:</label></div>
           <div class="columns small-9"><input type="range" v-bind:max="sliderMax" min="0" step="1" v-model="sliderTimeline"></div>
+          <div class="columns small-12"><label class="tool-label">{{ timelineTS }}</label></div>
         </div>
       </div>
     </div>
@@ -61,14 +62,15 @@
         layerRefreshStopped:false,
         refreshRevision:0,
         olLayers: [],
-        timeIndex: 0
+        timeIndex:0
       }
     },
     // parts of the template to be computed live
     computed: {
       sliderTimeline: {
         get: function () {
-          this.timeIndex = this.mapLayer().get('timeIndex')
+          var mapLayer = this.mapLayer()
+          this.timeIndex = mapLayer?mapLayer.get('timeIndex'):0
           return this.timeIndex
         },
         set: function (val) {
@@ -77,7 +79,8 @@
         }
       },
       timelineTS: function () {
-        return this.layer.timeline[this.timeIndex][0]
+        var mapLayer = this.mapLayer()
+        return this.layer.timeline[mapLayer?this.mapLayer().get('timeIndex'):0][0]
       },
       sliderMax: function () {
         return this.layer.timeline.length - 1

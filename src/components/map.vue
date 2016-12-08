@@ -8,7 +8,7 @@
 </template>
 
 <script>
-  import { $, ol, proj4, moment } from 'src/vendor.js'
+  import { $, ol, proj4, moment,momentTimezone } from 'src/vendor.js'
   import gkInfo from './info.vue'
   import gkScales from './scales.vue'
   import gkSearch from './search.vue'
@@ -47,6 +47,7 @@
     computed: {
       loading: function () { return this.$root.loading },
       annotations: function () { return this.$root.annotations    },
+      active: function () { return this.$root.active    },
       measure: function () { return this.$root.measure    },
       // because the viewport size changes when the tab pane opens, don't cache the map width and height
       width: {
@@ -522,23 +523,23 @@
         })
 
         // helper function to update the time index
-        options.updateTimeline = function () {
+        options.updateTimeline = options.updateTimeline || function (layer,tileLayer) {
           // fetch the latest timestamp-to-layerID map from the source URL
-          $.getJSON(options.source, function (data) {
+          $.getJSON(layer.source, function (data) {
             tileLayer.set('updated', moment().toLocaleString())
-            tileSource.setUrls(data.servers)
-            options.timeline = data.layers.reverse()
-            tileLayer.set('timeIndex', options.timeIndex || options.timeline.length - 1)
+            tileLayer.getSource().setUrls(data.servers)
+            layer.timeline = data.layers.reverse()
+            tileLayer.set('timeIndex', layer.timeIndex || layer.timeline.length - 1)
             vm.$root.active.update()
           })
         }
 
-        options.updateTimeline()
+        options.updateTimeline(options,tileLayer)
         // if the "refresh" option is set, set a timer
         // to update the source
         if (options.refresh) {
           tileLayer.refresh = setInterval(function () {
-            options.updateTimeline()
+            options.updateTimeline(options,tileLayer)
           }, options.refresh * 1000)
         }
 
@@ -665,12 +666,12 @@
         return this.annotations.featureOverlay
       },
       // loader to create a WMTS layer from a kmi datasource
-      createTileLayer: function (layer) {
+      createTileLayer: function (options) {
         var vm = this
-        if (layer.base) {
-          layer.format = 'image/jpeg'
+        if (options.base) {
+          options.format = 'image/jpeg'
         }
-        layer = $.extend({
+        var layer = $.extend({
           opacity: 1,
           name: 'Mapbox Outdoors',
           id: 'dpaw:mapbox_outdoors',
@@ -679,7 +680,7 @@
           style: '',
           projection: 'EPSG:4326',
           wmts_url: this.defaultWMTSSrc
-        }, layer)
+        }, options)
 
         // create a tile grid using the stock KMI resolutions
         var matrixSet = this.matrixSets[layer.projection][layer.tileSize]
@@ -712,15 +713,6 @@
           tileGrid: tileGrid
         })
 
-        tileSource.setUrlTimestamp = function() {
-            var originFunc = tileSource.getTileUrlFunction()
-            return function(time) {
-                tileSource.setTileUrlFunction(function(tileCoord,pixelRatio,projection){
-                    return originFunc(tileCoord,pixelRatio,projection) + "&time=" + time
-                },tileSource.getUrls()[0] + "?time=" + time)
-            }
-        }()
-
         var tileLayer = new ol.layer.Tile({
           opacity: layer.opacity || 1,
           source: tileSource
@@ -735,8 +727,208 @@
             clearInterval(this.autoRefresh)
             delete this.autoRefresh
           }
+          if (this.autoTimelineRefresh) {
+            clearTimeout(this.autoTimelineRefresh)
+            //console.log(momentTimezone().format() + " : Clear " + layer.id + "'s auto timeline refresh task. " )
+            this.autoTimelineRefresh = null
+          }
         }   
 
+        // set properties for use in layer selector
+        tileLayer.set('name', layer.name,false)
+        tileLayer.set('id', layer.id,false)
+
+        // hook to swap the tile layer when timeIndex changes
+        tileLayer.on('propertychange', function (event) {
+          if (event.key === 'timeIndex') {
+            if (!(options.timeline[event.target.get(event.key)][2])) {
+                options.timeline[event.target.get(event.key)][2] = new ol.source.WMTS({
+                  url: layer.wmts_url,
+                  layer: options.timeline[event.target.get(event.key)][1],
+                  matrixSet: matrixSet.name,
+                  format: layer.format,
+                  style: layer.style,
+                  projection: layer.projection,
+                  wrapX: true,
+                  tileGrid: tileGrid
+                })
+            }
+            tileLayer.setSource(options.timeline[event.target.get(event.key)][2] )
+          }
+        })
+
+        if (!options.updateTimeline && (options.getLatestUpdateTime || options.updateTime ) && options.getLayerId) {
+            options.updateTimeline = function(){
+                var _func = null
+                var updateTime = null
+                if (options.updateTime) {
+                    if (!options.getLatestUpdateTime) {
+                        $.each(options.updateTime[0],function(index,time) {
+                            options.updateTime[0][index] = momentTimezone.tz(time,options.updateTime[1],options.updateTime[2]).format(options.updateTime[1])
+                        })
+
+                        options.getLatestUpdateTime = function() {
+                            var now = momentTimezone().tz(options.updateTime[2])
+                            var nowStr = now.format(options.updateTime[1])
+                            var updateTimeIndex = null
+                            $.each(options.updateTime[0],function(index,time) {
+                                if (nowStr < time) {
+                                    if (index === 0) {
+                                        //latest update time is yesterday's last update point
+                                        updateTimeIndex = -1
+                                    } else {
+                                        //latest update time is today's previous update point
+                                        updateTimeIndex = index - 1
+                                    }
+                                    return false
+                                } else if(nowStr === time) {
+                                    //latest update time is today's current update point
+                                    updateTimeIndex = index
+                                    return false
+                                }
+                            })
+                            var updateTime = null
+                            if (updateTimeIndex === null) {
+                                //latest update time is today's last update point
+                                updateTime = momentTimezone.tz(options.updateTime[0][options.updateTime[0].length - 1],options.updateTime[1],options.updateTime[2])
+                            } else if (updateTimeIndex === -1) {
+                                updateTime = momentTimezone.tz(options.updateTime[0][options.updateTime[0].length - 1],options.updateTime[1],options.updateTime[2])
+                                updateTime = updateTime.date(updateTime.date() - 1)
+                            } else {
+                                updateTime = momentTimezone.tz(options.updateTime[0][updateTimeIndex],options.updateTime[1],options.updateTime[2])
+                            }
+                            return updateTime.tz("Australia/Perth")
+                        }
+                        options.getNextUpdateTime = function() {
+                            var now = momentTimezone().tz(options.updateTime[2])
+                            var nowStr = now.format(options.updateTime[1])
+                            var updateTimeIndex = null
+                            $.each(options.updateTime[0],function(index,time) {
+                                if (nowStr < time) {
+                                    updateTimeIndex = index
+                                    return false
+                                } else if(nowStr === time) {
+                                    if (index < options.updateTime[0].length - 1) {
+                                        //next update time is today's next update point
+                                        updateTimeIndex = index + 1
+                                    } else  {
+                                        //next update time is tomorrow's first update point
+                                        updateTimeIndex = -1
+                                    }
+                                    return false
+                                }
+                            })
+                            var updateTime = null
+                            if (updateTimeIndex === null || updateTimeIndex === -1) {
+                                //next update time is tomorrow's first update point
+                                updateTime = momentTimezone.tz(options.updateTime[0][0],options.updateTime[1],options.updateTime[2])
+                                updateTime = updateTime.date(updateTime.date() + 1)
+                            } else {
+                                updateTime = momentTimezone.tz(options.updateTime[0][updateTimeIndex],options.updateTime[1],options.updateTime[2])
+                            }
+                            return updateTime.tz("Australia/Perth")
+                        }
+                    }
+                }
+                _func = function(layer,tileLayer,auto) {
+                    //console.log(momentTimezone().format() + " : update " + layer.id + "'s timeline. ")
+                    if (tileLayer.autoTimelineRefresh) {
+                        if (!auto) {
+                            //console.log(momentTimezone().format() + " : Clear " + layer.id + "'s auto timeline refresh task. " )
+                            clearTimeout(tileLayer.autoTimelineRefresh)
+                        }
+                        tileLayer.autoTimelineRefresh = null
+                    }
+                    
+                    var latestUpdateTime = layer.getLatestUpdateTime()
+                    if (!updateTime || latestUpdateTime - updateTime === 0) {
+                        var layerTime = momentTimezone(latestUpdateTime)
+                        var layerId = null
+                        if (layer.timeline) {
+                            for(var i = 0;i < layer.timelineSize; i++) {
+                                layerId = layer.getLayerId(latestUpdateTime,i)
+                                if (layer.layerTimeInterval) {
+                                    layer.timeline[i][0] = layerTime.format() + " (" + layerId + ")"
+                                    layerTime = momentTimezone(layerTime + layer.layerTimeInterval)
+                                } else if (layer.getLayerTime){
+                                    layer.timeline[i][0] = layer.getLayerTime(latestUpdateTime,i) + " (" + layerId + ")"
+                                } else {
+                                    layer.timeline[i][0] = i + " (" + layerId + ")"
+                                }
+                                if (layerId !== layer.timeline[i][1]) {
+                                    layer.timeline[i][2] = null
+                                }
+                            }
+                        } else {
+                            layer.timeline=[]
+                            var layerTitle = null
+                            for(var i = 0;i < layer.timelineSize; i++) {
+                                layerId = layer.getLayerId(latestUpdateTime,i)
+                                if (layer.layerTimeInterval) {
+                                    layerTitle = layerTime.format() + " (" + layerId + ")"
+                                    layerTime = momentTimezone(layerTime + layer.layerTimeInterval).tz("Australia/Perth")
+                                } else if (layer.getLayerTime){
+                                    layerTitle = layer.getLayerTime(latestUpdateTime,i) + " (" + layerId + ")"
+                                } else {
+                                    layerTitle = i + " (" + layerId + ")"
+                                }
+                                layer.timeline.push([layerTitle,layerId,null])
+                            }
+                        }
+        
+                        var timeIndex = null
+                        if (layer.layerTimeInterval) {
+                            if (updateTime && tileLayer.get('timeIndex')) {
+                                timeIndex = tileLayer.get('timeIndex') - ((latestUpdateTime - updateTime) / layer.layerTimeInterval)
+                                if (timeIndex < 0) {
+                                    timeIndex = null
+                                }
+                            } 
+                        }
+                        var now = momentTimezone().tz("Australia/Perth")
+                        if (layer.layerTimeInterval) {
+                            if (!timeIndex) {
+                                timeIndex = parseInt((now - latestUpdateTime) / layer.layerTimeInterval)
+                            }
+                        }
+                        tileLayer.set('timeIndex', timeIndex || 0)
+                            
+                        updateTime = latestUpdateTime
+                        tileLayer.set('updated',latestUpdateTime.format())
+                        vm.active.refreshRevision += 1
+                    }
+
+                    if (layer.previewLayer) {return}
+
+                    //delay 10 seconds to update timeline
+                    var waitTimes = layer.getNextUpdateTime() - momentTimezone().tz("Australia/Perth") + 10000
+                    //console.log(momentTimezone().format() + " : Wait " + waitTimes / 3600000 + " hours to refresh " + layer.id + "'s timeline.")
+                    tileLayer.autoTimelineRefresh = setTimeout(function(){_func(layer,tileLayer,true)},waitTimes)
+                }
+                
+                return _func
+           }()
+        }
+
+        if (options.updateTimeline) {
+            options.updateTimeline(options,tileLayer)
+            // if the "refresh" option is set, set a timer
+            // to update the source
+            if (options.timelineRefresh) {
+              tileLayer.autoTimelineRefresh = setInterval(function () {
+                options.updateTimeline(options,tileLayer)
+              }, options.timelineRefresh * 1000)
+            }
+        }
+
+        var setUrlTimestamp = function() {
+            var originFunc = tileSource.getTileUrlFunction()
+            return function(time) {
+                tileLayer.getSource().setTileUrlFunction(function(tileCoord,pixelRatio,projection){
+                    return originFunc(tileCoord,pixelRatio,projection) + "&time=" + time
+                },tileSource.getUrls()[0] + "?time=" + time)
+            }
+        }()
 
         // if the "refresh" option is set, set a timer
         // to force a reload of the tile content
@@ -745,17 +937,13 @@
           vm.$root.active.refreshRevision += 1
           tileSource.load = function() {
             tileLayer.set('updated', moment().toLocaleString())
-            tileSource.setUrlTimestamp(moment.utc().unix())
+            setUrlTimestamp(moment.utc().unix())
             vm.$root.active.refreshRevision += 1
           }
           tileLayer.autoRefresh = setInterval(function () {
             tileSource.load()
           }, layer.refresh * 1000)
         }
-
-        // set properties for use in layer selector
-        tileLayer.set('name', layer.name)
-        tileLayer.set('id', layer.id)
 
         tileLayer.stopAutoRefresh = function() {
             if (this.autoRefresh) {
@@ -912,26 +1100,26 @@
         })
 
       },
-      initLayers: function (catalogue, layers) {
+      initLayers: function (fixedLayers, activeLayers) {
         var vm = this
-        //add the hardcoded layers to category
-        $.each(catalogue,function(index,layer) {
-            var catLayer = vm.$root.catalogue.getLayer(layer.id)
+        //add fixed layers to category
+        $.each(fixedLayers,function(index,fixedLayer) {
+            var catLayer = vm.$root.catalogue.getLayer(fixedLayer.id)
             if (catLayer) {
-                //hardcoded layer already exist, update the properties 
-                $.extend(catLayer,layer)
+                //fixed layer already exist, update the properties 
+                $.extend(catLayer,fixedLayer)
             } else {
-                //hardcoded layer not exist, add it
-                vm.$root.catalogue.catalogue.push(layer)
+                //fixed layer not exist, add it
+                vm.$root.catalogue.catalogue.push(fixedLayer)
             }
         })
         //ignore the active layers which does not exist in the catalogue layers.
-        layers = layers.filter(function(value){
-            return vm.$root.catalogue.getLayer(value[0]) && true
+        activeLayers = activeLayers.filter(function(activeLayer){
+            return vm.$root.catalogue.getLayer(activeLayer[0]) && true
         })
         //create active open layers 
-        var initialLayers = layers.reverse().map(function (value) {
-          var layer = $.extend(vm.$root.catalogue.getLayer(value[0]), value[1])
+        var initialLayers = activeLayers.reverse().map(function (activeLayer) {
+          var layer = $.extend(vm.$root.catalogue.getLayer(activeLayer[0]), activeLayer[1])
           return vm['create' + layer.type](layer)
         })
         //add active layers into map

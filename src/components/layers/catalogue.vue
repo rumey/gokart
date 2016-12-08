@@ -162,7 +162,7 @@ div.ol-overviewmap.ol-uncollapsible {
         }
         if (!l.preview) {
           l.preview = new ol.control.OverviewMap({
-            layers: [this.$root.map['create' + l.type]($.extend({}, l, {refresh:0}))],
+            layers: [this.$root.map['create' + l.type]($.extend({}, l, {refresh:0,previewLayer:true}))],
             collapsed: false,
             collapsible: false,
             view: new ol.View({

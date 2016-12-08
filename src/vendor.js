@@ -32,6 +32,7 @@ import svg4everybody from 'svg4everybody'
 import kjua from 'kjua'
 // Timestamp parsing library
 import moment from 'moment'
+import momentTimezone from 'moment-timezone'
 // Drag and drop support
 import dragula from 'dragula'
 // Data storage engine
@@ -98,6 +99,7 @@ export {
   saveAs,
   kjua,
   moment,
+  momentTimezone,
   dragula,
   localforage,
   Tether,
