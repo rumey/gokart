@@ -76,7 +76,7 @@ tour.addStep('welcome', {
     }
   }
 }).addStep('active-opacity', {
-  text: 'Clicking a layer opens a configuration panel, from which you can adjust opacity and other settings.',
+  text: 'Clicking a layer opens a configuration panel, from which you can adjust transparency and other settings.',
   attachTo: '#menu-tab-layers-label right',
   when: {
     'before-show': function () {
