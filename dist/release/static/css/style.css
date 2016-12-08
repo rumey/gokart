@@ -110,12 +110,14 @@ body {
 }
 
 .ol-zoom button,
+#map-measure button,
 .ol-full-screen button {
     width: 48px;
     height: 48px;
     margin: 0;
 }
 
+#map-measure button,
 .ol-zoom button {
     margin-bottom: 1px;
 }
@@ -152,6 +154,60 @@ body {
     right: 72px;
     height: 48px;
 }
+
+#map-search.noFullScreen {
+    right: 48px;
+}
+
+#map-search-button.noFullScreen {
+    right: 16px;
+}
+
+
+#map-measure {
+    position: absolute;
+    top: 180px;
+    left: auto;
+    right: 16px;
+    bottom: auto;
+    padding: 0;
+}
+
+#map-measure .selected{
+    background-color: #2199E8;
+}
+.tooltip-measure {
+    position: relative;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 4px;
+    color: white;
+    padding: 4px 8px;
+    opacity: 0.7;
+    white-space: nowrap;
+  }
+.tooltip-measuring {
+    opacity: 1;
+    font-weight: bold;
+}
+.tooltip-measured {
+    background-color: #ffcc33;
+    color: black;
+    border: 1px solid white;
+}
+.tooltip-measuring:before,
+.tooltip-measured:before {
+    border-top: 6px solid rgba(0, 0, 0, 0.5);
+    border-right: 6px solid transparent;
+    border-left: 6px solid transparent;
+    content: "";
+    position: absolute;
+    bottom: -6px;
+    margin-left: -7px;
+    left: 50%;
+}
+.tooltip-measured:before {
+    border-top-color: #ffcc33;
+} 
 
 .ol-mouse-position {
     position: absolute;
@@ -225,7 +281,9 @@ body {
 /* remove some of the annoying tab box styles */
 
 #offCanvasLeft {
-    background-color: transparent;
+    opacity:1;
+    background-color: #424f5a;
+    z-index:100;
 }
 
 #offCanvasLeft .tabs-content {
@@ -328,6 +386,11 @@ input[type="range"] {
 .off-canvas .tabs a {
     height: 100%;
 }
+
+.off-canvas .tabs a .label{
+    cursor:initial;
+}
+
 /* styling for switch widgets used in the side pane */
 
 .off-canvas .switch-paddle {
@@ -370,14 +433,12 @@ input[type="range"] {
     margin: 0;
 }
 
-
 /* styling for movable row boxes */
 .layer-row,
 .feature-row {
     color: white;
     background-color: rgba(37, 45, 51, 0.5);
     padding: 4px;
-    cursor: pointer;
 }
 
 .layer-row:nth-child(even),
@@ -385,24 +446,27 @@ input[type="range"] {
     background-color: rgba(37, 45, 51, 0.3);
 }
 
-.layer-row .layer-title {
+.feature-row .layer-title {
     font-size: 120%;
 }
 
-.layer-row .layer-id {
+.feature-row .layer-id {
     font-style: italic;
     font-size: 75%;
 }
 /* Add dotted line box to dragged layers*/
 
-.layer-row.gu-transit {
+.feature-row.gu-transit {
     border: 2px dashed #ffffff;
     border-radius: 4px;
 }
 /* Add status indicator to left hand side of layer rows */
 
-.layer-row {
+.status-row {
     border-left: 3px solid transparent;
+    border-top: 2px solid transparent;
+    border-right: 0;
+    border-bottom: 2px solid transparent;
 }
 
 @keyframes layer-pulse {
@@ -417,18 +481,19 @@ input[type="range"] {
     }
 }
 
-.layer-row.idle {
+.status-row.idle {
     border-left-color: #71c837;
 }
 
-.layer-row.loading {
+.status-row.loading {
     animation-name: layer-pulse;
     animation-duration: 1s;
     animation-iteration-count: infinite;
 }
 
-.layer-row.error {
+.status-row.error {
     border-left-color: #ec5840;
+    border-style: double;
 }
 /* custom F6 tab style overrides for the side buttons  */
 
@@ -472,18 +537,42 @@ input[type="range"] {
 .ol-control button,
 .ol-control button:focus,
 .ol-scale-line,
-#menu-scale,
-#map-search,
-#map-search-button,
-.ol-mouse-position {
+.ol-mouse-position,
+.map-control {
     background-color: rgba(37, 45, 51, 0.7);
 }
 
 .ol-control button:hover,
 .ol-scale-line:hover,
-#menu-scale:hover,
-#map-search:hover,
-#map-search-button:hover,
-.ol-mouse-position:hover {
+.ol-mouse-position:hover,
+.map-control:hover {
     background-color: rgba(37, 45, 51, 0.9);
+}
+
+.feature-row {
+    cursor: pointer;
+}
+    
+.feature-row:hover {
+    background-color: rgba(37, 45, 51, 0.9);
+}
+
+.feature-row:nth-child(even):hover {
+    background-color: rgba(37, 45, 51, 0.7);
+}
+    
+.feature-row.feature-selected {
+    background-color: #165016;
+}
+    
+.feature-row:nth-child(even).feature-selected {
+    background-color: #185a18;
+}
+
+input:disabled ~ .switch-paddle {
+     background-color: rgb(119, 119, 119);
+}
+
+.default-name {
+    color:#e2e3e5
 }

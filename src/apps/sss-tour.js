@@ -17,7 +17,7 @@ tour.on('cancel', function () {
 })
 
 tour.addStep('welcome', {
-  text: 'Would you like a tour of the Spatial Support System? If you exit now, you can always rerun the tour by clicking "Reset SSS" in <b>Layers > Save & Print</b>.',
+  text: 'Would you like a tour of the Spatial Support System? If you exit now, you can always rerun the tour by clicking "Take Tour" in <b>System Settings</b>.',
   buttons: [
     {
       text: 'Exit',
@@ -30,8 +30,8 @@ tour.addStep('welcome', {
     }
   ]
 }).addStep('map-controls', {
-  text: 'At the top right are common map controls for setting a scale, going full-screen and zooming.',
-  attachTo: '.ol-zoom bottom',
+  text: 'At the top right are common map controls for setting a scale, going full-screen, zooming, and measuring lengths and areas.',
+  attachTo: '#menu-scale left',
   when: {
     'show': function () {
       global.gokart.map.animatePan([116, -32])
@@ -39,10 +39,10 @@ tour.addStep('welcome', {
     }
   }
 }).addStep('map-search', {
-    text: 'There is also a search box with support for coordinates and place names. <br/><b>Try out some of these!</b><ul><li>Upper Swan</li><li>32.00858S 115.53978E</li><li>115° 38′ 58.0″ E, 33° 20′ 52.8″ S</li><li>MGA 50 718776mE 6190981mN</li><li>MGA50 3816452</li><li>FD ET 79</li><li>PIL AF50</li></ul>',
+    text: 'There is also a search box with support for coordinates and place names. <br/><b>Try out some of these!</b><ul><li>17 Dick Perry Avenue, Kensington</li><li>Upper Swan, Western Australia</li><li>32.00858S 115.53978E</li><li>115° 38′ 58.0″ E, 33° 20′ 52.8″ S</li><li>MGA 50 718776E 6190981N</li><li>MGA50 3816452</li><li>FD ET 79</li><li>PIL AF50</li></ul>',
     attachTo: '#map-search left'
 }).addStep('menu', {
-  text: 'To the left are the interactive panes for <b>Layers</b>, <b>Annotations</b> and <b>Vehicle Tracking</b>.',
+  text: 'To the left are the interactive panes for <b>Layers</b>, <b>Drawing Tools</b> and <b>Vehicle Tracking</b>.',
   attachTo: '#menu-tab-layers-label right'
 }).addStep('layers', {
   text: 'The <b>Layers</b> pane lets you find, organise and print what is visible on the map.',
@@ -104,7 +104,7 @@ tour.addStep('welcome', {
     }
   }
 }).addStep('annotations', {
-  text: 'The <b>Annotations</b> pane lets you draw features onto the map.',
+  text: 'The <b>Drawing Tools</b> pane lets you draw features onto the map.',
   attachTo: '#menu-tab-annotations-label right',
   when: {
     'before-show': function () {
@@ -135,13 +135,17 @@ tour.addStep('welcome', {
     }
   }
 }).addStep('tracking', {
-  text: 'The Tracking pane is used to find and filter the vehicles displayed on the map. (end of tour, app will restart)',
+  text: 'The Tracking pane is used to find and filter the vehicles displayed on the map.',
   attachTo: '#menu-tab-tracking-label right',
   when: {
     'before-show': function () {
       $('#menu-tab-tracking-label').click()
-    },
-    'hide': function () {
+    }
+  }
+}).addStep('finish', {
+  text: 'And with that, we\'ve reached the end of the tour! The Spatial Support System will revert back to the pre-tour state when you click NEXT.',
+  when: {
+    'hide': function() {
       document.location.reload()
     }
   }

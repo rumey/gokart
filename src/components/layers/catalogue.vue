@@ -19,7 +19,7 @@
             <label for="switchBaseLayers" class="side-label">Toggle all</label>
           </div>
           <div class="small-2 text-right">
-            <div class="switch tiny">
+            <div class="switch tiny" title="Toggle all filtered layers">
               <input class="switch-input" title="Toggle all filtered layers" id="ctlgswall" @change="toggleAll($event.target.checked, $event)" type="checkbox" />
               <label class="switch-paddle" for="ctlgswall">
                 <span class="show-for-sr">Toggle all</span>
@@ -37,14 +37,14 @@
           <label for="switchBaseLayers" class="side-label">Switch out base layers automatically</label>
         </div>
         <div id="layers-catalogue-list">
-          <div v-for="l in catalogue.getArray() | filterBy search in searchAttrs | orderBy 'name'" class="row layer-row" @mouseover="preview(l)" @click="onToggle($index)" track-by="id" @mouseleave="preview(false)">
+          <div v-for="l in catalogue.getArray() | filterBy search in searchAttrs | orderBy 'name'" class="row layer-row" @mouseover="preview(l)" track-by="id" @mouseleave="preview(false)">
             <div class="small-10">
-              <a v-if="l.systemid" @click.stop.prevent="edit" href="{{oimService}}/django-admin/catalogue/record/{{l.systemid}}/change/" target="_blank" class="button tiny secondary float-right short"><i class="fa fa-pencil"></i></a>
+              <a v-if="l.systemid" @click.stop.prevent="map.editResource($event)" title="Edit catalogue entry" href="{{oimService}}/django-admin/catalogue/record/{{l.systemid}}/change/" target="_blank" class="button tiny secondary float-right short"><i class="fa fa-pencil"></i></a>
               <div class="layer-title">{{ l.name || l.id }}</div>
             </div>
             <div class="small-2">
               <div class="text-right">
-                <div class="switch tiny" @click.stop>
+                <div class="switch tiny" @click.stop v-bind:title="getMapLayer(l) === undefined?'Add to map':'Remove from map'">
                   <input class="switch-input ctlgsw" id="ctlgsw{{ $index }}" @change="onLayerChange(l, $event.target.checked)" v-bind:checked="getMapLayer(l) !== undefined"
                     type="checkbox" />
                   <label class="switch-paddle" for="ctlgsw{{ $index }}">
@@ -58,8 +58,8 @@
         <div v-el:layerdetails class="hide">
           <div class="layerdetails row">
             <div class="columns small-12">
-              {{ layer.name }}<br>
-              Details: TODO
+              <h5>{{ layer.name }}</h5>
+              <p>{{ layer.abstract }}</p>
               <img v-if="layer.legend" v-bind:src="layer.legend" class="cat-legend"/>
             </div>
           </div>
@@ -105,6 +105,25 @@ div.ol-overviewmap.ol-uncollapsible {
 .cat-legend {
     max-height: 50vh;
 }
+
+#cat-loading {
+    padding: 0.5em;
+    font-style: italic;
+    text-align: center;
+}
+
+.layerdetails {
+    position: absolute;
+    background-color: rgba(39,48,55,0.7);
+    width: 100%;
+    padding-bottom: 0.5em;
+}
+
+.layerdetails p {
+    white-space: pre-wrap;
+    font-size: 12px;
+}
+
 </style>
 
 <script>
@@ -125,15 +144,11 @@ div.ol-overviewmap.ol-uncollapsible {
         layerDetails: false
       }
     },
+    computed: {
+      map: function () { return this.$root.$refs.app.$refs.map },
+      loading: function () { return this.$root.loading },
+    },
     methods: {
-      edit: function(event) {
-            var target = (event.target.nodeName == "A")?event.target:event.target.parentNode;
-            if (env.appType == "cordova") {
-                window.open(target.href,"_system");
-            } else {
-                window.open(target.href,target.target);
-            }
-      },
       preview: function (l) {
         if (this.layer === l) {
           return
@@ -156,7 +171,7 @@ div.ol-overviewmap.ol-uncollapsible {
           })
         }
         l.preview.setMap(this.$root.map.olmap)
-        var previewEl = $(l.preview.getOverviewMap().getTargetElement())
+        var previewEl = $(l.preview.getOverviewMap().getViewport())
         this.layer = l
         if (!previewEl.find('.layerdetails').length > 0) {
           this.$nextTick(function() {
@@ -173,13 +188,14 @@ div.ol-overviewmap.ol-uncollapsible {
         $(this.$el).find('#ctlgsw' + index).trigger('click')
       },
       // toggle a layer in the Layer Catalogue
+      //return true if layer's state is changed; otherwise return false
       onLayerChange: function (layer, checked) {
         var vm = this
         var active = this.$root.active
         var map = this.$root.map
         // if layer matches state, return
         if (checked === (map.getMapLayer(layer) !== undefined)) {
-          return
+          return false
         }
         // make the layer match the state
         if (checked) {
@@ -203,9 +219,10 @@ div.ol-overviewmap.ol-uncollapsible {
         } else {
           active.removeLayer(map.getMapLayer(layer))
         }
+        return true
       },
       // helper to populate the catalogue from a remote service
-      loadRemoteCatalogue: function (url, callback) {
+      loadRemoteCatalogue: function (url, callback,failedCallback) {
         var vm = this
         var req = new window.XMLHttpRequest()
         req.withCredentials = true
@@ -224,10 +241,26 @@ div.ol-overviewmap.ol-uncollapsible {
             if (l.tags.some(function (t) { return t.name === 'overlaymap' })) {
                 l.opacity = 0.5
             }
+            // set the live map refresh interval
+            if (l.tags.some(function (t) { return t.name === 'livemap_10min' })) {
+                l.refresh = 600
+            }
+            if (l.tags.some(function (t) { return t.name === 'livemap_2min' })) {
+                l.refresh = 120
+            }
+
             // 
             vm.catalogue.push(l)
           })
           callback()
+        }
+        req.onerror = function (ev) {
+          var msg ='Couldn\'t load layer catalogue!' +  (req.statusText? (" (" + req.statusText + ")") : '')
+          if (failedCallback) {
+            failedCallback(msg)
+          } else {
+            console.error(msg)
+          }
         }
         req.open('GET', url)
         req.send()
@@ -245,6 +278,7 @@ div.ol-overviewmap.ol-uncollapsible {
     },
     ready: function () {
       var vm = this
+      var catalogueStatus = vm.loading.register("catalogue","Catalogue Component","Initialize")
       this.catalogue.on('add', function (event) {
         var l = event.element
         l.id = l.id || l.identifier
@@ -254,11 +288,14 @@ div.ol-overviewmap.ol-uncollapsible {
           l.legend = l.legend || (vm.defaultLegendSrc + l.id)
         }
       })
+      catalogueStatus.wait(30,"Listen 'gk-init' event")
       this.$on('gk-init', function() {
-        var vm = this
+        catalogueStatus.progress(80,"Process 'gk-init' event")
+        vm.loading.componentRevision += 1
         $(this.$root.map.olmap.getTargetElement()).on('mouseleave', '.ol-overviewmap', function() {
             vm.preview(false)
         })
+        catalogueStatus.end()
       })
     }
   }

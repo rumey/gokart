@@ -40,6 +40,10 @@ import localforage from 'localforage'
 import Tether from 'tether'
 // Guided tour lib
 import Shepherd from 'tether-shepherd'
+//pdf generator
+import jsPDF from 'jspdf'
+import interact from 'interact.js'
+import hash from "object-hash"
 
 var saveAs = function (blob,name,no_auto_bom) {
     if (env.appType == "cordova") {
@@ -59,6 +63,31 @@ var saveAs = function (blob,name,no_auto_bom) {
     }
 }
 
+ol.control.FullScreen.getChangeType_ = (function() {
+    var originFunc = ol.control.FullScreen.getChangeType_
+    return function() {
+        return originFunc() || ""
+    }
+})()
+
+ol.control.FullScreen.isFullScreenSupported = (function() {
+    var originFunc =  ol.control.FullScreen.isFullScreenSupported
+    return function() {
+        return (env.appType == "cordova")?false:originFunc()
+    }    
+})()
+//customize thie method to avoid cyclic object value
+JSON.stringify = (function(){
+    var originFunc = JSON.stringify
+    return function(obj,replacer,space) {
+        try {
+            return originFunc(obj,replacer,space)
+        } catch(err) {
+            //failed
+            return "(" + err + ")"
+        }
+    }
+})()
 export {
   $,
   ol,
@@ -72,5 +101,8 @@ export {
   dragula,
   localforage,
   Tether,
-  Shepherd
+  Shepherd,
+  jsPDF,
+  interact,
+  hash
 }

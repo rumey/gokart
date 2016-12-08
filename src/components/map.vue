@@ -1,24 +1,25 @@
 <template>
   <div class="map" id="map" tabindex="0">
     <gk-info v-ref:info></gk-info>
-    <select v-el:scale @change="setScale($event.target.value)" id="menu-scale" v-cloak>
-      <option value="{{ scale }}" selected>{{ scaleString }}</option>
-      <option v-for="s in fixedScales" value="{{ s }}">{{ getScaleString(s) }}</option>
-    </select>
-    <input id="map-search" placeholder="Search (places, °, MGA, FD)" @keyup="searchKeyFix($event)"/>
-    <button id="map-search-button" @click="runSearch"><i class="fa fa-search"></i></button>
   </div>
+  <gk-scales v-ref:scales></gk-scales>
+  <gk-search v-ref:search></gk-search>
+  <gk-measure v-ref:measure></gk-measure>
 </template>
 
 <script>
   import { $, ol, proj4, moment } from 'src/vendor.js'
   import gkInfo from './info.vue'
+  import gkScales from './scales.vue'
+  import gkSearch from './search.vue'
+  import gkMeasure from './measure.vue'
   export default {
     store: ['defaultWMTSSrc', 'defaultWFSSrc', 'gokartService', 'fixedScales', 'resolutions', 'matrixSets', 'dpmm', 'view'],
-    components: { gkInfo },
+    components: { gkInfo, gkScales, gkSearch, gkMeasure },
     data: function () {
       return {
         scale: 0,
+        mapControls:{},
         graticule: new ol.LabelGraticule(),
         dragPanInter: new ol.interaction.DragPan({
           condition: function (mapBrowserEvent) {
@@ -44,32 +45,200 @@
     },
     // parts of the template to be computed live
     computed: {
-      // scale string for the current map zoom level
-      scaleString: function () {
-        return this.getScaleString(this.scale)
-      },
+      loading: function () { return this.$root.loading },
+      annotations: function () { return this.$root.annotations    },
+      measure: function () { return this.$root.measure    },
       // because the viewport size changes when the tab pane opens, don't cache the map width and height
       width: {
         cache: false,
         get: function get () {
-          if (this.$el) {
-            return this.$el.clientWidth
-          }
-          return 0
+          return $("#map").width()
         }
       },
       height: {
         cache: false,
         get: function get () {
-          if (this.$el) {
-            return this.$el.clientHeight
-          }
-          return 0
+          return $("#map").height()
         }
+      },
+      extent: function() {
+        return this.olmap.getView().calculateExtent(this.olmap.getSize())
+      },
+      resolution:function() {
+        return this.olmap.getView().getResolution()
       }
     },
     // methods callable from inside the template
     methods: {
+      //enable or disable a control
+      enableControl:function(controlName,enable) {
+        var vm = this
+        var control = this.mapControls[controlName]
+        if (!control || control.enabled === enable) {
+            //already enabled or disabled
+            return
+        }
+        if (control.controls) {
+            if (Array.isArray(control.controls)) {
+                $.each(control.controls,function(index,c){
+                    if (enable) {
+                        vm.olmap.addControl(c)
+                    } else {
+                        vm.olmap.removeControl(c)
+                    }
+                })
+            } else {
+                if (enable) {
+                    vm.olmap.addControl(control.controls)
+                } else {
+                    vm.olmap.removeControl(control.controls)
+                }
+            }
+        }
+        control.enabled = enable
+      },
+      editResource: function(event) {
+        var target = (event.target.nodeName == "A")?event.target:event.target.parentNode;
+        if (env.appType == "cordova") {
+            window.open(target.href,"_system");
+        } else {
+            window.open(target.href,target.target);
+        }
+      },
+      tintSVG: function(svgstring, tints) {
+        tints.forEach(function(colour) {
+          svgstring = svgstring.split(colour[0]).join(colour[1])
+        })
+        return svgstring
+      },
+      //keys:[url,tint?,dims?]
+      getBlob: function(feature, keys,tintSettings,callback) {
+        // method to precache SVGs as raster (PNGs)
+        // workaround for Firefox missing the SurfaceCache when blitting to canvas
+        // returns a url or undefined if svg isn't baked yet
+        var vm = this
+        var tool = feature.get('toolName')?vm.annotations.getTool(feature.get('toolName')):{}
+        var key = keys.map(function(k) {
+          return vm.annotations.getStyleProperty(feature,k,'default',tool)
+        }).join(";")
+        if (this.svgBlobs[key]) {
+          return this.svgBlobs[key]
+        } else if (this.jobs[key]) {
+          vm.jobs[key].then(function(){
+                feature.changed()
+                if (callback) {callback()}
+          })
+        } else {
+          var dimsKey = (keys.length >= 3)?keys[2]:'dims'
+          var tintKey = (keys.length >= 2)?keys[1]:'tint'
+
+          var dims = tool[dimsKey] || [48, 48]
+          var tint = vm.annotations.getStyleProperty(feature,tintKey,'default',tool)
+          if (!Array.isArray(tint)) {
+              //tint is a named tint,get the tint setting from tints object
+              tint = (tintSettings && tintSettings[tint])?tintSettings[tint]:[]
+          }
+          var url = vm.annotations.getStyleProperty(feature,keys[0],null,tool)
+          if (typeof tint === "string") {
+            //tint is not just a color replacement, is a totally different icon
+            url = tint
+            tint = []
+          }
+          vm.jobs[key] = new Promise(function(resolve, reject) {
+            vm.addSVG(key, url, tint, dims, resolve)
+          }).then(function() {
+            feature.changed()
+            delete vm.jobs[key]
+            if (callback) {callback()}
+          })
+        }
+
+
+      },
+      addSVG: function(key, url, tint, dims, pResolve) {
+        var vm = this
+        tint = tint || []
+        var draw = function() {
+          if (typeof vm.svgBlobs[key] !== 'undefined') { pResolve() }
+          // RACE CONDITION: MS edge inlines promises and callbacks!
+          // we can't set vm.svgBlobs[key] to be the Promise, as
+          // it's entirely possible for the whole thing to have been 
+          // completed in the constructor before the svgBlobs array is even set
+          //vm.svgBlobs[key] = ''
+          var drawJob = new Promise(function(resolve, reject) {
+            vm.drawSVG(key, vm.svgTemplates[url], tint, dims, resolve, reject)
+          }).then(function() {
+            pResolve()
+          })
+        }
+        if (vm.svgTemplates[url]) {
+          // render from loaded svg or queue render post load promise
+          draw()
+        } else if (vm.jobs[url]) {
+            vm.jobs[url].then(function(){
+                draw()
+            })
+        } else {
+          vm.jobs[url] = new Promise(function (resolve, reject) { 
+            // load svg
+            //console.log('addSVG: Cache miss for '+key)
+            var req = new window.XMLHttpRequest()
+            req.withCredentials = true
+            req.onload = function () {
+              if (!this.responseText) {
+                return
+              }
+              //console.log('addSVG: XHR returned for '+key)
+              vm.svgTemplates[url] = this.responseText
+              resolve()
+            }
+            req.onerror = function() {
+              reject()
+            }
+            req.open('GET', url)
+            req.send()
+          }).then(function(){
+            draw()
+            delete vm.jobs[url]
+          })
+        }
+      },
+      drawSVG: function(key, svgstring, tints, dims, resolve, reject) {
+        var vm = this
+        //console.log('drawSVG: Cache miss for '+key)
+        var canvas = $('<canvas>')
+        canvas.attr({width: dims[0], height: dims[1]})
+        canvas.drawImage({
+          source: 'data:image/svg+xml;utf8,' + encodeURIComponent(vm.tintSVG(svgstring, tints)),
+          fromCenter: false, x: 0, y: 0, width: dims[0], height: dims[1],
+          load: function () {
+            //console.log('drawSVG: Canvas drawn for '+key)
+            canvas.get(0).toBlob(function (blob) {
+              vm.svgBlobs[key] = window.URL.createObjectURL(blob)
+              //console.log("drawSVG:" + key + "\t url = " + vm.svgBlobs[key])
+              resolve()
+            }, 'image/png')
+          }
+        })
+      },
+      cacheStyle: function(styleFunc, feature, keys) {
+        var vm = this
+        if (feature) {
+            var key = keys.map(function(k) {
+              return vm.annotations.getStyleProperty(feature,k,'default')
+            }).join(";")
+            var style = this.cachedStyles[key]
+            if (style) { 
+                return style 
+            }
+            style = styleFunc(feature)
+            if (style) {
+              this.cachedStyles[key] = style
+              return style
+            }
+        }
+        return new ol.layer.Vector().getStyleFunction()()
+      },
       animatePan: function (location) {
         // pan from the current center
         var pan = ol.animation.pan({
@@ -95,7 +264,6 @@
           this.olmap.getView().setResolution(this.olmap.getView().getResolution() * scale / this.getScale())
         }
         this.scale = scale
-        this.$els.scale.selectedIndex = 0
       },
       // return the scale (1:1K increments)
       getScale: function () {
@@ -105,9 +273,9 @@
         var distance = this.$root.wgs84Sphere.haversineDistance([extent[0], center[1]], center) * 2
         return distance * this.dpmm / size[0]
       },
-      // get the fixed scale (1:1K increments) closest to current scale
-      getFixedScale: function () {
-        var scale = this.getScale()
+      // get the fixed scale (1:1K increments) closest to specified or the current scale
+      getFixedScale: function (scale) {
+        scale = scale || this.getScale()
         var closest = null
         $.each(this.fixedScales, function () {
           if (closest === null || Math.abs(this - scale) < Math.abs(closest - scale)) {
@@ -118,12 +286,12 @@
       },
       // generate a human-readable scale string
       getScaleString: function (scale) {
-        if (Math.round(scale * 100) / 100 < 1.0) {
-          return '1:' + (Math.round(scale * 100000) / 100).toLocaleString()
+        if (Math.round(scale * 100) / 100 < 10.0) {
+          return '1:' + (Math.round(scale * 1000)).toLocaleString()
         } else if (Math.round(scale * 100) / 100 >= 1000.0) {
-          return '1:' + (Math.round(scale / 10) / 100).toLocaleString() + 'M'
+          return '1:' + (Math.round(scale / 1000)).toLocaleString() + ' M'
         }
-        return '1:' + (Math.round(scale * 100) / 100).toLocaleString() + 'K'
+        return '1:' + (Math.round(scale)).toLocaleString() + ' K'
       },
       // get the decimal degrees representation of some EPSG:4326 coordinates
       getDeg: function(coords) {
@@ -138,7 +306,7 @@
       getMGA: function(coords) {
         var mga = this.getMGARaw(coords)
         if (mga) {
-            return 'MGA '+mga.mgaZone+' '+Math.round(mga.mgaEast)+'mE '+Math.round(mga.mgaNorth)+'mN'
+            return 'MGA '+mga.mgaZone+' '+Math.round(mga.mgaEast)+'E '+Math.round(mga.mgaNorth)+'N'
         }
         return ''
       },
@@ -231,7 +399,7 @@
       // e.g. MGA 51 340000 6340000, MGA 51 340000mE 6340000mN, MGA 51 3406340
       parseMGAString: function(mgaStr) {
         // https://regex101.com/r/zY8dW4/2
-        var mgaRegex = /MGA\s*(49|50|51|52|53|54|55|56)\s*(\d{3,7})\s*[mM]{0,1}\s*([nNeE]{0,1})\s*,*\s*(\d{4,7})\s*[mM]{0,1}\s*([nNeE]{0,1})/gi
+        var mgaRegex = /(?:MGA|mga)\s*(49|50|51|52|53|54|55|56)\s*(\d{3,7})\s*[mM]{0,1}\s*([nNeE]{0,1})\s*,*\s*(\d{4,7})\s*[mM]{0,1}\s*([nNeE]{0,1})/gi
         var groups = mgaRegex.exec(mgaStr)
         
         if (!groups) {
@@ -265,83 +433,23 @@
       },
       // parse a string containing a FD Grid reference
       parseGridString: function(fdStr) {
-        var fdRegex = /(FD|PIL)\s*([a-zA-Z]{1,2})\s*([0-9]{1,5})/gi
+        var fdRegex = /(FD|fd|PIL|pil)\s*([a-zA-Z]{1,2})\s*([0-9]{1,5})/gi
         var groups = fdRegex.exec(fdStr)
         if (!groups) {
           return null
         }
         var results = {
-          gridType: groups[1],
-          gridNorth: groups[2],
+          gridType: groups[1].toUpperCase(),
+          gridNorth: groups[2].toUpperCase(),
           gridEast: groups[3]
         }
         return results
       },
-      queryFD: function(fdStr, callback) {
-        $.ajax({
-          url: this.defaultWFSSrc + '?' + $.param({
-            version: '1.1.0',
-            service: 'WFS',
-            request: 'GetFeature',
-            outputFormat: 'application/json',
-            srsname: 'EPSG:4326',
-            typename: 'cddp:fd_grid_points_mapping',
-            cql_filter: '(fdgrid = \''+fdStr+'\')'
-          }),
-          dataType: 'json',
-          xhrFields: {
-            withCredentials: true
-          },
-          success: function(data, status, xhr) {
-            if (data.features.length) {
-              callback(data.features[0].geometry.coordinates, "FD "+fdStr)
-            }
-          }
-        })
-      },
-      queryPIL: function(pilStr, callback) {
-        $.ajax({
-          url: this.defaultWFSSrc + '?' + $.param({
-            version: '1.1.0',
-            service: 'WFS',
-            request: 'GetFeature',
-            outputFormat: 'application/json',
-            srsname: 'EPSG:4326',
-            typename: 'cddp:pilbara_grid_10km_mapping',
-            cql_filter: '(grid = \''+pilStr+'\')'
-          }),
-          dataType: 'json',
-          xhrFields: {
-            withCredentials: true
-          },
-          success: function(data, status, xhr) {
-            if (data.features.length) {
-              callback(data.features[0].geometry.coordinates, "PIL "+pilStr)
-            }
-          }
-        })
-      },
+
       getCenter: function() {
         return this.olmap.getView().getCenter();
       },
-      queryGeocode: function(geoStr, callback) {
-        var center = this.getCenter()
-        $.ajax({
-          url: gokartService
-            +'/mapbox/geocoding/v5/mapbox.places/'+geoStr+'.json?' + $.param({
-            country: 'au',
-            proximity: ''+center[0]+','+center[1]
-          }),
-          dataType: 'json',
-          xhrFields: {
-            withCredentials: true
-          },
-          success: function(data, status, xhr) {
-            var feature = data.features[0]
-            callback(feature.center, feature.text)
-          }
-        })
-      },
+
       // reusable tile loader hook to update a loading indicator
       tileLoaderHook: function (tileSource, tileLayer) {
         // number of tiles currently in flight
@@ -357,7 +465,7 @@
           numLoadingTiles++
           var image = tile.getImage()
           // to hell with you, cross origin policy!
-          image.crossOrigin = 'anonymous'
+          image.crossOrigin = 'use-credentials'
           image.onload = function () {
             numLoadingTiles--
             if (numLoadingTiles === 0) {
@@ -461,19 +569,28 @@
         })
         vector.progress = ''
 
-        vectorSource.loadSource = function (onSuccess) {
+        vectorSource.loadSource = function (loadType,onSuccess) {
           if (options.cql_filter) {
             options.params.cql_filter = options.cql_filter
           } else if (options.params.cql_filter) {
             delete options.params.cql_filter
           }
+          vm.$root.active.refreshRevision += 1
           vector.progress = 'loading'
           $.ajax({
             url: url + '?' + $.param(options.params),
             success: function (response, stat, xhr) {
               var features = vm.$root.geojson.readFeatures(response)
-              vectorSource.clear(true)
-              vectorSource.addFeatures(features)
+              var defaultOnload = function(loadType,source,features) {
+                  source.clear(true)
+                  source.addFeatures(features)
+              }
+              if (options.onload) {
+                options.onload(loadType,vectorSource,features,defaultOnload)
+              } else {
+                defaultOnload(loadType,vectorSource,features)
+              }
+              vm.$root.active.refreshRevision += 1
               vector.progress = 'idle'
               vector.set('updated', moment().toLocaleString())
               vectorSource.dispatchEvent('loadsource')
@@ -482,6 +599,7 @@
               }
             },
             error: function () {
+              vm.$root.active.refreshRevision += 1
               vector.progress = 'error'
             },
             dataType: 'json',
@@ -509,21 +627,46 @@
         // to update the source
         if (options.refresh && !vector.autoRefresh) {
           vector.autoRefresh = setInterval(function () {
-            vectorSource.loadSource()
+            vectorSource.loadSource("auto")
           }, options.refresh * 1000)
         }
         // populate the source with data
-        vectorSource.loadSource()
+        vectorSource.loadSource("initial")
 
         vector.set('name', options.name)
         vector.set('id', options.id)
+
+        vector.stopAutoRefresh = function() {
+            if (this.autoRefresh) {
+                clearInterval(this.autoRefresh)
+                //console.log("Stop auto refresh for layer (" + options.id + ")")
+                delete this.autoRefresh
+            }
+        }
+
+        vector.startAutoRefresh = function() {
+            if (!options.refresh) {
+                //not refreshable
+                return
+            } 
+            if(this.autoRefresh) {
+                //already started
+                return
+            }
+            this.autoRefresh = setInterval(function () {
+                vectorSource.loadSource("auto")
+            }, options.refresh * 1000)
+            //console.log("Start auto refresh for layer (" + options.id + ") with interval " + options.refresh)
+        }
+
         return vector
       },
       createAnnotations: function (layer) {
-        return this.$root.annotations.featureOverlay
+        return this.annotations.featureOverlay
       },
       // loader to create a WMTS layer from a kmi datasource
       createTileLayer: function (layer) {
+        var vm = this
         if (layer.base) {
           layer.format = 'image/jpeg'
         }
@@ -569,6 +712,15 @@
           tileGrid: tileGrid
         })
 
+        tileSource.setUrlTimestamp = function() {
+            var originFunc = tileSource.getTileUrlFunction()
+            return function(time) {
+                tileSource.setTileUrlFunction(function(tileCoord,pixelRatio,projection){
+                    return originFunc(tileCoord,pixelRatio,projection) + "&time=" + time
+                },tileSource.getUrls()[0] + "?time=" + time)
+            }
+        }()
+
         var tileLayer = new ol.layer.Tile({
           opacity: layer.opacity || 1,
           source: tileSource
@@ -585,82 +737,64 @@
           }
         }   
 
+
         // if the "refresh" option is set, set a timer
         // to force a reload of the tile content
         if (layer.refresh) {
           tileLayer.set('updated', moment().toLocaleString())
-          tileLayer.autoRefresh = setInterval(function () {
+          vm.$root.active.refreshRevision += 1
+          tileSource.load = function() {
             tileLayer.set('updated', moment().toLocaleString())
-            tileSource.setUrl(layer.wmts_url + '?time=' + moment.utc().unix())
+            tileSource.setUrlTimestamp(moment.utc().unix())
+            vm.$root.active.refreshRevision += 1
+          }
+          tileLayer.autoRefresh = setInterval(function () {
+            tileSource.load()
           }, layer.refresh * 1000)
         }
 
         // set properties for use in layer selector
         tileLayer.set('name', layer.name)
         tileLayer.set('id', layer.id)
+
+        tileLayer.stopAutoRefresh = function() {
+            if (this.autoRefresh) {
+                clearInterval(this.autoRefresh)
+                //console.log("Stop auto refresh for layer (" + layer.id + ")")
+                delete this.autoRefresh
+            }
+        }
+
+        tileLayer.startAutoRefresh = function() {
+            if (!layer.refresh) {
+                //not refreshable
+                return
+            } 
+            if(this.autoRefresh) {
+                //already started
+                return
+            }
+            this.autoRefresh = setInterval(function () {
+                tileSource.load()
+            }, layer.refresh * 1000)
+            //console.log("Start auto refresh for layer (" + layer.id + ") with interval " + layer.refresh)
+        }
+
+
         return tileLayer
       },
-      searchKeyFix: function (ev) {
-        // run a search after pressing enter
-        if (ev.keyCode == 13) { this.runSearch() } 
-      },
-      runSearch: function () {
-        var vm = this
-        var query = $("#map-search").get(0).value
-        if (!query) { 
-          return 
-        }
 
-        var victory = function (coords, name) {
-          vm.animatePan(coords)
-          vm.animateZoom(vm.resolutions[10])
-          console.log([name, coords[0], coords[1]])
-        }
-
-        // check for EPSG:4326 coordinates
-        var dms = this.parseDMSString(query)
-        if (dms) {
-          victory(dms, this.getDMS(dms))
-          return
-        }
-    
-        // check for MGA coordinates
-        var mga = this.parseMGAString(query)
-        if (mga) {
-          victory(mga.coords, this.getMGA(mga.coords))
-          return
-        }
-
-        // check for Grid Reference
-        var gd = this.parseGridString(query)
-        if (gd) {
-          if (gd.gridType === 'FD') {
-            this.queryFD(gd.gridNorth+' '+gd.gridEast, victory)
-            return
-          } else {
-            this.queryPIL(gd.gridNorth+gd.gridEast, victory)
-          }
-        }
-
-        // failing all that, ask mapbox
-        this.queryGeocode(query, victory)
-        
-      },
       getMapLayer: function (id) {
+        if (!this.olmap) { return undefined}
         if (id && id.id) { id = id.id } // if passed a catalogue layer, get actual id
         return this.olmap.getLayers().getArray().find(function (layer) {
           return layer.get('id') === id
         })
       },
       // initialise map
-      init: function (catalogue, layers, options) {
+      init: function (options) {
         var vm = this
         options = options || {}
-        this.$root.catalogue.catalogue.extend(catalogue)
-        var initialLayers = layers.reverse().map(function (value) {
-          var layer = $.extend(vm.$root.catalogue.getLayer(value[0]), value[1])
-          return vm['create' + layer.type](layer)
-        })
 
         // add some extra projections
         proj4.defs("EPSG:28349","+proj=utm +zone=49 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
@@ -672,11 +806,16 @@
         proj4.defs("EPSG:28355","+proj=utm +zone=55 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
         proj4.defs("EPSG:28356","+proj=utm +zone=56 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
 
+        // bump search bar over if there's no fullscreen button
+        if (!ol.control.FullScreen.isFullScreenSupported()) {
+          $('#map-search').addClass('noFullScreen')
+          $('#map-search-button').addClass('noFullScreen')
+        }
+
         this.olmap = new ol.Map({
           logo: false,
           renderer: 'canvas',
           target: 'map',
-          layers: initialLayers,
           view: new ol.View({
             projection: 'EPSG:4326',
             center: vm.view.center,
@@ -684,31 +823,7 @@
             maxZoom: 21,
             minZoom: 5
           }),
-          controls: [
-            new ol.control.Zoom(),
-            new ol.control.ScaleLine(),
-            new ol.control.MousePosition({
-                coordinateFormat: function(coordinate) {
-                    return vm.getDeg(coordinate)+'<br/>'+vm.getDMS(coordinate)+'<br/>'+vm.getMGA(coordinate)
-                }
-            }),
-            new ol.control.FullScreen({
-              source: $('body').get(0),
-              label: $('<i/>', {
-                class: 'fa fa-expand'
-              })[0]
-            }),
-            new ol.control.Control({
-              element: $('#menu-scale').get(0)
-            }),
-            new ol.control.Control({
-              element: $('#map-search').get(0)
-            }),
-            new ol.control.Control({
-              element: $('#map-search-button').get(0)
-            }),
-            new ol.control.Attribution()
-          ],
+          controls:[],
           interactions: ol.interaction.defaults({
             altShiftDragRotate: false,
             pinchRotate: false,
@@ -716,6 +831,67 @@
             doubleClickZoom: false,
             keyboard: false
           })
+        })
+
+        vm.mapControls = {
+            "zoom": {
+                enabled:false,
+                controls:new ol.control.Zoom({
+                  target: $('#external-controls').get(0)   
+                })
+            },
+            "scaleLine": {
+                enabled:false,
+                controls:new ol.control.ScaleLine()
+            },
+            "mousePosition": {
+                enabled:false,
+                controls:new ol.control.MousePosition({
+                    coordinateFormat: function(coordinate) {
+                        return vm.getDeg(coordinate)+'<br/>'+vm.getDMS(coordinate)+'<br/>'+vm.getMGA(coordinate)
+                    }
+                })
+            },
+            "fullScreen": {
+                enabled:false,
+                controls:new ol.control.FullScreen({
+                    source: $('body').get(0),
+                    target: $('#external-controls').get(0),
+                    label: $('<i/>', {
+                        class: 'fa fa-expand'
+                    })[0]
+                })
+            },
+            "scale": {
+                enabled:false,
+                controls:new ol.control.Control({
+                    element: $('#menu-scale').get(0),
+                    target: $('#external-controls').get(0)
+            })},
+            "search": {
+                enabled:false,
+                controls: [
+                    new ol.control.Control({
+                        element: $('#map-search').get(0),
+                        target: $('#external-controls').get(0)
+                      }),
+                    new ol.control.Control({
+                        element: $('#map-search-button').get(0),
+                        target: $('#external-controls').get(0)
+                    })
+                ]
+            },
+            "attribution": {
+                enabled:false,
+                controls:new ol.control.Attribution()
+            },
+            "measure": {
+                enabled:false,
+                controls:vm.measure.mapControl
+            }
+        }
+        $.each(vm.mapControls,function(key,control){
+            vm.enableControl(key,true)
         })
 
         this.setScale(this.view.scale / 1000)
@@ -733,14 +909,44 @@
         // setup scale events
         this.olmap.on('postrender', function () {
           vm.scale = vm.getScale()
-          vm.$els.scale.selectedIndex = 0
         })
 
-        // tell other components map is ready
-        this.$root.$broadcast('gk-init')
+      },
+      initLayers: function (catalogue, layers) {
+        var vm = this
+        //add the hardcoded layers to category
+        $.each(catalogue,function(index,layer) {
+            var catLayer = vm.$root.catalogue.getLayer(layer.id)
+            if (catLayer) {
+                //hardcoded layer already exist, update the properties 
+                $.extend(catLayer,layer)
+            } else {
+                //hardcoded layer not exist, add it
+                vm.$root.catalogue.catalogue.push(layer)
+            }
+        })
+        //ignore the active layers which does not exist in the catalogue layers.
+        layers = layers.filter(function(value){
+            return vm.$root.catalogue.getLayer(value[0]) && true
+        })
+        //create active open layers 
+        var initialLayers = layers.reverse().map(function (value) {
+          var layer = $.extend(vm.$root.catalogue.getLayer(value[0]), value[1])
+          return vm['create' + layer.type](layer)
+        })
+        //add active layers into map
+        $.each(initialLayers,function(index,layer){
+            vm.olmap.addLayer(layer)
+        })
       }
     },
     ready: function () {
+      var mapStatus = this.loading.register("olmap","Open layer map Component","Initialize")
+      this.svgBlobs = {}
+      this.svgTemplates = {}
+      this.cachedStyles = {}
+      this.jobs = {}
+
       // generate matrix IDs from name and level number
       $.each(this.matrixSets, function (projection, innerMatrixSets) {
         $.each(innerMatrixSets, function (tileSize, matrixSet) {
@@ -751,6 +957,7 @@
           matrixSet.matrixIds = matrixIds
         })
       })
+      mapStatus.end()
     }
   }
 </script>

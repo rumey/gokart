@@ -10,6 +10,7 @@ import {
 } from 'src/vendor.js'
 import App from './sss.vue'
 import tour from './sss-tour.js'
+import profile from './sss-profile.js'
 
 global.tour = tour
 
@@ -33,22 +34,7 @@ global.debounce = function (func, wait, immediate) {
     if (callNow) func.apply(context, args)
   }
 }
-
-var defaultStore = {
-  tourVersion: null,
-  whoami: { email: null },
-  // filters for finding layers
-  catalogueFilters: [
-    ['basemap', 'Base Imagery'],
-    ['boundaries', 'Admin Boundaries'],
-    ['communications', 'Communications'],
-    ['operations', 'DPaW Operations'],
-    ['bushfire', 'Fire'],
-    ['infrastructure', 'Infrastructure'],
-    ['meteorology', 'Meteorology'],
-    ['relief', 'Relief'],
-    ['sensitive', 'Sensitive Sites']
-  ],
+var volatileData = {
   // overridable defaults for WMTS and WFS loading
   remoteCatalogue: env.cswService + "?format=json&application__name=sss",
   defaultWMTSSrc: env.wmtsService,
@@ -57,17 +43,27 @@ var defaultStore = {
   gokartService: env.gokartService,
   oimService:env.oimService,
   sssService:env.sssService,
-  // default matrix from KMI
-  resolutions: [0.17578125, 0.087890625, 0.0439453125, 0.02197265625, 0.010986328125, 0.0054931640625, 0.00274658203125, 0.001373291015625, 0.0006866455078125, 0.0003433227539062, 0.0001716613769531, 858306884766e-16, 429153442383e-16, 214576721191e-16, 107288360596e-16, 53644180298e-16, 26822090149e-16, 13411045074e-16],
+  s3Service:env.s3Service,
+  //bfrsService:env.bfrsService,
+  appType:env.appType,
   // fixed scales for the scale selector (1:1K increments)
   fixedScales: [0.25, 0.5, 1, 2, 2.5, 5, 10, 20, 25, 50, 80, 100, 125, 250, 500, 1000, 2000, 3000, 5000, 10000, 25000],
-  view: {
-    center: [123.75, -24.966]
-  },
-  // id followed by properties to merge into catalogue
-  activeLayers: [
-    ['dpaw:resource_tracking_live', {}],
-    ['cddp:smb_250K', {}]
+  // default matrix from KMI
+  resolutions: [0.17578125, 0.087890625, 0.0439453125, 0.02197265625, 0.010986328125, 0.0054931640625, 0.00274658203125, 0.001373291015625, 0.0006866455078125, 0.0003433227539062, 0.0001716613769531, 858306884766e-16, 429153442383e-16, 214576721191e-16, 107288360596e-16, 53644180298e-16, 26822090149e-16, 13411045074e-16],
+  mmPerInch: 25.4,
+  whoami: { email: null },
+  // filters for finding layers
+  catalogueFilters: [
+    ['basemap', 'Base Imagery'],
+    ['boundaries', 'Admin Boundaries'],
+    ['communications', 'Communications'],
+    ['fire', 'Fire Operations'],
+    ['meteorology', 'Meteorology'],
+    ['vegetation', 'Vegetation'],
+    ['tenure', 'Tenure and Land Use'],
+    ['infrastructure', 'Infrastructure'],
+    ['grid', 'Grid Systems'],
+    ['resources', 'Resource Tracking']
   ],
   matrixSets: {
     'EPSG:4326': {
@@ -77,21 +73,48 @@ var defaultStore = {
         'maxLevel': 17
       }
     }
+  }
+}
+
+var persistentData = {
+  view: {
+    center: [123.75, -24.966]
   },
-  mmPerInch: 25.4,
+  // id followed by properties to merge into catalogue
+  activeLayers: [
+    ['dpaw:resource_tracking_live', {}],
+    ['cddp:state_map_base', {}]
+  ],
   // blank annotations
   annotations: {
     type: 'FeatureCollection',
     features: []
+  },
+  drawingLogs:[],
+  redoPointer:0,//pointer to the next redo log 
+  drawingSequence:0,
+  //data in settings will survive across reset
+  settings:{
+    tourVersion: null,
+    undoLimit:0,
+    lengthUnit:"km",
+    areaUnit:"ha",
+    measureAnnotation:false,
+    maintainScaleWhenPrinting:true
   }
 }
-global.gokartService = defaultStore.gokartService;
+
+global.gokartService = volatileData.gokartService;
 
 global.localforage = localforage
 global.$ = $
 
 Vue.use(VueStash)
 localforage.getItem('sssOfflineStore').then(function (store) {
+  var settings = $.extend({},persistentData.settings,store?(store.settings || {}):{})
+  var storedData = $.extend({}, persistentData, store || {}, volatileData)
+  storedData.settings = settings
+
   global.gokart = new Vue({
     el: 'body',
     components: {
@@ -99,38 +122,71 @@ localforage.getItem('sssOfflineStore').then(function (store) {
     },
     data: {
       // store contains state we want to reload/persist
-      store: $.extend(defaultStore, store || {}),
+      store: storedData,
       pngs: {},
+      fixedLayers:[],
       saved: null,
-      touring: false
+      touring: false,
+      tints: {
+        'selectedPoint': [['#b43232', '#2199e8']],
+        'selectedDivision': [['#000000', '#2199e8'], ['#7c3100','#2199e8'], ['#ff6600', '#ffffff']],
+        'selectedRoadClosurePoint': [['#000000', '#2199e8']],
+        'selectedPlusIcon': [['#006400', '#2199e8']],
+      }
     },
     computed: {
+      loading: function () { return this.$refs.app.$refs.loading },
       map: function () { return this.$refs.app.$refs.map },
+      scales: function () { return this.$refs.app.$refs.map.$refs.scales },
+      search: function () { return this.$refs.app.$refs.map.$refs.search },
+      measure: function () { return this.$refs.app.$refs.map.$refs.measure },
       info: function () { return this.$refs.app.$refs.map.$refs.info },
       active: function () { return this.$refs.app.$refs.layers.$refs.active },
       catalogue: function () { return this.$refs.app.$refs.layers.$refs.catalogue },
       export: function () { return this.$refs.app.$refs.layers.$refs.export },
       annotations: function () { return this.$refs.app.$refs.annotations },
       tracking: function () { return this.$refs.app.$refs.tracking },
+      setting: function () { return this.$refs.app.$refs.setting },
+      //bfrs: function () { return this.$refs.app.$refs.bfrs },
       geojson: function () { return new ol.format.GeoJSON() },
-      wgs84Sphere: function () { return new ol.Sphere(6378137) }
+      wgs84Sphere: function () { return new ol.Sphere(6378137) },
+      activeMenu: function() {return this.$refs.app.activeMenu},
+      profile: function(){return profile},
+      persistentData:function() {
+          var vm = this
+          $.each(persistentData,function(key,val){
+              persistentData[key] = vm.store[key]
+          })
+          return persistentData
+      }
+    },
+    methods: {
+      takeTour: function() {
+          this.store.settings.tourVersion = tour.version
+          this.export.saveState()
+          this.touring = true
+          tour.start()
+      }
     },
     ready: function () {
       var self = this
+      self.loading.app.progress(5,"Initialize UI")
       // setup foundation, svg url support
       $(document).foundation()
       svg4everybody()
+      // set title
+      $('title').text(profile.description)
       // calculate screen res
       $('body').append('<div id="dpi" style="width:1in;display:none"></div>')
-      this.dpi = parseFloat($('#dpi').width())
-      this.store.dpmm = self.dpi / self.store.mmPerInch
+      self.dpi = parseFloat($('#dpi').width())
+      self.store.dpmm = self.dpi / self.store.mmPerInch
       $('#dpi').remove();
       // get user info
       (function () {
         var req = new window.XMLHttpRequest()
         req.withCredentials = true
         req.onload = function () {
-          self.whoami = JSON.parse(this.responseText)
+          self.store.whoami = JSON.parse(this.responseText)
         }
         req.open('GET', self.store.oimService + '/api/whoami')
         req.send()
@@ -145,8 +201,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         $(this).attr('aria-selected', true)
         self.map.olmap.updateSize()
       }).on('click', '.tabs-title a[aria-selected=true]', function (ev) {
-        offCanvasLeft.removeClass('reveal-responsive')
-        $(this).attr('aria-selected', false)
+        offCanvasLeft.toggleClass('reveal-responsive')
         self.map.olmap.updateSize()
       })
       $('#side-pane-close').on('click', function (ev) {
@@ -155,141 +210,9 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         self.map.olmap.updateSize()
       })
 
-      var resourceTrackingStyle = function (res) {
-        var feat = this
-        // cache styles for performance
-        var style = self.$refs.app.cacheStyle(function (feat) {
-          var src = self.$refs.app.getBlob(feat, ['icon', 'tint'])
-          if (!src) { return false }
-          return new ol.style.Style({
-            image: new ol.style.Icon({
-              src: src,
-              scale: 0.5,
-              snapToPixel: true
-            }),
-            text: new ol.style.Text({
-              offsetX: 12,
-              textAlign: 'left',
-              font: '12px Helvetica,Roboto,Arial,sans-serif',
-              stroke: new ol.style.Stroke({
-                color: '#fff',
-                width: 4
-              })
-            }),
-            stroke: new ol.style.Stroke({
-              color: [52, 101, 164, 0.6],
-              width: 4.0
-            })
-          })
-        }, feat, ['icon', 'tint'])
-        if (style.getText) {
-          if (res < 0.002) {
-            style.getText().setText(feat.get('label'))
-          } else {
-            style.getText().setText('')
-          }
-        }
-        return style
-      }
-
-      var addResource = function (f) {
-        var tint = 'red'
-        if (f.get('age') < 24) {
-          tint = 'orange'
-        };
-        if (f.get('age') < 3) {
-          tint = 'yellow'
-        };
-        if (f.get('age') <= 1) {
-          tint = 'green'
-        };
-        f.set('icon', 'dist/static/symbols/device/' + f.get('symbolid') + '.svg')
-        f.set('tint', tint)
-        f.set('baseTint', tint)
-        if (f.get('district') == null){
-            f.set('label', f.get('callsign') +' '+ f.get('name'))
-        } else {
-            f.set('label', f.get('district') +' '+ f.get('callsign') +' '+ f.get('name'))
-        }
-        f.set('time', moment(f.get('seen')).toLocaleString())
-        // Set a different vue template for rendering
-        f.set('partialId', 'resourceInfo')
-        // Set id for select tools
-        f.set('selectId', f.get('deviceid'))
-        f.setStyle(resourceTrackingStyle)
-      }
-
-      var iconStyle = function (feat, res) {
-        var style = self.$refs.app.cacheStyle(function (feat) {
-          var src = self.$refs.app.getBlob(feat, ['icon', 'tint'])
-          if (!src) { return false }
-          var rot = feat.get('rotation') || 0.0
-          return new ol.style.Style({
-            image: new ol.style.Icon({
-              src: src,
-              scale: 0.5,
-              rotation: rot,
-              rotateWithView: true,
-              snapToPixel: true
-            })
-          })
-        }, feat, ['icon', 'tint', 'rotation'])
-        return style
-      }
-
-      var getPerpendicular = function (coords) {
-        // find the nearest Polygon or lineString in the annotations layer
-        var nearestFeature = gokart.annotations.featureOverlay.getSource().getClosestFeatureToCoordinate(
-          coords, function (feat) {
-            var geom = feat.getGeometry()
-            return ((geom instanceof ol.geom.Polygon) || (geom instanceof ol.geom.LineString))
-          }
-        )
-        if (!nearestFeature) {
-          // no feature == no rotation
-          return 0.0
-        }
-        var segments = []
-        var source = []
-        var segLength = 0
-        // if a Polygon, join the last segment to the first
-        if (nearestFeature.getGeometry() instanceof ol.geom.Polygon) {
-          source = nearestFeature.getGeometry().getCoordinates()[0]
-          segLength = source.length
-        } else {
-        // if a LineString, don't include the last segment
-          source = nearestFeature.getGeometry().getCoordinates()
-          segLength = source.length-1
-        }
-        for (var i=0; i < segLength; i++) {
-          segments.push([source[i], source[(i+1)%source.length]])
-        }
-        // sort segments by ascending distance from point
-        segments.sort(function (a, b) {
-          return ol.coordinate.squaredDistanceToSegment(coords, a) - ol.coordinate.squaredDistanceToSegment(coords, b)
-        })
-
-        // head of the list is our target segment. reverse this to get the normal angle
-        var offset = [segments[0][1][0] - segments[0][0][0], segments[0][1][1] - segments[0][0][1]]
-        var normal = Math.atan2(-offset[1], offset[0])
-        return normal
-      }
-
-      
+      self.loading.app.progress(10,"Initialize Fixed Layers")
       // pack-in catalogue
-      var catalogue = [{
-        type: 'WFSLayer',
-        name: 'Resource Tracking',
-        id: 'dpaw:resource_tracking_live',
-        onadd: addResource,
-        refresh: 30
-      }, {
-        type: 'WFSLayer',
-        name: 'Resource Tracking History',
-        id: 'dpaw:resource_tracking_history',
-        onadd: addResource,
-        cql_filter: false
-      }, {
+      self.fixedLayers = self.fixedLayers.concat([{
         type: 'TileLayer',
         name: 'Firewatch Hotspots 72hrs',
         id: 'landgate:firewatch_ecu_hotspots_last_0_72',
@@ -299,7 +222,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         type: 'TimelineLayer',
         name: 'Himawari-8 Hotspots',
         id: 'himawari8:hotspots',
-        source: this.store.gokartService + '/hi8/AHI_TKY_FHS',
+        source: self.store.gokartService + '/hi8/AHI_TKY_FHS',
         params: {
           FORMAT: 'image/png'
         },
@@ -308,127 +231,91 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         type: 'TimelineLayer',
         name: 'Himawari-8 True Colour',
         id: 'himawari8:bandtc',
-        source: this.store.gokartService + '/hi8/AHI_TKY_b321',
+        source: self.store.gokartService + '/hi8/AHI_TKY_b321',
         refresh: 300,
         base: true
       }, {
         type: 'TimelineLayer',
         name: 'Himawari-8 Band 3',
         id: 'himawari8:band3',
-        source: this.store.gokartService + '/hi8/AHI_TKY_b3',
+        source: self.store.gokartService + '/hi8/AHI_TKY_b3',
         refresh: 300,
         base: true
       }, {
         type: 'TimelineLayer',
         name: 'Himawari-8 Band 7',
         id: 'himawari8:band7',
-        source: this.store.gokartService + '/hi8/AHI_TKY_b7',
+        source: self.store.gokartService + '/hi8/AHI_TKY_b7',
         refresh: 300,
         base: true
       }, {
         type: 'TimelineLayer',
         name: 'Himawari-8 Band 15',
         id: 'himawari8:band15',
-        source: this.store.gokartService + '/hi8/AHI_TKY_b15',
+        source: self.store.gokartService + '/hi8/AHI_TKY_b15',
         refresh: 300,
         base: true
       }, {
         type: 'TileLayer',
         name: 'State Map Base',
-        id: 'cddp:smb_250K',
+        id: 'cddp:state_map_base',
         base: true
       }, {
         type: 'TileLayer',
         name: 'Virtual Mosaic',
         id: 'landgate:LGATE-V001',
         base: true
-      }]
+      }, {
+        type: 'TileLayer',
+        name: 'DFES Active Fireshapes',
+        id: 'landgate:dfes_active_fireshapes',
+        refresh: 60
+      }])
 
       // load custom annotation tools
-      /*var hotSpotStyle = new ol.style.Style({
-        image: new ol.style.Circle({
-          fill: new ol.style.Fill({
-            color: '#b43232'
-          }),
-          radius: 8
-        })
-      })*/
-
-      var iconDrawFactory = function (options) {
-        var defaultFeat = new ol.Feature({
-          'icon': options.icon,
-        })
-        var draw =  new ol.interaction.Draw({
-          type: 'Point',
-          features: options.features,
-          style: function (feat, res) { return iconStyle(defaultFeat, res) }
-        })
-        draw.on('drawstart', function (ev) {
-          // set parameters
-          ev.feature.set('icon', options.icon)
-          if (options.perpendicular) {
-            var coords = ev.feature.getGeometry().getCoordinates()
-            ev.feature.set('rotation', getPerpendicular(coords))
-          }
-        })
-        return draw
-      }
-
-      /*var hotSpotDraw = new ol.interaction.Draw({
-        type: 'Point',
-        features: this.annotations.features,
-        style: hotSpotStyle
-      })*/
-
-      var originPointDraw = iconDrawFactory({
-        icon: 'dist/static/symbols/fire/origin.svg',
-        features:  this.annotations.features,
-        tint: 'default',
-      })
-      var spotFireDraw = iconDrawFactory({
-        icon: 'dist/static/symbols/fire/spotfire.svg',
-        features:  this.annotations.features,
-        tint: 'default',
-      })
-      var divisionDraw = iconDrawFactory({
-        icon: 'dist/static/symbols/fire/division.svg',
-        features:  this.annotations.features,
-        tint: 'default',
-        perpendicular: true
-      })
-      var sectorDraw = iconDrawFactory({
-        icon: 'dist/static/symbols/fire/sector.svg',
-        features:  this.annotations.features,
-        tint: 'default',
-        perpendicular: true
-      })
-
-
-      var fireBoundaryStyle = new ol.style.Style({
-        stroke: new ol.style.Stroke({
-          width: 4.0,
-          color: [0, 0, 0, 1.0]
-        }),
-        fill: new ol.style.Fill({
-          color: [0, 0, 0, 0.25]
-        })
-      })
-
-      var fireBoundaryDraw = new ol.interaction.Draw({
-        type: 'Polygon',
-        features: this.annotations.features,
-        style: fireBoundaryStyle
-      })
-
-      var snapToLines = new ol.interaction.Snap({
-        features: this.annotations.features,
-        edge: true,
-        vertex: false,
-        pixelTolerance: 16
-      })
+      self.loading.app.progress(20,"Initialize SSS tools")
 
       var sssTools = [
         {
+          name: 'Fire Boundary',
+          icon: 'dist/static/images/iD-sprite.svg#icon-area',
+          style: self.annotations.getVectorStyleFunc(self.tints),
+          selectedFillColour:[0, 0, 0, 0.25],
+          fillColour:[0, 0, 0, 0.25],
+          size:2,
+          interactions: [self.annotations.polygonDrawFactory()],
+          scope:["annotation"],
+          showName: true,
+          measureLength:true,
+          measureArea:true,
+          comments:[
+            {name:"Tips",description:["Hold down the 'SHIFT' key during drawing to enable freehand mode. "]}
+          ]
+        },
+        self.annotations.ui.defaultText,
+        {
+          name: 'Division',
+          icon: 'dist/static/symbols/fire/division.svg',
+          tints: self.tints,
+          perpendicular: true,
+          interactions: [self.annotations.pointDrawFactory(), self.annotations.snapToLineFactory()],
+          style: self.annotations.getIconStyleFunction(self.tints),
+          sketchStyle: self.annotations.getIconStyleFunction(self.tints),
+          selectedTint: 'selectedDivision',
+          scope:["annotation"],
+          showName: true
+        }, {
+          name: 'Sector',
+          icon: 'dist/static/symbols/fire/sector.svg',
+          tints: self.tints,
+          perpendicular: true,
+          interactions: [self.annotations.pointDrawFactory(), self.annotations.snapToLineFactory()],
+          style: self.annotations.getIconStyleFunction(self.tints),
+          sketchStyle: self.annotations.getIconStyleFunction(self.tints),
+          selectedTint: 'selectedDivision',
+          scope:["annotation"],
+          showName: true
+        },{
         /*  name: 'Hot Spot',
           icon: 'fa-circle red',
           interactions: [hotSpotDraw],
@@ -437,56 +324,90 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         }, {*/
           name: 'Origin Point',
           icon: 'dist/static/symbols/fire/origin.svg',
-          interactions: [originPointDraw],
-          style: function (res) { return iconStyle(this, res) },
+          tints: self.tints,
+          interactions: [self.annotations.pointDrawFactory()],
+          style: self.annotations.getIconStyleFunction(self.tints),
+          sketchStyle: self.annotations.getIconStyleFunction(self.tints),
+          selectedTint: 'selectedPoint',
+          scope:["annotation"],
           showName: true,
-          selectedTint: [['#b43232','#2199e8']]
         }, {
           name: 'Spot Fire',
           icon: 'dist/static/symbols/fire/spotfire.svg',
-          interactions: [spotFireDraw],
-          style: function (res) { return iconStyle(this, res) },
+          tints: self.tints,
+          interactions: [self.annotations.pointDrawFactory()],
+          style: self.annotations.getIconStyleFunction(self.tints),
+          sketchStyle: self.annotations.getIconStyleFunction(self.tints),
+          selectedTint: 'selectedPoint',
+          scope:["annotation"],
           showName: true,
-          selectedTint: [['#b43232','#2199e8']]
         }, {
-          name: 'Division',
-          icon: 'dist/static/symbols/fire/division.svg',
-          interactions: [divisionDraw, snapToLines],
-          style: function (res) { return iconStyle(this, res) },
-          showName: true
+          name: 'Road Closure',
+          icon: 'dist/static/symbols/fire/road_closure_point.svg',
+          tints: self.tints,
+          interactions: [self.annotations.pointDrawFactory()],
+          style: self.annotations.getIconStyleFunction(self.tints),
+          sketchStyle: self.annotations.getIconStyleFunction(self.tints),
+          showName: true,
+          selectedTint: 'selectedRoadClosurePoint',
+          scope:["annotation"],
         }, {
-          name: 'Sector',
-          icon: 'dist/static/symbols/fire/sector.svg',
-          interactions: [sectorDraw, snapToLines],
-          style: function (res) { return iconStyle(this, res) },
-          showName: true
-        }, {
-          name: 'Fire Boundary',
-          icon: 'dist/static/images/iD-sprite.svg#icon-area',
-          style: fireBoundaryStyle,
-          interactions: [fireBoundaryDraw],
-          showName: true
+          name: 'Control Line',
+          icon: 'dist/static/symbols/fire/controlline.svg',
+          interactions: [self.annotations.linestringDrawFactory()],
+          size: 1,
+          typeIcon: 'dist/static/symbols/fire/plus.svg',
+          typeIconSelectedTint: 'selectedPlusIcon',
+          typeIconDims: [20,20],
+          colour: 'rgba(0, 0, 0, 0.1)',
+          showName: true,
+          scope:["annotation"],
+          style: self.annotations.getVectorStyleFunc(this.tints)
         },
-        self.annotations.ui.defaultText,
         self.annotations.ui.defaultLine,
-        self.annotations.ui.defaultPolygon
+        self.annotations.ui.defaultPolygon,
+        self.annotations.ui.defaultPoint
       ]
 
       sssTools.forEach(function (tool) {
         self.annotations.tools.push(tool)
       })
 
-      // load map with default layers
-      this.map.init(catalogue, this.store.activeLayers)
-      this.catalogue.loadRemoteCatalogue(this.store.remoteCatalogue, function () {
-        // after catalogue load trigger a tour
-        if (self.store.tourVersion !== tour.version) {
-          self.store.tourVersion = tour.version
-          self.export.saveState()
-          self.touring = true
-          tour.start()
-        }
-      })
+      // load map without layers
+      self.loading.app.progress(30,"Initialize ol map")
+      self.map.init()
+      self.loading.app.progress(40,"Load Remote Catalogue")
+      try {
+          self.catalogue.loadRemoteCatalogue(self.store.remoteCatalogue, function () {
+            //add default layers
+            try {
+                self.loading.app.progress(50,"Initialize Active Layers")
+                self.map.initLayers(self.fixedLayers, self.store.activeLayers)
+                // tell other components map is ready
+                self.loading.app.progress(60,"Broadcast 'gk-init' event")
+                self.$broadcast('gk-init')
+                // after catalogue load trigger a tour
+                $("#menu-tab-layers-label").trigger("click")
+                self.$refs.app.switchMenu("mapLayers",self.$refs.app.init)
+                self.loading.app.progress(90,"Broadcast 'gk-postinit' event")
+                self.$broadcast('gk-postinit')
+                self.loading.app.end()
+            } catch(err) {
+                //some exception happens
+                self.loading.app.failed(err)
+                throw err
+            }
+            if (self.store.settings.tourVersion !== tour.version) {
+              self.takeTour()
+            }
+          },function(reason){
+            self.loading.app.failed(reason)
+          })
+      } catch(err) {
+          //some exception happens
+          self.loading.app.failed(err)
+          throw err
+      }
     }
   })
 })
