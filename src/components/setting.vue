@@ -259,7 +259,7 @@
         this.export.saveState()
       },
       reset: function () {
-        if (window.confirm('This will clear all of your selected layers and annotations. Are you sure?')) {
+        if (window.confirm('This will clear all of your selected layers and drawings. Are you sure?')) {
           //except settings, clear everything
           localforage.setItem('sssOfflineStore', {settings:this.$root.persistentData.settings}).then(function (v) {
             document.location.reload()

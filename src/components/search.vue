@@ -1,5 +1,5 @@
 <template>
-    <input id="map-search" class="map-control" title="Search the map for any of the following. &#10;&#10;Places/Addresses, e.g.:&#10;- 17 Dick Perry Avenue, Kensington&#10;- Upper Swan, Western Australia&#10;&#10;Coordinates, e.g.:&#10;- 32.00858S 115.53978E&#10;- 115° 38′ 58.0″ E, 33° 20′ 52.8″ S&#10;&#10;Map Grid of Australia UTM coordinates, e.g.:&#10;- MGA 50 718776E 6190981N&#10;- MGA50 3816452&#10;&#10;Forestry Department/Pilbara grid references, e.g.:&#10;- FD ET 79&#10;- PIL AF50" placeholder="Search (places, °, MGA, FD)" @keyup="searchKeyFix($event)"/>
+    <input id="map-search" class="map-control" title="Search the map for any of the following. &#10;&#10;Places/Addresses, e.g.:&#10;- 17 Dick Perry Avenue, Kensington&#10;- Upper Swan, Western Australia&#10;&#10;Coordinates, e.g.:&#10;- 32.00858S 115.53978E&#10;- 115d 38m 58.0s E, 33d 20m 52.8s S&#10;- 115:38:58.0 E, 33:20:52.8 S&#10;- 115° 38′ 58.0″ E, 33° 20′ 52.8″ S&#10;&#10;Map Grid of Australia UTM coordinates, e.g.:&#10;- MGA 50 718776E 6190981N&#10;- MGA50 3816452&#10;&#10;Forestry Department/Pilbara grid references, e.g.:&#10;- FD ET 79&#10;- PIL AF50" placeholder="Search (places, °, MGA, FD)" @keyup="searchKeyFix($event)"/>
     <button id="map-search-button" class="map-control" @click="runSearch"><i class="fa fa-search"></i></button>
 </template>
 

@@ -72,6 +72,7 @@
                   <option value="(symbolid LIKE '%heavy_duty' OR symbolid LIKE '%gang_truck')">Gang Truck and Heavy Duty</option>
                   <option value="symbolid LIKE '%light_unit'">Light Unit</option>
                   <option value="(symbolid LIKE '%dozer' OR symbolid LIKE '%grader' OR symbolid LIKE '%loader')">Machinery</option>
+                  <option value="(symbolid LIKE '%2_wheel_drive' OR symbolid LIKE '%4_wheel_drive_passenger' OR symbolid LIKE '%4_wheel_drive_ute')">Other Light Fleet</option>
                 </select>
               </div>
               <div class="small-6 columns">
