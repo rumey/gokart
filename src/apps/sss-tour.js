@@ -96,7 +96,7 @@ tour.addStep('welcome', {
     }
   }
 }).addStep('export', {
-  text: 'Under <b>Save & Print</b>, you can save the current state of the map (position, layers and annotations), and load previous sessions.<br/>You can also perform a quick print of the displayed map region as JPG, geospatial PDF or GeoTIFF.',
+  text: 'Under <b>Save & Print</b>, you can save the current state of the map (position, layers and drawings), and load previous sessions.<br/>You can also perform a quick print of the displayed map region as JPG, geospatial PDF or GeoTIFF.',
   attachTo: '#menu-tab-layers-label right',
   when: {
     'before-show': function () {
