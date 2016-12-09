@@ -60,7 +60,7 @@
         sliderOpacity: 0,
         layer: {},
         layerRefreshStopped:false,
-        refreshRevision:0,
+        refreshRevision:1,
         olLayers: [],
         timeIndex:0
       }
@@ -80,7 +80,7 @@
       },
       timelineTS: function () {
         var mapLayer = this.mapLayer()
-        return this.layer.timeline[mapLayer?this.mapLayer().get('timeIndex'):0][0]
+        return this.refreshRevision && this.layer.timeline[mapLayer?this.mapLayer().get('timeIndex'):0][0]
       },
       sliderMax: function () {
         return this.layer.timeline.length - 1
