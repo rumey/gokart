@@ -80,7 +80,7 @@
               </div>
             </div>
             <div class="row">
-              <div class="small-9">
+              <div class="small-7">
                 <div class="columns">
                   <div class="row">
                     <div class="switch tiny">
@@ -104,9 +104,10 @@
                   </div>
                 </div>
               </div>
-              <div class="small-3">
-                <a title="Zoom to selected" class="button float-right" @click="zoomToSelected()"><i class="fa fa-search"></i></a>
-                <a title="Download list" class="button" @click="downloadList()" class="float-right"><i class="fa fa-download"></i></a>
+              <div class="small-5">
+                <a title="Zoom to selected" class="button" @click="zoomToSelected()" ><i class="fa fa-search"></i></a>
+                <a title="Download list as geoJSON" class="button" @click="downloadList()" ><i class="fa fa-download"></i></a>
+                <a title="Download all or selected as CSV" class="button" href="{{sssService}}/devices.csv?{{downloadSelectedCSV()}}" target="_blank" ><i class="fa fa-table"></i></a>
               </div>
             </div>
             <div id="history-panel" v-if="toggleHistory">
@@ -350,6 +351,13 @@
       },
       downloadList: function () {
         this.$root.export.exportVector(this.features.filter(this.resourceFilter).sort(this.resourceOrder), 'trackingdata')
+      },
+      downloadSelectedCSV: function () {
+          var deviceFilter = ''
+          if (this.selectedDevices.length > 0) {
+              deviceFilter = 'deviceid__in=' + this.selectedDevices.join(',')
+          }
+          return deviceFilter
       },
       clearHistory: function () {
           var historyLayer = this.historyLayer
