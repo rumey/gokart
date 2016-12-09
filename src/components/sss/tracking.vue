@@ -550,7 +550,11 @@
                       })
                   }
                   vm.directionStyle.getImage().setRotation(heading / 180 * Math.PI)
-                  style =  [vm.directionStyle,style]
+                  if (Array.isArray(style)) {
+                      style.splice(0,0,vm.directionStyle)
+                  } else {
+                      style =  [vm.directionStyle,style]
+                  }
               }
             }
             return style
