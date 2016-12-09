@@ -4,7 +4,6 @@ import {
   ol,
   proj4,
   moment,
-  momentTimezone,
   localforage,
   Vue,
   VueStash

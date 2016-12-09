@@ -31,8 +31,8 @@ import svg4everybody from 'svg4everybody'
 // QR code generator
 import kjua from 'kjua'
 // Timestamp parsing library
-import moment from 'moment'
-import momentTimezone from 'moment-timezone'
+//import moment from 'moment'
+import moment from 'moment-timezone'
 // Drag and drop support
 import dragula from 'dragula'
 // Data storage engine
@@ -89,6 +89,10 @@ JSON.stringify = (function(){
         }
     }
 })()
+
+moment.fn.toLocaleString = function(){
+    return this.tz("Australia/Perth").format('ddd MMM DD YYYY HH:mm:ss [AWST]')
+}
 export {
   $,
   ol,
@@ -99,7 +103,6 @@ export {
   saveAs,
   kjua,
   moment,
-  momentTimezone,
   dragula,
   localforage,
   Tether,

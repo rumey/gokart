@@ -8,7 +8,7 @@
 </template>
 
 <script>
-  import { $, ol, proj4, moment,momentTimezone } from 'src/vendor.js'
+  import { $, ol, proj4, moment } from 'src/vendor.js'
   import gkInfo from './info.vue'
   import gkScales from './scales.vue'
   import gkSearch from './search.vue'
@@ -729,7 +729,7 @@
           }
           if (this.autoTimelineRefresh) {
             clearTimeout(this.autoTimelineRefresh)
-            //console.log(momentTimezone().format() + " : Clear " + layer.id + "'s auto timeline refresh task. " )
+            //console.log(moment().toLocaleString() + " : Clear " + layer.id + "'s auto timeline refresh task. " )
             this.autoTimelineRefresh = null
           }
         }   
@@ -763,16 +763,13 @@
                 var updateTime = null
                 if (options.updateTime) {
                     if (!options.getLatestUpdateTime) {
-                        $.each(options.updateTime[0],function(index,time) {
-                            options.updateTime[0][index] = momentTimezone.tz(time,options.updateTime[1],options.updateTime[2]).format(options.updateTime[1])
-                        })
-
                         options.getLatestUpdateTime = function() {
-                            var now = momentTimezone().tz(options.updateTime[2])
-                            var nowStr = now.format(options.updateTime[1])
+                            var now = moment().tz(options.updateTime[2])
                             var updateTimeIndex = null
+                            var updatePointTime = null
                             $.each(options.updateTime[0],function(index,time) {
-                                if (nowStr < time) {
+                                updatePointTime =  moment.tz(time,options.updateTime[1],options.updateTime[2])
+                                if (now < updatePointTime) {
                                     if (index === 0) {
                                         //latest update time is yesterday's last update point
                                         updateTimeIndex = -1
@@ -781,7 +778,7 @@
                                         updateTimeIndex = index - 1
                                     }
                                     return false
-                                } else if(nowStr === time) {
+                                } else if(nowStr === updatePointTime) {
                                     //latest update time is today's current update point
                                     updateTimeIndex = index
                                     return false
@@ -790,24 +787,26 @@
                             var updateTime = null
                             if (updateTimeIndex === null) {
                                 //latest update time is today's last update point
-                                updateTime = momentTimezone.tz(options.updateTime[0][options.updateTime[0].length - 1],options.updateTime[1],options.updateTime[2])
+                                updateTime = moment.tz(options.updateTime[0][options.updateTime[0].length - 1],options.updateTime[1],options.updateTime[2])
                             } else if (updateTimeIndex === -1) {
-                                updateTime = momentTimezone.tz(options.updateTime[0][options.updateTime[0].length - 1],options.updateTime[1],options.updateTime[2])
+                                //latest update time is yesterday's last update point
+                                updateTime = moment.tz(options.updateTime[0][options.updateTime[0].length - 1],options.updateTime[1],options.updateTime[2])
                                 updateTime = updateTime.date(updateTime.date() - 1)
                             } else {
-                                updateTime = momentTimezone.tz(options.updateTime[0][updateTimeIndex],options.updateTime[1],options.updateTime[2])
+                                updateTime = moment.tz(options.updateTime[0][updateTimeIndex],options.updateTime[1],options.updateTime[2])
                             }
-                            return updateTime.tz("Australia/Perth")
+                            return updateTime
                         }
                         options.getNextUpdateTime = function() {
-                            var now = momentTimezone().tz(options.updateTime[2])
-                            var nowStr = now.format(options.updateTime[1])
+                            var now = moment().tz(options.updateTime[2])
                             var updateTimeIndex = null
+                            var updatePointTime = null
                             $.each(options.updateTime[0],function(index,time) {
-                                if (nowStr < time) {
+                                updatePointTime =  moment.tz(time,options.updateTime[1],options.updateTime[2])
+                                if (now < updatePointTime) {
                                     updateTimeIndex = index
                                     return false
-                                } else if(nowStr === time) {
+                                } else if(now === updatePointTime) {
                                     if (index < options.updateTime[0].length - 1) {
                                         //next update time is today's next update point
                                         updateTimeIndex = index + 1
@@ -821,20 +820,20 @@
                             var updateTime = null
                             if (updateTimeIndex === null || updateTimeIndex === -1) {
                                 //next update time is tomorrow's first update point
-                                updateTime = momentTimezone.tz(options.updateTime[0][0],options.updateTime[1],options.updateTime[2])
+                                updateTime = moment.tz(options.updateTime[0][0],options.updateTime[1],options.updateTime[2])
                                 updateTime = updateTime.date(updateTime.date() + 1)
                             } else {
-                                updateTime = momentTimezone.tz(options.updateTime[0][updateTimeIndex],options.updateTime[1],options.updateTime[2])
+                                updateTime = moment.tz(options.updateTime[0][updateTimeIndex],options.updateTime[1],options.updateTime[2])
                             }
-                            return updateTime.tz("Australia/Perth")
+                            return updateTime
                         }
                     }
                 }
                 _func = function(layer,tileLayer,auto) {
-                    //console.log(momentTimezone().format() + " : update " + layer.id + "'s timeline. ")
+                    //console.log(moment().toLocaleString() + " : update " + layer.id + "'s timeline. ")
                     if (tileLayer.autoTimelineRefresh) {
                         if (!auto) {
-                            //console.log(momentTimezone().format() + " : Clear " + layer.id + "'s auto timeline refresh task. " )
+                            //console.log(moment().toLocaleString() + " : Clear " + layer.id + "'s auto timeline refresh task. " )
                             clearTimeout(tileLayer.autoTimelineRefresh)
                         }
                         tileLayer.autoTimelineRefresh = null
@@ -842,20 +841,20 @@
                     
                     var latestUpdateTime = layer.getLatestUpdateTime()
                     if (!updateTime || latestUpdateTime - updateTime === 0) {
-                        var layerTime = momentTimezone(latestUpdateTime)
+                        var layerTime = moment(latestUpdateTime)
                         var layerId = null
                         if (layer.timeline) {
                             for(var i = 0;i < layer.timelineSize; i++) {
                                 layerId = layer.getLayerId(latestUpdateTime,i)
                                 if (layer.layerTimeInterval) {
-                                    layer.timeline[i][0] = layerTime.format() + " (" + layerId + ")"
-                                    layerTime = momentTimezone(layerTime + layer.layerTimeInterval)
+                                    layer.timeline[i][0] = layerTime.toLocaleString() + " (" + layerId + ")"
+                                    layerTime = moment(layerTime + layer.layerTimeInterval)
                                 } else if (layer.getLayerTime){
-                                    layer.timeline[i][0] = layer.getLayerTime(latestUpdateTime,i) + " (" + layerId + ")"
+                                    layer.timeline[i][0] = layer.getLayerTime(latestUpdateTime,i).toLocaleString() + " (" + layerId + ")"
                                 } else {
                                     layer.timeline[i][0] = i + " (" + layerId + ")"
                                 }
-                                if (layerId !== layer.timeline[i][1]) {
+                                if (layerId !== tileLayer.timeline[i][1]) {
                                     layer.timeline[i][2] = null
                                 }
                             }
@@ -865,10 +864,10 @@
                             for(var i = 0;i < layer.timelineSize; i++) {
                                 layerId = layer.getLayerId(latestUpdateTime,i)
                                 if (layer.layerTimeInterval) {
-                                    layerTitle = layerTime.format() + " (" + layerId + ")"
-                                    layerTime = momentTimezone(layerTime + layer.layerTimeInterval).tz("Australia/Perth")
+                                    layerTitle = layerTime.toLocaleString() + " (" + layerId + ")"
+                                    layerTime = moment(layerTime + layer.layerTimeInterval)
                                 } else if (layer.getLayerTime){
-                                    layerTitle = layer.getLayerTime(latestUpdateTime,i) + " (" + layerId + ")"
+                                    layerTitle = layer.getLayerTime(latestUpdateTime,i).toLocaleString() + " (" + layerId + ")"
                                 } else {
                                     layerTitle = i + " (" + layerId + ")"
                                 }
@@ -885,7 +884,7 @@
                                 }
                             } 
                         }
-                        var now = momentTimezone().tz("Australia/Perth")
+                        var now = moment()
                         if (layer.layerTimeInterval) {
                             if (!timeIndex) {
                                 timeIndex = parseInt((now - latestUpdateTime) / layer.layerTimeInterval)
@@ -894,15 +893,15 @@
                         tileLayer.set('timeIndex', timeIndex || 0)
                             
                         updateTime = latestUpdateTime
-                        tileLayer.set('updated',latestUpdateTime.format())
+                        tileLayer.set('updated',latestUpdateTime.toLocaleString())
                         vm.active.refreshRevision += 1
                     }
 
                     if (layer.previewLayer) {return}
 
                     //delay 10 seconds to update timeline
-                    var waitTimes = layer.getNextUpdateTime() - momentTimezone().tz("Australia/Perth") + 10000
-                    //console.log(momentTimezone().format() + " : Wait " + waitTimes / 3600000 + " hours to refresh " + layer.id + "'s timeline.")
+                    var waitTimes = layer.getNextUpdateTime() - moment() + 10000
+                    //console.log(moment().toLocaleString() + " : Wait " + waitTimes / 3600000 + " hours to refresh " + layer.id + "'s timeline.")
                     tileLayer.autoTimelineRefresh = setTimeout(function(){_func(layer,tileLayer,true)},waitTimes)
                 }
                 
