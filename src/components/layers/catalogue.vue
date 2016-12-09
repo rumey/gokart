@@ -59,8 +59,8 @@
           <div class="layerdetails row">
             <div class="columns small-12">
               <h5>{{ layer.name }}</h5>
-              <p>{{ layer.abstract }}</p>
               <img v-if="layer.legend" v-bind:src="layer.legend" class="cat-legend"/>
+              <p>{{ layer.abstract }}</p>
             </div>
           </div>
         </div>
@@ -162,7 +162,7 @@ div.ol-overviewmap.ol-uncollapsible {
         }
         if (!l.preview) {
           l.preview = new ol.control.OverviewMap({
-            layers: [this.$root.map['create' + l.type]($.extend({}, l, {refresh:0}))],
+            layers: [this.$root.map['create' + l.type]($.extend({}, l, {refresh:0,previewLayer:true}))],
             collapsed: false,
             collapsible: false,
             view: new ol.View({
@@ -285,7 +285,7 @@ div.ol-overviewmap.ol-uncollapsible {
         l.name = l.name || l.title
         l.type = l.type || 'TileLayer'
         if (l.type === 'TileLayer') {
-          l.legend = l.legend || (vm.defaultLegendSrc + l.id)
+          l.legend = l.legend || ((l.service_type === "WFS")?(vm.defaultLegendSrc + l.id):null)
         }
       })
       catalogueStatus.wait(30,"Listen 'gk-init' event")

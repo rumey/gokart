@@ -78,6 +78,7 @@
                   </select>
         </div>
       </div>
+
       <div class="tool-slice row collapse">
         <div class="small-3">
           <label class="tool-label">Download:</label>
@@ -89,6 +90,20 @@
             <a class="button" title="GeoTIFF for use in QGIS on the desktop" @click="print('tif')"><i class="fa fa-picture-o"></i><br>GeoTIFF</a>
             <a class="button" title="Legends of active layers" @click="layerlegends.toggleLegends()"><i class="fa fa-file-pdf-o"></i><br>Legend</a>
           </div>
+        </div>
+      </div>
+
+      <div class="tool-slice row collapse">
+        <div class="small-3">
+          <div class="switch tiny">
+            <input class="switch-input" id="toggleMaintainScaleWhenPrinting" type="checkbox" v-bind:checked="settings.maintainScaleWhenPrinting" @change="toggleMaintainScaleWhenPrinting"/>
+            <label class="switch-paddle" for="toggleMaintainScaleWhenPrinting">
+              <span class="show-for-sr">Retain print scale when printing</span>
+            </label>
+          </div>
+        </div>
+        <div class="small-9">
+          <label for="toggleMaintainScaleWhenPrinting" >Retain print scale when printing</label>
         </div>
       </div>
 
@@ -168,6 +183,10 @@
     },
     // methods callable from inside the template
     methods: {
+      toggleMaintainScaleWhenPrinting:function(ev) {
+        this.settings.maintainScaleWhenPrinting = !this.settings.maintainScaleWhenPrinting
+        this.saveState()
+      },
       // info for the legend block on the print raster
       legendInfo: function () {
         var result = {

@@ -44,16 +44,6 @@
 
             <div class="tool-slice row collapse">
               <div class="switch tiny">
-                <input class="switch-input" id="toggleMaintainScaleWhenPrinting" type="checkbox" v-bind:checked="settings.maintainScaleWhenPrinting" @change="toggleMaintainScaleWhenPrinting"/>
-                <label class="switch-paddle" for="toggleMaintainScaleWhenPrinting">
-                  <span class="show-for-sr">Maintain scale when printing</span>
-                </label>
-              </div>
-              <label for="toggleMaintainScaleWhenPrinting" class="side-label">Maintain scale when printing</label>
-            </div>
-
-            <div class="tool-slice row collapse">
-              <div class="switch tiny">
                 <input class="switch-input" id="toggleMeasureAnnotation" type="checkbox" v-bind:checked="settings.measureAnnotation" @change="toggleMeasureAnnotation"/>
                 <label class="switch-paddle" for="toggleMeasureAnnotation">
                   <span class="show-for-sr">Measure annotation</span>
@@ -263,10 +253,6 @@
       toggleHoverInfo: function (ev) {
         this.hoverInfoCache = ev.target.checked
         this.hoverInfo = ev.target.checked
-      },
-      toggleMaintainScaleWhenPrinting:function(ev) {
-        this.settings.maintainScaleWhenPrinting = !this.settings.maintainScaleWhenPrinting
-        this.export.saveState()
       },
       toggleMeasureAnnotation:function(ev) {
         this.settings.measureAnnotation = !this.settings.measureAnnotation
