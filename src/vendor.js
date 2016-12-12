@@ -45,7 +45,6 @@ import Shepherd from 'tether-shepherd'
 import jsPDF from 'jspdf'
 import interact from 'interact.js'
 import hash from "object-hash"
-import turf from "@turf/turf"
 
 var saveAs = function (blob,name,no_auto_bom) {
     if (env.appType == "cordova") {
@@ -120,6 +119,5 @@ export {
   Shepherd,
   jsPDF,
   interact,
-  hash,
-  turf
+  hash
 }

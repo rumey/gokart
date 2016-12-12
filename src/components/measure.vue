@@ -16,7 +16,7 @@
 </style>
 
 <script>
-  import { ol,$,turf } from 'src/vendor.js'
+  import { ol,$} from 'src/vendor.js'
   export default {
     store: ['settings'],
     data: function () {
@@ -319,13 +319,29 @@
         }
         return length
       },
+      getBearing: function (coordinates1, coordinates2) {
+        var degrees2radians = Math.PI / 180;
+        var radians2degrees = 180 / Math.PI;
+
+        var lon1 = degrees2radians * coordinates1[0];
+        var lon2 = degrees2radians * coordinates2[0];
+        var lat1 = degrees2radians * coordinates1[1];
+        var lat2 = degrees2radians * coordinates2[1];
+        var a = Math.sin(lon2 - lon1) * Math.cos(lat2);
+        var b = Math.cos(lat1) * Math.sin(lat2) -
+            Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
+
+        var bearing = radians2degrees * Math.atan2(a, b); 
+
+        return bearing;
+      },
       formatBearing : function(feature,drawing) {
         var bearing = drawing?undefined:feature.get('bearing')
         if (bearing === undefined) {
             var geom = feature.getGeometry()
             if (geom instanceof ol.geom.LineString) {
                 var coordinates = geom.getCoordinates()
-                bearing = Math.round(turf.bearing(turf.point(coordinates[0]),turf.point(coordinates[coordinates.length - 1])) * 100) / 100 + "&deg;" 
+                bearing = Math.round(this.getBearing(coordinates[0],coordinates[coordinates.length - 1]) * 100) / 100 + "&deg;" 
             } else if(geom instanceof ol.geom.Polygon) {
                 bearing = "NaN"
             }
