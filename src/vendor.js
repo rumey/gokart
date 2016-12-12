@@ -77,6 +77,16 @@ ol.control.FullScreen.isFullScreenSupported = (function() {
         return (env.appType == "cordova")?false:originFunc()
     }    
 })()
+
+ol.control.FullScreen.prototype.handleFullScreenChange_ = function() {
+    var originalFunc = ol.control.FullScreen.prototype.handleFullScreenChange_;
+    return function() {
+        originalFunc.call(this)
+        this.setMap(this.getMap())
+    }
+}()
+
+
 //customize thie method to avoid cyclic object value
 JSON.stringify = (function(){
     var originFunc = JSON.stringify
