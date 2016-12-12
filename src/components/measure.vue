@@ -320,20 +320,15 @@
         return length
       },
       getBearing: function (coordinates1, coordinates2) {
-        var degrees2radians = Math.PI / 180;
-        var radians2degrees = 180 / Math.PI;
-
-        var lon1 = degrees2radians * coordinates1[0];
-        var lon2 = degrees2radians * coordinates2[0];
-        var lat1 = degrees2radians * coordinates1[1];
-        var lat2 = degrees2radians * coordinates2[1];
+        var lon1 = this._degrees2radians * coordinates1[0];
+        var lon2 = this._degrees2radians * coordinates2[0];
+        var lat1 = this._degrees2radians * coordinates1[1];
+        var lat2 = this._degrees2radians * coordinates2[1];
         var a = Math.sin(lon2 - lon1) * Math.cos(lat2);
         var b = Math.cos(lat1) * Math.sin(lat2) -
             Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
 
-        var bearing = radians2degrees * Math.atan2(a, b); 
-
-        return bearing;
+        return this._radians2degrees * Math.atan2(a, b); 
       },
       formatBearing : function(feature,drawing) {
         var bearing = drawing?undefined:feature.get('bearing')
@@ -426,6 +421,8 @@
     },
     ready: function () {
       var vm = this
+      this._degrees2radians = Math.PI / 180
+      this._radians2degrees = 180 / Math.PI
       var measureStatus = vm.loading.register("measure","Measurement Component","Initialize")
       var map = this.$root.map
       //initialize the overlay and interactions
