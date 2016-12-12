@@ -2,6 +2,7 @@
   <div id="map-measure" class="ol-selectable ol-control">
       <button type="button" title="Measure length" @click="toggleMeasure('MeasureLength')" v-bind:class="{'selected':isMeasureLength}"><img src="dist/static/images/measure-length.svg"></button>
       <button type="button" title="Measure area" @click="toggleMeasure('MeasureArea')" v-bind:class="{'selected':isMeasureArea}"><img src="dist/static/images/measure-area.svg"></button>
+      <button type="button" title="Measure bearing" @click="toggleMeasure('MeasureBearing')" v-bind:class="{'selected':isMeasureBearing}"><img src="dist/static/images/measure-bearing.svg"></button>
       <button type="button" title="Clear measurements" v-show="showClear" @click="clearMeasure()"><i class="fa fa-trash"></i></button>
   </div>
   <div id="map-measure-tooltips"></div>
@@ -15,7 +16,7 @@
 </style>
 
 <script>
-  import { ol,$ } from 'src/vendor.js'
+  import { ol,$} from 'src/vendor.js'
   export default {
     store: ['settings'],
     data: function () {
@@ -31,7 +32,7 @@
         return this.$root.$refs.app.$refs.annotations 
       },
       measureType: function() {
-        if (["MeasureLength","MeasureArea"].indexOf(this.annotations.tool.name) >= 0) {
+        if (["MeasureLength","MeasureArea","MeasureBearing"].indexOf(this.annotations.tool.name) >= 0) {
             return this.annotations.tool.name
         } else {
             return ""
@@ -45,6 +46,9 @@
       },
       isMeasureArea:function() {
         return this.measureType == "MeasureArea"
+      },
+      isMeasureBearing:function() {
+        return this.measureType == "MeasureBearing"
       },
       mapControl:function() {
         if (!this._controller) {
@@ -192,29 +196,33 @@
             })
         }
       },
-      startMeasureFunc:function(measureLength,measureArea){
+      startMeasureFunc:function(measureLength,measureArea,measureBearing){
         var vm = this
         return function(evt) {
             //console.log("Start measure")
             // set feature
             vm.drawingFeature = evt.feature
 
-            vm.createTooltip(vm.drawingFeature,measureLength,measureArea)
+            vm.createTooltip(vm.drawingFeature,measureLength,measureArea,measureBearing)
 
-            vm.geometryChangeHandler = vm.drawingFeature.getGeometry().on('change', function(feature,measureLength,measureArea){
+            vm.geometryChangeHandler = vm.drawingFeature.getGeometry().on('change', function(feature,measureLength,measureArea,measureBearing){
                 return function(evg) {
-                    vm.measuring(feature,measureLength,measureArea,true)
+                    vm.measuring(feature,measureLength,measureArea,measureBearing,true)
                 }
-            }(vm.drawingFeature,measureLength,measureArea))
+            }(vm.drawingFeature,measureLength,measureArea,measureBearing))
         }
       },
-      measuring: function(feature,measureLength,measureArea,drawing) {
+      measuring: function(feature,measureLength,measureArea,measureBearing,drawing) {
         var geom = feature.getGeometry()
         var tooltipCoord = null
         if (geom instanceof ol.geom.Polygon) {
             tooltipCoord = geom.getInteriorPoint().getCoordinates()
         } else if (geom instanceof ol.geom.LineString) {
-            tooltipCoord = geom.getLastCoordinate()
+            if (measureBearing) {
+                tooltipCoord = geom.getCoordinateAt(0.5)
+            } else {
+                tooltipCoord = geom.getLastCoordinate()
+            }
         }
         if (tooltipCoord) {
             if (measureLength) {
@@ -222,6 +230,9 @@
             }
             if (measureArea) {
                 $(feature.tooltipElement).find(".area").html(this.formatArea(feature,drawing))
+            }
+            if (measureBearing) {
+                $(feature.tooltipElement).find(".bearing").html(this.formatBearing(feature,drawing))
             }
             feature.tooltip.setPosition(tooltipCoord)
         }
@@ -255,7 +266,7 @@
             })
         }
       },
-      createTooltip: function (feature,measureLength,measureArea) {
+      createTooltip: function (feature,measureLength,measureArea,measureBearing) {
         if (!feature.tooltipElement) {
             //console.log("Create measure tooltip element")
             var measureTooltipElement = $("<div></div>")
@@ -264,6 +275,9 @@
             }
             if (measureArea) {
                 measureTooltipElement.append("<div class='area'></div>")
+            }
+            if (measureBearing) {
+                measureTooltipElement.append("<div class='bearing'></div>")
             }
             measureTooltipElement.addClass('tooltip-measure tooltip-measuring')
 
@@ -304,6 +318,33 @@
           length += this.wgs84Sphere.haversineDistance(c1, c2)
         }
         return length
+      },
+      getBearing: function (coordinates1, coordinates2) {
+        var lon1 = this._degrees2radians * coordinates1[0];
+        var lon2 = this._degrees2radians * coordinates2[0];
+        var lat1 = this._degrees2radians * coordinates1[1];
+        var lat2 = this._degrees2radians * coordinates2[1];
+        var a = Math.sin(lon2 - lon1) * Math.cos(lat2);
+        var b = Math.cos(lat1) * Math.sin(lat2) -
+            Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
+
+        return this._radians2degrees * Math.atan2(a, b); 
+      },
+      formatBearing : function(feature,drawing) {
+        var bearing = drawing?undefined:feature.get('bearing')
+        if (bearing === undefined) {
+            var geom = feature.getGeometry()
+            if (geom instanceof ol.geom.LineString) {
+                var coordinates = geom.getCoordinates()
+                bearing = Math.round(this.getBearing(coordinates[0],coordinates[coordinates.length - 1]) * 100) / 100 + "&deg;" 
+            } else if(geom instanceof ol.geom.Polygon) {
+                bearing = "NaN"
+            }
+            if (length) {
+                feature.set('length',bearing,true)
+            }
+        }
+        return bearing
       },
       formatLength : function(feature,drawing) {
         var length = drawing?undefined:feature.get('length')
@@ -380,6 +421,8 @@
     },
     ready: function () {
       var vm = this
+      this._degrees2radians = Math.PI / 180
+      this._radians2degrees = 180 / Math.PI
       var measureStatus = vm.loading.register("measure","Measurement Component","Initialize")
       var map = this.$root.map
       //initialize the overlay and interactions
@@ -397,7 +440,7 @@
           stroke: new ol.style.Stroke({
             color: 'rgba(0, 0, 0, 0.5)',
             lineDash: [10, 10],
-            width: 2
+            width: 2,
           }),
           image: new ol.style.Circle({
             radius: 5,
@@ -414,17 +457,21 @@
           style: this.style
       })
 
+      var measureSnap = new ol.interaction.Snap({
+          features: vm.annotations.features
+      });
+
       var measureLengthInter = new ol.interaction.Draw({
-              source: this.source,
-              type: 'LineString',
-              style: this.style
-            });
+          source: this.source,
+          type: 'LineString',
+          style: this.style
+      });
 
       var drawendHandler = function(ev) {
         vm.endMeasure(ev.feature)
         vm.drawingFeature = null
       }
-      measureLengthInter.on('drawstart',this.startMeasureFunc(true,false),this)
+      measureLengthInter.on('drawstart',this.startMeasureFunc(true,false,false),this)
       measureLengthInter.on('drawend',drawendHandler, this)
 
       var measureLength = {
@@ -435,16 +482,42 @@
             //map.keyboardPanInter,
             //map.keyboardZoomInter,
             measureLengthInter,
+            measureSnap
         ]
       }
       this.annotations.tools.push(measureLength)
+
+      var measureBearingInter = new ol.interaction.Draw({
+              source: this.source,
+              type: 'LineString',
+              style: this.style,
+              freehand:false,
+              maxPoints:2,
+              minPoints:2,
+      });
+
+      measureBearingInter.on('drawstart',this.startMeasureFunc(true,false,true),this)
+      measureBearingInter.on('drawend',drawendHandler, this)
+
+      var measureBearing = {
+        name: 'MeasureBearing',
+        interactions:[
+            //map.dragPanInter,
+            //map.doubleClickZoomInter,
+            //map.keyboardPanInter,
+            //map.keyboardZoomInter,
+            measureBearingInter,
+            measureSnap
+        ]
+      }
+      this.annotations.tools.push(measureBearing)
 
       var measureAreaInter = new ol.interaction.Draw({
               source: this.source,
               type: 'Polygon',
               style: this.style
             });
-      measureAreaInter.on('drawstart',this.startMeasureFunc(true,true),this)
+      measureAreaInter.on('drawstart',this.startMeasureFunc(true,true,false),this)
       measureAreaInter.on('drawend',drawendHandler, this)
 
       var measureArea = {
@@ -454,7 +527,8 @@
             //map.doubleClickZoomInter,
             //map.keyboardPanInter,
             //map.keyboardZoomInter,
-            measureAreaInter
+            measureAreaInter,
+            measureSnap
         ]
       }
 
