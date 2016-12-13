@@ -4,7 +4,6 @@ import {
   ol,
   proj4,
   moment,
-  momentTimezone,
   localforage,
   Vue,
   VueStash
@@ -235,6 +234,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         source: self.store.gokartService + '/hi8/AHI_TKY_b321',
         refresh: 300,
         base: true
+      /*
       }, {
         type: 'TimelineLayer',
         name: 'Himawari-8 Band 3',
@@ -242,6 +242,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         source: self.store.gokartService + '/hi8/AHI_TKY_b3',
         refresh: 300,
         base: true
+      */
       }, {
         type: 'TimelineLayer',
         name: 'Himawari-8 Band 7',
@@ -249,6 +250,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         source: self.store.gokartService + '/hi8/AHI_TKY_b7',
         refresh: 300,
         base: true
+     /*
       }, {
         type: 'TimelineLayer',
         name: 'Himawari-8 Band 15',
@@ -256,6 +258,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         source: self.store.gokartService + '/hi8/AHI_TKY_b15',
         refresh: 300,
         base: true
+      */
       }, {
         type: 'TileLayer',
         name: 'State Map Base',
@@ -276,7 +279,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         name: 'Forest Fire Danger Index',
         id: 'bom:forest_fire_danger_index',
         timelineSize:72,
-        updateTime:[["06:00:00","18:00:00"],"HH:mm:ss","EST"],
+        updateTime:[["07:00:00","19:00:00"],"HH:mm:ss","UTC"],
         getLayerId: function(latestUpdateTime,timelineIndex) {
             return "bom:IDZ71117" + (timelineIndex < 10?"00":(timelineIndex < 100?"0":"")) + timelineIndex
         },
@@ -286,7 +289,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         name: 'Maximum Forest Fire Danger Index',
         id: 'bom:maximum_forest_fire_danger_index',
         timelineSize:4,
-        updateTime:[["06:00:00","18:00:00"],"HH:mm:ss","EST"],
+        updateTime:[["00:00:00","12:00:00"],"HH:mm:ss","UTC"],
         getLayerId: function(latestUpdateTime,timelineIndex) {
             return "bom:IDZ71118" + (timelineIndex < 10?"00":(timelineIndex < 100?"0":"")) + timelineIndex
         },
@@ -296,7 +299,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         name: 'Grassland Fire Danger Index',
         id: 'bom:grass_fire_danger_index',
         timelineSize:72,
-        updateTime:[["06:00:00","18:00:00"],"HH:mm:ss","EST"],
+        updateTime:[["07:00:00","19:00:00"],"HH:mm:ss","UTC"],
         getLayerId: function(latestUpdateTime,timelineIndex) {
             return "bom:IDZ71122" + (timelineIndex < 10?"00":(timelineIndex < 100?"0":"")) + timelineIndex
         },
@@ -306,7 +309,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         name: 'Maximum Grassland Fire Danger Index',
         id: 'bom:maximum_grass_fire_danger_index',
         timelineSize:4,
-        updateTime:[["06:00:00","18:00:00"],"HH:mm:ss","EST"],
+        updateTime:[["00:00:00","12:00:00"],"HH:mm:ss","UTC"],
         getLayerId: function(latestUpdateTime,timelineIndex) {
             return "bom:IDZ71123" + (timelineIndex < 10?"00":(timelineIndex < 100?"0":"")) + timelineIndex
         },
