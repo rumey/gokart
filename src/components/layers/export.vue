@@ -17,51 +17,6 @@
       </div-->
       <div class="tool-slice row collapse">
         <div class="small-3">
-          <label class="tool-label">Save view:</label>
-        </div>
-        <div class="small-9 columns">
-          <div class="input-group">
-            <input v-el:savestatename class="input-group-field" type="text" placeholder="Name for saved view"/>
-            <div class="input-group-button">
-              <a class="button" @click="saveStateButton()">Save</a>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="tool-slice row collapse">
-        <div class="small-3">
-          <label class="tool-label">Export view:</label>
-        </div>
-        <div class="small-9 columns">
-          <div class="expanded button-group">
-            <a class="button expanded" @click="download()"><i class="fa fa-download"></i> Download current view</a>
-          </div>
-        </div>
-      </div>
-      <div class="tool-slice row collapse">
-        <div class="small-3">
-          <label class="tool-label">Load view:</label>
-        </div>
-        <div class="small-9 columns">
-          <div v-for="state in states" class="feature-row" style="overflow: hidden">
-            <div class="float-right button-group small">
-              <a class="button" title="Open view" @click="open(state)"><i class="fa fa-folder-open"></i></a>
-              <a class="button" title="Download view" @click="download(state)"><i class="fa fa-download"></i></a>
-              <a class="button alert" title="Delete view" @click="remove(state)">✕</a>
-            </div>
-            {{ state }}
-          </div>
-          <div v-if="states.length == 0" class="feature-row">
-            No saved views yet
-          </div>
-          <div class="expanded button-group">
-            <label class="button expanded" for="uploadFile"><i class="fa fa-upload"></i> Upload view file</label><input type="file" id="uploadFile" class="show-for-sr" name="statefile" accept="application/json" v-model="statefile" v-el:statefile @change="load()"/>
-          </div>
-        </div>
-      </div>
-      <hr class="row"/>
-      <div class="tool-slice row collapse">
-        <div class="small-3">
           <label class="tool-label">Name:</label>
         </div>
         <div class="small-9">
@@ -104,6 +59,53 @@
         </div>
         <div class="small-9">
           <label for="toggleMaintainScaleWhenPrinting" >Retain print scale when printing</label>
+        </div>
+      </div>
+      
+      <hr class="row"/>
+
+      <div class="tool-slice row collapse">
+        <div class="small-3">
+          <label class="tool-label">Save view:</label>
+        </div>
+        <div class="small-9 columns">
+          <div class="input-group">
+            <input v-el:savestatename class="input-group-field" type="text" placeholder="Name for saved view"/>
+            <div class="input-group-button">
+              <a class="button" @click="saveStateButton()">Save</a>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="tool-slice row collapse">
+        <div class="small-3">
+          <label class="tool-label">Export view:</label>
+        </div>
+        <div class="small-9 columns">
+          <div class="expanded button-group">
+            <a class="button expanded" @click="download()"><i class="fa fa-download"></i> Download current view</a>
+          </div>
+        </div>
+      </div>
+      <div class="tool-slice row collapse">
+        <div class="small-3">
+          <label class="tool-label">Load view:</label>
+        </div>
+        <div class="small-9 columns">
+          <div class="expanded button-group">
+            <label class="button expanded" for="uploadFile"><i class="fa fa-upload"></i> Upload view file</label><input type="file" id="uploadFile" class="show-for-sr" name="statefile" accept="application/json" v-model="statefile" v-el:statefile @change="load()"/>
+          </div>
+          <div v-for="state in states" class="feature-row" style="overflow: hidden">
+            <div class="float-right button-group small">
+              <a class="button" title="Open view" @click="open(state)"><i class="fa fa-folder-open"></i></a>
+              <a class="button" title="Download view" @click="download(state)"><i class="fa fa-download"></i></a>
+              <a class="button alert" title="Delete view" @click="remove(state)">✕</a>
+            </div>
+            {{ state }}
+          </div>
+          <div v-if="states.length == 0" class="feature-row">
+            No saved views yet
+          </div>
         </div>
       </div>
 
