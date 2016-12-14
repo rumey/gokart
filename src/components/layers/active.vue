@@ -181,8 +181,8 @@
           }
           var options = {
             id: layer.get('id'),
-            name: layer.get('name'),
-            type: catLayer.type,
+            //name: layer.get('name'),
+            //type: catLayer.type,
             opacity: layer.getOpacity()
           }
           results.push([layer.get('id'), options])

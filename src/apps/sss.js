@@ -213,12 +213,14 @@ localforage.getItem('sssOfflineStore').then(function (store) {
       self.loading.app.progress(10,"Initialize Fixed Layers")
       // pack-in catalogue
       self.fixedLayers = self.fixedLayers.concat([{
+      /*
         type: 'TileLayer',
         name: 'Firewatch Hotspots 72hrs',
         id: 'landgate:firewatch_ecu_hotspots_last_0_72',
         format: 'image/png',
         refresh: 60
       }, {
+      */
         type: 'TimelineLayer',
         name: 'Himawari-8 Hotspots',
         id: 'himawari8:hotspots',
@@ -258,7 +260,6 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         source: self.store.gokartService + '/hi8/AHI_TKY_b15',
         refresh: 300,
         base: true
-      */
       }, {
         type: 'TileLayer',
         name: 'State Map Base',
@@ -274,6 +275,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         name: 'DFES Active Fireshapes',
         id: 'landgate:dfes_active_fireshapes',
         refresh: 60
+      */
       }, {
         type: 'TileLayer',
         name: 'Forest Fire Danger Index',
