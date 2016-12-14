@@ -260,7 +260,6 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         source: self.store.gokartService + '/hi8/AHI_TKY_b15',
         refresh: 300,
         base: true
-      */
       }, {
         type: 'TileLayer',
         name: 'State Map Base',
@@ -276,6 +275,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         name: 'DFES Active Fireshapes',
         id: 'landgate:dfes_active_fireshapes',
         refresh: 60
+      */
       }, {
         type: 'TileLayer',
         name: 'Forest Fire Danger Index',
