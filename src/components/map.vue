@@ -944,7 +944,10 @@
           vm.$root.active.refreshRevision += 1
           tileSource.load = function() {
             tileLayer.set('updated', moment().toLocaleString())
+            // changing a URL forces a fetch + redraw
             setUrlTimestamp(moment.utc().unix())
+            // empty the tile cache so other zoom levels are also reloaded
+            tileSource.tileCache.clear()
             vm.$root.active.refreshRevision += 1
           }
           tileLayer.autoRefresh = setInterval(function () {
