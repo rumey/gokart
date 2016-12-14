@@ -277,7 +277,7 @@
                 measureTooltipElement.append("<div class='area'></div>")
             }
             if (measureBearing) {
-                measureTooltipElement.append("<div class='bearing'></div>")
+                measureTooltipElement.append("<div class='bearing' style='white-space:pre;'></div>")
             }
             measureTooltipElement.addClass('tooltip-measure tooltip-measuring')
 
@@ -328,7 +328,8 @@
         var b = Math.cos(lat1) * Math.sin(lat2) -
             Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
 
-        return this._radians2degrees * Math.atan2(a, b); 
+        var bearing = this._radians2degrees * Math.atan2(a, b); 
+        return (bearing >= 0)?bearing:bearing + 360
       },
       formatBearing : function(feature,drawing) {
         var bearing = drawing?undefined:feature.get('bearing')
@@ -337,16 +338,16 @@
             if (geom instanceof ol.geom.LineString) {
                 var coordinates = geom.getCoordinates()
                 bearing = Math.round(this.getBearing(coordinates[0],coordinates[coordinates.length - 1]) * 100) / 100 + "&deg;" 
-            } else if(geom instanceof ol.geom.Polygon) {
+            } else {
                 bearing = "NaN"
             }
-            if (length) {
-                feature.set('length',bearing,true)
-            }
+            bearing = this.formatLength(feature,drawing,"km") + "\n" + this.formatLength(feature,drawing,"nm") + "\n" + bearing
+            
+            feature.set('bearing',bearing,true)
         }
         return bearing
       },
-      formatLength : function(feature,drawing) {
+      formatLength : function(feature,drawing,unit) {
         var length = drawing?undefined:feature.get('length')
         if (length === undefined) {
             var geom = feature.getGeometry()
@@ -360,10 +361,11 @@
             }
         }
         var output = null
-        if (this.lengthUnit === "nm") {
+        unit = unit || this.lengthUnit
+        if (unit === "nm") {
               output = (Math.round( (length * 250) / (10 * 463) ) / 100) +
                   ' ' + 'nm'
-        } else if (this.lengthUnit === "mile") {
+        } else if (unit === "mile") {
               output = (Math.round( (length * 15625) / (10 * 25146) ) / 100) +
                   ' ' + 'mile'
         } else {
@@ -496,7 +498,7 @@
               minPoints:2,
       });
 
-      measureBearingInter.on('drawstart',this.startMeasureFunc(true,false,true),this)
+      measureBearingInter.on('drawstart',this.startMeasureFunc(false,false,true),this)
       measureBearingInter.on('drawend',drawendHandler, this)
 
       var measureBearing = {
