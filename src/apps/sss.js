@@ -213,6 +213,14 @@ localforage.getItem('sssOfflineStore').then(function (store) {
       self.loading.app.progress(10,"Initialize Fixed Layers")
       // pack-in catalogue
       self.fixedLayers = self.fixedLayers.concat([{
+      /*
+        type: 'TileLayer',
+        name: 'Firewatch Hotspots 72hrs',
+        id: 'landgate:firewatch_ecu_hotspots_last_0_72',
+        format: 'image/png',
+        refresh: 60
+      }, {
+      */
         type: 'TimelineLayer',
         name: 'Himawari-8 Hotspots',
         id: 'himawari8:hotspots',
