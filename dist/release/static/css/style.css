@@ -414,7 +414,12 @@ input[type="range"] {
 }
 /* Set height of internal layers to allow for bottom details */
 
-.layers-topframe {
+.layers-topframe_75vh {
+    height: 75vh;
+    border-bottom: 1px solid rgba(37, 45, 51, 0.9);
+}
+
+.layers-topframe_60vh {
     height: 60vh;
     border-bottom: 1px solid rgba(37, 45, 51, 0.9);
 }

@@ -1,7 +1,7 @@
 <template>
   <div class="tabs-panel is-active" id="layers-active" v-cloak>
 
-    <div class="layers-topframe scroller row">
+    <div class="layers-topframe_60vh scroller row">
       <div class="columns">
 
         <div id="layers-active-list">

@@ -36,6 +36,10 @@
           </div>
           <label for="switchBaseLayers" class="side-label">Switch out base layers automatically</label>
         </div>
+      </div>
+    </div>
+    <div class="layers-topframe_75vh scroller row">
+      <div class="columns">
         <div id="layers-catalogue-list">
           <div v-for="l in catalogue.getArray() | filterBy search in searchAttrs | orderBy 'name'" class="row layer-row" @mouseover="preview(l)" track-by="id" @mouseleave="preview(false)">
             <div class="small-10">
