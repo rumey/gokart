@@ -100,7 +100,8 @@ var persistentData = {
     lengthUnit:"km",
     areaUnit:"ha",
     measureAnnotation:false,
-    maintainScaleWhenPrinting:true
+    maintainScaleWhenPrinting:true,
+    overviewMap:true
   }
 }
 

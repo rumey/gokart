@@ -24,6 +24,16 @@
 
             <div class="tool-slice row collapse">
               <div class="switch tiny">
+                <input class="switch-input" id="toggleOverviewMap" type="checkbox"  v-bind:checked="settings.overviewMap" @change="toggleOverviewMap"/>
+                <label class="switch-paddle" for="toggleOverviewMap">
+                    <span class="show-for-sr">Show overview map</span>
+                </label>
+              </div>
+              <label for="toggleOverviewMap" class="side-label">Show overview map</label>
+            </div>
+
+            <div class="tool-slice row collapse">
+              <div class="switch tiny">
                 <input class="switch-input" id="toggleHoverInfo" type="checkbox" v-bind:checked="hoverInfo" @change="toggleHoverInfo" />
                 <label class="switch-paddle" for="toggleHoverInfo">
                   <span class="show-for-sr">Display hovering feature info</span>
@@ -258,6 +268,14 @@
         this.settings.measureAnnotation = !this.settings.measureAnnotation
         this.export.saveState()
       },
+      toggleOverviewMap:function(ev) {
+        this.settings.overviewMap = !this.settings.overviewMap
+        if (this.settings.overviewMap) {
+           this.map.getControl("overviewMap").setCollapsed(false)
+        }
+        this.map.enableControl("overviewMap",this.settings.overviewMap)
+        this.export.saveState()
+      },
       reset: function () {
         if (window.confirm('This will clear all of your selected layers and drawings. Are you sure?')) {
           //except settings, clear everything
@@ -277,7 +295,14 @@
             this.undoLimit = this.settings.undoLimit
             this.undoEnabled = true
         }
+
+      settingStatus.wait(30,"Listen 'gk-init' event")
+      this.$on('gk-init', function() {
+        settingStatus.progress(80,"Process 'gk-init' event")
+        this.map.enableControl("overviewMap",this.settings.overviewMap)
         settingStatus.end()
+      })
+        
     }
   }
 </script>

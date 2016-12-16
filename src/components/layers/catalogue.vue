@@ -76,29 +76,29 @@
 
 /* hide preview on tablets and mobile */
 @media screen and (max-width: 60em) {
-    .ol-overviewmap {
+    .ol-previewmap {
         display: none;
     }
 }
 
-.ol-overviewmap {
+.ol-previewmap {
     width: 424px;
     height: 100vh;
     z-index: 1;
 }
 
-.ol-overviewmap .ol-overviewmap-map {
+.ol-previewmap .ol-overviewmap-map {
     width: 100%;
     height: 100%;
     border: 0px;
     margin: 0px;
 }
 
-div.ol-overviewmap.ol-uncollapsible {
+div.ol-previewmap.ol-uncollapsible {
   background-color: rgba(51, 61, 70, 0.9);
 }
 
-.ol-overviewmap .ol-overviewmap-map .ol-overviewmap-box {
+.ol-previewmap .ol-overviewmap-map .ol-overviewmap-box {
     display: none;
 }
 
@@ -162,9 +162,12 @@ div.ol-overviewmap.ol-uncollapsible {
         }
         if (!l.preview) {
           l.preview = new ol.control.OverviewMap({
+            className: 'ol-overviewmap ol-previewmap',
             layers: [this.$root.map['create' + l.type]($.extend({}, l, {refresh:0,previewLayer:true}))],
             collapsed: false,
             collapsible: false,
+            min_ratio:1,
+            max_ratio:1,
             view: new ol.View({
               projection: 'EPSG:4326'
             })
@@ -292,7 +295,7 @@ div.ol-overviewmap.ol-uncollapsible {
       this.$on('gk-init', function() {
         catalogueStatus.progress(80,"Process 'gk-init' event")
         vm.loading.componentRevision += 1
-        $(this.$root.map.olmap.getTargetElement()).on('mouseleave', '.ol-overviewmap', function() {
+        $(this.$root.map.olmap.getTargetElement()).on('mouseleave', '.ol-previewmap', function() {
             vm.preview(false)
         })
         catalogueStatus.end()

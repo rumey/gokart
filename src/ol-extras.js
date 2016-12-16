@@ -210,8 +210,42 @@ labelGrat.prototype.handlePostCompose_ = function (e) {
 }
 ol.LabelGraticule = labelGrat
 
-ol.OVERVIEWMAP_MIN_RATIO = 1
-ol.OVERVIEWMAP_MAX_RATIO = 1
+var DEFAULT_OVERVIEWMAP_MIN_RATIO = ol.OVERVIEWMAP_MIN_RATIO
+var DEFAULT_OVERVIEWMAP_MAX_RATIO = ol.OVERVIEWMAP_MAX_RATIO
+
+var DefaultOverviewMap = ol.control.OverviewMap
+
+ol.control.OverviewMap = function(options){
+    options = options || {}
+    this.min_ratio = options.min_ratio || DEFAULT_OVERVIEWMAP_MIN_RATIO
+    this.max_ratio = options.max_ratio || DEFAULT_OVERVIEWMAP_MAX_RATIO
+    DefaultOverviewMap.call(this,options)
+    return this
+}
+ol.inherits(ol.control.OverviewMap,DefaultOverviewMap)
+
+ol.control.OverviewMap.render = function(mapEvent) {
+    this.validateExtent_();
+    this.updateBox_();
+};
+
+
+new ol.Collection(["validateExtent_","resetExtent_"]).forEach(function(name,index) {
+    ol.control.OverviewMap.prototype[name] = function() {
+        var originalFunc = DefaultOverviewMap.prototype[name]
+        return function() {
+            try{
+                ol.OVERVIEWMAP_MIN_RATIO = this.min_ratio
+                ol.OVERVIEWMAP_MAX_RATIO = this.max_ratio
+                originalFunc.call(this)
+            } finally{
+                ol.OVERVIEWMAP_MIN_RATIO = DEFAULT_OVERVIEWMAP_MIN_RATIO
+                ol.OVERVIEWMAP_MAX_RATIO = DEFAULT_OVERVIEWMAP_MAX_RATIO
+            }
+        }
+    }()
+})
+
 
 export default ol
 
