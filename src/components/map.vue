@@ -6,6 +6,37 @@
   <gk-search v-ref:search></gk-search>
   <gk-measure v-ref:measure></gk-measure>
 </template>
+<style>
+    .ol-custom-overviewmap,
+    .ol-custom-overviewmap.ol-uncollapsible {
+        bottom: 0;
+        left: auto;
+        right: 0;
+        top: auto;
+    }
+
+    .ol-custom-overviewmap:not(.ol-collapsed)  {
+       border: 1px solid black;
+    }
+
+    .ol-custom-overviewmap .ol-overviewmap-map {
+        border: none;
+        width: 300px;
+        height:150px;
+    }
+
+    .ol-custom-overviewmap .ol-overviewmap-box {
+        border: 2px solid red;
+    }
+
+    .ol-custom-overviewmap:not(.ol-collapsed) button{
+        bottom: auto;
+        left: auto;
+        right: 1px;
+        top: 1px;
+    }
+
+</style>
 
 <script>
   import { $, ol, proj4, moment } from 'src/vendor.js'
@@ -72,6 +103,14 @@
     // methods callable from inside the template
     methods: {
       //enable or disable a control
+      getControl:function(controlName) {
+        var control = this.mapControls[controlName]
+        return control?control.controls:undefined
+      },
+      isControlEnabled:function(controlName) {
+        var control = this.mapControls[controlName]
+        return control?control.enabled:undefined
+      },
       enableControl:function(controlName,enable) {
         var vm = this
         var control = this.mapControls[controlName]
@@ -1031,11 +1070,72 @@
           })
         })
 
+        this.setScale(this.view.scale / 1000)
+
+        // add some default interactions
+        this.olmap.addInteraction(this.dragPanInter)
+        this.olmap.addInteraction(this.doubleClickZoomInter)
+        this.olmap.addInteraction(this.keyboardPanInter)
+        this.olmap.addInteraction(this.keyboardZoomInter)
+        this.olmap.addInteraction(this.middleDragPanInter)
+
+        // Create the graticule component
+        this.graticule.setMap(this.olmap)
+
+        // setup scale events
+        this.olmap.on('postrender', function () {
+          vm.scale = vm.getScale()
+        })
+
+      },
+      initLayers: function (fixedLayers, activeLayers) {
+        var vm = this
+        //add fixed layers to category
+        $.each(fixedLayers,function(index,fixedLayer) {
+            var catLayer = vm.$root.catalogue.getLayer(fixedLayer.id)
+            if (catLayer) {
+                //fixed layer already exist, update the properties 
+                $.extend(catLayer,fixedLayer)
+            } else {
+                //fixed layer not exist, add it
+                vm.$root.catalogue.catalogue.push(fixedLayer)
+            }
+        })
+        //ignore the active layers which does not exist in the catalogue layers.
+        activeLayers = activeLayers.filter(function(activeLayer){
+            return vm.$root.catalogue.getLayer(activeLayer[0]) && true
+        })
+        //create active open layers 
+        var initialLayers = activeLayers.reverse().map(function (activeLayer) {
+          var layer = $.extend(vm.$root.catalogue.getLayer(activeLayer[0]), activeLayer[1])
+          return vm['create' + layer.type](layer)
+        })
+        //add active layers into map
+        $.each(initialLayers,function(index,layer){
+            vm.olmap.addLayer(layer)
+        })
+        //enable controls
+        var overviewLayer = vm.$root.catalogue.getLayer("dpaw:mapbox_outdoors")
         vm.mapControls = {
             "zoom": {
                 enabled:false,
                 controls:new ol.control.Zoom({
                   target: $('#external-controls').get(0)   
+                })
+            },
+            "overviewMap": {
+                enabled:false,
+                controls:new ol.control.OverviewMap({
+                    className: 'ol-overviewmap ol-custom-overviewmap',
+                    layers: [
+                        vm['create' + overviewLayer.type](overviewLayer)
+                    ],
+                    collapseLabel: '\u00BB',
+                    label: '\u00AB',
+                    collapsed: false,
+                    view: new ol.View({
+                        projection: 'EPSG:4326',
+                    })
                 })
             },
             "scaleLine": {
@@ -1090,51 +1190,6 @@
         }
         $.each(vm.mapControls,function(key,control){
             vm.enableControl(key,true)
-        })
-
-        this.setScale(this.view.scale / 1000)
-
-        // add some default interactions
-        this.olmap.addInteraction(this.dragPanInter)
-        this.olmap.addInteraction(this.doubleClickZoomInter)
-        this.olmap.addInteraction(this.keyboardPanInter)
-        this.olmap.addInteraction(this.keyboardZoomInter)
-        this.olmap.addInteraction(this.middleDragPanInter)
-
-        // Create the graticule component
-        this.graticule.setMap(this.olmap)
-
-        // setup scale events
-        this.olmap.on('postrender', function () {
-          vm.scale = vm.getScale()
-        })
-
-      },
-      initLayers: function (fixedLayers, activeLayers) {
-        var vm = this
-        //add fixed layers to category
-        $.each(fixedLayers,function(index,fixedLayer) {
-            var catLayer = vm.$root.catalogue.getLayer(fixedLayer.id)
-            if (catLayer) {
-                //fixed layer already exist, update the properties 
-                $.extend(catLayer,fixedLayer)
-            } else {
-                //fixed layer not exist, add it
-                vm.$root.catalogue.catalogue.push(fixedLayer)
-            }
-        })
-        //ignore the active layers which does not exist in the catalogue layers.
-        activeLayers = activeLayers.filter(function(activeLayer){
-            return vm.$root.catalogue.getLayer(activeLayer[0]) && true
-        })
-        //create active open layers 
-        var initialLayers = activeLayers.reverse().map(function (activeLayer) {
-          var layer = $.extend(vm.$root.catalogue.getLayer(activeLayer[0]), activeLayer[1])
-          return vm['create' + layer.type](layer)
-        })
-        //add active layers into map
-        $.each(initialLayers,function(index,layer){
-            vm.olmap.addLayer(layer)
         })
       }
     },

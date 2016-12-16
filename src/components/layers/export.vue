@@ -139,7 +139,9 @@
         paperSize: 'A3',
         printStatus: {
             oldLayout: {},
-            layout:{}
+            layout:{},
+            overviewMap:{},
+            jobs:0
         },
         title: '',
         statefile: '',
@@ -247,7 +249,17 @@
       prepareMapForPrinting: function () {
         var vm = this
         $('body').css('cursor', 'progress')
-        if (!this.printStatus.jobs) {
+        if (this.printStatus.jobs <= 0) {
+            //save overviewMap status and enable overviewMap if not enabled
+            this.printStatus.overviewMap.enabled = this.map.isControlEnabled("overviewMap")
+            this.printStatus.overviewMap.collapsed = this.map.getControl("overviewMap").getCollapsed()
+            if (this.printStatus.overviewMap.collapsed) {
+                this.map.getControl("overviewMap").setCollapsed(false)
+            }
+            if (!this.printStatus.overviewMap.enabled) {
+                this.map.enableControl("overviewMap",true)
+            }
+        
             //no print job is processing, get the map size and scale for recovering.
             this.printStatus.oldLayout.size = this.olmap.getSize()
             this.printStatus.oldLayout.scale = this.$root.map.getScale()
@@ -264,6 +276,10 @@
             //disable the controls to prevent the user from operating the map
             this.printStatus.controls = []
             $.each(this.map.mapControls,function(key,control) {
+                if (key === "overviewMap") {
+                    //overviewMap has been processed, ignore here
+                    return
+                }
                 if (control.enabled) {
                     vm.printStatus.controls.push(key)
                     vm.map.enableControl(key,false)
@@ -273,8 +289,6 @@
 
             this.printStatus.startTime = new Date()
         }
-
-        this.printStatus.jobs = this.printStatus.jobs?(this.printStatus.jobs + 1):1
 
         this.printStatus.layout.width = this.paperSizes[this.paperSize][0]
         this.printStatus.layout.height = this.paperSizes[this.paperSize][1]
@@ -293,6 +307,8 @@
         }
         //extent is changed because the scale is adjusted to the closest fixed scale, recalculated the extent again
         this.printStatus.layout.extent = this.olmap.getView().calculateExtent(this.olmap.getSize())
+
+        this.printStatus.jobs = (this.printStatus.jobs >= 0)?(this.printStatus.jobs + 1):1
       },
       // restore map to viewport dimensions
       restoreMapFromPrinting: function () {
@@ -300,6 +316,13 @@
         this.printStatus.jobs -= 1
         if (this.printStatus.jobs <= 0) {
             //all print jobs are done
+            //restore overview map
+            if (this.printStatus.overviewMap.collapsed) {
+                this.map.getControl("overviewMap").setCollapsed(true)
+            }
+            if (!this.printStatus.overviewMap.enabled) {
+                this.map.enableControl("overviewMap",false)
+            }
             //restore the map size and map scale
             this.olmap.setSize(this.printStatus.oldLayout.size)
             this.$root.map.setScale(this.printStatus.oldLayout.scale)
@@ -368,14 +391,18 @@
           ctx.fillStyle = "white"
           ctx.fill()
         })
+        var mainmap_composing = null
+        var overviewmap_composing = null
+        var canvas = null
+        var overviewmap_canvas = null
 
-        var composing = vm.olmap.on('postcompose', function (event) {
+        var postcomposeFunc = function() {
           timer && clearTimeout(timer)
           timer = setTimeout(function () {
             // remove composing watcher
             vm.olmap.unByKey(whiteout)
-            vm.olmap.unByKey(composing)
-            var canvas = event.context.canvas
+            vm.olmap.unByKey(mainmap_composing)
+            vm.map.getControl("overviewMap").getOverviewMap().unByKey(overviewmap_composing)
             var ctx = canvas.getContext('2d')
 
             var img = new window.Image()
@@ -389,6 +416,27 @@
               vm.restoreMapFromPrinting()
             }
             img.onload = function () {
+              //draw overview map
+              ctx.drawImage(overviewmap_canvas,canvas.width - overviewmap_canvas.width - 2,2,overviewmap_canvas.width ,overviewmap_canvas.height)
+              //draw overview map rectangle
+              var box = $(".ol-custom-overviewmap").find(".ol-overviewmap-box")
+              if (box.length) {
+                var width = box.width()
+                var height = box.height()
+                var x = box.parent().position().left
+                var y = box.parent().position().top
+                ctx.beginPath()
+                ctx.rect(canvas.width - overviewmap_canvas.width - 2 + x,2 + y, width, height)
+                ctx.strokeStyle = "red"
+                ctx.lineWidth = 2
+                ctx.stroke()
+              }
+              //draw overview map border
+              ctx.beginPath()
+              ctx.rect(canvas.width - overviewmap_canvas.width - 4, 0, overviewmap_canvas.width + 4, overviewmap_canvas.height + 4)
+              ctx.strokeStyle = "black"
+              ctx.lineWidth = 2
+              ctx.stroke()
               // legend is 12cm wide
               vm.printStatus.layout.canvasPxPerMM = canvas.width / vm.printStatus.layout.width
               var height = 120 * vm.printStatus.layout.canvasPxPerMM * img.height / img.width
@@ -419,6 +467,16 @@
             img.src = url
           // only output after 5 seconds of no tiles
           }, 5000)
+        }
+        mainmap_composing = vm.olmap.on('postcompose', function (event) {
+            canvas = event.context.canvas
+            if (!overviewmap_composing) {
+                overviewmap_composing = vm.map.getControl("overviewMap").getOverviewMap().on('postcompose', function (event) {
+                    overviewmap_canvas = event.context.canvas
+                    postcomposeFunc()
+                })
+                vm.map.getControl("overviewMap").getOverviewMap().renderSync()
+            }
         })
         vm.olmap.renderSync()
       },

@@ -38,17 +38,17 @@
      inkscape:pageopacity="0"
      inkscape:pageshadow="2"
      inkscape:window-width="1920"
-     inkscape:window-height="1138"
+     inkscape:window-height="1163"
      id="namedview3225"
      showgrid="false"
      units="mm"
      inkscape:zoom="1.7396984"
-     inkscape:cx="303.41173"
+     inkscape:cx="304.56135"
      inkscape:cy="-35.745445"
-     inkscape:window-x="0"
-     inkscape:window-y="25"
+     inkscape:window-x="1920"
+     inkscape:window-y="0"
      inkscape:window-maximized="1"
-     inkscape:current-layer="g3129" />
+     inkscape:current-layer="g3181" />
   <g
      font-size="none"
      mix-blend-mode="normal"
@@ -209,11 +209,11 @@
        x1="287.22"
        id="line3183" />
     <text
-       style="font-size:7.7954998px;font-weight:bold;fill:#000000;font-family:monospace"
-       transform="scale(1.1136,0.89795)"
+       style="font-size:12px;font-weight:bold;fill:#000000;font-family:monospace"
+       transform="scale(1.1136239,0.89796924)"
        font-size="7.7955px"
-       y="47.968887"
-       x="262.36462"
+       y="47.967857"
+       x="258.76712"
        font-weight="bold"
        id="text3185">0</text>
     <line
@@ -226,11 +226,11 @@
        x1="322.38"
        id="line3187" />
     <text
-       style="font-size:7.7954998px;font-weight:bold;fill:#000000;font-family:monospace"
-       transform="scale(1.1136,0.89795)"
+       style="font-size:12px;font-weight:bold;fill:#000000;font-family:monospace"
+       transform="scale(1.1136239,0.89796924)"
        font-size="7.7955px"
-       y="47.968887"
-       x="293.93243"
+       y="47.967857"
+       x="290.33426"
        font-weight="bold"
        id="text3189">1</text>
     <line
@@ -243,11 +243,11 @@
        x1="357.54001"
        id="line3191" />
     <text
-       style="font-size:7.7954998px;font-weight:bold;fill:#000000;font-family:monospace"
-       transform="scale(1.1136,0.89795)"
+       style="font-size:12px;font-weight:bold;fill:#000000;font-family:monospace"
+       transform="scale(1.1136239,0.89796924)"
        font-size="7.7955px"
-       y="47.968887"
-       x="325.50021"
+       y="47.967857"
+       x="321.90137"
        font-weight="bold"
        id="text3193">2</text>
     <line
@@ -260,11 +260,11 @@
        x1="392.67999"
        id="line3195" />
     <text
-       style="font-size:7.7954998px;font-weight:bold;fill:#000000;font-family:monospace"
-       transform="scale(1.1136,0.89795)"
+       style="font-size:13px;font-weight:bold;fill:#000000;font-family:monospace"
+       transform="scale(1.1136239,0.89796924)"
        font-size="7.7955px"
-       y="47.968887"
-       x="357.06805"
+       y="47.967857"
+       x="353.46854"
        font-weight="bold"
        id="text3197">3</text>
     <line
@@ -277,11 +277,11 @@
        x1="427.84"
        id="line3199" />
     <text
-       style="font-size:7.7954998px;font-weight:bold;text-anchor:end;fill:#000000;font-family:monospace"
-       transform="scale(1.1136,0.89795)"
+       style="font-size:12px;font-weight:bold;text-anchor:end;fill:#000000;font-family:monospace"
+       transform="scale(1.1136239,0.89796924)"
        font-size="7.7955px"
-       y="47.968887"
-       x="403.07394"
+       y="47.967857"
+       x="406.65717"
        font-weight="bold"
        id="text3201">4cm</text>
     <line
@@ -294,7 +294,7 @@
        x1="428.39999"
        id="line3203" />
     <text
-       style="font-size:7.7954998px;font-weight:bold;text-anchor:end;fill:#000000;font-family:monospace"
+       style="font-size:12.00025729px;font-weight:bold;text-anchor:end;fill:#000000;font-family:monospace"
        transform="scale(1.1136,0.89795)"
        font-size="7.7955px"
        y="17.034184"
@@ -334,11 +334,11 @@
          y1="0" />
     </g>
     <text
-       style="font-size:7.7954998px;font-weight:bold;text-anchor:end;fill:#000000;font-family:monospace"
-       transform="scale(1.1136,0.89795)"
+       style="font-size:12px;font-weight:bold;text-anchor:end;fill:#000000;font-family:monospace"
+       transform="scale(1.1136239,0.89796924)"
        font-size="7.7955px"
-       y="17.034184"
-       x="322.17062"
+       y="17.033819"
+       x="331.14337"
        font-weight="bold"
        id="text3217">{{ legendInfo.scale }}</text>
   </g>
@@ -367,4 +367,4 @@
          height="202.33392"
          x="-16.669556"
          y="-43.418858" /></flowRegion><flowPara
-       id="flowPara3035"></flowPara></flowRoot></svg>
+       id="flowPara3035" /></flowRoot></svg>
