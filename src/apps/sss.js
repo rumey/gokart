@@ -76,6 +76,22 @@ var volatileData = {
   }
 }
 
+var systemSettings = {
+  tourVersion: null,
+  undoLimit:0,
+  lengthUnit:"km",
+  areaUnit:"ha",
+  measureAnnotation:false,
+  maintainScaleWhenPrinting:true,
+  overviewMap:true,
+  hoverInfo:false,
+  resourceLabels:true,
+  resourceDirections: true,
+  viewportOnly: false,
+  rightHandTools: true,
+  graticule:true,
+}
+
 var persistentData = {
   view: {
     center: [123.75, -24.966]
@@ -93,15 +109,9 @@ var persistentData = {
   drawingLogs:[],
   redoPointer:0,//pointer to the next redo log 
   drawingSequence:0,
+
   //data in settings will survive across reset
-  settings:{
-    tourVersion: null,
-    undoLimit:0,
-    lengthUnit:"km",
-    areaUnit:"ha",
-    measureAnnotation:false,
-    maintainScaleWhenPrinting:true
-  }
+  settings:$.extend({},systemSettings)
 }
 
 global.gokartService = volatileData.gokartService;
@@ -140,7 +150,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
       scales: function () { return this.$refs.app.$refs.map.$refs.scales },
       search: function () { return this.$refs.app.$refs.map.$refs.search },
       measure: function () { return this.$refs.app.$refs.map.$refs.measure },
-      info: function () { return this.$refs.app.$refs.map.$refs.info },
+      info: function() { return this.$refs.app.$refs.map.$refs.info},
       active: function () { return this.$refs.app.$refs.layers.$refs.active },
       catalogue: function () { return this.$refs.app.$refs.layers.$refs.catalogue },
       export: function () { return this.$refs.app.$refs.layers.$refs.export },
@@ -158,7 +168,20 @@ localforage.getItem('sssOfflineStore').then(function (store) {
               persistentData[key] = vm.store[key]
           })
           return persistentData
+      },
+      tourVersion:function() {
+          return this.store.settings.tourVersion
+      },
+      defaultSettings:function() {
+          return systemSettings
       }
+    },
+    watch: {
+        tourVersion:function(newValue,oldValue) {
+            if (newValue !== tour.version) {
+              this.takeTour()
+            }
+        }
     },
     methods: {
       takeTour: function() {

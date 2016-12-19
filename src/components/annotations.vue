@@ -52,7 +52,7 @@
               <div class="small-10">
                 <div class="expanded button-group">
                   <template v-for="s in pointShapes" >
-                    <a @click="setProp('shape', s)" v-bind:class="{'selected': shape && (s[0] === shape[0])}" class="button pointshape"><img src="{{s[0]}}"/></a>
+                    <a @click="setProp('shape', s)" v-bind:class="{'selected': shape && (s[0] === shape[0])}" class="button pointshape"><img v-bind:src="s[0]"/></a>
                   </template>
                 </div>
               </div>
@@ -552,9 +552,6 @@
             this._previousActiveMenu = this.$root.activeMenu
         }
 
-        // auto-disable hover info, but remember the user's choice
-        this.$root.setting.hoverInfo = ((t.name === 'Pan') && (this.$root.setting.hoverInfoCache))
-        
         //change the cursor
         if (t.cursor && typeof t.cursor === 'string') {
             $(map.olmap.getTargetElement()).find(".ol-viewport").css('cursor',t.cursor)
