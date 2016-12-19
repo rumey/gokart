@@ -292,7 +292,7 @@ div.ol-previewmap.ol-uncollapsible {
         l.name = l.name || l.title
         l.type = l.type || 'TileLayer'
         if (l.type === 'TileLayer') {
-          l.legend = l.legend || ((l.service_type === "WFS")?(vm.defaultLegendSrc + l.id):null)
+          l.legend = (l.legend && (vm.oimService + l.legend))|| ((l.service_type === "WFS")?(vm.defaultLegendSrc + l.id):null)
         }
       })
       catalogueStatus.wait(30,"Listen 'gk-init' event")
