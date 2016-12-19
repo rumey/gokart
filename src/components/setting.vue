@@ -24,7 +24,7 @@
 
             <div class="tool-slice row collapse">
               <div class="switch tiny">
-                <input class="switch-input" id="toggleOverviewMap" type="checkbox"  v-bind:checked="settings.overviewMap" @change="toggleOverviewMap"/>
+                <input class="switch-input" id="toggleOverviewMap" type="checkbox"  v-bind:checked="overviewMap" @change="toggleOverviewMap"/>
                 <label class="switch-paddle" for="toggleOverviewMap">
                     <span class="show-for-sr">Show overview map</span>
                 </label>
@@ -44,7 +44,7 @@
 
             <div class="tool-slice row collapse">
               <div class="switch tiny">
-                <input class="switch-input" id="toggleRightHandTools" type="checkbox" v-bind:checked="showRightHandTools" @change="toggleRightHandTools" />
+                <input class="switch-input" id="toggleRightHandTools" type="checkbox" v-bind:checked="rightHandTools" @change="toggleRightHandTools" />
                 <label class="switch-paddle" for="toggleRightHandTools">
                   <span class="show-for-sr">Show right hand tools</span>
                 </label>
@@ -54,7 +54,7 @@
 
             <div class="tool-slice row collapse">
               <div class="switch tiny">
-                <input class="switch-input" id="toggleMeasureAnnotation" type="checkbox" v-bind:checked="settings.measureAnnotation" @change="toggleMeasureAnnotation"/>
+                <input class="switch-input" id="toggleMeasureAnnotation" type="checkbox" v-bind:checked="measureAnnotation" @change="toggleMeasureAnnotation"/>
                 <label class="switch-paddle" for="toggleMeasureAnnotation">
                   <span class="show-for-sr">Measure annotation</span>
                 </label>
@@ -67,7 +67,7 @@
                     <label class="tool-label">Distance unit:</label>
                 </div>
                 <div class="small-8">
-                    <select name="lengthUnit" v-model="settings.lengthUnit" @change="saveState()">
+                    <select name="lengthUnit" v-model="lengthUnit" @change="saveState()">
                         <option value="nm">Nautical Mile</option>      
                         <option value="mile">Mile</option>      
                         <option value="km">Kilometer</option>      
@@ -80,7 +80,7 @@
                     <label class="tool-label">Area unit:</label>
                 </div>
                 <div class="small-8">
-                    <select name="areaUnit" v-model="settings.areaUnit" @change="saveState()">
+                    <select name="areaUnit" v-model="areaUnit" @change="saveState()">
                         <option value="ha">Hectare</option>      
                         <option value="km2">km<sup>2</sup></option>      
                     </select>
@@ -106,6 +106,15 @@
                     <a id="reset-sss" class="button alert" title="Clear the current drawing and layer selection (saved views will be retained)" @click="reset()"><i class="fa fa-refresh"></i> Reset SSS</a>
                   </div>
                </div>
+
+               <div class="small-3">
+               </div>
+               <div class="small-9">
+                  <div class="expanded button-group">
+                    <a id="reset-settings" class="button alert" title="Reset to system default settings" @click="resetSettings()"><i class="fa fa-refresh"></i> Reset Settings</a>
+                  </div>
+               </div>
+
                <div class="small-3">
                    <label class="tool-label">Tour:</label>
                </div>
@@ -171,25 +180,34 @@
 <script>
   import { $,Vue } from 'src/vendor.js'
   export default {
-    store: ['settings'],
+    store: {
+        settings:'settings',
+        overviewMap:'settings.overviewMap',
+        undoLimit:'settings.undoLimit',
+        measureAnnotation:'settings.measureAnnotation',
+        lengthUnit:'settings.lengthUnit',
+        areaUnit:'settings.areaUnit',
+        rightHandTools: 'settings.rightHandTools',
+        graticule:'settings.graticule',
+        tourVersion:'settings.tourVersion'
+    },
     data: function () {
       return {
         undoLimit:0,
         undoEnabled:true,
-        hoverInfoCache: false,
-        showRightHandTools: true,
       }
     },
     computed: {
       loading: function () { return this.$root.loading },
       profile: function () { return this.$root.profile },
       measure: function () { return this.$root.measure },
+      info: function () { return this.$root.info },
       annotations: function () { return this.$root.annotations },
       export: function () { return this.$root.export },
       drawinglogs: function () { return this.$root.annotations.drawinglogs },
       map: function () { return this.$root.map },
       undoLimitDesc:function() {
-        return (this.undoEnabled?(this.undoLimit === 0?"Unlimited":this.undoLimit):"Off") + "/" + (this.settings.undoLimit < 0?"Off":(this.settings.undoLimit === 0?"Unlimited":this.settings.undoLimit))
+        return (this.undoEnabled?(this.undoLimit === 0?"Unlimited":this.undoLimit):"Off") + "/" + (this.undoLimit < 0?"Off":(this.undoLimit === 0?"Unlimited":this.undoLimit))
       },
       undoLimitInSetting:{
         get: function() {
@@ -204,30 +222,26 @@
                 this.undoEnabled = true
             }
             this._changeUndoLimit = vm._changeUndoLimit || global.debounce(function () {
-                //console.log("Change undo limit from " +  (vm.settings.undoLimit < 0?"Off":(vm.settings.undoLimit === 0?"Unlimited":vm.settings.undoLimit)) + " to " + (vm.undoEnabled?(vm.undoLimit === 0?"Unlimited":vm.undoLimit):"off"))
+                //console.log("Change undo limit from " +  (vm.undoLimit < 0?"Off":(vm.undoLimit === 0?"Unlimited":vm.undoLimit)) + " to " + (vm.undoEnabled?(vm.undoLimit === 0?"Unlimited":vm.undoLimit):"off"))
                 vm.drawinglogs.size = vm.undoEnabled?vm.undoLimit:-1
             }, 5000)
             this._changeUndoLimit()
         }
       },
-      graticule: {
-        cache: false,
-        get: function () {
-          return this.$root.map && this.$root.map.graticule && this.$root.map.graticule.getMap() === this.$root.map.olmap
-        }
-      },
       hoverInfoSwitchable: function () {
         return this.$root.annotations.tool && this.$root.annotations.tool.name === "Pan"
       },
-      hoverInfo: {
-        cache: false,
-        get: function () {
-          return this.$root.map && this.$root.info && this.$root.info.enabled
-        },
-        set: function (val) {
-          this.$root.info.enabled = val
-        }
+      hoverInfo: function() {
+        return this.map?this.info.enabled:false
+      }
+    },
+    watch:{
+      rightHandTools:function(newValue,oldValue) {
+        this.showRightHandTools(newValue)
       },
+      overviewMap:function(newValue,oldValue) {
+        this.showOverviewMap(newValue)
+      }
     },
     methods: {
       init: function() {
@@ -243,38 +257,40 @@
             this.undoLimitInSetting = -1
         }
       },
-      toggleRightHandTools: function () {
+      toggleRightHandTools: function (ev) {
         var vm = this
-        vm.showRightHandTools = !vm.showRightHandTools
+        vm.rightHandTools = ev.target.checked
+        this.saveState()
+      },
+      showRightHandTools: function (show) {
+        var vm = this
         $.each(vm.map.mapControls,function(key,control){
-            if (["fullScreen","search","mousePosition","attribution"].indexOf(key) < 0) {
-                vm.map.enableControl(key,vm.showRightHandTools)
+            if (["overviewMap","fullScreen","search","mousePosition","attribution"].indexOf(key) < 0) {
+                vm.map.enableControl(key,show)
             }
         })
       },
-      toggleGraticule: function () {
-        var map = this.$root.map
-        if (this.graticule) {
-          map.graticule.setMap(null)
-        } else {
-          map.graticule.setMap(map.olmap)
-        }
+      toggleGraticule: function (ev) {
+        this.graticule = ev.target.checked
+        this.saveState()
       },
       toggleHoverInfo: function (ev) {
-        this.hoverInfoCache = ev.target.checked
-        this.hoverInfo = ev.target.checked
+        this.info.hoverInfo = ev.target.checked
+        this.saveState()
       },
       toggleMeasureAnnotation:function(ev) {
-        this.settings.measureAnnotation = !this.settings.measureAnnotation
+        this.measureAnnotation = ev.target.checked
         this.export.saveState()
       },
       toggleOverviewMap:function(ev) {
-        this.settings.overviewMap = !this.settings.overviewMap
-        if (this.settings.overviewMap) {
+        this.overviewMap = !this.overviewMap
+        this.export.saveState()
+      },
+      showOverviewMap:function(show) {
+        if (show) {
            this.map.getControl("overviewMap").setCollapsed(false)
         }
-        this.map.enableControl("overviewMap",this.settings.overviewMap)
-        this.export.saveState()
+        this.map.enableControl("overviewMap",show)
       },
       reset: function () {
         if (window.confirm('This will clear all of your selected layers and drawings. Are you sure?')) {
@@ -284,22 +300,31 @@
           })
         }
       },
+      resetSettings: function () {
+        if (window.confirm('This will clear all customized settings and reset to system default settings. Are you sure?')) {
+          this.$root.store.settings = $.extend({},this.$root.defaultSettings,{tourVersion:this.tourVersion})
+          this.export.saveState()
+        }
+      },
     },
     ready: function () {
         var vm = this
         var settingStatus = this.loading.register("setting","Setting Component", "Initialize")
-        if (this.settings.undoLimit < 0) {
+        if (this.undoLimit < 0) {
             this.undoLimit = 0
             this.undoEnabled = false
         } else {
-            this.undoLimit = this.settings.undoLimit
+            this.undoLimit = this.undoLimit
             this.undoEnabled = true
         }
 
       settingStatus.wait(30,"Listen 'gk-init' event")
       this.$on('gk-init', function() {
         settingStatus.progress(80,"Process 'gk-init' event")
-        this.map.enableControl("overviewMap",this.settings.overviewMap)
+
+        vm.showOverviewMap(vm.overviewMap)
+        vm.showRightHandTools(vm.rightHandTools)
+
         settingStatus.end()
       })
         

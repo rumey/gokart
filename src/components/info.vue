@@ -31,9 +31,11 @@
 <script>
   import { ol } from 'src/vendor.js'
   export default {
+    store: {
+        hoverInfo:'settings.hoverInfo'
+    },
     data: function () {
       return {
-        enabled: false,
         features: false,
         coordinate: '',
         offset: 20,
@@ -72,6 +74,9 @@
           delete css.display
         }
         return css
+      },
+      enabled: function() {
+        return this.hoverInfo && this.$root.annotations.tool.name === "Pan"
       }
     },
     // methods callable from inside the template
