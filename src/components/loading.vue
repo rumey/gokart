@@ -101,7 +101,7 @@
         return this.errors.length > 0
       },
       show: function() {
-        return this.appRevision && ( !this.app || this.app.completedPercentage < 100 || this.errors.length > 0)
+        return this.appRevision && ( !this.app || this.app.completedPercentage < 100 || this.errors.length > 0) || this.components.find(function(component){return component.completedPercentage < 100})
       },
       closable: function() {
         return this.appRevision && this.app && ( this.app.completedPercentage >= 100 || this.app.completedPercentage < 0 )
