@@ -188,7 +188,8 @@
         lengthUnit:'settings.lengthUnit',
         areaUnit:'settings.areaUnit',
         rightHandTools: 'settings.rightHandTools',
-        graticule:'settings.graticule'
+        graticule:'settings.graticule',
+        tourVersion:'settings.tourVersion'
     },
     data: function () {
       return {
@@ -301,7 +302,7 @@
       },
       resetSettings: function () {
         if (window.confirm('This will clear all customized settings and reset to system default settings. Are you sure?')) {
-          this.$root.store.settings = $.extend({},this.$root.defaultSettings)
+          this.$root.store.settings = $.extend({},this.$root.defaultSettings,{tourVersion:this.tourVersion})
           this.export.saveState()
         }
       },
