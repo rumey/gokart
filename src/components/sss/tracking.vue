@@ -27,7 +27,7 @@
             </div>
             <div class="row">
               <div class="switch tiny">
-                <input class="switch-input" id="resourcesInViewport" type="checkbox" v-model="viewportOnly" />
+                <input class="switch-input" id="resourcesInViewport" type="checkbox" v-bind:checked="viewportOnly" @change="toggleViewportOnly" />
                 <label class="switch-paddle" for="resourcesInViewport">
                   <span class="show-for-sr">Viewport resources only</span>
                 </label>
@@ -54,7 +54,7 @@
             </div>
             <div class="row">
               <div class="switch tiny">
-                <input class="switch-input" id="toggleResourceInfo" type="checkbox" v-bind:disabled="!$root.setting.hoverInfoSwitchable" v-bind:checked="$root.setting.hoverInfo" @change="$root.setting.toggleHoverInfo" />
+                <input class="switch-input" id="toggleResourceInfo" type="checkbox" v-bind:disabled="!setting.hoverInfoSwitchable" v-bind:checked="setting.hoverInfo" @change="setting.toggleHoverInfo" />
                 <label class="switch-paddle" for="toggleResourceInfo">
                   <span class="show-for-sr">Display hovering resource info</span>
                 </label>
@@ -168,15 +168,18 @@
 <script>
   import { ol, moment } from 'src/vendor.js'
   export default {
-    store: ['sssService'],
+    store: {
+        sssService:'sssService',
+        resourceLabels:'settings.resourceLabels',
+        resourceDirections:'settings.resourceDirections',
+        viewportOnly:'settings.viewportOnly'
+    },
     data: function () {
       var fill = '#ff6600'
       var stroke = '#7c3100'
       return {
         viewportOnly: true,
         toggleHistory: false,
-        resourceLabels: true,
-        resourceDirections: true,
         selectedOnly: false,
         search: '',
         cql: '',
@@ -203,7 +206,10 @@
     computed: {
       map: function () { return this.$root.$refs.app.$refs.map },
       annotations: function () { return this.$root.$refs.app.$refs.annotations },
+      info: function () { return this.$root.info },
+      setting: function () { return this.$root.setting },
       catalogue: function () { return this.$root.catalogue },
+      export: function () { return this.$root.export },
       loading: function () { return this.$root.loading },
       features: function () {
         if (this.viewportOnly) {
@@ -278,6 +284,12 @@
             //label is enabled, hiding/showing tracking layer requires resetting the style text.
             this.historyMapLayer.changed() 
         }
+      },
+      resourceLabels:function(newValue,oldValue) {
+        this.showResourceLabelsOrDirections()
+      },
+      resourceDirections:function(newValue,oldValue) {
+        this.showResourceLabelsOrDirections()
       }
     },
     methods: {
@@ -320,9 +332,17 @@
           this.$root.annotations.selectedFeatures.push(f)
         }
       },
+      toggleViewportOnly: function () {
+        this.viewportOnly = !this.viewportOnly
+        this.export.saveState()
+      },
       toggleResourceLabels: function () {
         var vm = this
         this.resourceLabels = !this.resourceLabels
+        this.export.saveState()
+      },
+      showResourceLabelsOrDirections:function() {
+        var vm = this
         $.each([this.trackingMapLayer,this.historyMapLayer],function(index,mapLayer){
             if (mapLayer && !vm.$root.active.isHidden(mapLayer)) {
                 mapLayer.changed()
@@ -332,11 +352,7 @@
       toggleResourceDirections: function () {
         var vm = this
         this.resourceDirections = !this.resourceDirections
-        $.each([this.trackingMapLayer,this.historyMapLayer],function(index,mapLayer){
-            if (mapLayer && !vm.$root.active.isHidden(mapLayer)) {
-                mapLayer.changed()
-            }
-        })
+        this.export.saveState()
       },
       featureIconSrc:function(f) {
         var vm = this

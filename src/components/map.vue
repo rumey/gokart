@@ -45,7 +45,17 @@
   import gkSearch from './search.vue'
   import gkMeasure from './measure.vue'
   export default {
-    store: ['defaultWMTSSrc', 'defaultWFSSrc', 'gokartService', 'fixedScales', 'resolutions', 'matrixSets', 'dpmm', 'view'],
+    store: {
+        defaultWMTSSrc:'defaultWMTSSrc', 
+        defaultWFSSrc:'defaultWFSSrc', 
+        gokartService:'gokartService', 
+        fixedScales:'fixedScales', 
+        resolutions:'resolutions', 
+        matrixSets:'matrixSets', 
+        dpmm:'dpmm', 
+        view:'view',
+        displayGraticule:'settings.graticule'
+    },
     components: { gkInfo, gkScales, gkSearch, gkMeasure },
     data: function () {
       return {
@@ -100,8 +110,16 @@
         return this.olmap.getView().getResolution()
       }
     },
+    watch: {
+      displayGraticule:function(newValue,oldValue) {
+        this.showGraticule(newValue)
+      }
+    },
     // methods callable from inside the template
     methods: {
+      showGraticule: function (show) {
+        this.graticule.setMap(show?this.olmap:null)
+      },
       //enable or disable a control
       getControl:function(controlName) {
         var control = this.mapControls[controlName]
@@ -1194,6 +1212,7 @@
       }
     },
     ready: function () {
+      var vm = this
       var mapStatus = this.loading.register("olmap","Open layer map Component","Initialize")
       this.svgBlobs = {}
       this.svgTemplates = {}
@@ -1210,7 +1229,16 @@
           matrixSet.matrixIds = matrixIds
         })
       })
-      mapStatus.end()
+
+      mapStatus.wait(30,"Listen 'gk-init' event")
+      this.$on('gk-init', function() {
+        mapStatus.progress(80,"Process 'gk-init' event")
+
+        vm.showGraticule(vm.displayGraticule)
+
+        mapStatus.end()
+        return true
+      })
     }
   }
 </script>
