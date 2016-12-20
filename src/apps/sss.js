@@ -52,6 +52,13 @@ var volatileData = {
   resolutions: [0.17578125, 0.087890625, 0.0439453125, 0.02197265625, 0.010986328125, 0.0054931640625, 0.00274658203125, 0.001373291015625, 0.0006866455078125, 0.0003433227539062, 0.0001716613769531, 858306884766e-16, 429153442383e-16, 214576721191e-16, 107288360596e-16, 53644180298e-16, 26822090149e-16, 13411045074e-16],
   mmPerInch: 25.4,
   whoami: { email: null },
+  layout:{
+      screenHeight:0,
+      screenWidth:0,
+      leftPanelHeadHeight:90,
+  },
+  activeMenu:null,
+  activeSubmenu:null,
   // filters for finding layers
   catalogueFilters: [
     ['basemap', 'Base Imagery'],
@@ -152,6 +159,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
       measure: function () { return this.$refs.app.$refs.map.$refs.measure },
       info: function() { return this.$refs.app.$refs.map.$refs.info},
       active: function () { return this.$refs.app.$refs.layers.$refs.active },
+      layers: function () { return this.$refs.app.$refs.layers },
       catalogue: function () { return this.$refs.app.$refs.layers.$refs.catalogue },
       export: function () { return this.$refs.app.$refs.layers.$refs.export },
       annotations: function () { return this.$refs.app.$refs.annotations },
@@ -160,7 +168,6 @@ localforage.getItem('sssOfflineStore').then(function (store) {
       //bfrs: function () { return this.$refs.app.$refs.bfrs },
       geojson: function () { return new ol.format.GeoJSON() },
       wgs84Sphere: function () { return new ol.Sphere(6378137) },
-      activeMenu: function() {return this.$refs.app.activeMenu},
       profile: function(){return profile},
       persistentData:function() {
           var vm = this
@@ -456,10 +463,24 @@ localforage.getItem('sssOfflineStore').then(function (store) {
                 self.loading.app.progress(60,"Broadcast 'gk-init' event")
                 self.$broadcast('gk-init')
                 // after catalogue load trigger a tour
-                $("#menu-tab-layers-label").trigger("click")
-                self.$refs.app.switchMenu("mapLayers",self.$refs.app.init)
                 self.loading.app.progress(90,"Broadcast 'gk-postinit' event")
                 self.$broadcast('gk-postinit')
+                self.store.layout.screenHeight = $(window).height()
+                self.store.layout.screenWidth = $(window).width()
+                $(window).resize(debounce(function(){
+                    if ($(window).height() !== self.store.layout.screenHeight) {
+                        self.store.layout.screenHeight = $(window).height()
+                    }
+                    if ($(window).width() !== self.store.layout.screenWidth) {
+                        self.store.layout.screenWidth = $(window).width()
+                    }
+                },200))
+                $("#menu-tab-layers-label").trigger("click")
+                self.store.activeMenu = "layers"
+                self.layers.init()
+                $("#layers-active-label").trigger("click")
+                self.store.activeSubmenu = "active"
+                self.active.init()
                 self.loading.app.end()
             } catch(err) {
                 //some exception happens

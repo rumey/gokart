@@ -14,30 +14,30 @@
             </div>
             <div class="off-canvas-content" data-off-canvas-content>
                 <ul class="tabs vertical map-widget" id="menu-tabs" data-tabs>
-                    <li class="tabs-title side-button is-active">
-                        <a href="#menu-tab-layers" title="Map Layers" @click="switchMenu('mapLayers',init)">
+                    <li class="tabs-title side-button is-active" menu="layers">
+                        <a href="#menu-tab-layers" title="Map Layers">
                             <svg class="icon">
                                 <use xlink:href="dist/static/images/iD-sprite.svg#icon-layers"></use>
                             </svg>
                         </a>
                     </li>
-                    <li class="tabs-title side-button">
-                        <a href="#menu-tab-annotations" title="Drawing Tools" @click="switchMenu('annotations',$root.annotations.init)">
+                    <li class="tabs-title side-button" menu="annotations">
+                        <a href="#menu-tab-annotations" title="Drawing Tools">
                             <i class="fa fa-pencil" aria-hidden="true"></i>
                         </a>
                     </li>
-                    <li class="tabs-title side-button">
-                        <a href="#menu-tab-tracking" title="Resources Tracking" @click="switchMenu('vehicleTracking',$root.tracking.init)">
+                    <li class="tabs-title side-button"  menu="tracking">
+                        <a href="#menu-tab-tracking" title="Resources Tracking">
                             <i class="fa fa-truck" aria-hidden="true"></i>
                         </a>
                     </li>
-                    <!--li class="tabs-title side-button">
-                        <a href="#menu-tab-bfrs" title="Bushfire Report System" @click="switchMenu('bushfireReportSystem',$root.bfrs.init)">
+                    <!--li class="tabs-title side-button" menu="bfrs">
+                        <a href="#menu-tab-bfrs" title="Bushfire Report System">
                             <i class="fa fa-fire" aria-hidden="true"></i>
                         </a>
                     </li-->
-                    <li class="tabs-title side-button">
-                        <a href="#menu-tab-setting" title="System Settings" @click="switchMenu('setting',$root.setting.init)">
+                    <li class="tabs-title side-button" menu="setting">
+                        <a href="#menu-tab-setting" title="System Settings">
                             <i class="fa fa-cog" aria-hidden="true"></i>
                         </a>
                     </li>
@@ -61,29 +61,29 @@
 
 
     export default { 
+      store:{
+        activeMenu:'activeMenu'
+      },
       data: function() {
         return {
-            activeMenu : null
         }
       },
       components: { gkMap, gkLayers, gkAnnotations, gkTracking, gkLoading,gkSetting },//, gkBfrs },
-      methods: {
-        init: function() {
-            this.$root.annotations.setTool()
-        },
-        switchMenu: function(menu, initFunc) {
-            if (this.activeMenu && this.activeMenu == menu) {
+      ready: function () {
+        var vm = this
+        $("#menu-tabs").on("change.zf.tabs",function(target,selectedTab){
+            var menu = selectedTab.attr('menu')
+            if (vm.activeMenu && vm.activeMenu == menu) {
                 //click on the active menu, do nothing
                 return
             } else {
-                this.activeMenu = menu
-                if (initFunc) {
-                    initFunc()
+                vm.activeMenu = menu
+                if (vm.$root[menu] && vm.$root[menu].init) {
+                    vm.$root[menu].init()
                 }
             }
-        }
-      },
-      ready: function () {
+            
+        })
       }
     }
 </script>

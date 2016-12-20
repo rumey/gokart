@@ -185,7 +185,7 @@
   }
 
   export default {
-    store: ['dpmm','drawingSequence','whoami'],
+    store: ['dpmm','drawingSequence','whoami','activeMenu'],
     components: { gkDrawinglogs },
     data: function () {
       return {
@@ -292,15 +292,15 @@
       },
       currentTool:{
         get:function() {
-            var t = this._currentTool[this.$root.activeMenu]
+            var t = this._currentTool[this.activeMenu]
             if (!t) {
                 t = this.ui.defaultPan
-                this._currentTool[this.$root.activeMenu] = t
+                this._currentTool[this.activeMenu] = t
             }
             return t
         },
         set:function(t) {
-            this._currentTool[this.$root.activeMenu] = t
+            this._currentTool[this.activeMenu] = t
         }
       },
     },
@@ -511,7 +511,7 @@
       },
       setTool: function (t) {
         if (!t) {
-            if (this._previousActiveMenu && this._previousActiveMenu !== this.$root.activeMenu && this._previousTool) {
+            if (this._previousActiveMenu && this._previousActiveMenu !== this.activeMenu && this._previousTool) {
                 //before switching to other menu, if a non-pan tool was enabled, choose the 'pan' tool for the current menu to preseve the changes(for example, the selected features) made by the previous non-pan tool
                 t = this.ui.defaultPan
             } else {
@@ -521,7 +521,7 @@
         if (typeof t == 'string') {
           t = this.getTool(t)
         }
-        if ((this.tool === t) && (t === this.ui.defaultPan || this._previousActiveMenu === this.$root.activeMenu)) {
+        if ((this.tool === t) && (t === this.ui.defaultPan || this._previousActiveMenu === this.activeMenu)) {
             //choose the same tool, do nothing,
             this.currentTool = t
             return
@@ -544,12 +544,12 @@
         // remove selections
         if (t !== this.ui.defaultPan) {
             //remove selections only if the tool is not Pan
-            if ((this._previousTool && this._previousTool !== t) || (this._previousActiveMenu && this._previousActiveMenu !== this.$root.activeMenu)) {
+            if ((this._previousTool && this._previousTool !== t) || (this._previousActiveMenu && this._previousActiveMenu !== this.activeMenu)) {
                 //remove selections only if the current tool is not the same tool as the previous tool.
                 this.selectedFeatures.clear()
             }
             this._previousTool = t
-            this._previousActiveMenu = this.$root.activeMenu
+            this._previousActiveMenu = this.activeMenu
         }
 
         //change the cursor
