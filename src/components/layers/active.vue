@@ -150,6 +150,9 @@
                 if ($("#layer-config-container").height() < 180) {
                     $("#layer-config-container").height(180)
                 }
+            } else if (height <= -30) {
+                $("#layers-active-list-container").height(this.screenHeight - this.leftPanelHeadHeight)
+                $("#layer-config-container").height(0)
             } else {
                 $("#layers-active-list-container").height(65)
                 $("#layer-config-container").height(this.screenHeight - this.leftPanelHeadHeight - 65)
