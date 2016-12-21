@@ -11,6 +11,7 @@
       <div class="columns">
         <div class="tabs-content vertical" data-tabs-content="tracking-tabs">
           <div id="tracking-list-tab" class="tabs-panel is-active" v-cloak>
+            <div id="tracking-list-controller-container">
             <div class="tool-slice row collapse">
               <div class="small-12">
                 <div class="expanded button-group">
@@ -149,7 +150,10 @@
                 </div>
               </div>
             </div>
-            <div id="tracking-list">
+            </div>
+
+
+            <div id="tracking-list" class="layers-flexibleframe scroller" style="margin-left:-15px; margin-right:-15px; overflow-x:hidden">
               <div v-for="f in features" class="row feature-row" v-bind:class="{'feature-selected': selected(f) }"
                 @click="toggleSelect(f)" track-by="get('id')">
                 <div class="columns">
@@ -172,7 +176,10 @@
         sssService:'sssService',
         resourceLabels:'settings.resourceLabels',
         resourceDirections:'settings.resourceDirections',
-        viewportOnly:'settings.viewportOnly'
+        viewportOnly:'settings.viewportOnly',
+        screenHeight:'layout.screenHeight',
+        leftPanelHeadHeight:'layout.leftPanelHeadHeight',
+        activeMenu:'activeMenu'
     },
     data: function () {
       var fill = '#ff6600'
@@ -290,9 +297,20 @@
       },
       resourceDirections:function(newValue,oldValue) {
         this.showResourceLabelsOrDirections()
+      },
+      "screenHeight":function(newValue,oldvalue) {
+        this.adjustHeight()
+      },
+      "toggleHistory":function() {
+        this.adjustHeight()
       }
     },
     methods: {
+      adjustHeight:function() {
+        if (this.activeMenu === "tracking") {
+            $("#tracking-list").height(this.screenHeight - this.leftPanelHeadHeight - $("#tracking-list-controller-container").height())
+        }
+      },
       verifyDate: function(event,inputPattern,pattern) {
         var element = event.target;
         element.value = element.value.trim()
@@ -517,6 +535,8 @@
 
         this.$root.annotations.selectable = [this.trackingMapLayer]
         this.annotations.setTool()
+
+        this.$nextTick(this.adjustHeight)
       }
     },
     ready: function () {
@@ -740,7 +760,7 @@
             }
           }
         })
-        //vm.annotations.setDefaultTool('vehicleTracking','Pan')
+        //vm.annotations.setDefaultTool('tracking','Pan')
         vm.tools = vm.annotations.tools.filter(function (t) {
           return t.scope && t.scope.indexOf("resourcetracking") >= 0
         })

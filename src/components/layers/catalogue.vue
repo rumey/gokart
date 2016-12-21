@@ -1,6 +1,6 @@
 <template>
   <div class="tabs-panel" id="layers-catalogue" v-cloak>
-    <div class="row">
+    <div class="row" id="catalogue-filter-container">
       <div class="columns">
         <div class="row collapse">
           <div class="small-6 columns">
@@ -38,10 +38,10 @@
         </div>
       </div>
     </div>
-    <div class="layers-topframe_75vh scroller row">
+    <div class="layers-flexibleframe scroller row collapse" id="catalogue-list-container" style="overflow-x:hidden">
       <div class="columns">
         <div id="layers-catalogue-list">
-          <div v-for="l in catalogue.getArray() | filterBy search in searchAttrs | orderBy 'name'" class="row layer-row" @mouseover="preview(l)" track-by="id" @mouseleave="preview(false)">
+          <div v-for="l in catalogue.getArray() | filterBy search in searchAttrs | orderBy 'name'" class="row layer-row" @mouseover="preview(l)" track-by="id" @mouseleave="preview(false)" style="margin-left:0px;margin-right:0px">
             <div class="small-10">
               <a v-if="l.systemid" @click.stop.prevent="map.editResource($event)" title="Edit catalogue entry" href="{{oimService}}/django-admin/catalogue/record/{{l.systemid}}/change/" target="_blank" class="button tiny secondary float-right short"><i class="fa fa-pencil"></i></a>
               <div class="layer-title">{{ l.name || l.id }}</div>
@@ -136,7 +136,15 @@ div.ol-previewmap.ol-uncollapsible {
     return value.length < length
   })
   export default {
-    store: ['catalogueFilters', 'defaultLegendSrc','oimService'],
+    store: {
+        catalogueFilters:'catalogueFilters', 
+        defaultLegendSrc:'defaultLegendSrc',
+        oimService:'oimService',
+        screenHeight:'layout.screenHeight',
+        leftPanelHeadHeight:'layout.leftPanelHeadHeight',
+        activeMenu:'activeMenu',
+        activeSubmenu:'activeSubmenu'
+    },
     data: function () {
       return {
         layer: {},
@@ -152,7 +160,23 @@ div.ol-previewmap.ol-uncollapsible {
       map: function () { return this.$root.$refs.app.$refs.map },
       loading: function () { return this.$root.loading },
     },
+    watch:{
+      "screenHeight":function(newValue,oldvalue) {
+        this.adjustHeight()
+      },
+      "search":function(newValue,oldvalue) {
+        this.adjustHeight()
+      }
+    },
     methods: {
+      adjustHeight:function() {
+        if (this.activeMenu === "layers" && this.activeSubmenu === "catalogue") {
+            $("#catalogue-list-container").height(this.screenHeight - this.leftPanelHeadHeight - $("#catalogue-filter-container").height())
+        }
+      },
+      init:function() {
+        this.adjustHeight()
+      },
       preview: function (l) {
         if (this.layer === l) {
           return
