@@ -1,7 +1,7 @@
 <template>
   <div class="tabs-panel is-active" id="layers-active" v-cloak>
 
-    <div class="layers-topframe_60vh scroller row">
+    <div class="layers-flexibleframe scroller row" id="layers-active-list-container">
       <div class="columns">
 
         <div id="layers-active-list">
@@ -24,7 +24,7 @@
         </div>
       </div>
     </div>
-    <div class="row collapse">
+    <div class="row collapse scroller" id="layer-config-container">
       <div id="layer-config" class="columns">
         <h4 v-if="layer && mapLayer()">{{ layer.name }}</h4>
         <div class="tool-slice row" v-if="layerRefreshConfigable()">
@@ -54,6 +54,12 @@
 <script>
   import { Vue, dragula,moment } from 'src/vendor.js'
   export default {
+    store:{
+        screenHeight:'layout.screenHeight',
+        leftPanelHeadHeight:'layout.leftPanelHeadHeight',
+        activeMenu:'activeMenu',
+        activeSubmenu:'activeSubmenu'
+    },
     // variables
     data: function () {
       return {
@@ -129,10 +135,33 @@
     watch: {
       "layer": function() {
         this.layerRefreshStopped = this.layer.refresh?(this.layer.autoRefreshStopped || false):true
+      },
+      "screenHeight":function(newValue,oldValue) {
+        this.adjustHeight()
       }
     },
     // methods callable from inside the template
     methods: {
+      adjustHeight:function() {
+        if (this.activeMenu === "layers" && this.activeSubmenu === "active") {
+            var height = this.screenHeight - this.leftPanelHeadHeight - 180
+            if (height > 65) {
+                $("#layers-active-list-container").height(height)
+                if ($("#layer-config-container").height() < 180) {
+                    $("#layer-config-container").height(180)
+                }
+            } else if (height <= -30) {
+                $("#layers-active-list-container").height(this.screenHeight - this.leftPanelHeadHeight)
+                $("#layer-config-container").height(0)
+            } else {
+                $("#layers-active-list-container").height(65)
+                $("#layer-config-container").height(this.screenHeight - this.leftPanelHeadHeight - 65)
+            }
+        }
+      },
+      init:function() {
+        this.adjustHeight()
+      },
       isHidden:function(layer) {
         return layer?(layer.getOpacity() === 0):undefined
       },
