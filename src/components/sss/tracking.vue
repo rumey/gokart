@@ -153,7 +153,7 @@
             </div>
 
 
-            <div id="tracking-list" class="layers-flexibleframe scroller" style="margin-left:-15px; margin-right:-15px; overflow-x:hidden">
+            <div id="tracking-list" class="layers-flexibleframe scroller" style="margin-left:-15px; margin-right:-15px;">
               <div v-for="f in features" class="row feature-row" v-bind:class="{'feature-selected': selected(f) }"
                 @click="toggleSelect(f)" track-by="get('id')">
                 <div class="columns">

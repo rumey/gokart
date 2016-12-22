@@ -38,7 +38,7 @@
         </div>
       </div>
     </div>
-    <div class="layers-flexibleframe scroller row collapse" id="catalogue-list-container" style="overflow-x:hidden">
+    <div class="layers-flexibleframe scroller row collapse" id="catalogue-list-container">
       <div class="columns">
         <div id="layers-catalogue-list">
           <div v-for="l in catalogue.getArray() | filterBy search in searchAttrs | orderBy 'name'" class="row layer-row" @mouseover="preview(l)" track-by="id" @mouseleave="preview(false)" style="margin-left:0px;margin-right:0px">
