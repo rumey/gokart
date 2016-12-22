@@ -64,6 +64,7 @@ body {
     justify-content: flex-start;
     align-items: stretch;
     align-content: stretch;
+    overflow-y:hidden;
 }
 
 .off-canvas .tabs-content {
@@ -423,8 +424,12 @@ input[type="range"] {
     border-bottom: 1px solid rgba(37, 45, 51, 0.9);
 }
 
+.layers-flexibleframe {
+    border-bottom: 1px solid rgba(37, 45, 51, 0.9);
+}
 .scroller {
     overflow-y: auto;
+    overflow-x: hidden;
 }
 /* remove extra padding for tab boxes inside other tab boxes */
 

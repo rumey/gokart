@@ -3,9 +3,9 @@
     <div class="row collapse">
       <div class="columns">
         <ul class="tabs" data-tabs id="layers-tabs">
-          <li class="tabs-title is-active"><a href="#layers-active" aria-selected="true">Active</a></li>
-          <li class="tabs-title"><a href="#layers-catalogue">Browse Layers</a></li>
-          <li class="tabs-title"><a href="#layers-export">Save & Print</a></li>
+          <li class="tabs-title is-active" menu="active"><a href="#layers-active" aria-selected="true">Active</a></li>
+          <li class="tabs-title" menu="catalogue"><a href="#layers-catalogue">Browse Layers</a></li>
+          <li class="tabs-title" menu="export"><a href="#layers-export">Save & Print</a></li>
         </ul>
       </div>
     </div>
@@ -26,5 +26,32 @@
   import gkCatalogue from './layers/catalogue.vue'
   import gkExport from './layers/export.vue'
 
-  export default { components: { gkActive, gkCatalogue, gkExport } }
+  export default { 
+    store: {
+        activeMenu:'activeMenu',
+        activeSubmenu:'activeSubmenu'
+    },
+    components: { gkActive, gkCatalogue, gkExport },
+    methods:{
+        init: function() {
+            this.$root.annotations.setTool()
+        },
+    }, 
+    ready: function () {
+      var vm = this
+      $("#layers-tabs").on("change.zf.tabs",function(target,selectedTab){
+          var menu = selectedTab.attr('menu')
+          if (vm.activeSubmenu && vm.activeSubmenu === menu) {
+              //click on the active menu, do nothing
+              return
+          } else {
+              vm.activeSubmenu = menu
+              if (vm.$root[menu] && vm.$root[menu].init) {
+                  vm.$root[menu].init()
+              }
+          }
+          
+      })
+    }
+  }
 </script>
