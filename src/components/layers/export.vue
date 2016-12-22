@@ -350,7 +350,7 @@
             var formData = new window.FormData()
             formData.append('extent', vm.printStatus.layout.extent.join(' '))
             formData.append('jpg', blob, name + '.jpg')
-            if (format === "pdf") {
+            if (format === "pdf" && legendData)  {
                 formData.append('legends', legendData, name + '.legend.pdf')
             }
             formData.append('dpi', Math.round(vm.printStatus.layout.canvasPxPerMM * 25.4))
@@ -449,8 +449,9 @@
                 canvas.height - height, 
                 disclaimerImg.width, 
                 height)
+              //draw qr code
               if (qrcanvas) {
-                  ctx.drawImage(qrcanvas, 8, height)
+                  ctx.drawImage(qrcanvas, 2, canvas.height - qrcanvas.height - 2)
               }
               window.URL.revokeObjectURL(url)
               // generate a jpg copy of the canvas contents

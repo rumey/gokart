@@ -211,13 +211,11 @@
         var hiddenLayers = null
         var filteredLegendLayers = null
         var nextTick = false
-        var temporaryActivated = false
         if (!vm.legendsPanel.isActive) {
             //legend panel is not active, data is outdated.
             nextTick = vm.syncLegendLayers()
             //$("#active-layer-legends").css("zIndex",-999)
             //vm.legendsPanel.open()
-            //temporaryActivated = true
         }
         if (printAll && vm.filteredLegendLayers != null) {
             //show all legends for printing
@@ -228,6 +226,11 @@
         }
         var printFunc = function() {
             try {
+                if ($("#active-layer-legend-list .layer-legend-row").length === 0) {
+                    //no legend;
+                    callback(null)
+                    return
+                }
                 var paperSize = vm.$root.export.paperSizes["A4"]
                 var style = { 
                   top: 20, 
@@ -302,10 +305,6 @@
                     //restore the legend panel
                     vm.hiddenLayers = hiddenLayers
                     vm.filteredLegendLayers = filteredLegendLayers
-                }
-                if (temporaryActivated) {
-                    vm.legendsPanel.open()
-                    $("#active-layer-legends").css("zIndex",0)
                 }
             }
         }
