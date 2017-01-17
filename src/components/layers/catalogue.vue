@@ -43,7 +43,7 @@
         <div id="layers-catalogue-list">
           <div v-for="l in catalogue.getArray() | filterBy search in searchAttrs | orderBy 'name'" class="row layer-row" @mouseover="preview(l)" track-by="id" @mouseleave="preview(false)" style="margin-left:0px;margin-right:0px">
             <div class="small-10">
-              <a v-if="l.systemid" @click.stop.prevent="map.editResource($event)" title="Edit catalogue entry" href="{{oimService}}/django-admin/catalogue/record/{{l.systemid}}/change/" target="_blank" class="button tiny secondary float-right short"><i class="fa fa-pencil"></i></a>
+              <a v-if="editable(l)" @click.stop.prevent="map.editResource($event)" title="Edit catalogue entry" href="{{oimService}}/django-admin/catalogue/record/{{l.systemid}}/change/" target="_blank" class="button tiny secondary float-right short"><i class="fa fa-pencil"></i></a>
               <div class="layer-title">{{ l.name || l.id }}</div>
             </div>
             <div class="small-2">
@@ -131,7 +131,7 @@ div.ol-previewmap.ol-uncollapsible {
 </style>
 
 <script>
-  import { $, ol, Vue } from 'src/vendor.js'
+  import { $, ol, Vue,utils } from 'src/vendor.js'
   Vue.filter('lessThan', function(value, length) {
     return value.length < length
   })
@@ -143,7 +143,8 @@ div.ol-previewmap.ol-uncollapsible {
         screenHeight:'layout.screenHeight',
         leftPanelHeadHeight:'layout.leftPanelHeadHeight',
         activeMenu:'activeMenu',
-        activeSubmenu:'activeSubmenu'
+        activeSubmenu:'activeSubmenu',
+        whoami:'whoami'
     },
     data: function () {
       return {
@@ -169,6 +170,9 @@ div.ol-previewmap.ol-uncollapsible {
       }
     },
     methods: {
+      editable:function(layer) {
+        return layer.systemid && this.whoami.editLayer
+      },  
       adjustHeight:function() {
         if (this.activeMenu === "layers" && this.activeSubmenu === "catalogue") {
             $("#catalogue-list-container").height(this.screenHeight - this.leftPanelHeadHeight - $("#catalogue-filter-container").height())
@@ -258,6 +262,8 @@ div.ol-previewmap.ol-uncollapsible {
         var req = new window.XMLHttpRequest()
         req.withCredentials = true
         req.onload = function () {
+          var checkingLayer = null
+          var layers = []
           JSON.parse(this.responseText).forEach(function (l) {
             // overwrite layers in the catalogue with the same identifier
             if (vm.getLayer(l.identifier)) {
@@ -279,11 +285,23 @@ div.ol-previewmap.ol-uncollapsible {
             if (l.tags.some(function (t) { return t.name === 'livemap_2min' })) {
                 l.refresh = 120
             }
+            if (!checkingLayer) {
+                checkingLayer = l
+            }
 
-            // 
-            vm.catalogue.push(l)
+            layers.push(l)
           })
-          callback()
+          if (checkingLayer) { 
+              utils.checkPermission(vm.oimService + "/django-admin/catalogue/record/" + checkingLayer.systemid + "/change/",function(allowed){
+                vm.whoami.editLayer = allowed
+                vm.catalogue.extend(layers)
+                callback()
+              })
+          } else {
+              vm.whoami.editLayer = false
+              vm.catalogue.extend(layers)
+              callback()
+          }
         }
         req.onerror = function (ev) {
           var msg ='Couldn\'t load layer catalogue!' +  (req.statusText? (" (" + req.statusText + ")") : '')
