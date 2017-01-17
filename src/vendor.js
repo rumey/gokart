@@ -45,6 +45,7 @@ import Shepherd from 'tether-shepherd'
 import jsPDF from 'jspdf'
 import interact from 'interact.js'
 import hash from "object-hash"
+import utils from './utils.js'
 
 var saveAs = function (blob,name,no_auto_bom) {
     if (env.appType == "cordova") {
@@ -119,5 +120,6 @@ export {
   Shepherd,
   jsPDF,
   interact,
-  hash
+  hash,
+  utils
 }
