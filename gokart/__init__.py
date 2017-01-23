@@ -69,7 +69,7 @@ def himawari8(target):
     return result
 
 
-session_key_header = "HTTP_X_SESSION_KEY"
+session_key_header = "X-Session-Key"
 sso_cookie_name = os.environ.get("SSO_COOKIE_NAME") or "oim_dpaw_wa_gov_au_sessionid"
 
 def get_session_cookie():
@@ -79,7 +79,11 @@ def get_session_cookie():
     """
     try:
         #import ipdb;ipdb.set_trace()
-        return bottle.request.get_header(session_key_header)
+        session_key = bottle.request.get_header(session_key_header)
+        if session_key:
+            return session_key
+        else:
+            raise bottle.HttpError(status=401)
     except:
         raise bottle.HttpError(status=401)
 
