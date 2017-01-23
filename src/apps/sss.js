@@ -310,42 +310,34 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         type: 'TileLayer',
         name: 'Forest Fire Danger Index',
         id: 'bom:forest_fire_danger_index',
-        timelineSize:72,
-        updateTime:[["07:00:00","19:00:00"],"HH:mm:ss","UTC"],
-        getLayerId: function(latestUpdateTime,timelineIndex) {
-            return "bom:IDZ71117" + (timelineIndex < 10?"00":(timelineIndex < 100?"0":"")) + timelineIndex
-        },
-        layerTimeInterval:3600 * 1000
+        timelineRefresh:300,
+        fetchTimelineUrl:function(lastUpdatetime){
+            return "/bom/bom:IDZ71117?basetimelayer=bom:IDZ71117_datetime&timelinesize=72&layertimespan=3600&updatetime=" + lastUpdatetime
+        }
       }, {
         type: 'TileLayer',
         name: 'Maximum Forest Fire Danger Index',
         id: 'bom:maximum_forest_fire_danger_index',
-        timelineSize:4,
-        updateTime:[["00:00:00","12:00:00"],"HH:mm:ss","UTC"],
-        getLayerId: function(latestUpdateTime,timelineIndex) {
-            return "bom:IDZ71118" + (timelineIndex < 10?"00":(timelineIndex < 100?"0":"")) + timelineIndex
-        },
-        layerTimeInterval:24 * 3600 * 1000
+        timelineRefresh:300,
+        fetchTimelineUrl:function(lastUpdatetime){
+            return "/bom/bom:IDZ71118?basetimelayer=bom:IDZ71118_datetime&timelinesize=4&layertimespan=86400&updatetime=" + lastUpdatetime
+        }
       }, {
         type: 'TileLayer',
         name: 'Grassland Fire Danger Index',
         id: 'bom:grass_fire_danger_index',
-        timelineSize:72,
-        updateTime:[["07:00:00","19:00:00"],"HH:mm:ss","UTC"],
-        getLayerId: function(latestUpdateTime,timelineIndex) {
-            return "bom:IDZ71122" + (timelineIndex < 10?"00":(timelineIndex < 100?"0":"")) + timelineIndex
-        },
-        layerTimeInterval:3600 * 1000
+        timelineRefresh:300,
+        fetchTimelineUrl:function(lastUpdatetime){
+            return "/bom/bom:IDZ71122?basetimelayer=bom:IDZ71122_datetime&timelinesize=72&layertimespan=3600&updatetime=" + lastUpdatetime
+        }
       }, {
         type: 'TileLayer',
         name: 'Maximum Grassland Fire Danger Index',
         id: 'bom:maximum_grass_fire_danger_index',
-        timelineSize:4,
-        updateTime:[["00:00:00","12:00:00"],"HH:mm:ss","UTC"],
-        getLayerId: function(latestUpdateTime,timelineIndex) {
-            return "bom:IDZ71123" + (timelineIndex < 10?"00":(timelineIndex < 100?"0":"")) + timelineIndex
-        },
-        layerTimeInterval:24 * 3600 * 1000
+        timelineRefresh:300,
+        fetchTimelineUrl:function(lastUpdatetime){
+            return "/bom/bom:IDZ71123?basetimelayer=bom:IDZ71123_datetime&timelinesize=4&layertimespan=86400&updatetime=" + lastUpdatetime
+        }
       }])
 
       // load custom annotation tools
