@@ -7,3 +7,4 @@ pytz>=2016.4
 requests
 uwsgi
 boto3
+pytesseract>=0.1.6

@@ -803,7 +803,7 @@
         // hook to swap the tile layer when timeIndex changes
         tileLayer.on('propertychange', function (event) {
           if (event.key === 'timeIndex') {
-            if (!(options.timeline[event.target.get(event.key)][2])) {
+            if (options.timeline && !(options.timeline[event.target.get(event.key)][2])) {
                 options.timeline[event.target.get(event.key)][2] = new ol.source.WMTS({
                   url: layer.wmts_url,
                   layer: options.timeline[event.target.get(event.key)][1],
