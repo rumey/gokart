@@ -137,6 +137,9 @@
             return
         }
         if (control.controls) {
+            if (control.preenable) {
+                control.preenable.call(control,enable)
+            }
             if (Array.isArray(control.controls)) {
                 $.each(control.controls,function(index,c){
                     if (enable) {
@@ -151,6 +154,9 @@
                 } else {
                     vm.olmap.removeControl(control.controls)
                 }
+            }
+            if (control.postenable) {
+                control.postenable.call(control,enable)
             }
         }
         control.enabled = enable
@@ -777,7 +783,6 @@
 
         // hook the tile loading function to update progress indicator
         tileLayer.progress = ''
-        tileSource.setTileLoadFunction(this.tileLoaderHook(tileSource, tileLayer))
 
         tileLayer.postRemove = function () {
           if (this.autoRefresh) {
@@ -786,203 +791,182 @@
           }
           if (this.autoTimelineRefresh) {
             clearTimeout(this.autoTimelineRefresh)
-            //console.log(moment().toLocaleString() + " : Clear " + layer.id + "'s auto timeline refresh task. " )
+            //console.log(moment().toLocaleString() + " : " + this.autoTimelineRefresh + " - Clear auto timeline refresh task for " + options.name )
             this.autoTimelineRefresh = null
           }
+          
         }   
 
         // set properties for use in layer selector
         tileLayer.set('name', layer.name,false)
         tileLayer.set('id', layer.id,false)
 
+        if (options.lastUpdatetime) {
+            tileLayer.set('updated',layer.lastUpdatetime)
+        }
+
         // hook to swap the tile layer when timeIndex changes
         tileLayer.on('propertychange', function (event) {
           if (event.key === 'timeIndex') {
-            if (!(options.timeline[event.target.get(event.key)][2])) {
-                options.timeline[event.target.get(event.key)][2] = new ol.source.WMTS({
-                  url: layer.wmts_url,
-                  layer: options.timeline[event.target.get(event.key)][1],
-                  matrixSet: matrixSet.name,
-                  format: layer.format,
-                  style: layer.style,
-                  projection: layer.projection,
-                  wrapX: true,
-                  tileGrid: tileGrid
-                })
+            if (options.timeline) {
+                if (!(options.timeline[event.target.get(event.key)][2])) {
+                    options.timeline[event.target.get(event.key)][2] = new ol.source.WMTS({
+                      url: layer.wmts_url,
+                      layer: options.timeline[event.target.get(event.key)][1],
+                      matrixSet: matrixSet.name,
+                      format: layer.format,
+                      style: layer.style,
+                      projection: layer.projection,
+                      wrapX: true,
+                      tileGrid: tileGrid
+                    })
+                    options.timeline[event.target.get(event.key)][2].setTileLoadFunction(vm.tileLoaderHook(options.timeline[event.target.get(event.key)][2], tileLayer))
+                }
+                tileLayer.setSource(options.timeline[event.target.get(event.key)][2] )
             }
-            tileLayer.setSource(options.timeline[event.target.get(event.key)][2] )
           }
         })
 
-        if (!options.updateTimeline && (options.getLatestUpdateTime || options.updateTime ) && options.getLayerId) {
-            options.updateTimeline = function(){
+        if (!options.refreshTimeline && options.timelineRefresh && options.fetchTimelineUrl) {
+            options.refreshTimeline = function(){
                 var _func = null
-                var updateTime = null
-                if (options.updateTime) {
-                    if (!options.getLatestUpdateTime) {
-                        //convert the update time to local update time
-                        $.each(options.updateTime[0],function(index,time){
-                            options.updateTime[0][index] = moment.tz(time,options.updateTime[1],options.updateTime[2]).tz("Australia/Perth").format("HH:mm:ss")
-                        })
-                        options.updateTime[0].sort()
-                        options.updateTime[1] = "HH:mm:ss"
-                        options.updateTime[2] = "Australia/Perth"
-
-                        options.getLatestUpdateTime = function() {
-                            var now = moment().tz(options.updateTime[2])
-                            var updateTimeIndex = null
-                            var updatePointTime = null
-                            $.each(options.updateTime[0],function(index,time) {
-                                updatePointTime =  moment.tz(time,options.updateTime[1],options.updateTime[2])
-                                if (now - updatePointTime < 0) {
-                                    if (index === 0) {
-                                        //latest update time is yesterday's last update point
-                                        updateTimeIndex = -1
-                                    } else {
-                                        //latest update time is today's previous update point
-                                        updateTimeIndex = index - 1
-                                    }
-                                    return false
-                                } else if(now - updatePointTime === 0) {
-                                    //latest update time is today's current update point
-                                    updateTimeIndex = index
-                                    return false
-                                }
-                            })
-                            var updateTime = null
-                            if (updateTimeIndex === null) {
-                                //latest update time is today's last update point
-                                updateTime = moment.tz(options.updateTime[0][options.updateTime[0].length - 1],options.updateTime[1],options.updateTime[2])
-                            } else if (updateTimeIndex === -1) {
-                                //latest update time is yesterday's last update point
-                                updateTime = moment.tz(options.updateTime[0][options.updateTime[0].length - 1],options.updateTime[1],options.updateTime[2])
-                                updateTime = updateTime.date(updateTime.date() - 1)
-                            } else {
-                                updateTime = moment.tz(options.updateTime[0][updateTimeIndex],options.updateTime[1],options.updateTime[2])
-                            }
-                            return updateTime
-                        }
-                        options.getNextUpdateTime = function() {
-                            var now = moment().tz(options.updateTime[2])
-                            var updateTimeIndex = null
-                            var updatePointTime = null
-                            $.each(options.updateTime[0],function(index,time) {
-                                updatePointTime =  moment.tz(time,options.updateTime[1],options.updateTime[2])
-                                if (now - updatePointTime < 0) {
-                                    updateTimeIndex = index
-                                    return false
-                                } else if(now - updatePointTime === 0) {
-                                    if (index < options.updateTime[0].length - 1) {
-                                        //next update time is today's next update point
-                                        updateTimeIndex = index + 1
-                                    } else  {
-                                        //next update time is tomorrow's first update point
-                                        updateTimeIndex = -1
-                                    }
-                                    return false
-                                }
-                            })
-                            var updateTime = null
-                            if (updateTimeIndex === null || updateTimeIndex === -1) {
-                                //next update time is tomorrow's first update point
-                                updateTime = moment.tz(options.updateTime[0][0],options.updateTime[1],options.updateTime[2])
-                                updateTime = updateTime.date(updateTime.date() + 1)
-                            } else {
-                                updateTime = moment.tz(options.updateTime[0][updateTimeIndex],options.updateTime[1],options.updateTime[2])
-                            }
-                            return updateTime
-                        }
+                options.getCurrentRefreshTime = function() {
+                    if (!options.lastTimelineRefreshTime) {
+                        return moment.tz()
+                    } else if ( moment.tz() - options.lastTimelineRefreshTime > options.timelineRefresh * 1000) {
+                        return moment.tz()
+                    } else {
+                        return options.lastTimelineRefreshTime
                     }
                 }
-                _func = function(layer,tileLayer,auto) {
-                    if (tileLayer.autoTimelineRefresh) {
-                        if (!auto) {
-                            //console.log(moment().toLocaleString() + " : Clear " + layer.id + "'s auto timeline refresh task. " )
-                            clearTimeout(tileLayer.autoTimelineRefresh)
-                        }
-                        tileLayer.autoTimelineRefresh = null
-                    }
-                    
-                    var latestUpdateTime = layer.getLatestUpdateTime()
-                    if (!updateTime || latestUpdateTime - updateTime !== 0) {
-                        //console.log(moment().toLocaleString() + " : update " + layer.id + "'s timeline. ")
-                        var layerTime = moment(latestUpdateTime)
+                options.getNextRefreshTime = function() {
+                    var nextTime = moment(options.getCurrentRefreshTime())
+                    nextTime.seconds(nextTime.seconds() + options.timelineRefresh )
+                    return nextTime
+                }
+                _func = function(layer,tileLayer,auto,taskId) {
+                    //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Begin to refresh the timeline of " + layer.name)
+                    var currentRefreshTime = layer.getCurrentRefreshTime()
+                    if (layer.lastTimelineRefreshTime && currentRefreshTime - layer.lastTimelineRefreshTime === 0) {
+                        if (!tileLayer.get("timeIndex")) { tileLayer.set('timeIndex',0)}
+                        if (layer.previewLayer) {return}
+                        if (!auto) {return}
+                        var waitTimes = layer.getNextRefreshTime() - moment()
+                        tileLayer.autoTimelineRefresh = setTimeout(function(){_func(layer,tileLayer,true)},waitTimes)
+                        //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Next timeline refresh time for " + layer.name + " is " + waitTimes + " milliseconds later" )
+                    } else {
+                        //console.log(moment().toLocaleString() + " : refresh timeline " + layer.id + "'s timeline. ")
+                        var layerTime = moment(currentRefreshTime)
                         var layerId = null
-                        if (layer.timeline) {
-                            for(var i = 0;i < layer.timelineSize; i++) {
-                                layerId = layer.getLayerId(latestUpdateTime,i)
-                                if (layer.layerTimeInterval) {
-                                    layer.timeline[i][0] = layerTime.toLocaleString() + " (" + layerId + ")"
-                                    layerTime = moment(layerTime + layer.layerTimeInterval)
-                                } else if (layer.getLayerTime){
-                                    layer.timeline[i][0] = layer.getLayerTime(latestUpdateTime,i).toLocaleString() + " (" + layerId + ")"
-                                } else {
-                                    layer.timeline[i][0] = i + " (" + layerId + ")"
-                                }
-                                if (layerId !== layer.timeline[i][1]) {
-                                    layer.timeline[i][2] = null
-                                }
-                            }
-                        } else {
-                            layer.timeline=[]
-                            var layerTitle = null
-                            for(var i = 0;i < layer.timelineSize; i++) {
-                                layerId = layer.getLayerId(latestUpdateTime,i)
-                                if (layer.layerTimeInterval) {
-                                    layerTitle = layerTime.toLocaleString() + " (" + layerId + ")"
-                                    layerTime = moment(layerTime + layer.layerTimeInterval)
-                                } else if (layer.getLayerTime){
-                                    layerTitle = layer.getLayerTime(latestUpdateTime,i).toLocaleString() + " (" + layerId + ")"
-                                } else {
-                                    layerTitle = i + " (" + layerId + ")"
-                                }
-                                layer.timeline.push([layerTitle,layerId,null])
-                            }
+                        var choosedTimelineLayerTime= null
+                        if (layer.lastTimelineRefreshTime && tileLayer.get('timeIndex')) {
+                            choosedTimelineLayerTime = moment.fromLocaleString(layer.timeline[tileLayer.get('timeIndex')][0])
                         }
+                        var fetchTimelineFailed = function(status,statusText){
+                            if (!layer.previewLayer && vm.getMapLayer(layer) !== tileLayer) {
+                                //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Stop run because " + layer.name + " is removed from map" )
+                                return
+                            }
+                            if (!tileLayer.get("timeIndex")) { tileLayer.set('timeIndex',0)}
+                            if (layer.previewLayer) {return}
+                            tileLayer.progress = "error"
+                            tileLayer.set('updated',layer.lastUpdatetime + "\r\n" + status + " : " + statusText)
+                            vm.active.refreshRevision += 1
+                            //console.warn(moment().toLocaleString() + " : Update the timeline of " + layer.name + " failed. code = " + status + ", reason = " + statusText )
+                            if (!auto) {return}
+                            var waitTimes = layer.getNextRefreshTime() - moment()
+                            tileLayer.autoTimelineRefresh = setTimeout(function(){_func(layer,tileLayer,true)},waitTimes)
+                            //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Next timeline refresh time for " + layer.name + " is " + waitTimes + " milliseconds later" )
+                        }
+                        var timelineNotChanged = function(){
+                            if (!layer.previewLayer && vm.getMapLayer(layer) !== tileLayer) {
+                                //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Stop run because " + layer.name + " is removed from map" )
+                                return
+                            }
+                            if (!tileLayer.get("timeIndex")) { tileLayer.set('timeIndex',0)}
+                            if (layer.previewLayer) {return}
+                            tileLayer.progress = ""
+                            tileLayer.set('updated',layer.lastUpdatetime )
+                            vm.active.refreshRevision += 1
+                            if (!auto) {return}
+                            var waitTimes = layer.getNextRefreshTime() - moment()
+                            tileLayer.autoTimelineRefresh = setTimeout(function(){_func(layer,tileLayer,true)},waitTimes)
+                            //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Next timeline refresh time for " + layer.name + " is " + waitTimes + " milliseconds later" )
+                        }
+                        var processTimeline = function(timeline){
+                            if (!layer.previewLayer && vm.getMapLayer(layer) !== tileLayer) {
+                                //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Stop run because " + layer.name + " is removed from map" )
+                                return
+                            }
+                            tileLayer.progress = ""
+                            if (layer.timeline) {
+                                //reuse already created tile source
+                                $.each(timeline,function(index,timelineLayer) {
+                                    if (layer.timeline.length > index && layer.timeline[index][2] && layer.timeline[index][1] === timelineLayer[1]) {
+                                        timelineLayer[2] = layer.timeline[index][2]
+                                    }
+                                })
+                            }
+                            layer.timeline = timeline
+
+                            //get new time index for current displayed timeline layer
+                            var timeIndex = null
+                            var layerTime = null
+                            $.each(layer.timeline,function(index,timelineLayer) {
+                                layerTime = moment.fromLocaleString(timelineLayer[0])
+                                if (layerTime - choosedTimelineLayerTime == 0) {
+                                    timeIndex = index
+                                    return false
+                                } else if(layerTime - choosedTimelineLayerTime < 0) {
+                                    timeIndex = (index == 0)?0:index - 1
+                                }
+                            })
+                            timeIndex = (timeIndex == null)?0:timeIndex
+                            tileLayer.set('timeIndex', timeIndex)
+
+                            tileLayer.set('updated',layer.lastUpdatetime)
+                            vm.active.refreshRevision += 1
+
+                            if (layer.previewLayer) {return}
+                            if (!auto) {return}
+                            var waitTimes = layer.getNextRefreshTime() - moment()
+                            tileLayer.autoTimelineRefresh = setTimeout(function(){_func(layer,tileLayer,true)},waitTimes)
+                            //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Next timeline refresh time for " + layer.name + " is " + waitTimes + " milliseconds later" )
+                        }
+
+                        layer.lastTimelineRefreshTime = currentRefreshTime
+                        tileLayer.progress = "loading"
+                        $.ajax(layer.fetchTimelineUrl(layer.lastUpdatetime || "") ,{
+                            xhrFields:{
+                                withCredentials: true
+                            },
+                            dataType:"json",
+                            success:function(data,status,jqXHR) {
+                                if (jqXHR.status === 290) {
+                                    timelineNotChanged()
+                                    return
+                                }
+                                layer.lastUpdatetime = data.updatetime
+                                processTimeline(data.layers)
+                            },
+                            error:function(jqXHR) {
+                                fetchTimelineFailed(jqXHR.status,jqXHR.statusText)
+                            }
+                        })
         
-                        var timeIndex = null
-                        if (layer.layerTimeInterval) {
-                            if (updateTime && tileLayer.get('timeIndex')) {
-                                timeIndex = tileLayer.get('timeIndex') - Math.floor(((latestUpdateTime - updateTime) / layer.layerTimeInterval))
-                                if (timeIndex < 0) {
-                                    timeIndex = null
-                                }
-                            } 
-                        }
-                        var now = moment()
-                        if (layer.layerTimeInterval) {
-                            if (!timeIndex) {
-                                timeIndex = Math.floor(parseInt((now - latestUpdateTime) / layer.layerTimeInterval))
-                            }
-                        }
-                        timeIndex = (timeIndex && timeIndex >= 0)?timeIndex:0
-                        tileLayer.set('timeIndex', timeIndex)
-                            
-                        updateTime = latestUpdateTime
-                        tileLayer.set('updated',latestUpdateTime.toLocaleString())
-                        vm.active.refreshRevision += 1
                     }
 
-                    if (layer.previewLayer) {return}
-
-                    var waitTimes = layer.getNextUpdateTime() - moment()
-                    //console.log(moment().toLocaleString() + " : Wait " + waitTimes / 3600000 + " hours to refresh " + layer.id + "'s timeline.")
-                    tileLayer.autoTimelineRefresh = setTimeout(function(){_func(layer,tileLayer,true)},waitTimes)
                 }
                 
                 return _func
            }()
         }
 
-        if (options.updateTimeline) {
-            options.updateTimeline(options,tileLayer)
-            // if the "refresh" option is set, set a timer
-            // to update the source
-            if (options.timelineRefresh) {
-              tileLayer.autoTimelineRefresh = setInterval(function () {
-                options.updateTimeline(options,tileLayer)
-              }, options.timelineRefresh * 1000)
-            }
+        if (options.refreshTimeline) {
+            tileLayer.autoTimelineRefresh = null
+            options.refreshTimeline(options,tileLayer,true)
+        } else {
+            tileSource.setTileLoadFunction(this.tileLoaderHook(tileSource, tileLayer))
         }
 
         var setUrlTimestamp = function() {
@@ -1137,27 +1121,38 @@
         vm.mapControls = {
             "zoom": {
                 enabled:false,
+                autoenable:false,
                 controls:new ol.control.Zoom({
                   target: $('#external-controls').get(0)   
                 })
             },
             "overviewMap": {
                 enabled:false,
+                autoenable:false,
                 controls:new ol.control.OverviewMap({
                     className: 'ol-overviewmap ol-custom-overviewmap',
-                    layers: [
-                        vm['create' + overviewLayer.type](overviewLayer)
-                    ],
+                    layers: [],
                     collapseLabel: '\u00BB',
                     label: '\u00AB',
                     collapsed: false,
                     view: new ol.View({
                         projection: 'EPSG:4326',
                     })
-                })
+                }),
+                preenable:function(enable){
+                    if (enable) {
+                        this.controls.getOverviewMap().addLayer(vm['create' + overviewLayer.type](overviewLayer))
+                    } else {
+                        try {
+                            this.controls.getOverviewMap().removeLayer(this.controls.getOverviewMap().getLayers().get(0))
+                        } catch (ex) {
+                        }
+                    }
+                }
             },
             "scaleLine": {
                 enabled:false,
+                autoenable:false,
                 controls:new ol.control.ScaleLine()
             },
             "mousePosition": {
@@ -1180,6 +1175,7 @@
             },
             "scale": {
                 enabled:false,
+                autoenable:false,
                 controls:new ol.control.Control({
                     element: $('#menu-scale').get(0),
                     target: $('#external-controls').get(0)
@@ -1203,11 +1199,14 @@
             },
             "measure": {
                 enabled:false,
+                autoenable:false,
                 controls:vm.measure.mapControl
             }
         }
         $.each(vm.mapControls,function(key,control){
-            vm.enableControl(key,true)
+            if (control.autoenable === undefined || control.autoenable) {
+                vm.enableControl(key,true)
+            }
         })
       }
     },

@@ -104,6 +104,9 @@ JSON.stringify = (function(){
 moment.fn.toLocaleString = function(){
     return this.tz("Australia/Perth").format('ddd MMM DD YYYY HH:mm:ss [AWST]')
 }
+moment.fromLocaleString = function(datestr){
+    return moment.tz(datestr,'ddd MMM DD YYYY HH:mm:ss [AWST]','Australia/Perth')
+}
 export {
   $,
   ol,

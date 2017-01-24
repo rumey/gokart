@@ -9,7 +9,7 @@
             track-by="values_.id" @click="layer = getLayer(l.get('id'))">
             <div class="small-9">
               <div class="layer-title">{{ l.get("name") || l.get("id") }} - {{ Math.round(l.getOpacity() * 100) }}%</div>
-              <small v-if="layerRefreshStatus(l)">Updated: {{ layerRefreshStatus(l) }}</small>
+              <small v-if="layerRefreshStatus(l)" style="white-space:pre-wrap">Updated: {{ layerRefreshStatus(l) }}</small>
             </div>
             <div class="small-3">
               <div class="text-right">
@@ -76,17 +76,18 @@
       sliderTimeline: {
         get: function () {
           var mapLayer = this.mapLayer()
-          this.timeIndex = mapLayer?mapLayer.get('timeIndex'):0
+          this.timeIndex = mapLayer?(mapLayer.get('timeIndex') || 0):0
           return this.timeIndex
         },
         set: function (val) {
           this.mapLayer().set('timeIndex', val)
+          this.refreshRevision += 1
           this.timeIndex = val
         }
       },
       timelineTS: function () {
         var mapLayer = this.mapLayer()
-        return this.refreshRevision && this.layer.timeline[mapLayer?this.mapLayer().get('timeIndex'):0][0]
+        return this.refreshRevision && this.layer.timeline[mapLayer?(mapLayer.get('timeIndex') || 0):0][0]
       },
       sliderMax: function () {
         return this.layer.timeline.length - 1
@@ -191,12 +192,10 @@
         return (layer.type === "WFSLayer" || layer.type === "TileLayer") && layer.refresh && layer.min_interval && layer.max_interval && true
       },
       layerRefreshProgress: function(l) {
-        var tmp = this.refreshRevision
-        return l.progress || ""
+        return this.refreshRevision && (l.progress || "")
       },
       layerRefreshStatus: function(l) {
-        var tmp = this.refreshRevision
-        return l.get("updated")
+        return this.refreshRevision && l.get("updated")
       },
       activeLayers: function () {
         var catalogue = this.$root.catalogue
