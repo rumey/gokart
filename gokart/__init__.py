@@ -12,7 +12,10 @@ import re
 import smtplib
 import json
 import pytesseract
-import Image
+try:
+    from PIL import Image
+except:
+    import Image
 from datetime import datetime,timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
