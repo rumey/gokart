@@ -86,16 +86,16 @@ def get_session_cookie():
         if session_key:
             return session_key
         else:
-            raise bottle.HttpError(status=401)
+            raise bottle.HTTPError(status=401)
     except:
-        raise bottle.HttpError(status=401)
+        raise bottle.HTTPError(status=401)
 
 def get_file_md5(f):
     get_md5 = subprocess.Popen(["md5sum",f], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     get_md5_output = get_md5.communicate()
 
     if get_md5.returncode != 0:
-        raise bottle.HttpError(status=500,body="Generate file md5 failed.{}".format(get_md5_output[1]))
+        raise bottle.HTTPError(status=500,body="Generate file md5 failed.{}".format(get_md5_output[1]))
 
     return get_md5_output[0].split()[0]
 
@@ -127,17 +127,17 @@ def getTimelineFromLayer(target,current_timeline):
             basetimestr = pytesseract.image_to_string(img,lang="bom")
             m = basetime_re.search(basetimestr,re.I)
             if not m:
-                raise HttpError(status=500,body="Can't extract the base time from base time layer.")
+                raise bottle.HTTPError(status=500,body="Can't extract the base time from base time layer.")
             basetime = datetime(int(m.group(1)),int(m.group(2)), int(m.group(3)), int(m.group(4)), int(m.group(5)),0,0,tzinfo=pytz.timezone(m.group(6)))
             now = datetime.now(pytz.timezone('UTC'))
             if basetime > now:
-                raise HttpError(status=500,body="Extract the wrong base time from base time layer.")
+                raise bottle.HTTPError(status=500,body="Extract the wrong base time from base time layer.")
             
             if (now - basetime).seconds > 86400:
-                raise HttpError(status=500,body="Extract the wrong base time from base time layer.")
+                raise bottle.HTTPError(status=500,body="Extract the wrong base time from base time layer.")
 
             if basetime.year != int(m.group(1))  or basetime.month != int(m.group(2)) or  basetime.day != int(m.group(3)) or basetime.hour != int(m.group(4)) or basetime.minute != int(m.group(5)):
-                raise HttpError(status=500,body="Extract the wrong base time from base time layer.")
+                raise bottle.HTTPError(status=500,body="Extract the wrong base time from base time layer.")
 
             basetime = basetime.astimezone(pytz.timezone("Australia/Perth"))
 

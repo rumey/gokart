@@ -137,6 +137,9 @@
             return
         }
         if (control.controls) {
+            if (control.preenable) {
+                control.preenable.call(control,enable)
+            }
             if (Array.isArray(control.controls)) {
                 $.each(control.controls,function(index,c){
                     if (enable) {
@@ -151,6 +154,9 @@
                 } else {
                     vm.olmap.removeControl(control.controls)
                 }
+            }
+            if (control.postenable) {
+                control.postenable.call(control,enable)
             }
         }
         control.enabled = enable
@@ -777,7 +783,6 @@
 
         // hook the tile loading function to update progress indicator
         tileLayer.progress = ''
-        tileSource.setTileLoadFunction(this.tileLoaderHook(tileSource, tileLayer))
 
         tileLayer.postRemove = function () {
           if (this.autoRefresh) {
@@ -803,19 +808,22 @@
         // hook to swap the tile layer when timeIndex changes
         tileLayer.on('propertychange', function (event) {
           if (event.key === 'timeIndex') {
-            if (options.timeline && !(options.timeline[event.target.get(event.key)][2])) {
-                options.timeline[event.target.get(event.key)][2] = new ol.source.WMTS({
-                  url: layer.wmts_url,
-                  layer: options.timeline[event.target.get(event.key)][1],
-                  matrixSet: matrixSet.name,
-                  format: layer.format,
-                  style: layer.style,
-                  projection: layer.projection,
-                  wrapX: true,
-                  tileGrid: tileGrid
-                })
+            if (options.timeline) {
+                if (!(options.timeline[event.target.get(event.key)][2])) {
+                    options.timeline[event.target.get(event.key)][2] = new ol.source.WMTS({
+                      url: layer.wmts_url,
+                      layer: options.timeline[event.target.get(event.key)][1],
+                      matrixSet: matrixSet.name,
+                      format: layer.format,
+                      style: layer.style,
+                      projection: layer.projection,
+                      wrapX: true,
+                      tileGrid: tileGrid
+                    })
+                    options.timeline[event.target.get(event.key)][2].setTileLoadFunction(vm.tileLoaderHook(options.timeline[event.target.get(event.key)][2], tileLayer))
+                }
+                tileLayer.setSource(options.timeline[event.target.get(event.key)][2] )
             }
-            tileLayer.setSource(options.timeline[event.target.get(event.key)][2] )
           }
         })
 
@@ -957,6 +965,8 @@
         if (options.refreshTimeline) {
             tileLayer.autoTimelineRefresh = null
             options.refreshTimeline(options,tileLayer,true)
+        } else {
+            tileSource.setTileLoadFunction(this.tileLoaderHook(tileSource, tileLayer))
         }
 
         var setUrlTimestamp = function() {
@@ -1111,27 +1121,38 @@
         vm.mapControls = {
             "zoom": {
                 enabled:false,
+                autoenable:false,
                 controls:new ol.control.Zoom({
                   target: $('#external-controls').get(0)   
                 })
             },
             "overviewMap": {
                 enabled:false,
+                autoenable:false,
                 controls:new ol.control.OverviewMap({
                     className: 'ol-overviewmap ol-custom-overviewmap',
-                    layers: [
-                        vm['create' + overviewLayer.type](overviewLayer)
-                    ],
+                    layers: [],
                     collapseLabel: '\u00BB',
                     label: '\u00AB',
                     collapsed: false,
                     view: new ol.View({
                         projection: 'EPSG:4326',
                     })
-                })
+                }),
+                preenable:function(enable){
+                    if (enable) {
+                        this.controls.getOverviewMap().addLayer(vm['create' + overviewLayer.type](overviewLayer))
+                    } else {
+                        try {
+                            this.controls.getOverviewMap().removeLayer(this.controls.getOverviewMap().getLayers().get(0))
+                        } catch (ex) {
+                        }
+                    }
+                }
             },
             "scaleLine": {
                 enabled:false,
+                autoenable:false,
                 controls:new ol.control.ScaleLine()
             },
             "mousePosition": {
@@ -1154,6 +1175,7 @@
             },
             "scale": {
                 enabled:false,
+                autoenable:false,
                 controls:new ol.control.Control({
                     element: $('#menu-scale').get(0),
                     target: $('#external-controls').get(0)
@@ -1177,11 +1199,14 @@
             },
             "measure": {
                 enabled:false,
+                autoenable:false,
                 controls:vm.measure.mapControl
             }
         }
         $.each(vm.mapControls,function(key,control){
-            vm.enableControl(key,true)
+            if (control.autoenable === undefined || control.autoenable) {
+                vm.enableControl(key,true)
+            }
         })
       }
     },

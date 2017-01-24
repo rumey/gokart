@@ -1,8 +1,10 @@
 <template>
+    <div style="display:none">
     <select class="map-control" v-el:scale-select @change="$root.map.setScale($event.target.value)" id="menu-scale" v-cloak>
         <option value="{{ $root.map.scale }}" selected>{{ scaleString }}</option>
         <option v-for="s in fixedScales" value="{{ s }}">{{ $root.map.getScaleString(s) }}</option>
     </select>
+    </div>
 </template>
 
 <style>
