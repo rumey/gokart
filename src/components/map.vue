@@ -39,7 +39,7 @@
 </style>
 
 <script>
-  import { $, ol, proj4, moment } from 'src/vendor.js'
+  import { $, ol, proj4, moment,interact } from 'src/vendor.js'
   import gkInfo from './info.vue'
   import gkScales from './scales.vue'
   import gkSearch from './search.vue'
@@ -832,9 +832,9 @@
                 var _func = null
                 options.getCurrentRefreshTime = function() {
                     if (!options.lastTimelineRefreshTime) {
-                        return moment.tz()
-                    } else if ( moment.tz() - options.lastTimelineRefreshTime > options.timelineRefresh * 1000) {
-                        return moment.tz()
+                        return moment.tz("Australia/Perth")
+                    } else if ( moment.tz("Australia/Perth") - options.lastTimelineRefreshTime > options.timelineRefresh * 1000) {
+                        return moment.tz("Australia/Perth")
                     } else {
                         return options.lastTimelineRefreshTime
                     }
@@ -844,11 +844,29 @@
                     nextTime.seconds(nextTime.seconds() + options.timelineRefresh )
                     return nextTime
                 }
+                options.getTimeIndexForTime = function(d) {
+                    if (!options.timeline) {
+                        return null
+                    }
+                    d = d || moment.tz("Australia/Perth")
+                    $.each(options.timeline,function(index,timelineLayer) {
+                        var timediff = d - moment.fromLocaleString(timelineLayer[0])
+                        if (timediff < 0) {
+                            timeIndex = (index == 0)?0:index - 1
+                            return false
+                        } else if (timediff === 0) {
+                            timeIndex = index
+                            return false
+                        }
+                    })
+                    timeIndex = (timeIndex == null)?(options.timeline.length - 1):timeIndex
+                    return timeIndex
+                }
                 _func = function(layer,tileLayer,auto,taskId) {
                     //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Begin to refresh the timeline of " + layer.name)
                     var currentRefreshTime = layer.getCurrentRefreshTime()
                     if (layer.lastTimelineRefreshTime && currentRefreshTime - layer.lastTimelineRefreshTime === 0) {
-                        if (!tileLayer.get("timeIndex")) { tileLayer.set('timeIndex',0)}
+                        if (!tileLayer.get("timeIndex")) { tileLayer.set('timeIndex',layer.getTimeIndexForTime())}
                         if (layer.previewLayer) {return}
                         if (!auto) {return}
                         var waitTimes = layer.getNextRefreshTime() - moment()
@@ -867,7 +885,7 @@
                                 //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Stop run because " + layer.name + " is removed from map" )
                                 return
                             }
-                            if (!tileLayer.get("timeIndex")) { tileLayer.set('timeIndex',0)}
+                            if (!tileLayer.get("timeIndex")) { tileLayer.set('timeIndex',layer.getTimeIndexForTime())}
                             if (layer.previewLayer) {return}
                             tileLayer.progress = "error"
                             tileLayer.set('updated',layer.lastUpdatetime + "\r\n" + status + " : " + statusText)
@@ -883,7 +901,7 @@
                                 //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Stop run because " + layer.name + " is removed from map" )
                                 return
                             }
-                            if (!tileLayer.get("timeIndex")) { tileLayer.set('timeIndex',0)}
+                            if (!tileLayer.get("timeIndex")) { tileLayer.set('timeIndex',layer.getTimeIndexForTime())}
                             if (layer.previewLayer) {return}
                             tileLayer.progress = ""
                             tileLayer.set('updated',layer.lastUpdatetime )
@@ -910,18 +928,7 @@
                             layer.timeline = timeline
 
                             //get new time index for current displayed timeline layer
-                            var timeIndex = null
-                            var layerTime = null
-                            $.each(layer.timeline,function(index,timelineLayer) {
-                                layerTime = moment.fromLocaleString(timelineLayer[0])
-                                if (layerTime - choosedTimelineLayerTime == 0) {
-                                    timeIndex = index
-                                    return false
-                                } else if(layerTime - choosedTimelineLayerTime < 0) {
-                                    timeIndex = (index == 0)?0:index - 1
-                                }
-                            })
-                            timeIndex = (timeIndex == null)?0:timeIndex
+                            var timeIndex = layer.getTimeIndexForTime(choosedTimelineLayerTime)
                             tileLayer.set('timeIndex', timeIndex)
 
                             tileLayer.set('updated',layer.lastUpdatetime)
@@ -1143,9 +1150,57 @@
                     if (enable) {
                         this.controls.getOverviewMap().addLayer(vm['create' + overviewLayer.type](overviewLayer))
                     } else {
+                        if (this._interact) {
+                            this._interact.unset()
+                            this._interact = null
+                        }
                         try {
                             this.controls.getOverviewMap().removeLayer(this.controls.getOverviewMap().getLayers().get(0))
                         } catch (ex) {
+                        }
+                    }
+                },
+                postenable:function(enable) {
+                    if (enable) {
+                        var overviewMapControl = this.controls
+                        var extentbox = $(".ol-custom-overviewmap").find(".ol-overlay-container")
+                        var overviewMap = $(".ol-custom-overviewmap").find(".ol-overviewmap-map")
+                        if (extentbox.length) {
+                            this._interact = interact(extentbox.get(0),{})
+                            .draggable({
+                                intertia:true,
+                                restrict:{
+                                    restriction:overviewMap.get(0),
+                                    endOnly:true,
+                                    elementRect:{top:0,left:0,bottom:1,right:1}
+                                },
+                                autoScroll:true,
+                                onmove: function(event){
+                                    // keep the dragged position in the data-x/data-y attributes
+                                    //console.log(extentbox.get(0).style.left + "\t" + extentbox.get(0).style.right + "\t" + extentbox.get(0).style.top + "\t" + extentbox.get(0).style.bottom)
+                                    //console.log("x0 = " + event.x0 +",y0= " + event.y0 + ",clientX0=" + event.clientX0 + ",clientY0=" + event.clientY0 + ",dx=" + event.dx + ",dy=" + event.dy)
+                                    if (extentbox.get(0).style.left) {
+                                        extentbox.get(0).style.left = (parseInt(extentbox.get(0).style.left) + event.dx) + "px"
+                                    }
+                                    if (extentbox.get(0).style.right) {
+                                        extentbox.get(0).style.right = (parseInt(extentbox.get(0).style.right) + event.dx) + "px"
+                                    }
+                                    if (extentbox.get(0).style.bottom) {
+                                        extentbox.get(0).style.bottom = (parseInt(extentbox.get(0).style.bottom) - event.dy) + "px"
+                                    }
+                                    if (extentbox.get(0).style.top) {
+                                        extentbox.get(0).style.top = (parseInt(extentbox.get(0).style.top) - event.dy) + "px"
+                                    }
+                                },
+                                onend:function(event) {
+                                    var centralPosition = [
+                                        (extentbox.get(0).style.left)?(parseInt(extentbox.get(0).style.left) + extentbox.width() / 2):(parseInt(extentbox.get(0).style.right) - extentbox.width() / 2) ,
+                                        (extentbox.get(0).style.bottom)?(overviewMap.height() - parseInt(extentbox.get(0).style.bottom) - extentbox.height() / 2):(overviewMap.height() - parseInt(extentbox.get(0).style.top) + extentbox.height() / 2)
+                                    ]
+                                    //console.log(extentbox.get(0).style.left + "\t" + extentbox.get(0).style.bottom + "\t" + extentbox.width() + "\t" + extentbox.height() + "\t" + centralPosition + "\t" + overviewMapControl.getOverviewMap().getCoordinateFromPixel(centralPosition))
+                                    overviewMapControl.getMap().getView().setCenter(overviewMapControl.getOverviewMap().getCoordinateFromPixel(centralPosition))
+                                }
+                            })
                         }
                     }
                 }
