@@ -832,9 +832,9 @@
                 var _func = null
                 options.getCurrentRefreshTime = function() {
                     if (!options.lastTimelineRefreshTime) {
-                        return moment.tz()
-                    } else if ( moment.tz() - options.lastTimelineRefreshTime > options.timelineRefresh * 1000) {
-                        return moment.tz()
+                        return moment.tz("Australia/Perth")
+                    } else if ( moment.tz("Australia/Perth") - options.lastTimelineRefreshTime > options.timelineRefresh * 1000) {
+                        return moment.tz("Australia/Perth")
                     } else {
                         return options.lastTimelineRefreshTime
                     }
@@ -844,11 +844,29 @@
                     nextTime.seconds(nextTime.seconds() + options.timelineRefresh )
                     return nextTime
                 }
+                options.getTimeIndexForTime = function(d) {
+                    if (!options.timeline) {
+                        return null
+                    }
+                    d = d || moment.tz("Australia/Perth")
+                    $.each(options.timeline,function(index,timelineLayer) {
+                        var timediff = d - moment.fromLocaleString(timelineLayer[0])
+                        if (timediff < 0) {
+                            timeIndex = (index == 0)?0:index - 1
+                            return false
+                        } else if (timediff === 0) {
+                            timeIndex = index
+                            return false
+                        }
+                    })
+                    timeIndex = (timeIndex == null)?(options.timeline.length - 1):timeIndex
+                    return timeIndex
+                }
                 _func = function(layer,tileLayer,auto,taskId) {
                     //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Begin to refresh the timeline of " + layer.name)
                     var currentRefreshTime = layer.getCurrentRefreshTime()
                     if (layer.lastTimelineRefreshTime && currentRefreshTime - layer.lastTimelineRefreshTime === 0) {
-                        if (!tileLayer.get("timeIndex")) { tileLayer.set('timeIndex',0)}
+                        if (!tileLayer.get("timeIndex")) { tileLayer.set('timeIndex',layer.getTimeIndexForTime())}
                         if (layer.previewLayer) {return}
                         if (!auto) {return}
                         var waitTimes = layer.getNextRefreshTime() - moment()
@@ -867,7 +885,7 @@
                                 //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Stop run because " + layer.name + " is removed from map" )
                                 return
                             }
-                            if (!tileLayer.get("timeIndex")) { tileLayer.set('timeIndex',0)}
+                            if (!tileLayer.get("timeIndex")) { tileLayer.set('timeIndex',layer.getTimeIndexForTime())}
                             if (layer.previewLayer) {return}
                             tileLayer.progress = "error"
                             tileLayer.set('updated',layer.lastUpdatetime + "\r\n" + status + " : " + statusText)
@@ -883,7 +901,7 @@
                                 //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Stop run because " + layer.name + " is removed from map" )
                                 return
                             }
-                            if (!tileLayer.get("timeIndex")) { tileLayer.set('timeIndex',0)}
+                            if (!tileLayer.get("timeIndex")) { tileLayer.set('timeIndex',layer.getTimeIndexForTime())}
                             if (layer.previewLayer) {return}
                             tileLayer.progress = ""
                             tileLayer.set('updated',layer.lastUpdatetime )
@@ -910,18 +928,7 @@
                             layer.timeline = timeline
 
                             //get new time index for current displayed timeline layer
-                            var timeIndex = null
-                            var layerTime = null
-                            $.each(layer.timeline,function(index,timelineLayer) {
-                                layerTime = moment.fromLocaleString(timelineLayer[0])
-                                if (layerTime - choosedTimelineLayerTime == 0) {
-                                    timeIndex = index
-                                    return false
-                                } else if(layerTime - choosedTimelineLayerTime < 0) {
-                                    timeIndex = (index == 0)?0:index - 1
-                                }
-                            })
-                            timeIndex = (timeIndex == null)?0:timeIndex
+                            var timeIndex = layer.getTimeIndexForTime(choosedTimelineLayerTime)
                             tileLayer.set('timeIndex', timeIndex)
 
                             tileLayer.set('updated',layer.lastUpdatetime)
