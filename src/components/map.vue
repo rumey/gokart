@@ -547,6 +547,35 @@
           tileLoader(tile, src)
         }
       },
+      setUrlTimestamp:function(tileSource,time) {
+        if (!tileSource.setUrlTimestamp) {
+          tileSource.setUrlTimestamp = function() {
+              var originFunc = tileSource.getTileUrlFunction()
+              return function(time) {
+                  tileSource.setTileUrlFunction(function(tileCoord,pixelRatio,projection){
+                      return originFunc(tileCoord,pixelRatio,projection) + "&time=" + time
+                  },tileSource.getUrls()[0] + "?time=" + time)
+              }
+          }()
+        }
+        tileSource.setUrlTimestamp(time)
+      },
+      refreshLayerTile : function (tileLayer) {
+        var vm = this
+        //for timeline layer, layer's source will be changed when change timeline index
+        if (!tileLayer.getSource().load) {
+          tileLayer.getSource().load = function() {
+            //console.log(((tileLayer.getSource().getLayer)?tileLayer.getSource().getLayer():tileLayer.getSource().getUrls()[0]) + " : Start refresh tiles")
+            tileLayer.set('updated', moment().toLocaleString())
+            // changing a URL forces a fetch + redraw
+            vm.setUrlTimestamp(tileLayer.getSource(),moment.utc().unix())
+            // empty the tile cache so other zoom levels are also reloaded
+            tileLayer.getSource().tileCache.clear()
+            vm.$root.active.refreshRevision += 1
+          }
+        }
+        tileLayer.getSource().load()
+      },
       // loader for layers with a "time" axis, e.g. live satellite imagery
       createTimelineLayer: function (options) {
         var vm = this
@@ -805,6 +834,29 @@
             tileLayer.set('updated',layer.lastUpdatetime)
         }
 
+        tileLayer.stopAutoRefresh = function() {
+            if (this.autoRefresh) {
+                clearInterval(this.autoRefresh)
+                //console.log(tileLayer.getSource().getLayer() + " : Stop auto refresh for layer (" + layer.id + ")")
+                delete this.autoRefresh
+            }
+        }
+
+        tileLayer.startAutoRefresh = function() {
+            if (!options.refresh) {
+                //not refreshable
+                return
+            } 
+            if(this.autoRefresh) {
+                //already started
+                return
+            }
+            this.autoRefresh = setInterval(function () {
+                vm.refreshLayerTile(tileLayer)
+            }, options.refresh * 1000)
+            //console.log(tileLayer.getSource().getLayer() + " : Start auto refresh for layer (" + layer.id + ") with interval " + layer.refresh)
+        }
+
         // hook to swap the tile layer when timeIndex changes
         tileLayer.on('propertychange', function (event) {
           if (event.key === 'timeIndex') {
@@ -823,6 +875,11 @@
                     options.timeline[event.target.get(event.key)][2].setTileLoadFunction(vm.tileLoaderHook(options.timeline[event.target.get(event.key)][2], tileLayer))
                 }
                 tileLayer.setSource(options.timeline[event.target.get(event.key)][2] )
+
+                if (options.refresh && options.autoRefreshStopped !== true ) {
+                    tileLayer.stopAutoRefresh()
+                    tileLayer.startAutoRefresh()
+                }
             }
           }
         })
@@ -922,6 +979,9 @@
                                 $.each(timeline,function(index,timelineLayer) {
                                     if (layer.timeline.length > index && layer.timeline[index][2] && layer.timeline[index][1] === timelineLayer[1]) {
                                         timelineLayer[2] = layer.timeline[index][2]
+                                        //clear browser cache and tile cache
+                                        vm.setUrlTimestamp(timelineLayer[2],moment.utc().unix())
+                                        timelineLayer[2].tileCache.clear()
                                     }
                                 })
                             }
@@ -976,56 +1036,15 @@
             tileSource.setTileLoadFunction(this.tileLoaderHook(tileSource, tileLayer))
         }
 
-        var setUrlTimestamp = function() {
-            var originFunc = tileSource.getTileUrlFunction()
-            return function(time) {
-                tileLayer.getSource().setTileUrlFunction(function(tileCoord,pixelRatio,projection){
-                    return originFunc(tileCoord,pixelRatio,projection) + "&time=" + time
-                },tileSource.getUrls()[0] + "?time=" + time)
-            }
-        }()
-
         // if the "refresh" option is set, set a timer
         // to force a reload of the tile content
-        if (layer.refresh) {
+        if (options.refresh) {
           tileLayer.set('updated', moment().toLocaleString())
           vm.$root.active.refreshRevision += 1
-          tileSource.load = function() {
-            tileLayer.set('updated', moment().toLocaleString())
-            // changing a URL forces a fetch + redraw
-            setUrlTimestamp(moment.utc().unix())
-            // empty the tile cache so other zoom levels are also reloaded
-            tileSource.tileCache.clear()
-            vm.$root.active.refreshRevision += 1
-          }
           tileLayer.autoRefresh = setInterval(function () {
-            tileSource.load()
-          }, layer.refresh * 1000)
+            vm.refreshLayerTile(tileLayer)
+          }, options.refresh * 1000)
         }
-
-        tileLayer.stopAutoRefresh = function() {
-            if (this.autoRefresh) {
-                clearInterval(this.autoRefresh)
-                //console.log("Stop auto refresh for layer (" + layer.id + ")")
-                delete this.autoRefresh
-            }
-        }
-
-        tileLayer.startAutoRefresh = function() {
-            if (!layer.refresh) {
-                //not refreshable
-                return
-            } 
-            if(this.autoRefresh) {
-                //already started
-                return
-            }
-            this.autoRefresh = setInterval(function () {
-                tileSource.load()
-            }, layer.refresh * 1000)
-            //console.log("Start auto refresh for layer (" + layer.id + ") with interval " + layer.refresh)
-        }
-
 
         return tileLayer
       },
