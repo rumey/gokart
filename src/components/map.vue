@@ -873,6 +873,7 @@
                       tileGrid: tileGrid
                     })
                     options.timeline[event.target.get(event.key)][2].setTileLoadFunction(vm.tileLoaderHook(options.timeline[event.target.get(event.key)][2], tileLayer))
+                    vm.setUrlTimestamp(options.timeline[event.target.get(event.key)][2],moment.utc().unix())
                 }
                 tileLayer.setSource(options.timeline[event.target.get(event.key)][2] )
 
