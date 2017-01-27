@@ -54,7 +54,8 @@
         matrixSets:'matrixSets', 
         dpmm:'dpmm', 
         view:'view',
-        displayGraticule:'settings.graticule'
+        displayGraticule:'settings.graticule',
+        displayResolution:'displayResolution'
     },
     components: { gkInfo, gkScales, gkSearch, gkMeasure },
     data: function () {
@@ -1307,6 +1308,13 @@
       mapStatus.wait(30,"Listen 'gk-init' event")
       this.$on('gk-init', function() {
         mapStatus.progress(80,"Process 'gk-init' event")
+        
+        if ($("#map .ol-viewport canvas").attr("width")) {
+            vm.displayResolution[0] = Math.round(($("#map .ol-viewport canvas").attr("width") /  $("#map .ol-viewport canvas").width()) * 100) / 100
+        }
+        if ($("#map .ol-viewport canvas").attr("height")) {
+            vm.displayResolution[1] = Math.round(($("#map .ol-viewport canvas").attr("height") /  $("#map .ol-viewport canvas").height()) * 100) / 100
+        }
 
         vm.showGraticule(vm.displayGraticule)
 
