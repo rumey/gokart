@@ -124,7 +124,7 @@
   import gkLegend from './legend.vue'
   import gkLayerlegends from './layerlegends.vue'
   export default {
-    store: ['whoami', 'dpmm', 'view', 'mmPerInch', 'gokartService','drawingSequence','s3Service','settings'],
+    store: ['whoami', 'dpmm', 'view', 'mmPerInch', 'gokartService','drawingSequence','s3Service','settings','displayResolution'],
     components: { gkLegend,gkLayerlegends },
     data: function () {
       return {
@@ -421,10 +421,10 @@
               //draw overview map rectangle
               var box = $(".ol-custom-overviewmap").find(".ol-overviewmap-box")
               if (box.length) {
-                var width = box.width()
-                var height = box.height()
-                var x = box.parent().position().left
-                var y = box.parent().position().top
+                var width = box.width() * vm.displayResolution[0]
+                var height = box.height() * vm.displayResolution[1]
+                var x = box.parent().position().left * vm.displayResolution[0]
+                var y = box.parent().position().top * vm.displayResolution[1]
                 ctx.beginPath()
                 ctx.rect(canvas.width - overviewmap_canvas.width - 2 + x,2 + y, width, height)
                 ctx.strokeStyle = "red"
