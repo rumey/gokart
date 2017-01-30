@@ -40,15 +40,8 @@
       clearSearchPoint: function () {
         this.features.clear()
       },
-      setSearchPoint: function (coords, name, update_name) {
-        this.features.clear()
-        this.features.push(new ol.Feature({
-          geometry: new ol.geom.Point(coords),
-          name: name
-        }))
-        if (update_name) {
-          $('#map-search').val(update_name)
-        }
+      setSearchPointFunc:function(func) {
+        this._setSearchPointFunc = func
       },
       runSearch: function () {
         var vm = this
@@ -60,11 +53,19 @@
           return 
         }
 
-        var victory = function (coords, name, update_name) {
+        var victory = function (searchMethod,coords, name, update_name) {
           $('#map-search, #map-search-button').addClass('success')
-          map.animatePan(coords)
-          map.animateZoom(vm.resolutions[10])
-          vm.setSearchPoint(coords, name, update_name)
+          map.animate({center:coords},{resolution:vm.resolutions[10]})
+          if (update_name) {
+            $('#map-search').val(update_name)
+          }
+          if (!vm._setSearchPointFunc || !vm._setSearchPointFunc(searchMethod,coords,name)) {
+            vm.features.clear()
+            vm.features.push(new ol.Feature({
+              geometry: new ol.geom.Point(coords),
+              name: name
+            }))
+          }
           //console.log([name, coords[0], coords[1]])
         }
 
@@ -77,14 +78,14 @@
         // check for EPSG:4326 coordinates
         var dms = map.parseDMSString(query)
         if (dms) {
-          victory(dms, name)
+          victory("DMS",dms, name)
           return
         }
     
         // check for MGA coordinates
         var mga = map.parseMGAString(query)
         if (mga) {
-          victory(mga.coords, map.getMGA(mga.coords))
+          victory("MGA",mga.coords, map.getMGA(mga.coords))
           return
         }
 
@@ -121,7 +122,7 @@
           },
           success: function(data, status, xhr) {
             if (data.features.length) {
-              victory(data.features[0].geometry.coordinates, "FD "+fdStr)
+              victory("FD",data.features[0].geometry.coordinates, "FD "+fdStr)
             } else {
               failure('No Forest Department Grid reference found for '+fdStr)
             }
@@ -146,7 +147,7 @@
           },
           success: function(data, status, xhr) {
             if (data.features.length) {
-              victory(data.features[0].geometry.coordinates, "PIL "+pilStr)
+              victory("PIL",data.features[0].geometry.coordinates, "PIL "+pilStr)
             } else {
               failure('No Pilbara Grid reference found for '+pilStr)
             }
@@ -170,7 +171,7 @@
           success: function(data, status, xhr) {
             if (data.features.length) {
               var feature = data.features[0]
-              victory(feature.center, feature.text, feature.place_name)
+              victory("GEOCODE",feature.center, feature.text, feature.place_name)
             } else {
               failure('No location match found for '+geoStr)
             }

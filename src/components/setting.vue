@@ -244,7 +244,7 @@
       }
     },
     methods: {
-      init: function() {
+      setup: function() {
         this.annotations.setTool()
       },
       saveState:function() {

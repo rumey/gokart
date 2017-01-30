@@ -527,7 +527,7 @@
             vm._updateViewport()
         }
       },
-      init: function() {
+      setup: function() {
         // enable resource tracking layer, if disabled
         var catalogue = this.$root.catalogue
         if (!this.trackingMapLayer) {

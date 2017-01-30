@@ -160,7 +160,7 @@
             }
         }
       },
-      init:function() {
+      setup:function() {
         this.adjustHeight()
       },
       isHidden:function(layer) {

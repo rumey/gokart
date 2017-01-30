@@ -178,7 +178,7 @@ div.ol-previewmap.ol-uncollapsible {
             $("#catalogue-list-container").height(this.screenHeight - this.leftPanelHeadHeight - $("#catalogue-filter-container").height())
         }
       },
-      init:function() {
+      setup:function() {
         this.adjustHeight()
       },
       preview: function (l) {
