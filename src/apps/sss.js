@@ -470,10 +470,10 @@ localforage.getItem('sssOfflineStore').then(function (store) {
                 },200))
                 $("#menu-tab-layers-label").trigger("click")
                 self.store.activeMenu = "layers"
-                self.layers.init()
+                self.layers.setup()
                 $("#layers-active-label").trigger("click")
                 self.store.activeSubmenu = "active"
-                self.active.init()
+                self.active.setup()
                 self.loading.app.end()
             } catch(err) {
                 //some exception happens

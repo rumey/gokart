@@ -77,9 +77,12 @@
                 //click on the active menu, do nothing
                 return
             } else {
+                if (vm.activeMenu && vm.$root[vm.activeMenu].teardown) {
+                  vm.$root[vm.activeMenu].teardown()
+                }
                 vm.activeMenu = menu
-                if (vm.$root[menu] && vm.$root[menu].init) {
-                    vm.$root[menu].init()
+                if (vm.activeMenu && vm.$root[vm.activeMenu].setup) {
+                  vm.$root[vm.activeMenu].setup()
                 }
             }
             

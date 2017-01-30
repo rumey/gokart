@@ -238,6 +238,7 @@
       map: function () { return this.$root.$refs.app.$refs.map },
       export: function () { return this.$root.export },
       active: function () { return this.$root.active },
+      search: function () { return this.$root.search },
       measure: function () { return this.$root.measure },
       loading: function () { return this.$root.loading },
       drawinglogs: function () { return this.$refs.drawinglogs    },
@@ -653,7 +654,8 @@
         }
         return this.notes[key]
       },
-      init: function() {
+      setup: function() {
+        var vm = this
         // enable annotations layer, if disabled
         var catalogue = this.$root.catalogue
         if (!this.map.getMapLayer('annotations')) {
@@ -664,6 +666,47 @@
         // runs on switch to this tab
         this.selectable = [this.featureOverlay]
         this.setTool()
+        //add feature to place an point based on coordinate
+        this.search.setSearchPointFunc(function(searchMethod,coords,name){
+            if (vm.tool && ["DMS","MGA"].indexOf(searchMethod >= 0) && ["Origin Point","Spot Fire","Road Closure","Custom Point"].indexOf(vm.tool.name) >= 0) {
+                var feat = null
+                vm.map.olmap.forEachFeatureAtPixel(vm.map.olmap.getPixelFromCoordinate(coords),function(f){
+                    var toolName = f.get('toolName')
+                    if ( toolName && ["Origin Point","Spot Fire","Road Closure","Custom Point"].indexOf(toolName) >= 0) {
+                        if (f.getGeometry().getCoordinates()[0] === coords[0] && f.getGeometry().getCoordinates()[1] === coords[1]) {
+                            //already added.
+                            feat = f
+                            return true
+                        }
+                    }
+                })
+                if (feat) {
+                    //already have a annotation point at that coordinate
+                    return false
+                }
+                feat = new ol.Feature({
+                    geometry: new ol.geom.Point(coords)
+                })
+                vm.drawingSequence += 1
+                feat.set('id',vm.drawingSequence)
+                feat.set('toolName',vm.tool.name)
+                feat.setStyle(vm.tool.style)
+                feat.set('author',vm.whoami.email)
+                feat.set('createTime',Date.now())
+                if (vm.tool.perpendicular) {
+                  feat.set('rotation', vm.getPerpendicular(coords))
+                }
+                if (vm.tool === vm.ui.defaultPoint) {
+                    feat.set('shape',vm.shape,true)
+                    feat.set('colour',vm.colour,true)
+                }
+                vm.features.push(feat)
+                return true
+            }
+        })
+      },
+      tearDown:function() {
+        this.search.setSearchPointFunc(null)
       },
       getNoteExtent: function(feature) {
         var note = feature.get('note')

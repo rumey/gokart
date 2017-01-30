@@ -34,8 +34,7 @@ tour.addStep('welcome', {
   attachTo: '#menu-scale left',
   when: {
     'show': function () {
-      global.gokart.map.animatePan([116, -32])
-      global.gokart.map.animateZoom(global.gokart.map.resolutions[9])
+      global.gokart.map.animate({center:[116, -32]},{resolution:global.gokart.map.resolutions[9]})
     }
   }
 }).addStep('map-search', {

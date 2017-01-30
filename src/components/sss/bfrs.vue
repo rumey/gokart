@@ -355,7 +355,7 @@
         vm.allFeatures = feats.filter(vm.resourceFilter)
         vm.allFeatures.sort(vm.resourceOrder)
       },
-      init: function() {
+      setup: function() {
         // enable bushfire report layer, if disabled
         var catalogue = this.$root.catalogue
         if (!this.reportMapLayer) {
