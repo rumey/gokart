@@ -90,7 +90,10 @@ var systemSettings = {
   lengthUnit:"km",
   areaUnit:"ha",
   measureAnnotation:false,
-  maintainScaleWhenPrinting:true,
+  print:{
+      maintainScale:true,
+      snapToFixedScale:true,
+  },
   overviewMap:true,
   hoverInfo:false,
   resourceLabels:true,

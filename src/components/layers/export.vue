@@ -51,14 +51,28 @@
       <div class="tool-slice row collapse">
         <div class="small-3">
           <div class="switch tiny">
-            <input class="switch-input" id="toggleMaintainScaleWhenPrinting" type="checkbox" v-bind:checked="settings.maintainScaleWhenPrinting" @change="toggleMaintainScaleWhenPrinting"/>
-            <label class="switch-paddle" for="toggleMaintainScaleWhenPrinting">
+            <input class="switch-input" id="toggleMaintainScale" type="checkbox" v-bind:checked="settings.print.maintainScale" @change="toggleMaintainScale"/>
+            <label class="switch-paddle" for="toggleMaintainScale">
               <span class="show-for-sr">Retain print scale when printing</span>
             </label>
           </div>
         </div>
         <div class="small-9">
-          <label for="toggleMaintainScaleWhenPrinting" >Retain print scale when printing</label>
+          <label for="toggleMaintainScale" >Retain print scale when printing</label>
+        </div>
+      </div>
+      
+      <div class="tool-slice row collapse">
+        <div class="small-3">
+          <div class="switch tiny">
+            <input class="switch-input" id="toggleSnapToFixedScale" type="checkbox" v-bind:checked="settings.print.snapToFixedScale" @change="toggleSnapToFixedScale"/>
+            <label class="switch-paddle" for="toggleSnapToFixedScale">
+              <span class="show-for-sr">Snap to fixed scale when printing</span>
+            </label>
+          </div>
+        </div>
+        <div class="small-9">
+          <label for="toggleSnapToFixedScale" >Snap to fixed scale when printing</label>
         </div>
       </div>
       
@@ -187,8 +201,12 @@
     },
     // methods callable from inside the template
     methods: {
-      toggleMaintainScaleWhenPrinting:function(ev) {
-        this.settings.maintainScaleWhenPrinting = !this.settings.maintainScaleWhenPrinting
+      toggleMaintainScale:function(ev) {
+        this.settings.print.maintainScale = !this.settings.print.maintainScale
+        this.saveState()
+      },
+      toggleSnapToFixedScale:function(ev) {
+        this.settings.print.snapToFixedScale = !this.settings.print.snapToFixedScale
         this.saveState()
       },
       // info for the legend block on the print raster
@@ -293,20 +311,31 @@
         this.printStatus.layout.width = this.paperSizes[this.paperSize][0]
         this.printStatus.layout.height = this.paperSizes[this.paperSize][1]
         //adjust the map for printing.
-        if (this.settings.maintainScaleWhenPrinting) {
-            this.printStatus.layout.scale = this.$root.map.getFixedScale(this.printStatus.oldLayout.scale)
+        if (this.settings.print.maintainScale) {
+            this.printStatus.layout.scale = (this.settings.print.snapToFixedScale)?this.$root.map.getFixedScale(this.printStatus.oldLayout.scale):this.printStatus.oldLayout.scale
             this.printStatus.layout.size = [this.printStatus.dpmm * this.printStatus.layout.width, this.printStatus.dpmm * this.printStatus.layout.height]
             this.olmap.setSize(this.printStatus.layout.size)
-            this.$root.map.setScale(this.printStatus.layout.scale)
+            if (this.settings.print.snapToFixedScale) {
+                this.$root.map.setScale(this.printStatus.layout.scale)
+            }
         } else {
             this.printStatus.layout.size = [this.printStatus.dpmm * this.printStatus.layout.width, this.printStatus.dpmm * this.printStatus.layout.height]
             this.olmap.setSize(this.printStatus.layout.size)
             this.olmap.getView().fit(this.printStatus.oldLayout.extent, this.olmap.getSize())
-            this.printStatus.layout.scale = this.$root.map.getFixedScale()
-            this.$root.map.setScale(this.printStatus.layout.scale)
+            this.printStatus.layout.scale = (this.settings.print.snapToFixedScale)?this.$root.map.getFixedScale():this.$root.map.getScale()
+            if (this.settings.print.snapToFixedScale) {
+                this.$root.map.setScale(this.printStatus.layout.scale)
+            }
         }
         //extent is changed because the scale is adjusted to the closest fixed scale, recalculated the extent again
         this.printStatus.layout.extent = this.olmap.getView().calculateExtent(this.olmap.getSize())
+
+        /*
+        var  msg = (this.settings.print.maintainScale)?"Retain scale":"Retain extent"
+        msg += (this.settings.print.snapToFixedScale)?" and snap to fixed scale":""
+        msg += " : old extent = " + this.printStatus.oldLayout.extent + "\t new extent = " + this.printStatus.layout.extent + "\told scale = " + this.printStatus.oldLayout.scale + "\texpected scale = " + this.printStatus.layout.scale + "\t new scale=" + this.$root.map.getScale()  + "\t old size =" + this.printStatus.oldLayout.size + "\texpected size = " + this.printStatus.layout.size + "\t new size = " + this.olmap.getSize()
+        console.log(msg)
+        */
 
         this.printStatus.jobs = (this.printStatus.jobs >= 0)?(this.printStatus.jobs + 1):1
       },
