@@ -90,7 +90,10 @@ var systemSettings = {
   lengthUnit:"km",
   areaUnit:"ha",
   measureAnnotation:false,
-  maintainScaleWhenPrinting:true,
+  print:{
+      retainBoundingbox:true,
+      snapToFixedScale:true,
+  },
   overviewMap:true,
   hoverInfo:false,
   resourceLabels:true,
@@ -119,7 +122,7 @@ var persistentData = {
   drawingSequence:0,
 
   //data in settings will survive across reset
-  settings:$.extend({},systemSettings)
+  settings:$.extend({},JSON.parse(JSON.stringify(systemSettings)))
 }
 
 global.gokartService = volatileData.gokartService;
