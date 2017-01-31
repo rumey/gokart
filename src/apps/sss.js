@@ -91,7 +91,7 @@ var systemSettings = {
   areaUnit:"ha",
   measureAnnotation:false,
   print:{
-      maintainScale:true,
+      retainBoundingbox:true,
       snapToFixedScale:true,
   },
   overviewMap:true,
@@ -122,7 +122,7 @@ var persistentData = {
   drawingSequence:0,
 
   //data in settings will survive across reset
-  settings:$.extend({},systemSettings)
+  settings:$.extend({},JSON.parse(JSON.stringify(systemSettings)))
 }
 
 global.gokartService = volatileData.gokartService;

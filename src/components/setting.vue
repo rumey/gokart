@@ -302,7 +302,7 @@
       },
       resetSettings: function () {
         if (window.confirm('This will clear all customized settings and reset to system default settings. Are you sure?')) {
-          this.$root.store.settings = $.extend({},this.$root.defaultSettings,{tourVersion:this.tourVersion})
+          this.$root.store.settings = $.extend({},JSON.parse(JSON.stringify(this.$root.defaultSettings)),{tourVersion:this.tourVersion})
           this.export.saveState()
         }
       },
