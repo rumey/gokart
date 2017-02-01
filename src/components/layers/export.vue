@@ -51,14 +51,28 @@
       <div class="tool-slice row collapse">
         <div class="small-3">
           <div class="switch tiny">
-            <input class="switch-input" id="toggleMaintainScaleWhenPrinting" type="checkbox" v-bind:checked="settings.maintainScaleWhenPrinting" @change="toggleMaintainScaleWhenPrinting"/>
-            <label class="switch-paddle" for="toggleMaintainScaleWhenPrinting">
-              <span class="show-for-sr">Retain print scale when printing</span>
+            <input class="switch-input" id="toggleRetainBoundingbox" type="checkbox" v-bind:checked="settings.print.retainBoundingbox" @change="toggleRetainBoundingbox"/>
+            <label class="switch-paddle" for="toggleRetainBoundingbox">
+              <span class="show-for-sr">Fit to screen bounding box</span>
             </label>
           </div>
         </div>
         <div class="small-9">
-          <label for="toggleMaintainScaleWhenPrinting" >Retain print scale when printing</label>
+          <label for="toggleRetainBoundingbox" >Fit to screen bounding box</label>
+        </div>
+      </div>
+      
+      <div class="tool-slice row collapse">
+        <div class="small-3">
+          <div class="switch tiny">
+            <input class="switch-input" id="toggleSnapToFixedScale" type="checkbox" v-bind:checked="settings.print.snapToFixedScale" @change="toggleSnapToFixedScale"/>
+            <label class="switch-paddle" for="toggleSnapToFixedScale">
+              <span class="show-for-sr">Snap to nearest fixed scale</span>
+            </label>
+          </div>
+        </div>
+        <div class="small-9">
+          <label for="toggleSnapToFixedScale" >Snap to nearest fixed scale</label>
         </div>
       </div>
       
@@ -124,7 +138,7 @@
   import gkLegend from './legend.vue'
   import gkLayerlegends from './layerlegends.vue'
   export default {
-    store: ['whoami', 'dpmm', 'view', 'mmPerInch', 'gokartService','drawingSequence','s3Service','settings'],
+    store: ['whoami', 'dpmm', 'view', 'mmPerInch', 'gokartService','drawingSequence','s3Service','settings','displayResolution'],
     components: { gkLegend,gkLayerlegends },
     data: function () {
       return {
@@ -187,8 +201,12 @@
     },
     // methods callable from inside the template
     methods: {
-      toggleMaintainScaleWhenPrinting:function(ev) {
-        this.settings.maintainScaleWhenPrinting = !this.settings.maintainScaleWhenPrinting
+      toggleRetainBoundingbox:function(ev) {
+        this.settings.print.retainBoundingbox = !this.settings.print.retainBoundingbox
+        this.saveState()
+      },
+      toggleSnapToFixedScale:function(ev) {
+        this.settings.print.snapToFixedScale = !this.settings.print.snapToFixedScale
         this.saveState()
       },
       // info for the legend block on the print raster
@@ -293,20 +311,31 @@
         this.printStatus.layout.width = this.paperSizes[this.paperSize][0]
         this.printStatus.layout.height = this.paperSizes[this.paperSize][1]
         //adjust the map for printing.
-        if (this.settings.maintainScaleWhenPrinting) {
-            this.printStatus.layout.scale = this.$root.map.getFixedScale(this.printStatus.oldLayout.scale)
-            this.printStatus.layout.size = [this.printStatus.dpmm * this.printStatus.layout.width, this.printStatus.dpmm * this.printStatus.layout.height]
-            this.olmap.setSize(this.printStatus.layout.size)
-            this.$root.map.setScale(this.printStatus.layout.scale)
-        } else {
+        if (this.settings.print.retainBoundingbox) {
             this.printStatus.layout.size = [this.printStatus.dpmm * this.printStatus.layout.width, this.printStatus.dpmm * this.printStatus.layout.height]
             this.olmap.setSize(this.printStatus.layout.size)
             this.olmap.getView().fit(this.printStatus.oldLayout.extent, this.olmap.getSize())
-            this.printStatus.layout.scale = this.$root.map.getFixedScale()
-            this.$root.map.setScale(this.printStatus.layout.scale)
+            this.printStatus.layout.scale = (this.settings.print.snapToFixedScale)?this.$root.map.getFixedScale():this.$root.map.getScale()
+            if (this.settings.print.snapToFixedScale) {
+                this.$root.map.setScale(this.printStatus.layout.scale)
+            }
+        } else {
+            this.printStatus.layout.scale = (this.settings.print.snapToFixedScale)?this.$root.map.getFixedScale(this.printStatus.oldLayout.scale):this.printStatus.oldLayout.scale
+            this.printStatus.layout.size = [this.printStatus.dpmm * this.printStatus.layout.width, this.printStatus.dpmm * this.printStatus.layout.height]
+            this.olmap.setSize(this.printStatus.layout.size)
+            if (this.settings.print.snapToFixedScale) {
+                this.$root.map.setScale(this.printStatus.layout.scale)
+            }
         }
         //extent is changed because the scale is adjusted to the closest fixed scale, recalculated the extent again
         this.printStatus.layout.extent = this.olmap.getView().calculateExtent(this.olmap.getSize())
+
+        /*
+        var  msg = (this.settings.print.retainBoundingbox)?"Retain boundingbox":"Retain scale"
+        msg += (this.settings.print.snapToFixedScale)?" and snap to fixed scale":""
+        msg += " : old extent = " + this.printStatus.oldLayout.extent + "\t new extent = " + this.printStatus.layout.extent + "\told scale = " + this.printStatus.oldLayout.scale + "\texpected scale = " + this.printStatus.layout.scale + "\t new scale=" + this.$root.map.getScale()  + "\t old size =" + this.printStatus.oldLayout.size + "\texpected size = " + this.printStatus.layout.size + "\t new size = " + this.olmap.getSize()
+        console.log(msg)
+        */
 
         this.printStatus.jobs = (this.printStatus.jobs >= 0)?(this.printStatus.jobs + 1):1
       },
@@ -350,7 +379,7 @@
             var formData = new window.FormData()
             formData.append('extent', vm.printStatus.layout.extent.join(' '))
             formData.append('jpg', blob, name + '.jpg')
-            if (format === "pdf") {
+            if (format === "pdf" && legendData)  {
                 formData.append('legends', legendData, name + '.legend.pdf')
             }
             formData.append('dpi', Math.round(vm.printStatus.layout.canvasPxPerMM * 25.4))
@@ -421,10 +450,10 @@
               //draw overview map rectangle
               var box = $(".ol-custom-overviewmap").find(".ol-overviewmap-box")
               if (box.length) {
-                var width = box.width()
-                var height = box.height()
-                var x = box.parent().position().left
-                var y = box.parent().position().top
+                var width = box.width() * vm.displayResolution[0]
+                var height = box.height() * vm.displayResolution[1]
+                var x = box.parent().position().left * vm.displayResolution[0]
+                var y = box.parent().position().top * vm.displayResolution[1]
                 ctx.beginPath()
                 ctx.rect(canvas.width - overviewmap_canvas.width - 2 + x,2 + y, width, height)
                 ctx.strokeStyle = "red"
@@ -449,8 +478,9 @@
                 canvas.height - height, 
                 disclaimerImg.width, 
                 height)
+              //draw qr code
               if (qrcanvas) {
-                  ctx.drawImage(qrcanvas, 8, height)
+                  ctx.drawImage(qrcanvas, 2, canvas.height - qrcanvas.height - 2)
               }
               window.URL.revokeObjectURL(url)
               // generate a jpg copy of the canvas contents

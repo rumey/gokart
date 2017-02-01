@@ -1,9 +1,11 @@
 <template>
+  <div style="display:none">
   <div id="map-measure" class="ol-selectable ol-control">
       <button type="button" title="Measure length" @click="toggleMeasure('MeasureLength')" v-bind:class="{'selected':isMeasureLength}"><img src="dist/static/images/measure-length.svg"></button>
       <button type="button" title="Measure area" @click="toggleMeasure('MeasureArea')" v-bind:class="{'selected':isMeasureArea}"><img src="dist/static/images/measure-area.svg"></button>
       <button type="button" title="Measure bearing" @click="toggleMeasure('MeasureBearing')" v-bind:class="{'selected':isMeasureBearing}"><img src="dist/static/images/measure-bearing.svg"></button>
       <button type="button" title="Clear measurements" v-show="showClear" @click="clearMeasure()"><i class="fa fa-trash"></i></button>
+  </div>
   </div>
   <div id="map-measure-tooltips"></div>
 </template>
@@ -53,8 +55,8 @@
       mapControl:function() {
         if (!this._controller) {
             this._controller = new ol.control.Control({
-              element: $('#map-measure').get(0),
-        	  target: $('#external-controls').get(0)
+                element: $('#map-measure').get(0),
+        	target: $('#external-controls').get(0)
             })
         }
         return this._controller

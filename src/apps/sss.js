@@ -51,6 +51,7 @@ var volatileData = {
   // default matrix from KMI
   resolutions: [0.17578125, 0.087890625, 0.0439453125, 0.02197265625, 0.010986328125, 0.0054931640625, 0.00274658203125, 0.001373291015625, 0.0006866455078125, 0.0003433227539062, 0.0001716613769531, 858306884766e-16, 429153442383e-16, 214576721191e-16, 107288360596e-16, 53644180298e-16, 26822090149e-16, 13411045074e-16],
   mmPerInch: 25.4,
+  displayResolution:[1,1],
   whoami: { email: null },
   layout:{
       screenHeight:0,
@@ -89,7 +90,10 @@ var systemSettings = {
   lengthUnit:"km",
   areaUnit:"ha",
   measureAnnotation:false,
-  maintainScaleWhenPrinting:true,
+  print:{
+      retainBoundingbox:true,
+      snapToFixedScale:true,
+  },
   overviewMap:true,
   hoverInfo:false,
   resourceLabels:true,
@@ -118,7 +122,7 @@ var persistentData = {
   drawingSequence:0,
 
   //data in settings will survive across reset
-  settings:$.extend({},systemSettings)
+  settings:$.extend({},JSON.parse(JSON.stringify(systemSettings)))
 }
 
 global.gokartService = volatileData.gokartService;
@@ -310,42 +314,34 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         type: 'TileLayer',
         name: 'Forest Fire Danger Index',
         id: 'bom:forest_fire_danger_index',
-        timelineSize:72,
-        updateTime:[["07:00:00","19:00:00"],"HH:mm:ss","UTC"],
-        getLayerId: function(latestUpdateTime,timelineIndex) {
-            return "bom:IDZ71117" + (timelineIndex < 10?"00":(timelineIndex < 100?"0":"")) + timelineIndex
-        },
-        layerTimeInterval:3600 * 1000
+        timelineRefresh:300,
+        fetchTimelineUrl:function(lastUpdatetime){
+            return "/bom/bom:IDZ71117?basetimelayer=bom:IDZ71117_datetime&timelinesize=72&layertimespan=3600&updatetime=" + lastUpdatetime
+        }
       }, {
         type: 'TileLayer',
         name: 'Maximum Forest Fire Danger Index',
         id: 'bom:maximum_forest_fire_danger_index',
-        timelineSize:4,
-        updateTime:[["00:00:00","12:00:00"],"HH:mm:ss","UTC"],
-        getLayerId: function(latestUpdateTime,timelineIndex) {
-            return "bom:IDZ71118" + (timelineIndex < 10?"00":(timelineIndex < 100?"0":"")) + timelineIndex
-        },
-        layerTimeInterval:24 * 3600 * 1000
+        timelineRefresh:300,
+        fetchTimelineUrl:function(lastUpdatetime){
+            return "/bom/bom:IDZ71118?basetimelayer=bom:IDZ71118_datetime&timelinesize=4&layertimespan=86400&updatetime=" + lastUpdatetime
+        }
       }, {
         type: 'TileLayer',
         name: 'Grassland Fire Danger Index',
         id: 'bom:grass_fire_danger_index',
-        timelineSize:72,
-        updateTime:[["07:00:00","19:00:00"],"HH:mm:ss","UTC"],
-        getLayerId: function(latestUpdateTime,timelineIndex) {
-            return "bom:IDZ71122" + (timelineIndex < 10?"00":(timelineIndex < 100?"0":"")) + timelineIndex
-        },
-        layerTimeInterval:3600 * 1000
+        timelineRefresh:300,
+        fetchTimelineUrl:function(lastUpdatetime){
+            return "/bom/bom:IDZ71122?basetimelayer=bom:IDZ71122_datetime&timelinesize=72&layertimespan=3600&updatetime=" + lastUpdatetime
+        }
       }, {
         type: 'TileLayer',
         name: 'Maximum Grassland Fire Danger Index',
         id: 'bom:maximum_grass_fire_danger_index',
-        timelineSize:4,
-        updateTime:[["00:00:00","12:00:00"],"HH:mm:ss","UTC"],
-        getLayerId: function(latestUpdateTime,timelineIndex) {
-            return "bom:IDZ71123" + (timelineIndex < 10?"00":(timelineIndex < 100?"0":"")) + timelineIndex
-        },
-        layerTimeInterval:24 * 3600 * 1000
+        timelineRefresh:300,
+        fetchTimelineUrl:function(lastUpdatetime){
+            return "/bom/bom:IDZ71123?basetimelayer=bom:IDZ71123_datetime&timelinesize=4&layertimespan=86400&updatetime=" + lastUpdatetime
+        }
       }])
 
       // load custom annotation tools
@@ -477,10 +473,10 @@ localforage.getItem('sssOfflineStore').then(function (store) {
                 },200))
                 $("#menu-tab-layers-label").trigger("click")
                 self.store.activeMenu = "layers"
-                self.layers.init()
+                self.layers.setup()
                 $("#layers-active-label").trigger("click")
                 self.store.activeSubmenu = "active"
-                self.active.init()
+                self.active.setup()
                 self.loading.app.end()
             } catch(err) {
                 //some exception happens
