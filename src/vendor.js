@@ -45,6 +45,7 @@ import Shepherd from 'tether-shepherd'
 import jsPDF from 'jspdf'
 import interact from 'interact.js'
 import hash from "object-hash"
+import utils from './utils.js'
 
 var saveAs = function (blob,name,no_auto_bom) {
     if (env.appType == "cordova") {
@@ -103,6 +104,9 @@ JSON.stringify = (function(){
 moment.fn.toLocaleString = function(){
     return this.tz("Australia/Perth").format('ddd MMM DD YYYY HH:mm:ss [AWST]')
 }
+moment.fromLocaleString = function(datestr){
+    return moment.tz(datestr,'ddd MMM DD YYYY HH:mm:ss [AWST]','Australia/Perth')
+}
 export {
   $,
   ol,
@@ -119,5 +123,6 @@ export {
   Shepherd,
   jsPDF,
   interact,
-  hash
+  hash,
+  utils
 }

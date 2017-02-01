@@ -33,7 +33,7 @@
     },
     components: { gkActive, gkCatalogue, gkExport },
     methods:{
-        init: function() {
+        setup: function() {
             this.$root.annotations.setTool()
         },
     }, 
@@ -45,9 +45,12 @@
               //click on the active menu, do nothing
               return
           } else {
+              if (vm.activeSubmenu && vm.$root[vm.activeSubmenu].teardown) {
+                vm.$root[vm.activeSubmenu].teardown()
+              }
               vm.activeSubmenu = menu
-              if (vm.$root[menu] && vm.$root[menu].init) {
-                  vm.$root[menu].init()
+              if (vm.activeSubmenu && vm.$root[vm.activeSubmenu].setup) {
+                vm.$root[vm.activeSubmenu].setup()
               }
           }
           

@@ -10,6 +10,13 @@ import requests
 from datetime import datetime,timedelta
 import re
 import smtplib
+import json
+import pytesseract
+try:
+    from PIL import Image
+except:
+    import Image
+from datetime import datetime,timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
 from email.mime.text import MIMEText
@@ -17,6 +24,7 @@ from email.mime.text import MIMEText
 dotenv.load_dotenv(dotenv.find_dotenv())
 
 from . import s3
+from .ftp import BomFTP
 
 bottle.TEMPLATE_PATH.append('./gokart')
 bottle.debug(True)
@@ -63,6 +71,168 @@ def himawari8(target):
     }
     return result
 
+
+session_key_header = "X-Session-Key"
+sso_cookie_name = os.environ.get("SSO_COOKIE_NAME") or "oim_dpaw_wa_gov_au_sessionid"
+
+def get_session_cookie():
+    """ 
+    Get the session cookie from user request for sso
+    if not found, return None
+    """
+    try:
+        #import ipdb;ipdb.set_trace()
+        session_key = bottle.request.get_header(session_key_header)
+        if session_key:
+            return session_key
+        else:
+            raise bottle.HTTPError(status=401)
+    except:
+        raise bottle.HTTPError(status=401)
+
+def get_file_md5(f):
+    get_md5 = subprocess.Popen(["md5sum",f], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    get_md5_output = get_md5.communicate()
+
+    if get_md5.returncode != 0:
+        raise bottle.HTTPError(status=500,body="Generate file md5 failed.{}".format(get_md5_output[1]))
+
+    return get_md5_output[0].split()[0]
+
+
+basetime_url = os.environ.get("BOM_BASETIME_URL")
+basetime_re = re.compile("(\d{4})-(\d{2})-(\d{2})\s*(\d{2})\D*(\d{2})\s*(UTC)")
+def getTimelineFromLayer(target,current_timeline):
+    basetimeLayer = bottle.request.query.get("basetimelayer")
+    timelineSize = bottle.request.query.get("timelinesize")
+    layerTimespan = bottle.request.query.get("layertimespan") # in seconds
+    if not basetimeLayer or not timelineSize or not layerTimespan:
+        return None
+
+    timelineSize = int(timelineSize)
+    layerTimespan = int(layerTimespan)
+
+    #import ipdb;ipdb.set_trace()
+    localfile = None
+    try:
+        localfile = tempfile.NamedTemporaryFile(mode='w+b',delete=False,prefix=basetimeLayer.replace(":","_"),suffix=".gif").name
+        subprocess.check_call(["curl","-G","--cookie","{}={}".format(sso_cookie_name,get_session_cookie()),basetime_url.format(basetimeLayer),"--output",localfile])
+        md5 = get_file_md5(localfile)
+        
+        if current_timeline and current_timeline["md5"] == md5:
+            return current_timeline
+        else:
+            img = Image.open(localfile)
+            img.load()
+            basetimestr = pytesseract.image_to_string(img,lang="bom")
+            m = basetime_re.search(basetimestr,re.I)
+            if not m:
+                raise bottle.HTTPError(status=500,body="Can't extract the base time from base time layer.")
+            basetime = datetime(int(m.group(1)),int(m.group(2)), int(m.group(3)), int(m.group(4)), int(m.group(5)),0,0,tzinfo=pytz.timezone(m.group(6)))
+            now = datetime.now(pytz.timezone('UTC'))
+            if basetime > now:
+                raise bottle.HTTPError(status=500,body="Extract the wrong base time from base time layer.")
+            
+            if (now - basetime).seconds > 86400:
+                raise bottle.HTTPError(status=500,body="Extract the wrong base time from base time layer.")
+
+            if basetime.year != int(m.group(1))  or basetime.month != int(m.group(2)) or  basetime.day != int(m.group(3)) or basetime.hour != int(m.group(4)) or basetime.minute != int(m.group(5)):
+                raise bottle.HTTPError(status=500,body="Extract the wrong base time from base time layer.")
+
+            basetime = basetime.astimezone(pytz.timezone("Australia/Perth"))
+
+            layers = []
+            layertime = None
+            layerId = None
+            for i in xrange(0,timelineSize):
+                layertime = basetime + timedelta(seconds=layerTimespan * i)
+                layerId = (target + "{0:0>3}").format(i)
+
+                layers.append([layertime.strftime("%a %b %d %Y %H:%M:%S AWST"),layerId,None])
+            return {"refreshtime":datetime.now().strftime("%a %b %d %Y %H:%M:%S"),"layers":layers,"md5":md5,"updatetime":basetime.strftime("%a %b %d %Y %H:%M:%S AWST")}
+    finally:
+        if localfile:
+            os.remove(localfile)
+
+
+def getTimelineFromFtp(target,current_timeline):
+    remotefile = bottle.request.query.get("datafile")
+    if not remotefile: 
+        return None
+
+    localfile = None
+    mdtm = None
+    try:
+        with BomFTP() as bomFTP:
+            mdtm = bomFTP.getMdtm(remotefile)
+
+            if not current_timeline or current_timeline["mdtm"] != mdtm:
+                #no cached timeline or timeline data is changed
+                remotefilename = os.path.split(remotefile)[1]
+                remotefile_ext = (lambda f,pos: (f[0:],"") if pos == -1 else (f[0:pos],f[pos:]))(remotefilename,remotefilename.index("."))
+
+                localfile = tempfile.NamedTemporaryFile(mode='w+b',delete=False,prefix=remotefile_ext[0],suffix=remotefile_ext[1]).name
+                bomFTP.get(remotefile,localfile)
+            else:
+                return current_timeline
+
+        if remotefile_ext[1][len(remotefile_ext[1]) - 3:] == ".gz":
+            subprocess.check_output(["gunzip","-f",localfile])
+            localfile = os.path.splitext(localfile)[0]
+
+        info = json.loads(subprocess.check_output(["gdalinfo","-json",localfile]))
+        layers = []
+        layertime = None
+        layerId = None
+        for layer in info["bands"]:
+            layertime = start_date + timedelta(seconds=int(layer["metadata"][""]["NETCDF_DIM_time"]))
+            layerId = (target + "{0:0>3}").format(layer["band"] - 1)
+
+            layers.append([layertime.strftime("%a %b %d %Y %H:%M:%S AWST"),layerId,None])
+
+        return {"refreshtime":datetime.now().strftime("%a %b %d %Y %H:%M:%S"),"layers":layers,"mdtm":mdtm,"updatetime":(start_date + timedelta(seconds=int(info["metadata"][""]["NC_GLOBAL#creationTime"]))).strftime("%a %b %d %Y %H:%M:%S AWST")}
+
+    finally:
+        if localfile:
+            os.remove(localfile)
+
+
+start_date = datetime(1970, 1, 1, 0, 0,tzinfo=pytz.timezone("UTC")).astimezone(pytz.timezone("Australia/Perth"))
+@bottle.route("/bom/<target>")
+def bom(target):
+    last_updatetime = bottle.request.query.get("updatetime")
+    current_timeline = None
+    try:
+        current_timeline = json.loads(uwsgi.cache_get(target))
+    except:
+        current_timeline = None
+
+    bottle.response.set_header("Content-Type", "application/json")
+    bottle.response.status = 200
+    if current_timeline and datetime.now() - datetime.strptime(current_timeline["refreshtime"],"%a %b %d %Y %H:%M:%S") < timedelta(minutes=5):
+        #data is refreshed within 5 minutes, use the result directly
+        if current_timeline["updatetime"] == last_updatetime:
+            #return 304 cause "No element found" error, so return a customized code to represent the same meaning as 304
+            bottle.response.status = 290
+            return "{}"
+        else:
+            return {"layers":current_timeline["layers"],"updatetime":current_timeline["updatetime"]}
+
+
+    timeline = getTimelineFromLayer(target,current_timeline)
+    timeline = timeline or getTimelineFromFtp(target,current_timeline)
+
+    if not timeline:
+        raise "Plase specify basetimelayer or remotefile to get timeline."
+
+    if not current_timeline or id(timeline) != id(current_timeline):
+        uwsgi.cache_set(target, json.dumps(timeline), 0) 
+
+    if timeline["updatetime"] == last_updatetime:
+        bottle.response.status = 290
+        return "{}"
+    else:
+        return {"layers":timeline["layers"],"updatetime":timeline["updatetime"]}
 
 # PDF renderer, accepts a JPG
 @bottle.route("/gdal/<fmt>", method="POST")
