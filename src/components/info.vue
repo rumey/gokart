@@ -46,6 +46,7 @@
     computed: {
       map: function () { return this.$root.$refs.app.$refs.map },
       catalogue: function () { return this.$root.catalogue },
+      annotations: function () { return this.$root.$refs.app.$refs.annotations },
       loading: function () { return this.$root.loading },
       featuresLength: function () {
         return Object.keys(this.features).length
@@ -83,13 +84,16 @@
     methods: {
       // update the panel content
       onPointerMove: function (event) {
+        var vm = this
         if (event.dragging || !this.enabled) {
           return
         }
         var pixel = this.$root.map.olmap.getEventPixel(event.originalEvent)
         var features = []
         this.$root.map.olmap.forEachFeatureAtPixel(pixel, function (f,layer) {
-          features.push([f,layer])
+          if (!vm.annotations.selectable || vm.annotations.selectable.indexOf(layer) >=0 ) {
+              features.push([f,layer])
+          }
         })
         if (features.length > 0) {
           this.features = features

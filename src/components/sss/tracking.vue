@@ -16,12 +16,12 @@
               <div class="small-12">
                 <div class="expanded button-group">
                   <a v-for="t in tools | filterIf 'showName' undefined" class="button button-tool" v-bind:class="{'selected': t.name == annotations.tool.name}"
-                    @click="annotations.setTool(t)" v-bind:title="t.name">{{{ annotations.icon(t) }}}</a>
+                    @click="annotations.setTool(t)" v-bind:title="t.label">{{{ annotations.icon(t) }}}</a>
                 </div>
                 <div class="row resetmargin">
                   <div v-for="t in tools | filterIf 'showName' true" class="small-6" v-bind:class="{'rightmargin': $index % 2 === 0}" >
                     <a class="expanded secondary button" v-bind:class="{'selected': t.name == annotations.tool.name}" @click="annotations.setTool(t)"
-                      v-bind:title="t.name">{{{ annotations.icon(t) }}} {{ t.name }}</a>
+                      v-bind:title="t.label">{{{ annotations.icon(t) }}} {{ t.label }}</a>
                   </div>
                 </div>
               </div>
@@ -77,7 +77,7 @@
                 </select>
               </div>
               <div class="small-6 columns">
-                <input type="search" v-model="search" placeholder="Find a resource" @keyup="updateResourceFilter">
+                <input type="search" v-model="search" placeholder="Find a resource" @keyup="updateFeatureFilter">
               </div>
             </div>
             <div class="row">
@@ -85,12 +85,12 @@
                 <div class="columns">
                   <div class="row">
                     <div class="switch tiny">
-                      <input class="switch-input" id="selectedOnly" type="checkbox" v-model="selectedOnly" @change="updateCQLFilter('selectedDevice')" />
-                      <label class="switch-paddle" for="selectedOnly">
+                      <input class="switch-input" id="selectedResourcesOnly" type="checkbox" v-model="selectedOnly" @change="updateCQLFilter('selectedDevice')" />
+                      <label class="switch-paddle" for="selectedResourcesOnly">
                     <span class="show-for-sr">Show selected only</span>
                  </label>
                     </div>
-                    <label for="selectedOnly" class="side-label">Show selected only</label>
+                    <label for="selectedResourcesOnly" class="side-label">Show selected only</label>
                   </div>
                 </div>
                 <div class="columns">
@@ -186,7 +186,6 @@
       var fill = '#ff6600'
       var stroke = '#7c3100'
       return {
-        viewportOnly: true,
         toggleHistory: false,
         selectedOnly: false,
         search: '',
@@ -385,7 +384,7 @@
         return f.get('deviceid') && (this.selectedDevices.indexOf(f.get('deviceid')) > -1)
       },
       downloadList: function () {
-        this.$root.export.exportVector(this.features.filter(this.resourceFilter).sort(this.resourceOrder), 'trackingdata')
+        this.$root.export.exportVector(this.features.filter(this.featureFilter).sort(this.featureOrder), 'trackingdata')
       },
       downloadSelectedCSV: function () {
           var deviceFilter = ''
@@ -432,7 +431,7 @@
                     $.each(filteredFeatures,function(index,feature){
                         vm.annotations.tintSelectedFeature(feature)
                     })
-                    vm.updateResourceFilter(true)
+                    vm.updateFeatureFilter(true)
                 } else {
                     //clear device filter or change other filter
                     vm.trackingMapLayer.set('updated', moment().toLocaleString())
@@ -453,7 +452,7 @@
             source.loadSource("query")
         }
       },
-      resourceFilter: function (f) {
+      featureFilter: function (f) {
         var search = ('' + this.search).toLowerCase()
         var found = !search || this.fields.some(function (key) {
           return ('' + f.get(key)).toLowerCase().indexOf(search) > -1
@@ -463,7 +462,7 @@
         };
         return found
       },
-      resourceOrder: function (a, b) {
+      featureOrder: function (a, b) {
         var as = a.get('seen')
         var bs = b.get('seen')
         if (as < bs) {
@@ -481,28 +480,28 @@
         var map = this.$root.map.olmap
         map.getView().fit(extent, map.getSize())
       },
-      updateResourceFilter: function(runNow) {
+      updateFeatureFilter: function(runNow) {
         var vm = this
-        var updateResourceFilterFunc = function() {
+        var updateFeatureFilterFunc = function() {
             // syncing of Resource Tracking features between Vue state and OL source
             var mapLayer = vm.trackingMapLayer
             if (!mapLayer) { return }
             // update vue list for filtered features in the current extent
-            vm.extentFeatures = mapLayer.getSource().getFeaturesInExtent(vm.$root.map.extent).filter(vm.resourceFilter)
-            vm.extentFeatures.sort(vm.resourceOrder)
+            vm.extentFeatures = mapLayer.getSource().getFeaturesInExtent(vm.$root.map.extent).filter(vm.featureFilter)
+            vm.extentFeatures.sort(vm.featureOrder)
             // update vue list for filtered features
-            vm.allFeatures = mapLayer.getSource().getFeatures().filter(vm.resourceFilter)
-            vm.allFeatures.sort(vm.resourceOrder)
+            vm.allFeatures = mapLayer.getSource().getFeatures().filter(vm.featureFilter)
+            vm.allFeatures.sort(vm.featureOrder)
         }
         if (runNow) {
-            updateResourceFilterFunc()
+            updateFeatureFilterFunc()
         } else {
-            if (!vm._updateResourceFilter) {
-                vm._updateResourceFilter = debounce(function(){
-                    updateResourceFilterFunc()
+            if (!vm._updateFeatureFilter) {
+                vm._updateFeatureFilter = debounce(function(){
+                    updateFeatureFilterFunc()
                 },700)
             }
-            vm._updateResourceFilter()
+            vm._updateFeatureFilter()
         }
       },
       updateViewport: function(runNow) {
@@ -513,8 +512,8 @@
             if (!mapLayer) { return }
             var feats = mapLayer.getSource().getFeatures()
             // update vue list for filtered features in the current extent
-            vm.extentFeatures = mapLayer.getSource().getFeaturesInExtent(vm.$root.map.extent).filter(vm.resourceFilter)
-            vm.extentFeatures.sort(vm.resourceOrder)
+            vm.extentFeatures = mapLayer.getSource().getFeaturesInExtent(vm.$root.map.extent).filter(vm.featureFilter)
+            vm.extentFeatures.sort(vm.featureOrder)
         }
         if (runNow) {
             updateViewportFunc()
@@ -538,6 +537,9 @@
         this.annotations.setTool()
 
         this.$nextTick(this.adjustHeight)
+      },
+      tearDown:function() {
+        this.selectable = null
       }
     },
     ready: function () {
@@ -596,7 +598,10 @@
                   }
                   vm.directionStyle.getImage().setRotation(heading / 180 * Math.PI)
                   if (Array.isArray(style)) {
-                      style.splice(0,0,vm.directionStyle)
+                      var result = []
+                      $.each(style,function(index,s){result.push(s)})
+                      result.push(vm.directionStyle)
+                      style = result
                   } else {
                       style =  [vm.directionStyle,style]
                   }
@@ -661,15 +666,15 @@
                       vm.$root.annotations.selectedFeatures.push(el)
                     })
                 }
-                vm.updateResourceFilter(true)
+                vm.updateFeatureFilter(true)
             }
-            if (features.length > 0) {
+            if ((vm.whoami.editVehicle === null || vm.whoami.editVehicle === undefined ) && features.length > 0) {
                 utils.checkPermission(vm.sssService + "/sss_admin/tracking/device/" + features[0].get('id') + "/change/",function(allowed){
                     vm.whoami.editVehicle = allowed
                     processResources()
                 })
             } else {
-                vm.whoami.editVehicle = false
+                vm.whoami.editVehicle = null
                 processResources()
             }
         }
@@ -712,7 +717,7 @@
             })
             Object.keys(devices).forEach(function (device) {
                 // sort by timestamp
-                devices[device].sort(vm.resourceOrder)
+                devices[device].sort(vm.featureOrder)
                 // pull the coordinates
                 var coords = devices[device].map(function (point) {
                     point.set('label', moment(point.get('seen')).format('MMM DD HH:mm')) 

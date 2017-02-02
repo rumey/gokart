@@ -44,7 +44,7 @@ var volatileData = {
   oimService:env.oimService,
   sssService:env.sssService,
   s3Service:env.s3Service,
-  //bfrsService:env.bfrsService,
+  bfrsService:env.bfrsService,
   appType:env.appType,
   // fixed scales for the scale selector (1:1K increments)
   fixedScales: [0.25, 0.5, 1, 2, 2.5, 5, 10, 20, 25, 50, 80, 100, 125, 250, 500, 1000, 2000, 3000, 5000, 10000, 25000],
@@ -101,6 +101,10 @@ var systemSettings = {
   viewportOnly: false,
   rightHandTools: true,
   graticule:true,
+  bfrs:{
+      reportLabels:true,
+      viewportOnly: false,
+  }
 }
 
 var persistentData = {
@@ -169,7 +173,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
       annotations: function () { return this.$refs.app.$refs.annotations },
       tracking: function () { return this.$refs.app.$refs.tracking },
       setting: function () { return this.$refs.app.$refs.setting },
-      //bfrs: function () { return this.$refs.app.$refs.bfrs },
+      bfrs: function () { return this.$refs.app.$refs.bfrs },
       geojson: function () { return new ol.format.GeoJSON() },
       wgs84Sphere: function () { return new ol.Sphere(6378137) },
       profile: function(){return profile},

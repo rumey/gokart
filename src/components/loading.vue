@@ -212,7 +212,7 @@
                         vm.errors.push({"id": vm.errors.length + 1 ,"message":JSON.stringify(arguments[0])})
                     }
                 } else {
-                    vm.errors.push({"id": vm.errors.length + 1 ,"message":JSON.stringify(argumentsa)})
+                    vm.errors.push({"id": vm.errors.length + 1 ,"message":JSON.stringify(arguments)})
                 }
                 originFunc.apply(this,arguments)
             }

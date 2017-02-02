@@ -16,12 +16,12 @@
               <div class="small-12">
                 <div class="expanded button-group">
                   <a v-for="t in annotationTools | filterIf 'showName' undefined" class="button button-tool" v-bind:class="{'selected': t.name == tool.name}"
-                    @click="setTool(t)" v-bind:title="t.name">{{{ icon(t) }}}</a>
+                    @click="setTool(t)" v-bind:title="t.label">{{{ icon(t) }}}</a>
                 </div>
                 <div class="row resetmargin">
                   <div v-for="t in annotationTools | filterIf 'showName' true" class="small-6" v-bind:class="{'rightmargin': $index % 2 === 0}" >
                     <a class="expanded secondary button" v-bind:class="{'selected': t.name == tool.name}" @click="setTool(t)"
-                      v-bind:title="t.name">{{{ icon(t) }}} {{ t.name }}</a>
+                      v-bind:title="t.label">{{{ icon(t) }}} {{ t.label }}</a>
                   </div>
                 </div>
               </div>
@@ -332,27 +332,6 @@
       downloadAnnotations: function(fmt) {
         this.$root.export.exportVector(this.features.getArray(), 'annotations',fmt)
       },
-      getIconStyleFunction : function(tints) {
-        var vm = this
-        return function (res) {
-            var feat = this
-            var style = vm.map.cacheStyle(function (feat) {
-              var src = vm.map.getBlob(feat, ['icon', 'tint'],tints || {})
-              if (!src) { return false }
-              var rot = feat.get('rotation') || 0.0
-              return new ol.style.Style({
-                image: new ol.style.Icon({
-                  src: src,
-                  scale: 0.5,
-                  rotation: rot,
-                  rotateWithView: true,
-                  snapToPixel: true
-                })
-              })
-            }, feat, ['icon', 'tint', 'rotation'])
-            return style
-        }
-      },
       getPerpendicular : function (coords) {
         // find the nearest Polygon or lineString in the annotations layer
         var nearestFeature = gokart.annotations.featureOverlay.getSource().getClosestFeatureToCoordinate(
@@ -447,7 +426,7 @@
 
             var draw =  new ol.interaction.Draw({
               type: 'Point',
-              features: tool.features || vm.features,
+              features: (options && options.features) || (tool && tool.features) || vm.features,
               style: sketchStyle
             })
 
@@ -465,6 +444,177 @@
               }
             })
             return draw
+        }
+      },
+      translateInterFactory:function(options) {
+        var vm = this
+        return function(tool) {
+          // allow translating of features by click+dragging
+          var translateInter = new ol.interaction.Translate({
+            layers: (tool && tool.mapLayers) || [vm.featureOverlay],
+            features: (tool && tool.selectedFeatures) || vm.selectedFeatures
+          })
+          translateInter.on("translateend",function(ev){
+              ev.features.forEach(function(f){
+                if (f.get('toolName')) {
+                    tool = vm.getTool(f.get('toolName'))
+                    if (tool && tool.typeIcon) {
+                        delete f['typeIconStyle']
+                        f.set('typeIconMetadata',undefined,true)
+                        f.changed()
+                    }
+                }
+              })
+          })
+          return translateInter
+        }
+      },
+      dragSelectInterFactory: function(options) {
+        var vm = this
+        return function(tool) {
+          selectedFeatures = (tool && tool.selectedFeatures) || vm.selectedFeatures
+          // allow dragbox selection of features
+          var dragSelectInter = new ol.interaction.DragBox()
+          // modify selectedFeatures after dragging a box
+          dragSelectInter.on('boxend', function (event) {
+            selectedFeatures.clear()
+            var extent = event.target.getGeometry().getExtent()
+            var multi = (this.multi_ == undefined)?true:this.multi_
+            vm.selectable.forEach(function(layer) {
+              if (!multi && selectedFeatures.getLength() > 0) {return true}
+              if (layer == vm.featureOverlay) {
+                  //select all annotation features except text note
+                  layer.getSource().forEachFeatureIntersectingExtent(extent, function (feature) {
+                    if (!multi && vm.selectedFeatures.getLength() > 0) {return true}
+                    if (!feature.get('note')) {
+                        vm.selectedFeatures.push(feature)
+                        return !multi
+                    }
+                  })
+                  //select text note
+                  vm.features.forEach(function(feature){
+                    if (!multi && vm.selectedFeatures.getLength() > 0) {return}
+                    if (feature.get('note')) {
+                      if (ol.extent.intersects(extent,vm.getNoteExtent(feature))) {
+                        vm.selectedFeatures.push(feature)
+                      }
+                    }
+                  })
+              } else {
+                  layer.getSource().forEachFeatureIntersectingExtent(extent, function (feature) {
+                    if (!multi && vm.selectedFeatures.getLength() > 0) {return true}
+                    vm.selectedFeatures.push(feature)
+                    return !multi
+                  })
+              }
+            })
+          })
+          // clear selectedFeatures before dragging a box
+          dragSelectInter.on('boxstart', function () {
+            //selectedFeatures.clear()
+          })
+          dragSelectInter.setMulti = function(multi) {
+            this.multi_ = multi
+          }
+          return dragSelectInter
+        }
+      },
+      selectInterFactory:function(options) {
+        var vm = this
+        return function(tool) {
+          selectedFeatures = (tool && tool.selectedFeatures) || vm.selectedFeatures
+          // allow selecting multiple features by clicking
+          var selectInter = new ol.interaction.Select({
+            layers: function(layer) { 
+              return vm.selectable.indexOf(layer) > -1
+            },
+            features: selectedFeatures
+          })
+          selectInter.defaultHandleEvent = selectInter.defaultHandleEvent || selectInter.handleEvent
+          selectInter.handleEvent = function(event) {
+            if (this.condition_(event)) {
+                try {
+                    vm.selecting = true
+                    return this.defaultHandleEvent(event)
+                } finally {
+                    vm.selecting = false
+                }
+            } else {
+                vm.selecting = false
+                return this.defaultHandleEvent(event)
+            }
+          }
+          selectInter.setMulti = function(multi) {
+            this.multi_ = multi
+          }
+          return selectInter
+        }
+      },
+      keyboardInterFactory:function(options) { 
+        var vm = this
+        // OpenLayers3 hook for keyboard input
+        return function(tool) {
+          var keyboardInter = new ol.interaction.Interaction({
+            handleEvent: function (mapBrowserEvent) {
+              var stopEvent = false
+              if (mapBrowserEvent.type === ol.events.EventType.KEYDOWN) {
+                var keyEvent = mapBrowserEvent.originalEvent
+                switch (keyEvent.keyCode) {
+                  case 65: // a
+                    if (keyEvent.ctrlKey) {
+                      vm.selectAll( (tool && tool.features) || vm.features,(tool && tool.selectedFeatures) || vm.selectedFeatures )
+                      stopEvent = true
+                    }
+                    break
+                  case 46: // Delete
+                    vm.deleteSelected( (tool && tool.features) || vm.features,(tool && tool.selectedFeatures) || vm.selectedFeatures )
+                    stopEvent = true
+                    break
+                  default:
+                    break
+                }
+              }
+              // if we intercept a key combo, disable any browser behaviour
+              if (stopEvent) {
+                keyEvent.preventDefault()
+              }
+              return !stopEvent
+            }
+          })
+          return keyboardInter
+        }
+      },
+      modifyInterFactory:function(options) {
+        var vm = this
+        return function(tool) {
+          // allow modifying features by click+dragging
+          var modifyInter = new ol.interaction.Modify({
+            features: (tool && tool.features) || vm.features
+          })
+          modifyInter.on("modifystart",function(ev){
+            ev.features.forEach(function(f) {
+                f.geometryRevision = f.getGeometry().getRevision()
+            })
+          }) 
+          modifyInter.on("modifyend",function(ev){
+            var modifiedFeatures = new ol.Collection(ev.features.getArray().filter(function(feature){
+                return feature.geometryRevision != feature.getGeometry().getRevision()
+            }))
+            vm.ui.modifyInter.dispatchEvent(new ol.interaction.Modify.Event("featuresmodified",modifiedFeatures,ev))
+          })
+          modifyInter.on("featuresmodified",function(ev){
+            ev.features.forEach(function(f){
+                if (f.get('toolName')) {
+                    tool = vm.getTool(f.get('toolName'))
+                    if (tool && tool.typeIcon ) {
+                        delete f['typeIconStyle']
+                        f.set('typeIconMetadata',undefined,true)
+                        f.changed()
+                    }
+                }
+              })
+          })
+          return modifyInter
         }
       },
       icon: function (t) {
@@ -570,20 +720,24 @@
         this.tool = t
         this.currentTool = t
       },
-      selectAll: function () {
+      selectAll: function (features,selectedFeatures) {
+        features = features || this.features
+        selectedFeatures = selectedFeatures || this.selectedFeatures
         var vm = this
-        this.features.forEach(function (feature) {
-          if (!(feature in vm.selectedFeatures)) {
-            vm.selectedFeatures.push(feature)
+        features.forEach(function (feature) {
+          if (!(feature in selectedFeatures)) {
+            selectedFeatures.push(feature)
           }
         })
       },
-      deleteSelected: function () {
+      deleteSelected: function (features,selectedFeatures) {
+        features = features || this.features
+        selectedFeatures = selectedFeatures || this.selectedFeatures
         var vm = this
-        this.selectedFeatures.forEach(function (feature) {
-          vm.features.remove(feature)
+        selectedFeatures.forEach(function (feature) {
+          features.remove(feature)
         })
-        this.selectedFeatures.clear()
+        selectedFeatures.clear()
       },
       updateNote: function (save) {
         var note = null
@@ -707,6 +861,7 @@
       },
       tearDown:function() {
         this.search.setSearchPointFunc(null)
+        this.selectable = null
       },
       getNoteExtent: function(feature) {
         var note = feature.get('note')
@@ -745,6 +900,52 @@
       getStyleProperty:function(f,property,defaultValue,tool) {
         var result = f[property] || f.get(property) || (tool || this.getTool(f.get('toolName')) || {})[property] || ((defaultValue === undefined)?'default':defaultValue)
         return (typeof result === "function")?result(f):result
+      },
+      getIconStyleFunction : function(tints) {
+        var vm = this
+        return function (res) {
+            var feat = this
+            var style = vm.map.cacheStyle(function (feat) {
+              var src = vm.map.getBlob(feat, ['icon', 'tint'],tints || {})
+              if (!src) { return false }
+              var rot = feat.get('rotation') || 0.0
+              return new ol.style.Style({
+                image: new ol.style.Icon({
+                  src: src,
+                  scale: 0.5,
+                  rotation: rot,
+                  rotateWithView: true,
+                  snapToPixel: true
+                })
+              })
+            }, feat, ['icon', 'tint', 'rotation'])
+            return style
+        }
+      },
+      getLabelStyleFunc:function(tints) {
+        var vm = this
+        return function() {
+            var f = this
+            var tool = null
+            if (f.get('toolName')) {
+                tool = vm.getTool(f.get('toolName')) || vm.tool
+            } else {
+                tool = vm.tool
+            }
+            var tint = vm.getStyleProperty(f,"tint","",tool) + ".text"
+            return new ol.style.Style({
+                text: new ol.style.Text({
+                  offsetX: 12,
+                  text:f.get('label'),
+                  textAlign: 'left',
+                  font: '12px Helvetica,Roboto,Arial,sans-serif',
+                  stroke: new ol.style.Stroke({
+                    color: tints[tint],
+                    width: 4
+                  })
+                }),
+            })
+        }
       },
       getVectorStyleFunc: function (tints) {
         var vm = this
@@ -1000,154 +1201,18 @@
       // main difference is that Select allows movement of whole features around the map,
       // whereas Edit is for movement of individual nodes
 
-      // allow translating of features by click+dragging
-      this.ui.translateInter = new ol.interaction.Translate({
-        layers: [this.featureOverlay],
-        features: this.selectedFeatures
-      })
-      this.ui.translateInter.on("translateend",function(ev){
-          ev.features.forEach(function(f){
-            if (f.get('toolName')) {
-                tool = vm.getTool(f.get('toolName'))
-                if (tool && tool.typeIcon) {
-                    delete f['typeIconStyle']
-                    f.set('typeIconMetadata',undefined,true)
-                    f.changed()
-                }
-            }
-          })
-      })
+      this.ui.translateInter = this.translateInterFactory()()
+      this.ui.dragSelectInter = this.dragSelectInterFactory()()
+      this.ui.selectInter = this.selectInterFactory()()
+      this.ui.keyboardInter = this.keyboardInterFactory()()
+      this.ui.modifyInter = this.modifyInterFactory()()
 
-      // allow modifying features by click+dragging
-      this.ui.modifyInter = new ol.interaction.Modify({
-        features: this.features
-      })
-      this.ui.modifyInter.on("modifystart",function(ev){
-          ev.features.forEach(function(f) {
-            f.geometryRevision = f.getGeometry().getRevision()
-          })
-      }) 
-      this.ui.modifyInter.on("modifyend",function(ev){
-          var modifiedFeatures = new ol.Collection(ev.features.getArray().filter(function(feature){
-            return feature.geometryRevision != feature.getGeometry().getRevision()
-          }))
-          vm.ui.modifyInter.dispatchEvent(new ol.interaction.Modify.Event("featuresmodified",modifiedFeatures,ev))
-      })
-      this.ui.modifyInter.on("featuresmodified",function(ev){
-          ev.features.forEach(function(f){
-            if (f.get('toolName')) {
-                tool = vm.getTool(f.get('toolName'))
-                if (tool && tool.typeIcon ) {
-                    delete f['typeIconStyle']
-                    f.set('typeIconMetadata',undefined,true)
-                    f.changed()
-                }
-            }
-          })
-      })
-
-      // allow dragbox selection of features
-      this.ui.dragSelectInter = new ol.interaction.DragBox()
-      // modify selectedFeatures after dragging a box
-      this.ui.dragSelectInter.on('boxend', function (event) {
-        vm.selectedFeatures.clear()
-        var extent = event.target.getGeometry().getExtent()
-        var multi = (this.multi_ == undefined)?true:this.multi_
-        vm.selectable.forEach(function(layer) {
-          if (!multi && vm.selectedFeatures.getLength() > 0) {return true}
-          if (layer == vm.featureOverlay) {
-              //select all annotation features except text note
-              layer.getSource().forEachFeatureIntersectingExtent(extent, function (feature) {
-                if (!multi && vm.selectedFeatures.getLength() > 0) {return true}
-                if (!feature.get('note')) {
-                    vm.selectedFeatures.push(feature)
-                    return !multi
-                }
-              })
-              //select text note
-              vm.features.forEach(function(feature){
-                if (!multi && vm.selectedFeatures.getLength() > 0) {return}
-                if (feature.get('note')) {
-                  if (ol.extent.intersects(extent,vm.getNoteExtent(feature))) {
-                    vm.selectedFeatures.push(feature)
-                  }
-                }
-              })
-          } else {
-              layer.getSource().forEachFeatureIntersectingExtent(extent, function (feature) {
-                if (!multi && vm.selectedFeatures.getLength() > 0) {return true}
-                vm.selectedFeatures.push(feature)
-                return !multi
-              })
-          }
-        })
-      })
-      // clear selectedFeatures before dragging a box
-      this.ui.dragSelectInter.on('boxstart', function () {
-        //vm.selectedFeatures.clear()
-      })
-      this.ui.dragSelectInter.setMulti = function(multi) {
-        this.multi_ = multi
-      }
-
-      // allow selecting multiple features by clicking
-      this.ui.selectInter = new ol.interaction.Select({
-        layers: function(layer) { 
-          return vm.selectable.indexOf(layer) > -1
-        },
-        features: this.selectedFeatures
-      })
-      this.ui.selectInter.defaultHandleEvent = this.ui.selectInter.defaultHandleEvent || this.ui.selectInter.handleEvent
-      this.ui.selectInter.handleEvent = function(event) {
-        if (this.condition_(event)) {
-            try {
-                vm.selecting = true
-                return this.defaultHandleEvent(event)
-            } finally {
-                vm.selecting = false
-            }
-        } else {
-            vm.selecting = false
-            return this.defaultHandleEvent(event)
-        }
-      }
-      this.ui.selectInter.setMulti = function(multi) {
-        this.multi_ = multi
-      }
-      // OpenLayers3 hook for keyboard input
-      this.ui.keyboardInter = new ol.interaction.Interaction({
-        handleEvent: function (mapBrowserEvent) {
-          var stopEvent = false
-          if (mapBrowserEvent.type === ol.events.EventType.KEYDOWN) {
-            var keyEvent = mapBrowserEvent.originalEvent
-            switch (keyEvent.keyCode) {
-              case 65: // a
-                if (keyEvent.ctrlKey) {
-                  vm.selectAll()
-                  stopEvent = true
-                }
-                break
-              case 46: // Delete
-                vm.deleteSelected()
-                stopEvent = true
-                break
-              default:
-                break
-            }
-          }
-          // if we intercept a key combo, disable any browser behaviour
-          if (stopEvent) {
-            keyEvent.preventDefault()
-          }
-          return !stopEvent
-        }
-      })
       // load default tools
       this.ui.defaultPan = {
         name: 'Pan',
         icon: 'fa-hand-paper-o',
         cursor:['-webkit-grab','-moz-grab'],
-        scope:["annotation","bushfirereport","resourcetracking"],
+        scope:["annotation","bfrs","resourcetracking"],
         interactions: [
           map.dragPanInter,
           map.doubleClickZoomInter,
@@ -1389,6 +1454,9 @@
                     tool.interactions[subindex] = interact(tool)
                 }
             })
+            if (!tool.label) {
+                tool.label = tool.name
+            }
         })
         vm.annotationTools = this.tools.filter(function (t) {
           return t.scope && t.scope.indexOf("annotation") >= 0

@@ -9,7 +9,7 @@
                     <gk-layers v-ref:layers></gk-layers>
                     <gk-annotations v-ref:annotations></gk-annotations>
                     <gk-tracking v-ref:tracking></gk-tracking>
-                    <!--gk-bfrs v-ref:bfrs></gk-bfrs-->
+                    <gk-bfrs v-ref:bfrs></gk-bfrs>
                 </div>
             </div>
             <div class="off-canvas-content" data-off-canvas-content>
@@ -31,11 +31,11 @@
                             <i class="fa fa-truck" aria-hidden="true"></i>
                         </a>
                     </li>
-                    <!--li class="tabs-title side-button" menu="bfrs">
+                    <li class="tabs-title side-button" menu="bfrs">
                         <a href="#menu-tab-bfrs" title="Bushfire Report System">
                             <i class="fa fa-fire" aria-hidden="true"></i>
                         </a>
-                    </li-->
+                    </li>
                     <li class="tabs-title side-button" menu="setting">
                         <a href="#menu-tab-setting" title="System Settings">
                             <i class="fa fa-cog" aria-hidden="true"></i>
@@ -56,7 +56,7 @@
     import gkTracking from '../components/sss/tracking.vue'
     import gkLoading from '../components/loading.vue'
     import gkSetting from '../components/setting.vue'
-    //import gkBfrs from '../components/sss/bfrs.vue'
+    import gkBfrs from '../components/sss/bfrs.vue'
     import { ol } from 'src/vendor.js'
 
 
@@ -68,7 +68,7 @@
         return {
         }
       },
-      components: { gkMap, gkLayers, gkAnnotations, gkTracking, gkLoading,gkSetting },//, gkBfrs },
+      components: { gkMap, gkLayers, gkAnnotations, gkTracking, gkLoading,gkSetting , gkBfrs },
       ready: function () {
         var vm = this
         $("#menu-tabs").on("change.zf.tabs",function(target,selectedTab){
