@@ -18,7 +18,7 @@ body {
 #info {
     position: absolute;
     z-index: 2;
-    padding: 2em;
+    padding: 0.5em;
     background-color: #424f5a;
     max-width: 40%;
     width: 100%;
