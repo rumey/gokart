@@ -758,8 +758,9 @@
                         name = f.get('district') +' '+ f.get('rin_display') +' '+ f.get('name')
                     }
                 }
-                return {name:name, img:map.getBlob(f, ['icon', 'tint']), comments:"(" + f.get("label") + ", Heading:" + f.get("heading") + "&deg;)<br>" +
-                    extra_device_label}
+                return {name:name, img:map.getBlob(f, ['icon', 'tint']),
+                    comments:"(" + f.get("label") + ", Heading:" + f.get("heading") + "&deg;)<br>" +
+                        extra_device_label}
             } else {
                 return {name:f.get("name"), img:map.getBlob(f, ['icon', 'tint']), comments:"(" + f.get("startTime") + " - " + f.get("endTime") + ")"}
             }
