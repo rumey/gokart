@@ -382,7 +382,7 @@
         return function(tool) {
             var draw =  new ol.interaction.Draw({
               type: 'LineString',
-              features: tool.features || vm.features,
+              features: (tool && tool.features) || vm.features,
             })
             draw.on('drawend', function (ev) {
               // set parameters
@@ -401,7 +401,7 @@
         return function(tool) {
             var draw =  new ol.interaction.Draw({
               type: 'Polygon',
-              features: tool.features || vm.features,
+              features: (tool && tool.features) || vm.features,
             })
             draw.on('drawend', function (ev) {
               // set parameters
@@ -419,7 +419,7 @@
         var vm = this
         return function(tool) {
             var sketchStyle = undefined
-            if (tool.sketchStyle) {
+            if (tool && tool.sketchStyle) {
                 var defaultFeat = new ol.Feature($.extend({'toolName': tool.name},options||{}))
                 sketchStyle = function(res) {return tool.sketchStyle.apply(defaultFeat,res);}
             }
@@ -600,7 +600,7 @@
             var modifiedFeatures = new ol.Collection(ev.features.getArray().filter(function(feature){
                 return feature.geometryRevision != feature.getGeometry().getRevision()
             }))
-            vm.ui.modifyInter.dispatchEvent(new ol.interaction.Modify.Event("featuresmodified",modifiedFeatures,ev))
+            modifyInter.dispatchEvent(new ol.interaction.Modify.Event("featuresmodified",modifiedFeatures,ev))
           })
           modifyInter.on("featuresmodified",function(ev){
             ev.features.forEach(function(f){

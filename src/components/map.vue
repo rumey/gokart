@@ -629,7 +629,8 @@
       // loader for vector layers with hover querying
       createWFSLayer: function (options) {
         var vm = this
-        var url = this.defaultWFSSrc
+        var url = this.defaultWFSSrc  
+
         // default overridable params sent to the WFS source
         options.params = $.extend({
           version: '1.1.0',
@@ -640,6 +641,7 @@
           typename: options.id
         }, options.params || {})
 
+
         var vectorSource = new ol.source.Vector()
         var vector = new ol.layer.Vector({
           opacity: options.opacity || 1,
@@ -647,6 +649,32 @@
           style: options.style
         })
         vector.progress = ''
+
+        vectorSource.retrieveFeatures = function (filter,onSuccess,onError) {
+          var params = $.extend({},options.params)
+          
+          if (filter) {
+            params.cql_filter = filter
+          } else if (params.cql_filter) {
+            delete params.cql_filter
+          }
+          $.ajax({
+            url: url + '?' + $.param(params),
+            success: function (response, stat, xhr) {
+              var features = vm.$root.geojson.readFeatures(response)
+              onSuccess(features)
+            },
+            error: function () {
+                if (onError) {
+                    onError(status,message)
+                }
+            },
+            dataType: 'json',
+            xhrFields: {
+              withCredentials: true
+            }
+          })
+        }
 
         vectorSource.loadSource = function (loadType,onSuccess) {
           if (options.cql_filter) {
