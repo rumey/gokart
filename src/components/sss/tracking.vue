@@ -606,6 +606,24 @@
           }
       }
 
+      var deviceLabel = function(device) {
+        var name = ''
+        if (device.get('district') == null || device.get('district') == 'AV' || device.get('district' == 'OTH')){
+            if (device.get('rin_display') == null){
+                name = device.get('name')
+            } else {
+                name = device.get('rin_display') +' '+ device.get('name')
+            }
+        } else {
+            if (device.get('rin_display') == null){
+                name = device.get('district') +' '+ device.get('name')
+            } else {
+                name = device.get('district') +' '+ device.get('rin_display') +' '+ device.get('name'),true)
+            }
+        }
+        return name
+      }
+
       var addResourceFunc = function(styleFunc) {
         return function (f) {
             var now = moment()
@@ -623,19 +641,7 @@
             f.set('icon', 'dist/static/symbols/device/' + f.get('symbolid') + '.svg',true)
             f.set('tint', tint,true)
             f.set('originalTint', tint,true)
-            if (f.get('district') == null || f.get('district') == 'AV' || f.get('district' == 'OTH')){
-                if (f.get('rin_display') == null){
-                    f.set('label', f.get('name'),true)
-                } else {
-                    f.set('label', f.get('rin_display') +' '+ f.get('name'),true)
-                }
-            } else {
-                if (f.get('rin_display') == null){
-                    f.set('label', f.get('district') +' '+ f.get('name'),true)
-                } else {
-                    f.set('label', f.get('district') +' '+ f.get('rin_display') +' '+ f.get('name'),true)
-                }
-            }
+            f.set('label', deviceLabel(f), true)
             f.set('time', timestamp.toLocaleString(),true)
             // Set a different vue template for rendering
             f.set('partialId', 'resourceInfo',true)
@@ -743,21 +749,8 @@
         cql_filter: false,
         getFeatureInfo:function (f) {
             if (f.getGeometry() instanceof ol.geom.Point) {
-                var name = ''
+                var name = deviceLabel(f)
                 var extra_device_label = deviceExtraHoverLabel(f)
-                if (f.get('district') == null || f.get('district') == 'AV' || f.get('district' == 'OTH')){
-                    if (f.get('rin_display') == null){
-                        name = f.get('name')
-                    } else {
-                        name = f.get('rin_display') +' '+ f.get('name')
-                    }
-                } else {
-                    if (f.get('rin_display') == null){
-                        name = f.get('district') +' '+ f.get('name')
-                    } else {
-                        name = f.get('district') +' '+ f.get('rin_display') +' '+ f.get('name')
-                    }
-                }
                 return {name:name, img:map.getBlob(f, ['icon', 'tint']),
                     comments:"(" + f.get("label") + ", Heading:" + f.get("heading") + "&deg;)<br>" +
                         extra_device_label}
@@ -786,21 +779,8 @@
                     return point.getGeometry().getCoordinates()
                 })
                 // create a new linestring
-                var name = ''
+                var name = deviceLabel(f)
                 var f = devices[device][0]
-                if (f.get('district') == null || f.get('district') == 'AV' || f.get('district' == 'OTH')){
-                    if (f.get('rin_display') == null){
-                        name = f.get('name')
-                    } else {
-                        name = f.get('rin_display') +' '+ f.get('name')
-                    }
-                } else {
-                    if (f.get('rin_display') == null){
-                        name = f.get('district') +' '+ f.get('name')
-                    } else {
-                        name = f.get('district') +' '+ f.get('rin_display') +' '+ f.get('name')
-                    }
-                }
                 var feature = new ol.Feature({
                   name: name + ' path',
                   icon: f.get('icon'),
