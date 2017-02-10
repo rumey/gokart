@@ -123,7 +123,7 @@
         cql: '',
         tools: [],
         fields: ['id', 'name'],
-        fireboundary:new ol.Collection(),
+        drawings:new ol.Collection(),
         allFeatures: new ol.Collection(),
         extentFeatures: [],
         selectedBushfires: [],
@@ -185,12 +185,13 @@
                 var labelStyleFunc = vm.annotations.getLabelStyleFunc(vm.tints)
                 return function(res) {
                     var feat = this
-                    var pointStyle = pointStyleFunc.call(feat,res)
-                    var boundaryStyle = (feat.getGeometry() && (feat.getGeometry() instanceof ol.geom.GeometryCollection ) && feat.getGeometry().getGeometries().length > 1)?boundaryStyleFunc.call(feat,res):null
+                    var geometries = feat.getGeometry().getGeometriesArray()
+                    var pointStyle = (geometries.length > 0 || geometries[0] instanceof ol.geom.Point)?pointStyleFunc.call(feat,res):null
+                    var boundaryStyle = (geometries.length > 1 || geometries[0] instanceof ol.geom.Polygon)?boundaryStyleFunc.call(feat,res):null
                     var labelStyle = null
-                    if (res < 0.003 && feat.get('label') && vm.bushfireLabels && !vm.$root.active.isHidden(vm.map.getMapLayer("bfrs:bushfire_dev"))) {
+                    if (res < 0.003 && geometries.length > 0 && feat.get('label') && vm.bushfireLabels && !vm.$root.active.isHidden(vm.map.getMapLayer("bfrs:bushfire_dev"))) {
                       labelStyle = labelStyleFunc.call(feat,res)
-                      labelStyle.setGeometry(feat.getGeometry().getGeometries()[0])
+                      labelStyle.setGeometry(geometries[0])
                     }   
 
                     var style = null
@@ -248,7 +249,7 @@
         if (this.selected(f)) {
           this.$root.annotations.selectedFeatures.remove(f)
         } else {
-          if (this.annotations.tool.name === "Bfrs Edit Geometry") {
+          if (["Bfrs Origin Point","Bfrs Edit Geometry","Bfrs Fire Boundary"].indexOf(this.annotations.tool.name) >= 0) {
               //Only one bush fire can be choosed in edit mode
               this.$root.annotations.selectedFeatures.clear()
           }
@@ -480,7 +481,6 @@
       var vm = this
       var bfrsStatus = this.loading.register("bfrs","Bush Fire Report Component","Initialize")
       var map = this.$root.map
-      vm.whoami['bushfire'] = {}
 
       this.$root.fixedLayers.push({
         type: 'WFSLayer',
@@ -519,10 +519,11 @@
                 ["final.authroize",null,function(f) {return f.get('status') === "final"}],
                 ["final_authroized.edit",null,function(f) {return f.get('status') === "final_authorized"}],
             ]
+            vm.whoami["bushfire"] = vm.whoami["bushfire"] || {}
             var checkPermission = function(index){
                 var p = permissionConfig[index]
                 var url = null
-                if (vm.whoami[p[0]] === null || vm.whoami[p[0]] === undefined){
+                if (vm.whoami['bushfire'][p[0]] === null || vm.whoami['bushfire'][p[0]] === undefined){
                     if (p[1] === null) {
                         //always have the permission
                         vm.whoami['bushfire'][p[0]] = true
@@ -579,6 +580,7 @@
       })
       vm.ui.dragSelectInter = vm.annotations.dragSelectInterFactory()(toolConfig)
       vm.ui.selectInter = vm.annotations.selectInterFactory()(toolConfig)
+      vm.ui.geometrySelectInter = vm.annotations.selectInterFactory()($.extend({selectMode:"geometry"},toolConfig))
       vm.ui.modifyInter = vm.annotations.modifyInterFactory()(toolConfig)
       vm.ui.modifyInter.on("featuresmodified",function(ev){
           ev.features.forEach(function(f){
@@ -592,12 +594,44 @@
           vm.revision += 1
       })
 
-      vm.ui.polygonDraw = vm.annotations.polygonDrawFactory()({features:vm.fireboundary})
-      vm.fireboundary.on("add",function(ev){
+      vm.ui.originPointDraw = vm.annotations.pointDrawFactory({
+        drawOptions:{
+            condition:function(ev) {
+                var featGeometry = (vm.annotations.selectedFeatures.getLength() == 1)?vm.annotations.selectedFeatures.item(0).getGeometry():null
+                if (featGeometry && (featGeometry.getGeometriesArray().length == 0 || !(featGeometry.getGeometriesArray()[0] instanceof ol.geom.Point))) {
+                    return ol.events.condition.noModifierKeys(ev)
+                } else {
+                    return false
+                }
+            }
+        }
+      })({
+        features:vm.drawings
+      })
+
+      vm.ui.fireboundaryDraw = vm.annotations.polygonDrawFactory({
+        drawOptions:{
+            condition:function(ev) {
+                if (vm.annotations.selectedFeatures.getLength() == 1) {
+                    return ol.events.condition.noModifierKeys(ev)
+                } else {
+                    return false
+                }
+            }
+        }
+      })({
+        features:vm.drawings
+      })
+      vm.drawings.on("add",function(ev){
         if (vm.annotations.selectedFeatures.getLength() === 1){
             var f = vm.annotations.selectedFeatures.item(0)
-            f.getGeometry().getGeometriesArray().push(ev.element.getGeometry())
-            f.getGeometry().changed()
+            if (vm.annotations.tool.name === "Bfrs Fire Boundary") {
+                f.getGeometry().getGeometriesArray().push(new ol.geom.Polygon(ev.element.getGeometry().getCoordinates()))
+            } else if (f.getGeometry().getGeometriesArray().length > 0 && f.getGeometry().getGeometriesArray().item(0) instanceof ol.geom.Point){
+                f.getGeometry().getGeometriesArray()[0] = ev.element.getGeometry()
+            } else {
+                f.getGeometry().getGeometriesArray().splice(0,0,ev.element.getGeometry())
+            }
             if (f.get('status') !== "modified") {
                 f.set('status','modified',true)
                 f.set('tint',"modified",true)
@@ -605,27 +639,15 @@
                 f.set('colour',vm.tints[f.get('tint') + ".colour"])
                 vm.revision += 1
             }
+            f.getGeometry().setGeometriesArray(f.getGeometry().getGeometriesArray())
+            f.getGeometry().changed()
+            vm.drawings.clear()
         }
       })
 
       //add tools
       var tools = [
           {
-              name: 'Bfrs Origin Point',
-              label: 'Origin Point',
-              icon: 'dist/static/symbols/fire/origin.svg',
-              tints: vm.tints,
-              selectedFillColour:[0, 0, 0, 0.25],
-              fillColour:[0, 0, 0, 0.25],
-              size:2,
-              interactions: [vm.annotations.pointDrawFactory()],
-              sketchStyle: vm.annotations.getIconStyleFunction(vm.tints),
-              features:vm.allFeatures,
-              scope:["bfrs"],
-              measureLength:true,
-              measureArea:true,
-              showName: true,
-          },{
               name: 'Bfrs Select',
               label: 'Select',
               icon: 'fa-mouse-pointer',
@@ -635,9 +657,23 @@
                   vm.ui.selectInter,
                   vm.ui.translateInter
               ],
+              keepSelection:true,
               onSet: function() {
                   vm.ui.dragSelectInter.setMulti(true)
                   vm.ui.selectInter.setMulti(true)
+              }
+          },{
+              name: 'Bfrs Delete',
+              label: 'Delete',
+              icon: 'fa-remove',
+              scope:["bfrs"],
+              selectMode:"geometry",
+              interactions: [
+                  vm.annotations.selectInterFactory()
+              ],
+              keepSelection:true,
+              onSet: function() {
+                  vm.ui.selectInter.setMulti(false)
               }
           },{
               name: 'Bfrs Edit Geometry',
@@ -649,11 +685,36 @@
                   this.ui.dragSelectInter,
                   this.ui.modifyInter
               ],
+              keepSelection:true,
               onSet: function() {
                   vm.ui.dragSelectInter.setMulti(false)
                   vm.ui.selectInter.setMulti(false)
+                  if (vm.annotations.selectedFeatures.getLength() > 1) {
+                      vm.annotations.selectedFeatures.clear()
+                  }
               }
           }, {
+              name: 'Bfrs Origin Point',
+              label: 'Origin Point',
+              icon: 'dist/static/symbols/fire/origin.svg',
+              tints: vm.tints,
+              selectedFillColour:[0, 0, 0, 0.25],
+              fillColour:[0, 0, 0, 0.25],
+              size:2,
+              interactions: [vm.ui.originPointDraw],
+              sketchStyle: vm.annotations.getIconStyleFunction(vm.tints),
+              features:vm.allFeatures,
+              scope:["bfrs"],
+              measureLength:true,
+              measureArea:true,
+              keepSelection:true,
+              showName: true,
+              onSet: function() {
+                  if (vm.annotations.selectedFeatures.getLength() > 1) {
+                      vm.annotations.selectedFeatures.clear()
+                  }
+              }
+          },{
               name: 'Bfrs Fire Boundary',
               label: 'Fire Boundary',
               icon: 'dist/static/images/iD-sprite.svg#icon-area',
@@ -661,9 +722,17 @@
               selectedFillColour:[0, 0, 0, 0.25],
               fillColour:[0, 0, 0, 0.25],
               size:2,
-              interactions: [vm.ui.polygonDraw],
+              interactions: [
+                  this.ui.fireboundaryDraw
+              ],
               scope:["bfrs"],
               showName: true,
+              keepSelection:true,
+              onSet: function() {
+                  if (vm.annotations.selectedFeatures.getLength() > 1) {
+                      vm.annotations.selectedFeatures.clear()
+                  }
+              }
           }
       ]
 
@@ -696,6 +765,10 @@
         //vm.annotations.setDefaultTool('bfrs','Pan')
         vm.tools = vm.annotations.tools.filter(function (t) {
           return t.scope && t.scope.indexOf("bfrs") >= 0
+        })
+        vm.annotations.selectedFeatures.on('remove', function (ev) {
+          //remove the index of the selected geometry in geometry collection
+          delete ev.element['selectedIndex']
         })
         bfrsStatus.end()
       })

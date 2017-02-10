@@ -380,10 +380,10 @@
       linestringDrawFactory : function (options) {
         var vm = this
         return function(tool) {
-            var draw =  new ol.interaction.Draw({
+            var draw =  new ol.interaction.Draw($.extend({
               type: 'LineString',
               features: (tool && tool.features) || vm.features,
-            })
+            },(options && options.drawOptions)||{}))
             draw.on('drawend', function (ev) {
               // set parameters
               vm.drawingSequence += 1
@@ -399,10 +399,10 @@
       polygonDrawFactory : function (options) {
         var vm = this
         return function(tool) {
-            var draw =  new ol.interaction.Draw({
+            var draw =  new ol.interaction.Draw($.extend({
               type: 'Polygon',
               features: (tool && tool.features) || vm.features,
-            })
+            },(options && options.drawOptions)||{}))
             draw.on('drawend', function (ev) {
               // set parameters
               vm.drawingSequence += 1
@@ -424,11 +424,11 @@
                 sketchStyle = function(res) {return tool.sketchStyle.apply(defaultFeat,res);}
             }
 
-            var draw =  new ol.interaction.Draw({
+            var draw =  new ol.interaction.Draw($.extend({
               type: 'Point',
               features: (options && options.features) || (tool && tool.features) || vm.features,
               style: sketchStyle
-            })
+            },(options && options.drawOptions)||{}))
 
             draw.on('drawend', function (ev) {
               // set parameters
@@ -535,6 +535,9 @@
             if (this.condition_(event)) {
                 try {
                     vm.selecting = true
+                    if (tool && tool.selectMode === "geometry") {
+                        vm.selectedFeatures.clear()
+                    }
                     return this.defaultHandleEvent(event)
                 } finally {
                     vm.selecting = false
@@ -546,6 +549,21 @@
           }
           selectInter.setMulti = function(multi) {
             this.multi_ = multi
+          }
+          if (tool && tool.selectMode === "geometry") {
+              selectInter.on('select',function(ev) {
+                $.each(ev.selected,function(index,f){
+                    if (f.getGeometry() instanceof ol.geom.GeometryCollection && ev.mapBrowserEvent) {
+                        $.each(f.getGeometry().getGeometriesArray(),function(index2,geom){
+                            if (geom.intersectsCoordinate(ev.mapBrowserEvent.coordinate)) {
+                                f['selectedIndex'] = index2
+                                return false
+                            }
+                        })
+                    }
+                    
+                })
+            })
           }
           return selectInter
         }
@@ -592,12 +610,14 @@
             features: (tool && tool.features) || vm.features
           })
           modifyInter.on("modifystart",function(ev){
-            ev.features.forEach(function(f) {
-                f.geometryRevision = f.getGeometry().getRevision()
+            ev.features.forEach(function(feature) {
+                //console.log("Modifystart : " + feature.get('label') + "\t" + feature.getGeometry().getRevision())
+                feature.geometryRevision = feature.getGeometry().getRevision()
             })
           }) 
           modifyInter.on("modifyend",function(ev){
             var modifiedFeatures = new ol.Collection(ev.features.getArray().filter(function(feature){
+                //console.log("Modifyend : " + feature.get('label') + "\t" + feature.geometryRevision + "\t" + feature.getGeometry().getRevision())
                 return feature.geometryRevision != feature.getGeometry().getRevision()
             }))
             modifyInter.dispatchEvent(new ol.interaction.Modify.Event("featuresmodified",modifiedFeatures,ev))
@@ -697,7 +717,9 @@
             //remove selections only if the tool is not Pan
             if ((this._previousTool && this._previousTool !== t) || (this._previousActiveMenu && this._previousActiveMenu !== this.activeMenu)) {
                 //remove selections only if the current tool is not the same tool as the previous tool.
-                this.selectedFeatures.clear()
+                if (t.keepSelection == undefined || t.keepSelection === false) {
+                    this.selectedFeatures.clear()
+                }
             }
             this._previousTool = t
             this._previousActiveMenu = this.activeMenu
@@ -904,11 +926,33 @@
       getIconStyleFunction : function(tints) {
         var vm = this
         return function (res) {
-            var feat = this
-            var style = vm.map.cacheStyle(function (feat) {
-              var src = vm.map.getBlob(feat, ['icon', 'tint'],tints || {})
+            var f = this
+
+            var selected = "none"
+            if (f['tint'] === undefined || f['tint'] === "") {
+                //not selected
+                selectMode = "none"
+            } else if (vm.tool.selectMode !== "geometry") {
+                //not in geometry selection mode
+                selectMode = "all"
+            } else if (f['selectedIndex'] === undefined || f['selectedIndex'] < 0) {
+                //not select any geometry,
+                selectMode = "all"
+            } else if (!(f.getGeometry() instanceof ol.geom.GeometryCollection)) {
+                //select a geometry, but feature's geometry type does not support
+                selectMode = "all"
+                delete f['selectedIndex']
+            } else if (!(f.getGeometry().getGeometriesArray()[f["selectedIndex"]] instanceof ol.geom.Point)) {
+                selectMode = "partial"
+            } else {
+                selectMode = "none"
+            }
+            f['selectMode'] = selectMode
+
+            var style = vm.map.cacheStyle(function (f) {
+              var src = vm.map.getBlob(f, ['icon', 'tint'],tints || {})
               if (!src) { return false }
-              var rot = feat.get('rotation') || 0.0
+              var rot = f.get('rotation') || 0.0
               return new ol.style.Style({
                 image: new ol.style.Icon({
                   src: src,
@@ -918,7 +962,7 @@
                   snapToPixel: true
                 })
               })
-            }, feat, ['icon', 'tint', 'rotation'])
+            }, f, ['icon', 'tint', 'rotation'])
             return style
         }
       },
@@ -957,8 +1001,63 @@
             } else {
                 tool = vm.tool
             }
+            var selected = "none"
+            if (f['tint'] === undefined || f['tint'] === "") {
+                //not selected
+                selectMode = "none"
+            } else if (vm.tool.selectMode !== "geometry") {
+                //not in geometry selection mode
+                selectMode = "all"
+            } else if (f['selectedIndex'] === undefined || f['selectedIndex'] < 0) {
+                //not select any geometry,
+                selectMode = "all"
+            } else if (!(f.getGeometry() instanceof ol.geom.GeometryCollection)) {
+                //select a geometry, but feature's geometry type does not support
+                selectMode = "all"
+                delete f['selectedIndex']
+            } else if (!(f.getGeometry().getGeometriesArray()[f["selectedIndex"]] instanceof ol.geom.Point)) {
+                selectMode = "partial"
+            } else {
+                selectMode = "none"
+            }
+            f['selectMode'] = selectMode
+
             var baseStyle = vm.map.cacheStyle(function (f) {
-              if (f['tint'] === 'selected') {
+              if (  selectMode === "partial" ) {
+                return [
+                    new ol.style.Style({
+                      fill: new ol.style.Fill({
+                        color: vm.getStyleProperty(f,'fillColour','rgba(255, 255, 255, 0.2)',tool)
+                      }),
+                      stroke: new ol.style.Stroke({
+                        color: vm.getStyleProperty(f,'colour','rgba(0,0,0,1.0)',tool),
+                        width: 2 * vm.getStyleProperty(f,'size',1,tool) 
+                      })
+                   }),
+                   new ol.style.Style({
+                      geometry: function(f) {
+                        return f.getGeometry().getGeometriesArray()[f["selectedIndex"]]
+                      },
+                      fill: new ol.style.Fill({
+                        color: vm.getStyleProperty(f,'selectedFillColour','rgba(255, 255, 255, 0.2)',tool)
+                      }),
+                      stroke: new ol.style.Stroke({
+                        color: vm.getStyleProperty(f,'selectedColour','#2199e8',tool),
+                        width: 2 * vm.getStyleProperty(f,'size',1,tool) + 2
+                      })
+                   }),
+                   new ol.style.Style({
+                      geometry: function(f) {
+                        console.log("===============" + f.get('label'))
+                        return f.getGeometry().getGeometriesArray()[f["selectedIndex"]]
+                      },
+                      stroke: new ol.style.Stroke({
+                        color: '#ffffff',
+                        width: 2 * vm.getStyleProperty(f,'size',1,tool) 
+                      })
+                   })
+                ]
+              } else if (selectMode === 'all') {
                 return [
                   new ol.style.Style({
                     fill: new ol.style.Fill({
@@ -987,7 +1086,7 @@
                   })
                 })
               }
-            },f,['size','colour','tint'])
+            },f,['size','colour','selectMode'])
     
             //get type icon style
             var typeIconStyle = null
@@ -995,6 +1094,7 @@
                 return baseStyle
             }
             //draw typeSymbol along the line.
+            //does not support geometry select mode
             if (f['typeIconStyle']) {
                 var diffs = vm.map.getScale() / f.get('typeIconMetadata')['points']['scale']
                 var typeIconTint = f['typeIconTint'] || f.get('typeIconTint') || tool['typeIconTint'] || 'default'
