@@ -28,18 +28,18 @@
             </div>
             <div class="row">
               <div class="switch tiny">
-                <input class="switch-input" id="reportsInViewport" type="checkbox" v-bind:checked="viewportOnly" @change="toggleViewportOnly" />
-                <label class="switch-paddle" for="reportsInViewport">
-                  <span class="show-for-sr">Viewport reports only</span>
+                <input class="switch-input" id="bushfiresInViewport" type="checkbox" v-bind:checked="viewportOnly" @change="toggleViewportOnly" />
+                <label class="switch-paddle" for="bushfiresInViewport">
+                  <span class="show-for-sr">Viewport bushfires only</span>
                 </label>
               </div>
-              <label for="reportsInViewport" class="side-label">Restrict to viewport ({{ stats }})</label>
+              <label for="bushfiresInViewport" class="side-label">Restrict to viewport ({{ stats }})</label>
             </div>
             <div class="row">
               <div class="switch tiny">
                 <input class="switch-input" id="toggleBushfireLabels" type="checkbox" v-bind:checked="bushfireLabels" @change="toggleBushfireLabels" />
                 <label class="switch-paddle" for="toggleBushfireLabels">
-                  <span class="show-for-sr">Display report labels</span>
+                  <span class="show-for-sr">Display bushfire labels</span>
                 </label>
               </div>
               <label for="toggleBushfireLabels" class="side-label">Display bushfire labels</label>
@@ -48,7 +48,7 @@
               <div class="switch tiny">
                 <input class="switch-input" id="toggleReportInfo" type="checkbox" v-bind:disabled="!setting.hoverInfoSwitchable" v-bind:checked="setting.hoverInfo" @change="setting.toggleHoverInfo" />
                 <label class="switch-paddle" for="toggleReportInfo">
-                  <span class="show-for-sr">Display hovering report info</span>
+                  <span class="show-for-sr">Display hovering bushfire info</span>
                 </label>
               </div>
               <label for="toggleReportInfo" class="side-label">Display hovering bushfire info</label>
@@ -56,11 +56,11 @@
             <div class="row collapse">
               <div class="small-6 columns">
                 <select name="select" v-model="cql" @change="updateCQLFilter">
-                  <option value="" selected>All reports</option> 
+                  <option value="" selected>All bushfires</option> 
                 </select>
               </div>
               <div class="small-6 columns">
-                <input type="search" v-model="search" placeholder="Find a report" @keyup="updateFeatureFilter">
+                <input type="search" v-model="search" placeholder="Find a bushfire" @keyup="updateFeatureFilter">
               </div>
             </div>
             <div class="row">
@@ -80,7 +80,7 @@
               <div class="small-5">
                 <a title="Zoom to selected" class="button" @click="zoomToSelected()" ><i class="fa fa-search"></i></a>
                 <a title="Download list as geoJSON" class="button" @click="downloadList()" ><i class="fa fa-download"></i></a>
-                <!--a title="Download all or selected as CSV" class="button" href="{{bfrsService}}/report.csv?{{downloadSelectedCSV()}}" target="_blank" ><i class="fa fa-table"></i></a-->
+                <!--a title="Download all or selected as CSV" class="button" href="{{bfrsService}}/bushfire.csv?{{downloadSelectedCSV()}}" target="_blank" ><i class="fa fa-table"></i></a-->
               </div>
             </div>
             </div>
@@ -91,7 +91,7 @@
                 @click="toggleSelect(f)" track-by="get('id')">
                 <div class="columns">
                   <a v-if="isModified(f)" @click.stop.prevent="resetFeature(f)" title="Reset" class="button tiny secondary float-right"><i class="fa fa-undo"></i></a>
-                  <div class="feature-title"><img class="feature-icon" id="report-icon-{{f.get('id')}}" v-bind:src="featureIconSrc(f)" /> {{ f.get('label') }} <i><small></small></i></div>
+                  <div class="feature-title"><img class="feature-icon" id="bushfire-icon-{{f.get('id')}}" v-bind:src="featureIconSrc(f)" /> {{ f.get('label') }} <i><small></small></i></div>
                 </div>
               </div>
             </div>
@@ -334,7 +334,7 @@
         //trigger dynamic binding
         var tmp = vm.selectedBushfires
         return this.map.getBlob(f, ['icon', 'originalTint'],this.tints,function(){
-            $("#report-icon-" + f.get('id')).attr("src", vm.featureIconSrc(f))
+            $("#bushfire-icon-" + f.get('id')).attr("src", vm.featureIconSrc(f))
         })
       },
       selected: function (f) {
@@ -356,7 +356,7 @@
             vm._updateCQLFilter = debounce(function(updateType){
                 var groupFilter = vm.cql
                 var bushfireFilter = ''
-                // filter by specific reports if "Show selected only" is enabled
+                // filter by specific bushfires if "Show selected only" is enabled
                 if ((vm.selectedBushfires.length > 0) && (vm.selectedOnly)) {
                   bushfireFilter = 'id in (' + vm.selectedBushfires.join(',') + ')'
                 }
@@ -372,7 +372,7 @@
                     vm.selectedOnly = false
                 }
                 if (updateType === "selectedBushfire" && bushfireFilter) {
-                    //chosed some reports
+                    //chosed some bushfires
                     var filteredFeatures = vm.bfrsMapLayer.getSource().getFeatures().filter(function(f){
                         return vm.selectedBushfires.indexOf(f.get('id')) >= 0
                     })
@@ -383,7 +383,7 @@
                     })
                     vm.updateFeatureFilter(true)
                 } else {
-                    //clear report filter or change other filter
+                    //clear bushfire filter or change other filter
                     vm.bfrsMapLayer.set('updated', moment().toLocaleString())
                     vm.bfrsMapLayer.getSource().loadSource("query")
                 }
@@ -498,12 +498,12 @@
             function processResources() {
                 defaultOnload(loadType,vectorSource,features)
                 if (vm.selectedBushfires.length > 0) {
-                    var reportIds = vm.selectedBushfires.slice()
+                    var bushfireIds = vm.selectedBushfires.slice()
                     vm.$root.annotations.selectedFeatures.clear()
                     features.filter(function(el, index, arr) {
                       var id = el.get('id')
                       if (!id) return false
-                      if (reportIds.indexOf(id) < 0) return false
+                      if (bushfireIds.indexOf(id) < 0) return false
                       return true
                     }).forEach(function (el) {
                       vm.$root.annotations.selectedFeatures.push(el)
@@ -531,13 +531,13 @@
                             //url is a constant string
                             url = p[1]
                         } else {
-                            //url is a function with a report argument.
+                            //url is a function with a bushfire argument.
                             var f = features.find(p[2])
                             if (f) {
                                 //get the test url
                                 url = p[1](f)
                             } else {
-                                //can't find a report to test
+                                //can't find a bushfire to test
                                 url = null
                                 vm.whoami['bushfire'][p[0]] = null
                             }
