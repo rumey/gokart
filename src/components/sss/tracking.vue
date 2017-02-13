@@ -575,11 +575,11 @@
                 })
               })
             }, feat, ['icon', 'tint'])
-            if (style.getText) {
+            if (style[0].getText && style[0].getText()) {
               if (res < 0.003 && vm.resourceLabels && !vm.$root.active.isHidden(vm.map.getMapLayer(layerId))) {
-                style.getText().setText(feat.get('label'))
+                style[0].getText().setText(feat.get('label'))
               } else {
-                style.getText().setText('')
+                style[0].getText().setText('')
               }
             }
             if (res < 0.003 && vm.resourceDirections) {
@@ -587,24 +587,19 @@
               var speed = feat.get('velocity')
               if (heading !== undefined && (heading !== 0 || speed !== 0)) {
                   //style.getImage().setRotation( (heading + 90) / 180 * Math.PI )
-                  if (!vm.directionStyle) {
-                      vm.directionStyle = new ol.style.Style({
+                  if (!vm.styleWithDirection) {
+                      vm.styleWithDirection = style.concat([new ol.style.Style({
                           image: new ol.style.Icon({
                               src: "/dist/static/symbols/device/direction.svg",
                               scale:1,
                               snapToPixel:true
                           })
-                      })
-                  }
-                  vm.directionStyle.getImage().setRotation(heading / 180 * Math.PI)
-                  if (Array.isArray(style)) {
-                      var result = []
-                      $.each(style,function(index,s){result.push(s)})
-                      result.push(vm.directionStyle)
-                      style = result
+                      })])
                   } else {
-                      style =  [vm.directionStyle,style]
+                    vm.styleWithDirection[0] = style[0]
                   }
+                  vm.styleWithDirection[1].getImage().setRotation(heading / 180 * Math.PI)
+                  return vm.styleWithDirection
               }
             }
             return style

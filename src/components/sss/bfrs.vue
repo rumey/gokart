@@ -176,6 +176,21 @@
       bfrsMapLayer: function() {
         return this.$root.map?this.$root.map.getMapLayer(this.bfrsLayer):undefined
       },
+      editableFeatures:function() {
+        if (this.whoami.bushfire === undefined ) {
+            return new ol.Collection()
+        } else if (this.whoami.bushfire["initital.edit"] && this.whomai.bushfire["final.edit"] && this.whoami.bushfire["final_authorized.edit"]) {
+            return this.allFeatures
+        } else if (!this.whoami.bushfire["initital.edit"] && !this.whomai.bushfire["final.edit"] && !this.whoami.bushfire["final_authorized.edit"]) {
+            return new ol.Collection()
+        } else if(!this._editableFeatures) {
+            var vm = this
+            this._editableFeatures = new ol.Collection(this.allFeatures.getArray().filter(function(bushfire,index){
+                return vm.editable(bushfire)
+            }))
+        }
+        return this._editableFeatures
+      },
       bushfireStyleFunc:function() {
         if (!this._bushfireStyleFunc) {
             this._bushfireStyleFunc = function () {
@@ -195,21 +210,19 @@
                     }   
 
                     var style = null
-                    if (boundaryStyle || labelStyle) {
-                        if (boundaryStyle && labelStyle) {
-                            style = [pointStyle,boundaryStyle,labelStyle]
-                        } else {
-                            style = [pointStyle,boundaryStyle || labelStyle]
-                        }
-                        for(var i = (labelStyle?(style.length - 2):(style.length - 1));i >= 0;i--) {
-                            if (Array.isArray(style[i])) {
-                                $.each(style.splice(i,1)[0],function(p,s){style.push(s)})
-                            }
-                        }
+                    if ((pointStyle && 1) + (boundaryStyle && 1) + (labelStyle && 1) === 1) {
+                        return pointStyle || boundaryStyle || labelStyle
                     } else {
-                        style = pointStyle
+                        if (!vm._bushfireStyle) {
+                            vm._bushfireStyle = []
+                        } else {
+                            vm._bushfireStyle.length = 0
+                        }
+                        if (pointStyle) {vm._bushfireStyle.push.apply(vm._bushfireStyle,pointStyle)}
+                        if (boundaryStyle) {vm._bushfireStyle.push.apply(vm._bushfireStyle,boundaryStyle)}
+                        if (labelStyle) {vm._bushfireStyle.push(labelStyle)}
+                        return vm._bushfireStyle
                     }
-                    return style
                 }
             }.call(this)
         }
@@ -240,6 +253,18 @@
       }
     },
     methods: {
+      editable:function(bushfire) {
+        return this.whoami["bushfire"][bushfire.get('status') + ".edit"]
+      },
+      deletable:function(bushfire) {
+        return false
+      },
+      creatable:function() {
+        return this.whoami["bushfire"]["create"] 
+      },
+      authorizable:function(bushfire){
+        return this.whoami["bushfire"][bushfire.get('status') + ".authorize"]
+      },
       adjustHeight:function() {
         if (this.activeMenu === "bfrs") {
             $("#bfrs-list").height(this.screenHeight - this.leftPanelHeadHeight - $("#bfrs-list-controller-container").height())
@@ -516,8 +541,8 @@
                 ["initial.edit",null,function(f){return f.get('status') === "initial"}],
                 ["initial.authorize",null,function(f) {return f.get('status') === "initial"}],
                 ["final.edit",null,function(f) {return f.get('status') === "final"}],
-                ["final.authroize",null,function(f) {return f.get('status') === "final"}],
-                ["final_authroized.edit",null,function(f) {return f.get('status') === "final_authorized"}],
+                ["final.authorize",null,function(f) {return f.get('status') === "final"}],
+                ["final_authorized.edit",null,function(f) {return f.get('status') === "final_authorized"}],
             ]
             vm.whoami["bushfire"] = vm.whoami["bushfire"] || {}
             var checkPermission = function(index){
@@ -581,7 +606,7 @@
       vm.ui.dragSelectInter = vm.annotations.dragSelectInterFactory()(toolConfig)
       vm.ui.selectInter = vm.annotations.selectInterFactory()(toolConfig)
       vm.ui.geometrySelectInter = vm.annotations.selectInterFactory()($.extend({selectMode:"geometry"},toolConfig))
-      vm.ui.modifyInter = vm.annotations.modifyInterFactory()(toolConfig)
+      vm.ui.modifyInter = vm.annotations.modifyInterFactory()({features:vm.editableFeatures,mapLayers:function(layer){return layer.get("id") === "bfrs:bushfire_dev" }})
       vm.ui.modifyInter.on("featuresmodified",function(ev){
           ev.features.forEach(function(f){
             if (f.get('status') !== "modified") {
@@ -597,9 +622,16 @@
       vm.ui.originPointDraw = vm.annotations.pointDrawFactory({
         drawOptions:{
             condition:function(ev) {
-                var featGeometry = (vm.annotations.selectedFeatures.getLength() == 1)?vm.annotations.selectedFeatures.item(0).getGeometry():null
-                if (featGeometry && (featGeometry.getGeometriesArray().length == 0 || !(featGeometry.getGeometriesArray()[0] instanceof ol.geom.Point))) {
-                    return ol.events.condition.noModifierKeys(ev)
+                var feat = (vm.annotations.selectedFeatures.getLength() == 1)?vm.annotations.selectedFeatures.item(0):null
+                if (feat) {
+                    var featGeometry = feat.getGeometry()
+                    if (vm.editable(feat) && (featGeometry.getGeometriesArray().length == 0 || !(featGeometry.getGeometriesArray()[0] instanceof ol.geom.Point))) {
+                        return ol.events.condition.noModifierKeys(ev)
+                    } else {
+                        return false
+                    }
+                } else if (vm.creatable()) {
+                    return true
                 } else {
                     return false
                 }
@@ -612,8 +644,16 @@
       vm.ui.fireboundaryDraw = vm.annotations.polygonDrawFactory({
         drawOptions:{
             condition:function(ev) {
-                if (vm.annotations.selectedFeatures.getLength() == 1) {
-                    return ol.events.condition.noModifierKeys(ev)
+                var feat = (vm.annotations.selectedFeatures.getLength() == 1)?vm.annotations.selectedFeatures.item(0):null
+                if (feat) {
+                    var featGeometry = feat.getGeometry()
+                    if (vm.editable(feat)) {
+                        return ol.events.condition.noModifierKeys(ev)
+                    } else {
+                        return false
+                    }
+                } else if (vm.creatable()) {
+                    return true
                 } else {
                     return false
                 }
@@ -663,35 +703,55 @@
                   vm.ui.selectInter.setMulti(true)
               }
           },{
-              name: 'Bfrs Delete',
-              label: 'Delete',
-              icon: 'fa-remove',
-              scope:["bfrs"],
-              selectMode:"geometry",
-              interactions: [
-                  vm.annotations.selectInterFactory()
-              ],
-              keepSelection:true,
-              onSet: function() {
-                  vm.ui.selectInter.setMulti(false)
-              }
-          },{
               name: 'Bfrs Edit Geometry',
               label: 'Edit Geometry',
               icon: 'fa-pencil',
               scope:["bfrs"],
               interactions: [
-                  this.ui.selectInter,
-                  this.ui.dragSelectInter,
+                  vm.annotations.selectInterFactory(),
+                  vm.annotations.keyboardInterFactory({
+                    selectEnabled:false,
+                    deleteSelected:function(features,selectedFeatures) {
+                        selectedFeatures.forEach(function (feature) {
+                            if (vm.editable(feature) && feature["selectedIndex"] !== undefined) {
+                                feature.getGeometry().getGeometriesArray().splice(feature["selectedIndex"],1)
+                                if (feature.getGeometry().getGeometriesArray().length > 0) {
+                                    feature["selectedIndex"] = 0
+                                } else {
+                                    delete feature["selectedIndex"]
+                                }
+                                feature.getGeometry().setGeometriesArray(feature.getGeometry().getGeometriesArray())
+                                if (feature.get('status') !== "modified") {
+                                    feature.set('status','modified',true)
+                                    feature.set('tint',"modified",true)
+                                    feature.set('fillColour',vm.tints[f.get('tint') + ".fillColour"])
+                                    feature.set('colour',vm.tints[f.get('tint') + ".colour"])
+                                }
+                                feature.changed()
+                            }
+                        })
+                    }
+                  }),
                   this.ui.modifyInter
               ],
+              selectMode:"geometry",
               keepSelection:true,
               onSet: function() {
                   vm.ui.dragSelectInter.setMulti(false)
                   vm.ui.selectInter.setMulti(false)
                   if (vm.annotations.selectedFeatures.getLength() > 1) {
                       vm.annotations.selectedFeatures.clear()
-                  }
+                  } else if (vm.annotations.selectedFeatures.getLength() == 1) {
+                    var selectedFeature = vm.annotations.selectedFeatures.item(0)
+                    if (selectedFeature["selectedIndex"] === undefined ) {
+                        var geometries = selectedFeature.getGeometry().getGeometries()
+                        if (geometries.length == 1) {
+                            selectedFeature["selectedIndex"] = 0
+                        } else if(geometries.length > 1) {
+                            selectedFeature["selectedIndex"] = (geometries[0] instanceof ol.geom.Polygon)?0:1
+                        }
+                    } 
+                 }
               }
           }, {
               name: 'Bfrs Origin Point',
@@ -749,6 +809,16 @@
         this.$root.annotations.selectedFeatures.on('add', function (event) {
           if (event.element.get('id')) {
             vm.selectedBushfires.push(event.element.get('id'))
+            if (vm.annotations.tool.selectMode === "geometry") {
+                if (!event.element["selectIndex"]) {
+                    var geometries = event.element.getGeometry().getGeometries()
+                    if (geometries.length == 1) {
+                        event.element["selectedIndex"] = 0
+                    } else if(geometries.length > 1) {
+                        event.element["selectedIndex"] = (geometries[0] instanceof ol.geom.Polygon)?0:1
+                    }
+                }
+            }
             if (vm.selectedOnly) {
                 vm.updateCQLFilter('selectedBushfire')
             }

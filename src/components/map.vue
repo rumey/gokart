@@ -286,18 +286,21 @@
           }
         })
       },
-      cacheStyle: function(styleFunc, feature, keys) {
+      //always using style array to simplify the logic
+      cacheStyle: function(styleFunc, feature, keys,sufix) {
         var vm = this
         if (feature) {
             var key = keys.map(function(k) {
               return vm.annotations.getStyleProperty(feature,k,'default')
             }).join(";")
+            key = sufix?(key + ";" + sufix):key
             var style = this.cachedStyles[key]
             if (style) { 
                 return style 
             }
             style = styleFunc(feature)
             if (style) {
+              style = (Array.isArray(style))?style:[style]
               this.cachedStyles[key] = style
               return style
             }

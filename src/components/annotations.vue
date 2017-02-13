@@ -555,9 +555,14 @@
                 $.each(ev.selected,function(index,f){
                     if (f.getGeometry() instanceof ol.geom.GeometryCollection && ev.mapBrowserEvent) {
                         $.each(f.getGeometry().getGeometriesArray(),function(index2,geom){
-                            if (geom.intersectsCoordinate(ev.mapBrowserEvent.coordinate)) {
+                            if (geom instanceof ol.geom.Point) {
+                                var position  = vm.map.olmap.getPixelFromCoordinate(geom.getCoordinates())
+                                if (Math.abs(ev.mapBrowserEvent.pixel[0] - position[0]) <= 5  && Math.abs(ev.mapBrowserEvent.pixel[1] - position[1]) <= 5) {
+                                    f['selectedIndex'] = index2
+                                    return false
+                                }
+                            } else if (geom.intersectsCoordinate(ev.mapBrowserEvent.coordinate)) {
                                 f['selectedIndex'] = index2
-                                return false
                             }
                         })
                     }
@@ -579,14 +584,22 @@
                 var keyEvent = mapBrowserEvent.originalEvent
                 switch (keyEvent.keyCode) {
                   case 65: // a
-                    if (keyEvent.ctrlKey) {
-                      vm.selectAll( (tool && tool.features) || vm.features,(tool && tool.selectedFeatures) || vm.selectedFeatures )
-                      stopEvent = true
+                    if (!options || options.selectEnabled === undefined || options.selectEnabled) {
+                        if (keyEvent.ctrlKey) {
+                          vm.selectAll( (tool && tool.features) || vm.features,(tool && tool.selectedFeatures) || vm.selectedFeatures )
+                          stopEvent = true
+                        }
                     }
                     break
                   case 46: // Delete
-                    vm.deleteSelected( (tool && tool.features) || vm.features,(tool && tool.selectedFeatures) || vm.selectedFeatures )
-                    stopEvent = true
+                    if (!options || options.deleteEnabled === undefined || options.deleteEnabled) {
+                        if (options.deleteSelected) {
+                            options.deleteSelected( (tool && tool.features) || vm.features,(tool && tool.selectedFeatures) || vm.selectedFeatures )
+                        } else {
+                            vm.deleteSelected( (tool && tool.features) || vm.features,(tool && tool.selectedFeatures) || vm.selectedFeatures )
+                        }
+                        stopEvent = true
+                    }
                     break
                   default:
                     break
@@ -715,11 +728,9 @@
         // remove selections
         if (t !== this.ui.defaultPan) {
             //remove selections only if the tool is not Pan
-            if ((this._previousTool && this._previousTool !== t) || (this._previousActiveMenu && this._previousActiveMenu !== this.activeMenu)) {
+            if ((this._previousActiveMenu && this._previousActiveMenu !== this.activeMenu) || (this._previousTool && this._previousTool !== t && !t.keepSelection)) {
                 //remove selections only if the current tool is not the same tool as the previous tool.
-                if (t.keepSelection == undefined || t.keepSelection === false) {
-                    this.selectedFeatures.clear()
-                }
+                this.selectedFeatures.clear()
             }
             this._previousTool = t
             this._previousActiveMenu = this.activeMenu
@@ -737,7 +748,11 @@
         }
         
 
-        if (t.onSet) { t.onSet() }
+        if (t.onSet) { t.onSet(this.tool) }
+
+        if (t.selectMode !== this.tool.selectMode){
+            this.selectedFeatures.forEach(function(f){f.changed()})
+        }
 
         this.tool = t
         this.currentTool = t
@@ -756,10 +771,25 @@
         features = features || this.features
         selectedFeatures = selectedFeatures || this.selectedFeatures
         var vm = this
-        selectedFeatures.forEach(function (feature) {
-          features.remove(feature)
-        })
-        selectedFeatures.clear()
+        if (this.tool.selectMode === "feature") {
+            selectedFeatures.forEach(function (feature) {
+              features.remove(feature)
+            })
+            selectedFeatures.clear()
+        } else if (this.tool.selectMode === "geometry") {
+            selectedFeatures.forEach(function (feature) {
+              if (feature["selectedIndex"] !== undefined) {
+                  feature.getGeometry().getGeometriesArray().splice(feature["selectedIndex"],1)
+                  if (feature.getGeometry().getGeometriesArray().length > 0) {
+                    feature["selectedIndex"] = 0
+                  } else {
+                    delete feature["selectedIndex"]
+                  }
+                  feature.getGeometry().setGeometriesArray(feature.getGeometry().getGeometriesArray())
+                  feature.changed()
+              }
+            })
+        }
       },
       updateNote: function (save) {
         var note = null
@@ -937,32 +967,67 @@
                 selectMode = "all"
             } else if (f['selectedIndex'] === undefined || f['selectedIndex'] < 0) {
                 //not select any geometry,
-                selectMode = "all"
+                selectMode = "none"
             } else if (!(f.getGeometry() instanceof ol.geom.GeometryCollection)) {
                 //select a geometry, but feature's geometry type does not support
-                selectMode = "all"
+                selectMode = "none"
                 delete f['selectedIndex']
-            } else if (!(f.getGeometry().getGeometriesArray()[f["selectedIndex"]] instanceof ol.geom.Point)) {
+            } else if (f.getGeometry().getGeometriesArray()[f["selectedIndex"]] instanceof ol.geom.Point) {
                 selectMode = "partial"
             } else {
                 selectMode = "none"
             }
-            f['selectMode'] = selectMode
-
             var style = vm.map.cacheStyle(function (f) {
-              var src = vm.map.getBlob(f, ['icon', 'tint'],tints || {})
-              if (!src) { return false }
-              var rot = f.get('rotation') || 0.0
-              return new ol.style.Style({
-                image: new ol.style.Icon({
-                  src: src,
-                  scale: 0.5,
-                  rotation: rot,
-                  rotateWithView: true,
-                  snapToPixel: true
-                })
-              })
-            }, f, ['icon', 'tint', 'rotation'])
+                var tint = null
+                var style = null
+                try {
+                    if ((selectMode === "none" && f["tint"]) || selectMode === "partial") {
+                        tint = f["tint"]
+                        delete f["tint"]
+                    }
+
+                    var src = vm.map.getBlob(f, ['icon', 'tint'],tints || {})
+                    if (!src) { return false }
+                    var rot = f.get('rotation') || 0.0
+                    style = new ol.style.Style({
+                      image: new ol.style.Icon({
+                          src: src,
+                          scale: 0.5,
+                          rotation: rot,
+                          rotateWithView: true,
+                          snapToPixel: true
+                        })
+                    })
+                } finally {
+                    if (selectMode === "notselected" || selectMode === "partial") {
+                        f["tint"] = tint
+                    }
+                }
+
+                if (selectMode === "partial") {
+                    var src = vm.map.getBlob(f, ['icon', 'tint'],tints || {})
+                    if (!src) { return false }
+                    var rot = f.get('rotation') || 0.0
+                    style = [
+                        style,
+                        new ol.style.Style({
+                          geometry: function(f) {
+                            return f.getGeometry().getGeometriesArray()[f["selectedIndex"]]
+                          },
+                          image: new ol.style.Icon({
+                              src: src,
+                              scale: 0.5,
+                              rotation: rot,
+                              rotateWithView: true,
+                              snapToPixel: true
+                            })
+                        })
+                    ]
+                }
+                return style
+
+            }, f, ['icon', 'rotation'],selectMode)
+
             return style
         }
       },
@@ -1010,17 +1075,16 @@
                 selectMode = "all"
             } else if (f['selectedIndex'] === undefined || f['selectedIndex'] < 0) {
                 //not select any geometry,
-                selectMode = "all"
+                selectMode = "none"
             } else if (!(f.getGeometry() instanceof ol.geom.GeometryCollection)) {
                 //select a geometry, but feature's geometry type does not support
-                selectMode = "all"
+                selectMode = "none"
                 delete f['selectedIndex']
             } else if (!(f.getGeometry().getGeometriesArray()[f["selectedIndex"]] instanceof ol.geom.Point)) {
                 selectMode = "partial"
             } else {
                 selectMode = "none"
             }
-            f['selectMode'] = selectMode
 
             var baseStyle = vm.map.cacheStyle(function (f) {
               if (  selectMode === "partial" ) {
@@ -1048,7 +1112,7 @@
                    }),
                    new ol.style.Style({
                       geometry: function(f) {
-                        console.log("===============" + f.get('label'))
+                        //console.log("===============" + f.get('label'))
                         return f.getGeometry().getGeometriesArray()[f["selectedIndex"]]
                       },
                       stroke: new ol.style.Stroke({
@@ -1086,7 +1150,7 @@
                   })
                 })
               }
-            },f,['size','colour','selectMode'])
+            },f,['size','colour'],selectMode)
     
             //get type icon style
             var typeIconStyle = null
@@ -1239,11 +1303,7 @@
                 }
                 f['typeIconStyle'] = typeIconStyle
             }
-            if (Array.isArray(baseStyle)) {
-                return baseStyle.concat(typeIconStyle)
-            } else {
-                return [baseStyle].concat(typeIconStyle)
-            }
+            return baseStyle.concat(typeIconStyle)
         }
       },
       initFeature:function(feature) {
@@ -1554,6 +1614,8 @@
                     tool.interactions[subindex] = interact(tool)
                 }
             })
+            tool.keepSelection = (tool.keepSelection === undefined)?false:tool.keepSelection
+            tool.selectMode = (tool.selectMode == undefined)?"feature":tool.selectMode
             if (!tool.label) {
                 tool.label = tool.name
             }
