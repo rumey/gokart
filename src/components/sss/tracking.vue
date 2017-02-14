@@ -608,7 +608,8 @@
 
       var deviceLabel = function(device) {
         var name = ''
-        if (device.get('district') == null || device.get('district') == 'AV' || device.get('district' == 'OTH')){
+        var district = device.get('district')
+        if (district == null || district == 'AV' || district == 'OTH'){
             if (device.get('rin_display') == null){
                 name = device.get('name')
             } else {
@@ -616,9 +617,9 @@
             }
         } else {
             if (device.get('rin_display') == null){
-                name = device.get('district') +' '+ device.get('name')
+                name = district +' '+ device.get('name')
             } else {
-                name = device.get('district') +' '+ device.get('rin_display') +' '+ device.get('name'),true)
+                name = district +' '+ device.get('rin_display') +' '+ device.get('name')
             }
         }
         return name
@@ -655,12 +656,12 @@
           var return_label = ''
           var c_label = ''
           var u_label = ''
-          var c_driver = ((device.get("current_driver") !== undefined) ? " " + device.get("current_driver") : '');
-          var c_callsign = ((device.get("current_callsign") !== undefined) ? " " + device.get("current_callsign") : '');
-          var u_driver = ((device.get("usual_driver") !== undefined) ? " " + device.get("usual_driver") : '');
-          var u_callsign = ((device.get("usual_callsign") !== undefined) ? " " + device.get("usual_callsign") : '');
-          var u_location = ((device.get("usual_location") !== undefined) ? " " + device.get("usual_location") : '');
-          var contractor_label = ((device.get("contractor_details") !== undefined) ? "<br>Contractor: " + device.get("contractor_details") : '');
+          var c_driver = ((device.get("current_driver") !== undefined && device.get("current_driver") !== null && device.get("current_driver") !== '') ? " " + device.get("current_driver") : '');
+          var c_callsign = ((device.get("current_callsign") !== undefined && device.get("current_callsign") !== null && device.get("current_callsign") !== '') ? " " + device.get("current_callsign") : '');
+          var u_driver = ((device.get("usual_driver") !== undefined && device.get("usual_driver") !== null && device.get("usual_driver") !== '') ? " " + device.get("usual_driver") : '');
+          var u_callsign = ((device.get("usual_callsign") !== undefined && device.get("usual_callsign") !== null && device.get("usual_callsign") !== '') ? " " + device.get("usual_callsign") : '');
+          var u_location = ((device.get("usual_location") !== undefined && device.get("usual_location") !== null && device.get("usual_location") !== '') ? " " + device.get("usual_location") : '');
+          var contractor_label = ((device.get("contractor_details") !== undefined && device.get("contractor_details") !== null && device.get("contractor_details") !== '') ? "<br>Contractor: " + device.get("contractor_details") : '');
 
           // Set "Usual" Label
           if (u_driver != '' || u_callsign != '') {

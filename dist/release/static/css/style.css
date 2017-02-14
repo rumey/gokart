@@ -28,6 +28,11 @@ body {
     max-height: 30vh;
     overflow: auto;
 }
+
+#info .close-button {
+    display: none;
+}
+
 /* full-height the foundation off-canvas stuff also */
 
 .off-canvas-wrapper {

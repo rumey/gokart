@@ -38,7 +38,7 @@
       return {
         features: false,
         coordinate: '',
-        offset: 20,
+        offset: 0,
         pixel: [0, 0]
       }
     },
