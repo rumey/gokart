@@ -157,7 +157,7 @@
               <div v-for="f in features" class="row feature-row" v-bind:class="{'feature-selected': selected(f) }"
                 @click="toggleSelect(f)" track-by="get('id')">
                 <div class="columns">
-                  <a v-if="whoami.editVehicle" @click.stop.prevent="map.editResource($event)" title="Edit resource" href="{{sssService}}/sss_admin/tracking/device/{{ f.get('id') }}/change/" target="_blank" class="button tiny secondary float-right"><i class="fa fa-pencil"></i></a>
+                  <a v-if="whoami.editVehicle && f.get('source_device_type') != 'tracplus'" @click.stop.prevent="map.editResource($event)" title="Edit resource" href="{{sssService}}/sss_admin/tracking/device/{{ f.get('id') }}/change/" target="_blank" class="button tiny secondary float-right"><i class="fa fa-pencil"></i></a>
                   <div class="feature-title"><img class="feature-icon" id="device-icon-{{f.get('id')}}" v-bind:src="featureIconSrc(f)" /> {{ f.get('label') }} <i><small>({{ ago(f.get('seen')) }})</small></i></div>
                 </div>
               </div>
@@ -193,7 +193,7 @@
         cql: '',
         tools: [],
         history: '',
-        fields: ['id', 'name', 'rin_display', 'deviceid', 'symbol', 'district', 'usual_driver', 'usual_callsign', 'usual_location', 'current_driver', 'current_callsign', 'contractor_details'],
+        fields: ['id', 'registration', 'rin_display', 'deviceid', 'symbol', 'district', 'usual_driver', 'usual_callsign', 'usual_location', 'current_driver', 'current_callsign', 'contractor_details', 'source_device_type'],
         allFeatures: [],
         extentFeatures: [],
         selectedDevices: [],
@@ -609,17 +609,19 @@
       var deviceLabel = function(device) {
         var name = ''
         var district = device.get('district')
+        var rin_display = device.get('rin_display')
+        var registration = device.get('registration')
         if (district == null || district == 'AV' || district == 'OTH'){
             if (device.get('rin_display') == null){
-                name = device.get('name')
+                name = device.get('registration')
             } else {
-                name = device.get('rin_display') +' '+ device.get('name')
+                name = device.get('rin_display') +' '+ device.get('registration')
             }
         } else {
             if (device.get('rin_display') == null){
-                name = district +' '+ device.get('name')
+                name = district +' '+ device.get('registration')
             } else {
-                name = district +' '+ device.get('rin_display') +' '+ device.get('name')
+                name = district +' '+ device.get('rin_display') +' '+ device.get('registration')
             }
         }
         return name
@@ -661,7 +663,7 @@
           var u_driver = ((device.get("usual_driver") !== undefined && device.get("usual_driver") !== null && device.get("usual_driver") !== '') ? " " + device.get("usual_driver") : '');
           var u_callsign = ((device.get("usual_callsign") !== undefined && device.get("usual_callsign") !== null && device.get("usual_callsign") !== '') ? " " + device.get("usual_callsign") : '');
           var u_location = ((device.get("usual_location") !== undefined && device.get("usual_location") !== null && device.get("usual_location") !== '') ? " " + device.get("usual_location") : '');
-          var contractor_label = ((device.get("contractor_details") !== undefined && device.get("contractor_details") !== null && device.get("contractor_details") !== '') ? "<br>Contractor: " + device.get("contractor_details") : '');
+          var contractor_label = ((device.get("contractor_details") !== undefined && device.get("contractor_details") !== null && device.get("contractor_details") !== '') ? "Contractor: " + device.get("contractor_details") : '');
 
           // Set "Usual" Label
           if (u_driver != '' || u_callsign != '') {
@@ -679,18 +681,17 @@
           }
 
           // Generate Full Label
-          if (u_label != ''){
-              if (c_label != ''){
-                  return_label += c_label + " (" + u_label + ")"
-              } else {
-                  return_label += u_label
-              }
-          } else if (c_label != '' && u_label == ''){
+          if (c_label != ''){
               return_label += c_label
           }
-
-          // Append "Contractor" Label
-          if (contractor_label != ''){
+          if (c_label != '' && u_label != ''){
+              return_label += '<br>' + u_label
+          } else if (u_label != ''){
+              return_label += u_label
+          }
+          if ((c_label != '' || u_label != '') && contractor_label != ''){
+              return_label += '<br>' + contractor_label
+          } else if (contractor_label != ''){
               return_label += contractor_label
           }
 
@@ -727,10 +728,16 @@
                 vm.updateResourceFilter(true)
             }
             if (features.length > 0) {
-                utils.checkPermission(vm.sssService + "/sss_admin/tracking/device/" + features[0].get('id') + "/change/",function(allowed){
-                    vm.whoami.editVehicle = allowed
+                var f = features.find(function(f) {return f.get('source_device_type') != "tracplus"})
+                if (f){
+                    utils.checkPermission(vm.sssService + "/sss_admin/tracking/device/" + f.get('id') + "/change/",function(allowed){
+                        vm.whoami.editVehicle = allowed
+                        processResources()
+                    })
+                } else {
+                    vm.whoami.editVehicle = false
                     processResources()
-                })
+                }
             } else {
                 vm.whoami.editVehicle = false
                 processResources()
