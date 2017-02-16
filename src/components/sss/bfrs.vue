@@ -78,7 +78,8 @@
                 </div>
               </div>
               <div class="small-5">
-                <a title="Zoom to selected" class="button" @click="zoomToSelected()" ><i class="fa fa-search"></i></a>
+                <a title="Zoom to selected" class="button" @click="map.zoomToSelected()" ><i class="fa fa-search"></i></a>
+                <a v-if="isCreatable()" title="Create bushfire" class="button" @click="newFeature()" ><i class="fa fa-plus"></i></a>
                 <a title="Download list as geoJSON" class="button" @click="downloadList()" ><i class="fa fa-download"></i></a>
                 <!--a title="Download all or selected as CSV" class="button" href="{{bfrsService}}/bushfire.csv?{{downloadSelectedCSV()}}" target="_blank" ><i class="fa fa-table"></i></a-->
               </div>
@@ -91,9 +92,9 @@
                 @click="toggleSelect(f)" track-by="get('id')">
                 <div class="columns">
                   <a v-if="canReset(f)" @click.stop.prevent="resetFeature(f)" title="Reset" class="button tiny secondary float-right acion" style="margin-left:2px"><i class="fa fa-undo actionicon"></i></a>
-                  <a v-if="canDelete(f)" @click.stop.prevent="deleteFeature(f)" title="Authorize" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-trash actionicon"></i></a>
-                  <a v-if="canDelete(f)" @click.stop.prevent="deleteFeature(f)" title="Authorize" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-trash actionicon"></i></a>
-                  <a v-if="canEdit(f) " @click.stop.prevent="map.editResource($event)" title="Edit" href="{{editUrl(f)}}" target="_blank" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-edit actionicon"></i></a>
+                  <a v-if="canDelete(f)" @click.stop.prevent="deleteFeature(f)" title="Delete" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-trash actionicon"></i></a>
+                  <a v-if="canCreate(f)" @click.stop.prevent="createFeature(f)" title="Create" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-save actionicon"></i></a>
+                  <a v-if="canEdit(f) " @click.stop.prevent="map.editResource($event)" title="Edit" href="{{editUrl(f)}}" target="_blank" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-pencil actionicon"></i></a>
                   <a v-if="canSave(f)" @click.stop.prevent="saveFeature(f)" title="Save" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-save actionicon"></i></a>
                   <a v-if="canAuthorize(f)" @click.stop.prevent="authorizeFeature(f)" title="Authorize" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-check actionicon"></i></a>
                   <div class="feature-title"><img class="feature-icon" id="bushfire-icon-{{f.get('id')}}" v-bind:src="featureIconSrc(f)" /> {{ f.get('label') }} <i><small></small></i></div>
@@ -139,17 +140,25 @@
         selectedBushfires: [],
         revision:1,
         tints: {
+          'new':[["#b43232","#1c6928"]],
+          'new.text':"#1c6928",
+          'new.fillColour':[0, 0, 0, 0.25],
+          'new.colour':"#1c6928",
           'initial': [['#b43232','#b08c9d']],
           'initial.text': '#b08c9d',
+          'initial.fillColour':[0, 0, 0, 0.25],
           'initial.colour': '#b08c9d',
           'final': [['#b43232', '#b7d28d']],
           'final.text': '#b7d28d',
+          'final.fillColour':[0, 0, 0, 0.25],
           'final.colour': '#b7d28d',
           'final_authroized': [['#b43232', '#7ecca3']],
           'final_authroized.text': '#7ecca3',
+          'final_authorized.fillColour':[0, 0, 0, 0.25],
           'final_authroized.colour': '#7ecca3',
           'modified':[["#b43232","#f57900"]],
           'modified.text':"#f57900",
+          'modified_authorized.fillColour':[0, 0, 0, 0.25],
           'modified.colour':"#f57900",
           'selected': [['#b43232', '#2199e8']],
           'selected.text': '#2199e8',
@@ -175,7 +184,7 @@
         return this.$root.active.isHidden(this.bfrsMapLayer)
       },
       selectedFeatures: function () {
-        return this.features.filter(this.selected)
+        return this.annotations.selectedFeatures
       },
       stats: function () {
         return this.extentFeatures.length + '/' + this.allFeatures.getLength()
@@ -280,7 +289,11 @@
         return bushfire.get('status') === "new"
       },
       isCreatable:function() {
-        return this.whoami["bushfire"]["create"] 
+        try {
+            return this.revision && this.whoami["bushfire"]["create"] 
+        } catch(ex) {
+            return false
+        }
       },
       isAuthorizable:function(bushfire){
         return this.whoami["bushfire"][bushfire.get('status') + ".authorize"] 
@@ -357,6 +370,39 @@
             })
         }
       },
+      newFeature:function() {
+        var vm = this
+        this._bushfireSequence = (this._bushfireSequence || 0) + 1
+        var name = "New bushfire " + ((this._bushfireSequence < 10)?"00":(this._bushfireSequence < 100?"0":"")) + this._bushfireSequence
+        var feat = new ol.Feature({
+            geometry:new ol.geom.GeometryCollection([]),
+            status:'new',
+            tint:'new',
+            id:this._bushfireSequence * -1, 
+            originalTint:'new',
+            label: name,
+            name:name,
+            toolName:'Bfrs Origin Point',
+            fillColour:this.tints["new.fillColour"],
+            colour:this.tints["new.colour"]
+        })
+        var insertIndex = null
+        $.each(this.allFeatures.getArray(),function(index,f){
+            if (f.get('status') !== 'new') {
+                insertIndex = index
+                return false
+            }
+        })
+        if (insertIndex != null) {
+            this.allFeatures.insertAt(insertIndex,feat)
+        } else {
+            this.allFeatures.push(feat)
+        }
+        this.revision += 1
+        this.selectedFeatures.clear()
+        this.selectedFeatures.push(feat)
+        this.annotations.setTool(this.ui.originPointTool)
+      },
       createFeature:function(feat) {
         if (this.canCreate(feat)) {
             var target = "_blank"
@@ -366,7 +412,7 @@
             var data = this.getSpatialData(feat)
             
             var url = this.createUrl() + "?origin_point=" + JSON.stringify(data.origin_point) + "&fire_boundary=" + JSON.stringify(data.fire_boundary) + "&sss_id=" + feat.get('sss_id')
-            console(url)
+            console.log(url)
             window.open(url,target.target);
         }
       },
@@ -442,9 +488,9 @@
                 }
             }
 
-            index = vm.annotations.selectedFeatures.getArray().findIndex(function(f){return f.get('id') === feat.get('id')})
+            index = vm.selectedFeatures.getArray().findIndex(function(f){return f.get('id') === feat.get('id')})
             if (index >= 0) {
-                vm.annotations.selectedFeatures.setAt(index,features[0])
+                vm.selectedFeatures.setAt(index,features[0])
             }
               
           }
@@ -494,13 +540,13 @@
       },
       toggleSelect: function (f) {
         if (this.selected(f)) {
-          this.$root.annotations.selectedFeatures.remove(f)
+          this.selectedFeatures.remove(f)
         } else {
           if (["Bfrs Origin Point","Bfrs Edit Geometry","Bfrs Fire Boundary"].indexOf(this.annotations.tool.name) >= 0) {
               //Only one bush fire can be choosed in edit mode
-              this.$root.annotations.selectedFeatures.clear()
+              this.selectedFeatures.clear()
           }
-          this.$root.annotations.selectedFeatures.push(f)
+          this.selectedFeatures.push(f)
         }
       },
       toggleViewportOnly: function () {
@@ -616,15 +662,17 @@
         return found
       },
       featureOrder: function (a, b) {
-        return 0
-      },
-      zoomToSelected: function () {
-        var extent = ol.extent.createEmpty()
-        this.selectedFeatures.forEach(function (f) {
-          ol.extent.extend(extent, f.getGeometry().getExtent())
-        })
-        var map = this.$root.map.olmap
-        map.getView().fit(extent, map.getSize())
+        if (a.get('status') === "new") {
+            if  (b.get('status') === 'new') {
+                return a.get('label') < b.get('label')?-1:1
+            } else {
+                return -1
+            }
+        } else if(b.get('status') === 'new') {
+            return 1
+        } else {
+            return a.get('label') < b.get('label')?-1:1
+        }
       },
       updateFeatureFilter: function(runNow) {
         var vm = this
@@ -684,25 +732,26 @@
         this.$root.annotations.selectable = [this.bfrsMapLayer]
         this.annotations.setTool()
 
+        var vm = this
         //add feature to place an point based on coordinate
         this.$root.search.setSearchPointFunc(function(searchMethod,coords,name){
-            var feat = vm.annotations.selectedFeatures.getLength() === 1?vm.annotations.selectedFeatures.item(0):null
+            var feat = vm.selectedFeatures.getLength() === 1?vm.selectedFeatures.item(0):null
+            if (!feat) {return false}
 
-            if (feat && vm.tool && ["DMS","MGA"].indexOf(searchMethod >= 0) && vm.tool.name === "Bfrs Origin Point") {
+            var hasPoint = feat.getGeometry().getGeometriesArray().length > 0 && feat.getGeometry().getGeometriesArray()[0] instanceof ol.geom.Point
+            if (vm.annotations.tool && 
+                ["DMS","MGA"].indexOf(searchMethod) >= 0 && 
+                (vm.annotations.tool.name === "Bfrs Edit Geometry" || (vm.annotations.tool.name === "Bfrs Origin Point" && !hasPoint) )
+            ) {
+                if (hasPoint) {
+                    feat.getGeometry().getGeometriesArray()[0] = new ol.geom.Point(coords)
+                } else {
+                    feat.getGeometry().getGeometriesArray().splice(0,0,new ol.geom.Point(coords))
+                }
+                feat.getGeometry().setGeometriesArray(feat.getGeometry().getGeometriesArray())
+                vm.postModified(feat)
+                feat.getGeometry().changed()
 
-                feat.set('id',vm.drawingSequence)
-                feat.set('toolName',vm.tool.name)
-                feat.setStyle(vm.tool.style)
-                feat.set('author',vm.whoami.email)
-                feat.set('createTime',Date.now())
-                if (vm.tool.perpendicular) {
-                  feat.set('rotation', vm.getPerpendicular(coords))
-                }
-                if (vm.tool === vm.ui.defaultPoint) {
-                    feat.set('shape',vm.shape,true)
-                    feat.set('colour',vm.colour,true)
-                }
-                vm.features.push(feat)
                 return true
             }
         })
@@ -757,10 +806,10 @@
       vm.ui.originPointDraw = vm.annotations.pointDrawFactory({
         drawOptions:{
             condition:function(ev) {
-                var feat = (vm.annotations.selectedFeatures.getLength() == 1)?vm.annotations.selectedFeatures.item(0):null
+                var feat = (vm.selectedFeatures.getLength() == 1)?vm.selectedFeatures.item(0):null
                 if (feat) {
                     var featGeometry = feat.getGeometry()
-                    if (vm.isEditable(feat) && (featGeometry.getGeometriesArray().length == 0 || !(featGeometry.getGeometriesArray()[0] instanceof ol.geom.Point))) {
+                    if (vm.isEditable(feat) && (feat.getGeometry().getGeometriesArray().length == 0 || !feat.getGeometry().getGeometriesArray()[0] instanceof ol.geom.Point)) {
                         return ol.events.condition.noModifierKeys(ev)
                     } else {
                         return false
@@ -777,7 +826,7 @@
       vm.ui.fireboundaryDraw = vm.annotations.polygonDrawFactory({
         drawOptions:{
             condition:function(ev) {
-                var feat = (vm.annotations.selectedFeatures.getLength() == 1)?vm.annotations.selectedFeatures.item(0):null
+                var feat = (vm.selectedFeatures.getLength() == 1)?vm.selectedFeatures.item(0):null
                 if (feat) {
                     var featGeometry = feat.getGeometry()
                     if (vm.isEditable(feat)) {
@@ -794,8 +843,8 @@
         features:vm.drawings
       })
       vm.drawings.on("add",function(ev){
-        if (vm.annotations.selectedFeatures.getLength() === 1){
-            var f = vm.annotations.selectedFeatures.item(0)
+        if (vm.selectedFeatures.getLength() === 1){
+            var f = vm.selectedFeatures.item(0)
             if (vm.annotations.tool.name === "Bfrs Fire Boundary") {
                 f.getGeometry().getGeometriesArray().push(new ol.geom.Polygon(ev.element.getGeometry().getCoordinates()))
             } else if (f.getGeometry().getGeometriesArray().length > 0 && f.getGeometry().getGeometriesArray()[0] instanceof ol.geom.Point){
@@ -876,10 +925,10 @@
               onSet: function() {
                   vm.ui.dragSelectInter.setMulti(false)
                   vm.ui.selectInter.setMulti(false)
-                  if (vm.annotations.selectedFeatures.getLength() > 1) {
-                      vm.annotations.selectedFeatures.clear()
-                  } else if (vm.annotations.selectedFeatures.getLength() == 1) {
-                    var selectedFeature = vm.annotations.selectedFeatures.item(0)
+                  if (vm.selectedFeatures.getLength() > 1) {
+                      vm.selectedFeatures.clear()
+                  } else if (vm.selectedFeatures.getLength() == 1) {
+                    var selectedFeature = vm.selectedFeatures.item(0)
                     if (selectedFeature["selectedIndex"] === undefined ) {
                         var geometries = selectedFeature.getGeometry().getGeometries()
                         if (geometries.length == 1) {
@@ -909,8 +958,8 @@
               keepSelection:true,
               showName: true,
               onSet: function() {
-                  if (vm.annotations.selectedFeatures.getLength() > 1) {
-                      vm.annotations.selectedFeatures.clear()
+                  if (vm.selectedFeatures.getLength() > 1) {
+                      vm.selectedFeatures.clear()
                   }
               }
           },{
@@ -928,8 +977,8 @@
               showName: true,
               keepSelection:true,
               onSet: function() {
-                  if (vm.annotations.selectedFeatures.getLength() > 1) {
-                      vm.annotations.selectedFeatures.clear()
+                  if (vm.selectedFeatures.getLength() > 1) {
+                      vm.selectedFeatures.clear()
                   }
               }
           }
@@ -940,6 +989,7 @@
       })
 
       vm.ui.modifyTool = vm.annotations.tools.find(function(tool){return tool.name === "Bfrs Edit Geometry"})
+      vm.ui.originPointTool = vm.annotations.tools.find(function(tool){return tool.name === "Bfrs Origin Point"})
 
       this.$root.fixedLayers.push({
         type: 'WFSLayer',
@@ -958,19 +1008,23 @@
                 defaultOnload(loadType,vectorSource,features)
                 if (vm.selectedBushfires.length > 0) {
                     var bushfireIds = vm.selectedBushfires.slice()
-                    vm.$root.annotations.selectedFeatures.clear()
+                    vm.selectedFeatures.clear()
                     features.filter(function(el, index, arr) {
                       var id = el.get('id')
                       if (!id) return false
                       if (bushfireIds.indexOf(id) < 0) return false
                       return true
                     }).forEach(function (el) {
-                      vm.$root.annotations.selectedFeatures.push(el)
+                      vm.selectedFeatures.push(el)
                     })
                 }
                 vm.updateFeatureFilter(true)
 
                 updateModifyInter()
+                if (vm.whoami['bushfire']["permissionChanged"]) {
+                    delete vm.whoami['bushfire']["permissionChanged"]
+                    vm.revision += 1
+                }
             }
             var permissionConfig = [
                 ["create",null,null],
@@ -1002,6 +1056,7 @@
                     if (p[1] === null) {
                         //always have the permission
                         vm.whoami['bushfire'][p[0]] = true
+                        vm.whoami['bushfire']["permissionChanged"] = true
                     } else {
                         if (typeof p[1] === "string") {
                             //url is a constant string
@@ -1016,6 +1071,7 @@
                                 //can't find a bushfire to test
                                 url = null
                                 vm.whoami['bushfire'][p[0]] = null
+                                vm.whoami['bushfire']["permissionChanged"] = true
                             }
                         }
                     }
@@ -1023,6 +1079,7 @@
                 if (url) {
                     utils.checkPermission(url,function(allowed){
                         vm.whoami['bushfire'][p[0]] = allowed
+                        vm.whoami['bushfire']["permissionChanged"] = true
                         if (index < permissionConfig.length - 1) {
                             checkPermission(index + 1)
                         } else {
@@ -1046,7 +1103,7 @@
       this.$on('gk-init', function () {
         bfrsStatus.progress(80,"Process 'gk-init' event")
         map.olmap.getView().on('propertychange', vm.updateViewport)
-        this.$root.annotations.selectedFeatures.on('add', function (event) {
+        this.selectedFeatures.on('add', function (event) {
           if (event.element.get('id')) {
             vm.selectedBushfires.push(event.element.get('id'))
             if (vm.annotations.tool.selectMode === "geometry") {
@@ -1064,7 +1121,7 @@
             }
           }
         })
-        this.$root.annotations.selectedFeatures.on('remove', function (event) {
+        this.selectedFeatures.on('remove', function (event) {
           if (event.element.get('id')) {
             vm.selectedBushfires.$remove(event.element.get('id'))
             if (vm.selectedOnly) {
@@ -1076,7 +1133,7 @@
         vm.tools = vm.annotations.tools.filter(function (t) {
           return t.scope && t.scope.indexOf("bfrs") >= 0
         })
-        vm.annotations.selectedFeatures.on('remove', function (ev) {
+        vm.selectedFeatures.on('remove', function (ev) {
           //remove the index of the selected geometry in geometry collection
           delete ev.element['selectedIndex']
         })

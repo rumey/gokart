@@ -106,7 +106,7 @@
                 </div>
               </div>
               <div class="small-5">
-                <a title="Zoom to selected" class="button" @click="zoomToSelected()" ><i class="fa fa-search"></i></a>
+                <a title="Zoom to selected" class="button" @click="map.zoomToSelected()" ><i class="fa fa-search"></i></a>
                 <a title="Download list as geoJSON" class="button" @click="downloadList()" ><i class="fa fa-download"></i></a>
                 <a title="Download all or selected as CSV" class="button" href="{{sssService}}/devices.csv?{{downloadSelectedCSV()}}" target="_blank" ><i class="fa fa-table"></i></a>
               </div>
@@ -232,13 +232,13 @@
         return this.$root.active.isHidden(this.historyMapLayer)
       },
       selectedFeatures: function () {
-        return this.features.filter(this.selected)
+        return this.annotations.selectedFeatures
       },
       stats: function () {
         return Object.keys(this.extentFeatures).length + '/' + Object.keys(this.allFeatures).length
       },
       queryHistoryDisabled: function() {
-        return !(this.selectedFeatures && this.selectedFeatures.length && this.historyFromDate && this.historyFromTime && this.historyToDate && this.historyToTime)
+        return !(this.selectedFeatures && this.selectedFeatures.getLength() && this.historyFromDate && this.historyFromTime && this.historyToDate && this.historyToTime)
       },
       historyRange: {
         get: function () {
@@ -345,9 +345,9 @@
       },
       toggleSelect: function (f) {
         if (this.selected(f)) {
-          this.$root.annotations.selectedFeatures.remove(f)
+          this.selectedFeatures.remove(f)
         } else {
-          this.$root.annotations.selectedFeatures.push(f)
+          this.selectedFeatures.push(f)
         }
       },
       toggleViewportOnly: function () {
@@ -457,7 +457,7 @@
         var found = !search || this.fields.some(function (key) {
           return ('' + f.get(key)).toLowerCase().indexOf(search) > -1
         })
-        if (this.selectedOnly && this.selectedFeatures.length) {
+        if (this.selectedOnly && this.selectedFeatures.getLength()) {
           return this.selected(f) && found
         };
         return found
@@ -471,14 +471,6 @@
           return -1
         }
         return 0
-      },
-      zoomToSelected: function () {
-        var extent = ol.extent.createEmpty()
-        this.selectedFeatures.forEach(function (f) {
-          ol.extent.extend(extent, f.getGeometry().getExtent())
-        })
-        var map = this.$root.map.olmap
-        map.getView().fit(extent, map.getSize())
       },
       updateFeatureFilter: function(runNow) {
         var vm = this
@@ -651,14 +643,14 @@
                 defaultOnload(loadType,vectorSource,features)
                 if (vm.selectedDevices.length > 0) {
                     var deviceIds = vm.selectedDevices.slice()
-                    vm.$root.annotations.selectedFeatures.clear()
+                    vm.selectedFeatures.clear()
                     features.filter(function(el, index, arr) {
                       var id = el.get('deviceid')
                       if (!id) return false
                       if (deviceIds.indexOf(id) < 0) return false
                       return true
                     }).forEach(function (el) {
-                      vm.$root.annotations.selectedFeatures.push(el)
+                      vm.selectedFeatures.push(el)
                     })
                 }
                 vm.updateFeatureFilter(true)
@@ -756,7 +748,7 @@
         map.olmap.getLayerGroup().on('change', layersAdded)
         layersAdded()*/
 
-        this.$root.annotations.selectedFeatures.on('add', function (event) {
+        this.selectedFeatures.on('add', function (event) {
           if (event.element.get('deviceid')) {
             vm.selectedDevices.push(event.element.get('deviceid'))
             if (vm.selectedOnly) {
@@ -764,7 +756,7 @@
             }
           }
         })
-        this.$root.annotations.selectedFeatures.on('remove', function (event) {
+        this.selectedFeatures.on('remove', function (event) {
           if (event.element.get('deviceid')) {
             vm.selectedDevices.$remove(event.element.get('deviceid'))
             if (vm.selectedOnly) {

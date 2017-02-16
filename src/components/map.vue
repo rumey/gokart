@@ -1300,6 +1300,28 @@
                 vm.enableControl(key,true)
             }
         })
+      },
+      zoomToSelected: function () {
+        var selectedFeatures = this.annotations.selectedFeatures
+        if (selectedFeatures.getLength() === 0) {
+            return
+        } else {
+            var extent = null
+            if (selectedFeatures.getLength() === 1) {
+                extent = selectedFeatures.item(0).getGeometry().getExtent()
+                extent = ol.extent.isEmpty(extent)?null:extent
+            } else {
+                selectedFeatures.forEach(function (f) {
+                    if (!ol.extent.isEmpty(f.getGeometry().getExtent())) {
+                      extent = extent || ol.extent.createEmpty()
+                      ol.extent.extend(extent, f.getGeometry().getExtent())
+                    }
+                })
+            }
+            if (extent) {
+                this.olmap.getView().fit(extent, this.olmap.getSize())
+            }
+        }
       }
     },
     ready: function () {

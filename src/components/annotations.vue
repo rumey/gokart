@@ -593,7 +593,7 @@
                     break
                   case 46: // Delete
                     if (!options || options.deleteEnabled === undefined || options.deleteEnabled) {
-                        if (options.deleteSelected) {
+                        if (options && options.deleteSelected) {
                             options.deleteSelected( (tool && tool.features) || vm.features,(tool && tool.selectedFeatures) || vm.selectedFeatures )
                         } else {
                             vm.deleteSelected( (tool && tool.features) || vm.features,(tool && tool.selectedFeatures) || vm.selectedFeatures )
@@ -874,7 +874,7 @@
         this.setTool()
         //add feature to place an point based on coordinate
         this.search.setSearchPointFunc(function(searchMethod,coords,name){
-            if (vm.tool && ["DMS","MGA"].indexOf(searchMethod >= 0) && ["Origin Point","Spot Fire","Road Closure","Custom Point"].indexOf(vm.tool.name) >= 0) {
+            if (vm.tool && ["DMS","MGA"].indexOf(searchMethod) >= 0 && ["Origin Point","Spot Fire","Road Closure","Custom Point"].indexOf(vm.tool.name) >= 0) {
                 var feat = null
                 vm.map.olmap.forEachFeatureAtPixel(vm.map.olmap.getPixelFromCoordinate(coords),function(f){
                     var toolName = f.get('toolName')
