@@ -658,25 +658,25 @@
           var return_label = ''
           var c_label = ''
           var u_label = ''
-          var c_driver = ((device.get("current_driver") || '') ? " " + device.get("current_driver") : '');
-          var c_callsign = ((device.get("current_callsign") || '') ? " " + device.get("current_callsign") : '');
-          var u_driver = ((device.get("usual_driver") || '') ? " " + device.get("usual_driver") : '');
-          var u_callsign = ((device.get("usual_callsign") || '') ? " " + device.get("usual_callsign") : '');
-          var u_location = ((device.get("usual_location") || '') ? " " + device.get("usual_location") : '');
-          var contractor_label = ((device.get("contractor_details") || '') ? "Contractor: " + device.get("contractor_details") : '');
+          var c_driver = ' ' + (device.get("current_driver") || '');
+          var c_callsign = ' ' + (device.get("current_callsign") || '');
+          var u_driver = ' ' + (device.get("usual_driver") || '');
+          var u_callsign = ' ' + (device.get("usual_callsign") || '');
+          var u_location = ' ' + (device.get("usual_location") || '');
+          var contractor_label = "Contractor: " + ((device.get("contractor_details") || '');
 
           // Set "Usual" Label
-          if (u_driver != '' || u_callsign != '') {
+          if (u_driver != ' ' || u_callsign != ' ') {
               u_label += "Usual:" + u_driver + u_callsign
-              if (u_location != ''){
+              if (u_location != ' '){
                   u_label += ", Location:" + u_location
               }
-          } else if (u_location != ''){
+          } else if (u_location != ' '){
               u_label += "Usual location:" + u_location
           }
 
           // Set "Current" Label
-          if (c_driver != '' || c_callsign != '') {
+          if (c_driver != ' ' || c_callsign != ' ') {
               c_label += "Current:" + c_driver + c_callsign
           }
 
@@ -689,9 +689,9 @@
           } else if (u_label != ''){
               return_label += u_label
           }
-          if ((c_label != '' || u_label != '') && contractor_label != ''){
+          if ((c_label != '' || u_label != '') && contractor_label != 'Contractor: '){
               return_label += '<br>' + contractor_label
-          } else if (contractor_label != ''){
+          } else if (contractor_label != 'Contractor: '){
               return_label += contractor_label
           }
 
