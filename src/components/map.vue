@@ -118,6 +118,127 @@
     },
     // methods callable from inside the template
     methods: {
+      clearFeatureProperties:function(feature){
+          $.each(feature.getKeys(),function(index,key){
+              if (key !== feature.getGeometryName()) {
+                  feature.unset(key)
+              }
+          })
+      },
+      isGeometryEqual:function(geom1,geom2){
+        if ( !geom1 && !geom2 ) {
+            return true
+        } else if ( (geom1 && 1 || 0) + (geom2 && 1 || 0) === 1) {
+            return false
+        } else if (geom1 instanceof ol.geom.Point && geom2 instanceof ol.geom.Point) {
+            return geom1.getCoordinates()[0] === geom2.getCoordinates()[0] && geom1.getCoordinates()[1] === geom2.getCoordinates()[1]
+        } else if (geom1 instanceof ol.geom.LineString && geom2 instanceof ol.geom.LineString) {
+            var coords1 = geom1.getCoordinates()
+            var coords2 = geom2.getCoordinates()
+            if (coords1.length !== coords2.length) return false
+            var i2 = coords2.findIndex(function(c) { return c[0] === coords1[0][0] && c[1] === coords1[0][1]})
+            if (i2 < 0) {return false}
+            for( i1 = 1,i2 = i2 + 1;i1 < coords1.length;i1++,i2 = (i2 + 1) % coords2.length) {
+                if (coords1[i1][0] !== coords2[i2][0] || coords1[i1][1] !== coords2[i2][1]) {return false}
+            }
+            return true
+        } else if (geom1 instanceof ol.geom.LinearRing && geom2 instanceof ol.geom.LinearRing) {
+            var coords1 = geom1.getCoordinates()
+            var coords2 = geom2.getCoordinates()
+            if (coords1.length !== coords2.length) return false
+            var i2 = coords2.findIndex(function(c) { return c[0] === coords1[0][0] && c[1] === coords1[0][1]})
+            if (i2 < 0) {return false}
+            for( i1 = 1,i2 = i2 + 1;i1 < coords1.length - 1;i1++,i2 = (i2 + 1) % (coords2.length - 1)) {
+                if (coords1[i1][0] !== coords2[i2][0] || coords1[i1][1] !== coords2[i2][1]) {return false}
+            }
+            return true
+        } else if(geom1 instanceof ol.geom.Polygon && geom2 instanceof ol.geom.Polygon) {
+            var vm = this
+            var rings1 = geom1.getLinearRings()
+            var rings2 = geom2.getLinearRings()
+            if (rings1.length != rings2.length) {return false}
+            var foundIndexes = []
+            for(i = 0;i < rings1.length;i++) {
+                if (!rings2.find(function(r2,index) {
+                    if (foundIndexes.indexOf(index) >= 0) {
+                        return false
+                    } else if(vm.isGeometryEqual(r2,rings1[i])) {
+                        foundIndexes.push(index)
+                        return true
+                    } else {
+                        return false
+                    }
+                })) {
+                    return false
+                }
+            }
+            return true
+        } else if(geom1 instanceof ol.geom.MultiLineString && geom2 instanceof ol.geom.MultiLineString) {
+            var vm = this
+            var lines1 = geom1.getLineStrings()
+            var lines2 = geom2.getLineStrings()
+            if (lines1.length != lines2.length) {return false}
+            var foundIndexes = []
+            for(i = 0;i < lines1.length;i++) {
+                if (!lines2.find(function(l2,index) {
+                    if (foundIndexes.indexOf(index) >= 0) {
+                        return false
+                    } else if(vm.isGeometryEqual(l2,lines1[i])) {
+                        foundIndexes.push(index)
+                        return true
+                    } else {
+                        return false
+                    }
+                })) {
+                    return false
+                }
+            }
+            return true
+        } else if(geom1 instanceof ol.geom.MultiPolygon && geom2 instanceof ol.geom.MultiPolygon) {
+            var vm = this
+            var polygons1 = geom1.getPolygons()
+            var polygons2 = geom2.getPolygons()
+            if (polygons1.length != polygons2.length) {return false}
+            var foundIndexes = []
+            for(i = 0;i < polygons1.length;i++) {
+                if (!polygons2.find(function(p2,index) {
+                    if (foundIndexes.indexOf(index) >= 0) {
+                        return false
+                    } else if(vm.isGeometryEqual(p2,polygons1[i])) {
+                        foundIndexes.push(index)
+                        return true
+                    } else {
+                        return false
+                    }
+                })) {
+                    return false
+                }
+            }
+            return true
+        } else if(geom1 instanceof ol.geom.GeometryCollection && geom2 instanceof ol.geom.GeometryCollection) {
+            var vm = this
+            var geometries1 = geom1.getGeometriesArray()
+            var geometries2 = geom2.getGeometriesArray()
+            if (geometries1.length != geometries2.length) {return false}
+            var foundIndexes = []
+            for(i = 0;i < geometries1.length;i++) {
+                if (!geometries2.find(function(p2,index) {
+                    if (foundIndexes.indexOf(index) >= 0) {
+                        return false
+                    } else if(vm.isGeometryEqual(p2,geometries1[i])) {
+                        foundIndexes.push(index)
+                        return true
+                    } else {
+                        return false
+                    }
+                })) {
+                    return false
+                }
+            }
+            return true
+        }
+        return false
+      },
       showGraticule: function (show) {
         this.graticule.setMap(show?this.olmap:null)
       },

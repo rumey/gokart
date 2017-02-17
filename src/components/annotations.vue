@@ -325,9 +325,119 @@
     },
     methods: {
       importAnnotations:function() {
-        if (this.$els.annotationsfile.files.length > 0) {
-            this.export.importVector(this.$els.annotationsfile.files[0])
+        if (this.$els.annotationsfile.files.length === 0) {
+            return
         }
+        var vm = this
+        this.export.importVector(this.$els.annotationsfile.files[0],function(features,fileFormat){
+            var ignoredFeatures = []
+            var f = null
+            if ((fileFormat === ".geojson") || (fileFormat === ".json")) {
+                //geo json file
+                for(var i = features.length - 1;i >= 0;i--) {
+                    feature = features[i]
+                    if (!vm.getTool(feature.get("toolName"))) {
+                        //external feature.
+                        if (feature.getGeometry() instanceof ol.geom.Point) {
+                            vm.map.clearFeatureProperties(feature)
+                            feature.set('toolName','Custom Point',true)
+                            feature.set('shape',vm.annotations.pointShapes[0],true)
+                            feature.set('colour',"#000000",true)
+                        } else if (feature.getGeometry() instanceof ol.geom.LineString) {
+                            vm.map.clearFeatureProperties(feature)
+                            feature.set('toolName','Custom Line',true)
+                            feature.set('size',2,true)
+                            feature.set('colour',"#000000",true)
+                        } else if (feature.getGeometry() instanceof ol.geom.Polygon) {
+                            vm.map.clearFeatureProperties(feature)
+                            feature.set('toolName','Custom Area',true)
+                            feature.set('size',2,true)
+                            feature.set('colour',"#000000",true)
+                        } else if (
+                                feature.getGeometry() instanceof ol.geom.MultiPoint ||
+                                feature.getGeometry() instanceof ol.geom.MultiLineString ||
+                                feature.getGeometry() instanceof ol.geom.MultiPolygon ||
+                                feature.getGeometry() instanceof ol.geom.GeometryCollection
+                        ) {
+                            //remove the MultiPoint feature
+                            features.splice(i,1)
+                            //split the gemoetry collection into mutiple features
+                            var geometries = null
+                            if (feature.getGeometry() instanceof ol.geom.MultiPoint) {
+                                geometries = feature.getGeometry().getPoints()
+                            } else if (feature.getGeometry() instanceof ol.geom.MultiLineString) {
+                                geometries = feature.getGeometry().getLineStrings()
+                            } else if (feature.getGeometry() instanceof ol.geom.MultiPolygon) {
+                                geometries = feature.getGeometry().getPolygons()
+                            } else if (feature.getGeometry() instanceof ol.geom.GeometryCollection) {
+                                geometries = feature.getGeometry().getGeometries()
+                            }
+                                    
+                            //split MultiPoint to multiple point feature
+                            $.each(geometries,function(index,geometry){
+                                f = new ol.Feature({ geometry:geometry}) 
+                                features.splice(i,0,f)
+                                i += 1
+                            })
+
+                        } else {
+                            ignoredFeatures.push(feature)
+                            features.splice(i,1)
+                        }  
+                    }
+                }
+            } else if (fileFormat === ".gpx") {
+                //gpx file
+                for(var i = features.length - 1;i >= 0;i--) {
+                    feature = features[i]
+                    if (feature.getGeometry() instanceof ol.geom.Point) {
+                        //feature.set('toolName','Spot Fire')
+                        ignoredFeatures.push(feature)
+                        features.splice(i,1)
+                    } else if(feature.getGeometry() instanceof ol.geom.LineString) {
+                        vm.map.clearFeatureProperties(feature)
+                        var coordinates = feature.getGeometry().getCoordinates()
+                        coordinates.push(coordinates[0])
+                        feature.setGeometry(new ol.geom.Polygon([coordinates]))
+                        feature.set('toolName','Fire Boundary')
+                    } else if(feature.getGeometry() instanceof ol.geom.MultiLineString) {
+                        //convert each linstring in MultiLineString as a fire boundary
+                        vm.map.clearFeatureProperties(feature)
+                        features.splice(i,1)
+                        var geom = feature.getGeometry()
+                        var coordinates = null
+                        $.each(geom.getLineStrings(),function(index,linestring) {
+                            f = feature.clone()
+                            coordinates = linestring.getCoordinates()
+                            coordinates.push(coordinates[0])
+                            f.setGeometry(new ol.geom.Polygon([coordinates]))
+                            f.set('toolName','Fire Boundary')
+                            features.splice(i,0,f)
+                        })
+                    } else {
+                        ignoredFeatures.push(feature)
+                        features.splice(i,1)
+                    }
+                }
+            } else {
+                if (fileFormat === file.name) {
+                    alert("Unknown file format (" + file.name + ")")
+                } else {
+                    alert("File format(" + fileFormat + ") not support")
+                }
+            }
+            if (ignoredFeatures.length) {
+                console.warn("The following features are ignored.\r\n" + vm.$root.geojson.writeFeatures(features))
+            }
+            if (features && features.length > 0) {
+                $.each(features,function(index,feature){
+                    vm.drawingSequence += 1
+                    feature.set('id',vm.drawingSequence)
+                    vm.initFeature(feature)
+                })            
+                vm.features.extend(features)
+            }
+        })
       },
       downloadAnnotations: function(fmt) {
         this.$root.export.exportVector(this.features.getArray(), 'annotations',fmt)
@@ -528,7 +638,8 @@
             layers: function(layer) { 
               return vm.selectable.indexOf(layer) > -1
             },
-            features: selectedFeatures
+            features: selectedFeatures,
+            condition: (options && options.condition) || ol.events.condition.singleClick
           })
           selectInter.defaultHandleEvent = selectInter.defaultHandleEvent || selectInter.handleEvent
           selectInter.handleEvent = function(event) {
@@ -959,23 +1070,30 @@
             var f = this
 
             var selected = "none"
+            var keysufix = ""
             if (f['tint'] === undefined || f['tint'] === "") {
                 //not selected
                 selectMode = "none"
+                keySuffix = "none"
             } else if (vm.tool.selectMode !== "geometry") {
                 //not in geometry selection mode
                 selectMode = "all"
+                keySuffix = "all"
             } else if (f['selectedIndex'] === undefined || f['selectedIndex'] < 0) {
                 //not select any geometry,
                 selectMode = "none"
+                keySuffix = f.get('tint') + ":none"
             } else if (!(f.getGeometry() instanceof ol.geom.GeometryCollection)) {
                 //select a geometry, but feature's geometry type does not support
                 selectMode = "none"
+                keySuffix = f.get('tint') + ":none"
                 delete f['selectedIndex']
             } else if (f.getGeometry().getGeometriesArray()[f["selectedIndex"]] instanceof ol.geom.Point) {
                 selectMode = "partial"
+                keySuffix = f.get('tint') + ":partial"
             } else {
                 selectMode = "none"
+                keySuffix = f.get('tint') + ":none"
             }
             var style = vm.map.cacheStyle(function (f) {
                 var tint = null
@@ -999,7 +1117,7 @@
                         })
                     })
                 } finally {
-                    if (selectMode === "notselected" || selectMode === "partial") {
+                    if (tint) {
                         f["tint"] = tint
                     }
                 }
@@ -1026,7 +1144,7 @@
                 }
                 return style
 
-            }, f, ['icon', 'rotation'],selectMode)
+            }, f, ['icon','tint', 'rotation'],keySuffix)
 
             return style
         }

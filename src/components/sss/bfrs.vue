@@ -64,7 +64,7 @@
               </div>
             </div>
             <div class="row">
-              <div class="small-7">
+              <div class="small-6">
                 <div class="columns">
                   <div class="row">
                     <div class="switch tiny">
@@ -73,14 +73,15 @@
                         <span class="show-for-sr">Show selected only</span>
                      </label>
                     </div>
-                    <label for="selectedBushfiresOnly" class="side-label">Show selected only</label>
+                    <label for="selectedBushfiresOnly" style="margin-left:3px" class="side-label">Show selected only</label>
                   </div>
                 </div>
               </div>
-              <div class="small-5">
+              <div class="small-6">
                 <a title="Zoom to selected" class="button" @click="map.zoomToSelected()" ><i class="fa fa-search"></i></a>
                 <a v-if="isCreatable()" title="Create bushfire" class="button" @click="newFeature()" ><i class="fa fa-plus"></i></a>
                 <a title="Download list as geoJSON" class="button" @click="downloadList()" ><i class="fa fa-download"></i></a>
+                <label class="button" style="line-height:1;font-size:0.9rem;" for="uploadBushfires" title="Support GeoJSON(.geojson .json), GPS data(.gpx)"><i class="fa fa-upload"></i></label><input type="file" id="uploadBushfires" class="show-for-sr" name="bushfiresfile" accept=".json,.geojson,.gpx" v-model="bushfiresfile" v-el:bushfiresfile @change="importList()"/>
                 <!--a title="Download all or selected as CSV" class="button" href="{{bfrsService}}/bushfire.csv?{{downloadSelectedCSV()}}" target="_blank" ><i class="fa fa-table"></i></a-->
               </div>
             </div>
@@ -138,6 +139,7 @@
         allFeatures: new ol.Collection(),
         extentFeatures: [],
         selectedBushfires: [],
+        bushfiresfile:'',
         revision:1,
         tints: {
           'new':[["#b43232","#1c6928"]],
@@ -345,7 +347,7 @@
 
         var requestData = {origin_point:originPoint, fire_boundary: fireBoundary}
 
-        console.log( requestData ) 
+        //console.log( requestData ) 
         return requestData
       },
       saveFeature:function(feat) {
@@ -370,22 +372,37 @@
             })
         }
       },
-      newFeature:function() {
+      newFeature:function(feat) {
         var vm = this
         this._bushfireSequence = (this._bushfireSequence || 0) + 1
-        var name = "New bushfire " + ((this._bushfireSequence < 10)?"00":(this._bushfireSequence < 100?"0":"")) + this._bushfireSequence
-        var feat = new ol.Feature({
-            geometry:new ol.geom.GeometryCollection([]),
-            status:'new',
-            tint:'new',
-            id:this._bushfireSequence * -1, 
-            originalTint:'new',
-            label: name,
-            name:name,
-            toolName:'Bfrs Origin Point',
-            fillColour:this.tints["new.fillColour"],
-            colour:this.tints["new.colour"]
-        })
+        var label = "New bushfire " + ((this._bushfireSequence < 10)?"00":(this._bushfireSequence < 100?"0":"")) + this._bushfireSequence
+        if (feat) {
+            feat.set('status','new')
+            feat.set('tint','new')
+            feat.set('id',this._bushfireSequence * -1) 
+            feat.set('originalTint','new')
+            feat.set('label',label)
+            feat.set('name',"")
+            feat.set('toolName','Bfrs Origin Point')
+            feat.set('fillColour',this.tints["new.fillColour"])
+            feat.set('colour',this.tints["new.colour"])
+        } else {
+            feat = new ol.Feature({
+                geometry:new ol.geom.GeometryCollection([]),
+                status:'new',
+                tint:'new',
+                id:this._bushfireSequence * -1, 
+                originalTint:'new',
+                label: label,
+                name:"",
+                toolName:'Bfrs Origin Point',
+                fillColour:this.tints["new.fillColour"],
+                colour:this.tints["new.colour"],
+            })
+        }
+        feat.setStyle(this.bushfireStyleFunc)
+
+        this.bfrsMapLayer.getSource().addFeature(feat)
         var insertIndex = null
         $.each(this.allFeatures.getArray(),function(index,f){
             if (f.get('status') !== 'new') {
@@ -398,6 +415,7 @@
         } else {
             this.allFeatures.push(feat)
         }
+        
         this.revision += 1
         this.selectedFeatures.clear()
         this.selectedFeatures.push(feat)
@@ -438,10 +456,13 @@
          var vm = this
          if (this.canDelete(feat)) {
             vm._deleteFeature = vm._deleteFeature || function(feat) {
+                console.log("Delete feature " + feat.get('label'))
+                vm.bfrsMapLayer.getSource().removeFeature(feat)
                 vm.allFeatures.remove(feat)
                 if (vm._editableFeatures && vm._editableFeatures !== vm.allFeatures) {
                     vm._editableFeatures.remove(feat)
                 }
+                vm.selectedFeatures.remove(feat)
                 var index = vm.extentFeatures.findIndex(function(f){ return f == feat})
                 if (index >= 0) {
                     vm.extentFeatures.splice(index,1)
@@ -564,6 +585,7 @@
             $.each(feature.get("fire_boundary").coordinates,function(index,polygonCoordinates){
                 geometries.push(new ol.geom.Polygon(polygonCoordinates))
             })
+            feature.unset("fire_boundary",true)
         }
         feature.setGeometry(new ol.geom.GeometryCollection(geometries),true)
         var now = moment()
@@ -601,7 +623,136 @@
         return f.get('id') && (this.selectedBushfires.indexOf(f.get('id')) > -1)
       },
       downloadList: function () {
-        this.$root.export.exportVector(this.features.filter(this.featureFilter).sort(this.featureOrder), 'bfrsdata')
+        this.$root.export.exportVector(this.features.filter(this.featureFilter).sort(this.featureOrder), 'bfrs')
+      },
+      importList: function () {
+        if (this.$els.bushfiresfile.files.length === 0) {
+            return
+        }
+        var vm = this
+        this.export.importVector(this.$els.bushfiresfile.files[0],function(features,fileFormat){
+            var ignoredFeatures = []
+            var f = null
+            var newFeature = null
+            if ((fileFormat === ".geojson") || (fileFormat === ".json")) {
+                //geo json file
+                for(var i = features.length - 1;i >= 0;i--) {
+                    feature = features[i]
+                    if (feature.get("toolName") !== "Bfrs Origin Point" ) {
+                        //external feature.
+                        if (feature.getGeometry() instanceof ol.geom.Point) {
+                            //the last point will be used as the origin point of a new bushfire report
+                            if (newFeature === null) {
+                                vm.map.clearFeatureProperties(feature)
+                                feature.setGeometry(new ol.geom.GeometryCollction([feature.getGeometry()]))
+                                newFeature = feature
+                            } else if(newFeature.getGeometry().getGeometriesArray()[0] instanceof ol.geom.Point){
+                                newFeature.getGeometry().getGeometriesArray()[0] = feature.getGeometry()
+                                features.splice(i,1)
+                            } else {
+                                newFeature.getGeometry().getGeometriesArray().splice(0,0,feature.getGeometry())
+                                features.splice(i,1)
+                            }
+                        } else if (feature.getGeometry() instanceof ol.geom.Polygon) {
+                            //All polygon will be used as the fire boundary of a new bushfire report
+                            if (newFeature === null) {
+                                vm.map.clearFeatureProperties(feature)
+                                feature.setGeometry(new ol.geom.GeometryCollction([feature.getGeometry()]))
+                                newFeature = feature
+                            } else {
+                                newFeature.getGeometry().getGeometriesArray().push(feature.getGeometry())
+                                features.splice(i,1)
+                            }
+                        } else if (feature.getGeometry() instanceof ol.geom.MultiPolygon) {
+                            //A multi polygon will be imported as a bushfire report
+                            vm.map.clearFeatureProperties(feature)
+                            feature.setGeometry(new ol.geom.GeometryCollction(feature.getGeometry().getPolygons()))
+                        } else if (feature.getGeometry() instanceof ol.geom.GeometryCollection) {
+                            //A geometry collection will be imported as a bushfire report
+                            vm.map.clearFeatureProperties(feature)
+                            var geometries = feature.getGeometry().getGeometriesArray().find(function(g,i){return g instanceof ol.geom.Point})
+                            geometries = geometries?[geometries]:[]
+                            geometries.push.apply(geometries,feature.getGeometry().getGeometriesArray().filter(function(g,i) {return g instanceof ol.geom.Polygon}))
+                            feature.setGeometry(new ol.geom.GeometryCollction(geometries))
+                        } else {
+                            ignoredFeatures.push(feature)
+                            features.splice(i,1)
+                        }  
+                    }
+                }
+            } else if (fileFormat === ".gpx") {
+                //gpx file
+                for(var i = features.length - 1;i >= 0;i--) {
+                    feature = features[i]
+                    if (feature.getGeometry() instanceof ol.geom.Point) {
+                        //feature.set('toolName','Spot Fire')
+                        ignoredFeatures.push(feature)
+                        features.splice(i,1)
+                    } else if(feature.getGeometry() instanceof ol.geom.LineString) {
+                        //All linestring will be used as the fire boundary of a new bushfire report
+                        if (newFeature === null) {
+                            vm.map.clearFeatureProperties(feature)
+                            var coordinates = feature.getGeometry().getCoordinates()
+                            coordinates.push(coordinates[0])
+                            feature.setGeometry(new ol.geom.GeometryCollection([new ol.geom.Polygon([coordinates])]))
+                            newFeature = feature
+                        } else {
+                            var coordinates = feature.getGeometry().getCoordinates()
+                            coordinates.push(coordinates[0])
+                            newFeature.getGeometry().getGeometriesArray().push(new ol.geom.Polygon([coordinates]))
+                            features.splice(i,1)
+                        }
+                    } else if(feature.getGeometry() instanceof ol.geom.MultiLineString) {
+                        //A multi polygon will be imported as a bushfire report
+                        var geom = feature.getGeometry()
+                        feature.setGeometry(null)
+                        var coordinates = null
+                        $.each(geom.getLineStrings(),function(index,linestring) {
+                            f = feature.clone()
+                            coordinates = linestring.getCoordinates()
+                            coordinates.push(coordinates[0])
+                            f.setGeometry(new ol.geom.Polygon([coordinates]))
+                            f.set('toolName','FireBoundary')
+                            features.push(f)
+                        })
+                    } else {
+                        ignoredFeatures.push(feature)
+                        features.splice(i,1)
+                    }
+                }
+            } else {
+                if (fileFormat === file.name) {
+                    alert("Unknown file format (" + file.name + ")")
+                } else {
+                    alert("File format(" + fileFormat + ") not support")
+                }
+            }
+            if (ignoredFeatures.length) {
+                console.warn("The following features are ignored.\r\n" + vm.$root.geojson.writeFeatures(features))
+            }
+            if (features && features.length > 0) {
+                $.each(features,function(index,feature){
+                    if (feature.get('id')) {
+                        //existed bushfire report
+                        var feat = vm.allFeatures.getArray().find(function(f) {return f.get('id') === feature.get('id')})
+                        if (feat) {
+                            if (!vm.map.isGeometryEqual(feat.getGeometry(),feature.getGeometry())) {
+                                console.log("====================")
+                                console.log(JSON.stringify(vm.getSpatialData(feat)))
+                                console.log(JSON.stringify(vm.getSpatialData(feature)))
+                                feat.setGeometry(feature.getGeometry())  
+                                vm.postModified(feat)
+                            }
+                        } else {
+                            console.warn("Can't find the bushfire (" + feature.get('id')  + ")")
+                        }
+                    } else {
+                        //non existed bushfire report
+                        vm.newFeature(feature)
+                    }
+                })            
+            }
+        })
       },
       downloadSelectedCSV: function () {
           var bushfireFilter = ''
@@ -873,7 +1024,9 @@
                   vm.annotations.keyboardInterFactory({
                     selectEnabled:false,
                     deleteSelected:function(features,selectedFeatures) {
-                        selectedFeatures.forEach(function (feature) {
+                        var feature = null
+                        for(i = selectedFeatures.getLength() - 1;i >= 0;i--) {
+                            feature = selectedFeatures.item(i)
                             if (vm.isDeletable(feature)) {
                                 vm.deleteFeature(feature)
                             } else if (vm.isEditable(feature)) {
@@ -885,7 +1038,7 @@
                                 vm.postModified(feature)
                                 feature.changed()
                             }
-                        })
+                        }
                     }
                   }),
               ],
@@ -900,7 +1053,7 @@
               icon: 'fa-pencil',
               scope:["bfrs"],
               interactions: [
-                  vm.annotations.selectInterFactory(),
+                  vm.ui.geometrySelectInter,
                   vm.annotations.keyboardInterFactory({
                     selectEnabled:false,
                     deleteSelected:function(features,selectedFeatures) {
@@ -924,7 +1077,7 @@
               keepSelection:true,
               onSet: function() {
                   vm.ui.dragSelectInter.setMulti(false)
-                  vm.ui.selectInter.setMulti(false)
+                  vm.ui.geometrySelectInter.setMulti(false)
                   if (vm.selectedFeatures.getLength() > 1) {
                       vm.selectedFeatures.clear()
                   } else if (vm.selectedFeatures.getLength() == 1) {

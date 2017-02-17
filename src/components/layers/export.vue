@@ -138,7 +138,7 @@
   import gkLegend from './legend.vue'
   import gkLayerlegends from './layerlegends.vue'
   export default {
-    store: ['whoami', 'dpmm', 'view', 'mmPerInch', 'gokartService','drawingSequence','s3Service','settings','displayResolution'],
+    store: ['whoami', 'dpmm', 'view', 'mmPerInch', 'gokartService','s3Service','settings','displayResolution'],
     components: { gkLegend,gkLayerlegends },
     data: function () {
       return {
@@ -569,7 +569,7 @@
           reader.readAsText(this.$els.statefile.files[0])
         }
       },
-      importVector: function(file) {
+      importVector: function(file,callback) {
         // upload vector  
         var vm = this
         var reader = new window.FileReader()
@@ -581,121 +581,22 @@
               fileFormat = file.name.substring(p).toLowerCase()
           } 
           var features = null
-          var ignoredFeatures = []
-          var feature = null
           if ((fileFormat === ".geojson") || (fileFormat === ".json")) {
               //geo json file
               features = new ol.format.GeoJSON().readFeatures(data,{dataProjection:"EPSG:4326"})
-              var f = null
-              var clearProperties = function(feature){
-                  $.each(feature.getKeys(),function(index,key){
-                        if ([feature.getGeometryName()].indexOf(key) < 0) {
-                            feature.unset(key)
-                        }
-                    })
-              }
-              for(var i = features.length - 1;i >= 0;i--) {
-                feature = features[i]
-                if (!vm.annotations.getTool(feature.get("toolName"))) {
-                    //external feature.
-                    if (feature.getGeometry() instanceof ol.geom.Point) {
-                        clearProperties(feature)
-                        feature.set('toolName','Custom Point',true)
-                        feature.set('shape',vm.annotations.pointShapes[0],true)
-                        feature.set('colour',"#000000",true)
-                    } else if (feature.getGeometry() instanceof ol.geom.LineString) {
-                        clearProperties(feature)
-                        feature.set('toolName','Custom Line',true)
-                        feature.set('size',2,true)
-                        feature.set('colour',"#000000",true)
-                    } else if (feature.getGeometry() instanceof ol.geom.Polygon) {
-                        clearProperties(feature)
-                        feature.set('toolName','Custom Area',true)
-                        feature.set('size',2,true)
-                        feature.set('colour',"#000000",true)
-                    } else if (
-                            feature.getGeometry() instanceof ol.geom.MultiPoint ||
-                            feature.getGeometry() instanceof ol.geom.MultiLineString ||
-                            feature.getGeometry() instanceof ol.geom.MultiPolygon ||
-                            feature.getGeometry() instanceof ol.geom.GeometryCollection
-                        ) {
-                        //remove the MultiPoint feature
-                        features.splice(i,1)
-                        //split the gemoetry collection into mutiple features
-                        var geometries = null
-                        if (feature.getGeometry() instanceof ol.geom.MultiPoint) {
-                            geometries = feature.getGeometry().getPoints()
-                        } else if (feature.getGeometry() instanceof ol.geom.MultiLineString) {
-                            geometries = feature.getGeometry().getLineStrings()
-                        } else if (feature.getGeometry() instanceof ol.geom.MultiPolygon) {
-                            geometries = feature.getGeometry().getPolygons()
-                        } else if (feature.getGeometry() instanceof ol.geom.GeometryCollection) {
-                            geometries = feature.getGeometry().getGeometries()
-                        }
-                                        
-                        //split MultiPoint to multiple point feature
-                        $.each(geometries,function(index,geometry){
-                            f = new ol.Feature({ geometry:geometry}) 
-                            features.splice(i,0,f)
-                            i += 1
-                        })
-
-                    } else {
-                        ignoredFeatures.push(feature)
-                    }  
-                }
-              }
           } else if (fileFormat === ".gpx") {
               //gpx file
-              var vectors = new ol.format.GPX().readFeatures(data,{dataProjection:"EPSG:4326"})
-              features = []
-              if (vectors && vectors.length) {
-                  $.each(vectors,function(index,feature) {
-                      if (feature.getGeometry() instanceof ol.geom.Point) {
-                          //feature.set('toolName','Spot Fire')
-                          ignoredFeatures.push(feature)
-                      } else if(feature.getGeometry() instanceof ol.geom.LineString) {
-                          var coordinates = feature.getGeometry().getCoordinates()
-                          coordinates.push(coordinates[0])
-                          feature.setGeometry(new ol.geom.Polygon([coordinates]))
-                          feature.set('toolName','Fire Boundary')
-                          features.push(feature)
-                      } else if(feature.getGeometry() instanceof ol.geom.MultiLineString) {
-                          //convert each linstring in MultiLineString as a fire boundary
-                          var geom = feature.getGeometry()
-                          feature.setGeometry(null)
-                          var coordinates = null
-                          var f = null
-                          $(geom.getLineStrings(),function(index,linestring) {
-                            f = feature.clone()
-                            coordinates = linestring.getCoordinates()
-                            coordinates.push(coordinates[0])
-                            f.setGeometry(new ol.geom.Polygon([coordinates]))
-                            f.set('toolName','FireBoundary')
-                            features.push(f)
-                          })
-                      } else {
-                          ignoredFeatures.push(feature)
-                      }
-                  })
-              }
+              features = new ol.format.GPX().readFeatures(data,{dataProjection:"EPSG:4326"})
           } else {
               if (fileFormat === file.name) {
                   alert("Unknown file format (" + file.name + ")")
               } else {
                   alert("File format(" + fileFormat + ") not support")
               }
+              return
           }
-          if (ignoredFeatures.length) {
-            console.warn("The following features are ignored.\r\n" + vm.$root.geojson.writeFeatures(features))
-          }
-          if (features && features.length > 0) {
-              $.each(features,function(index,feature){
-                vm.drawingSequence += 1
-                feature.set('id',vm.drawingSequence)
-                vm.annotations.initFeature(feature)
-              })            
-              vm.annotations.features.extend(features)
+          if (features && features.length) {
+            callback(features,fileFormat)
           }
         }
         reader.readAsText(file)
