@@ -997,7 +997,7 @@
                 var feat = (vm.selectedFeatures.getLength() == 1)?vm.selectedFeatures.item(0):null
                 if (feat) {
                     var featGeometry = feat.getGeometry()
-                    if (vm.isEditable(feat) && (feat.getGeometry().getGeometriesArray().length == 0 || !feat.getGeometry().getGeometriesArray()[0] instanceof ol.geom.Point)) {
+                    if (vm.isEditable(feat) && (feat.getGeometry().getGeometriesArray().length == 0 || !(feat.getGeometry().getGeometriesArray()[0] instanceof ol.geom.Point))) {
                         return ol.events.condition.noModifierKeys(ev)
                     } else {
                         return false
