@@ -3,7 +3,11 @@
     <div class="row collapse">
       <div class="columns">
         <ul class="tabs" id="bfrs-tabs">
-          <li class="tabs-title is-active"><a class="label" aria-selected="true">Bush Fire Report</a></li>
+          <li class="tabs-title is-active">
+            <a class="label" aria-selected="true">Bush Fire Report
+              <small v-if="active.layerRefreshStatus(bfrsMapLayer)" style="white-space:pre-wrap"><br>Updated: {{ active.layerRefreshStatus(bfrsMapLayer) }}</small>
+            </a>
+          </li>
         </ul>
       </div>
     </div>
@@ -57,6 +61,9 @@
               <div class="small-6 columns">
                 <select name="select" v-model="cql" @change="updateCQLFilter">
                   <option value="" selected>All bushfires</option> 
+                  <option value="init_authorised_by_id is null">Initial Bushfires</option>
+                  <option value="init_authorised_by_id is not null AND authorised_by_id is null">Final Bushfires</option>
+                  <option value="authorised_by_id is not null">Final Authroized Bushfires</option>
                 </select>
               </div>
               <div class="small-6 columns">
@@ -92,7 +99,7 @@
               <div v-for="f in features" class="row feature-row" v-bind:class="{'feature-selected': selected(f) }"
                 @click="toggleSelect(f)" track-by="get('id')">
                 <div class="columns">
-                  <a v-if="canReset(f)" @click.stop.prevent="resetFeature(f)" title="Reset" class="button tiny secondary float-right acion" style="margin-left:2px"><i class="fa fa-undo actionicon"></i></a>
+                  <a v-if="canReset(f)"  @click.stop.prevent="resetFeature(f)" title="Reset" class="button tiny secondary float-right acion" style="margin-left:2px"><i class="fa fa-undo actionicon"></i></a>
                   <a v-if="canDelete(f)" @click.stop.prevent="deleteFeature(f)" title="Delete" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-trash actionicon"></i></a>
                   <a v-if="canCreate(f)" @click.stop.prevent="createFeature(f)" title="Create" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-save actionicon"></i></a>
                   <a v-if="canEdit(f) " @click.stop.prevent="map.editResource($event)" title="Edit" href="{{editUrl(f)}}" target="_blank" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-pencil actionicon"></i></a>
@@ -170,6 +177,7 @@
     computed: {
       map: function () { return this.$root.$refs.app.$refs.map },
       annotations: function () { return this.$root.$refs.app.$refs.annotations },
+      active: function () { return this.$root.active},
       info: function () { return this.$root.info },
       setting: function () { return this.$root.setting },
       catalogue: function () { return this.$root.catalogue },
@@ -304,7 +312,7 @@
         return this.revision && bushfire.get('status') !== "new" && this.isEditable(bushfire) && bushfire.get('tint') !== "modified"
       },
       canReset:function(bushfire) {
-        return this.revision && bushfire.get('status') !== "new" && this.isEditable(bushfire) && bushfire.get('tint') === "modified"
+        return this.revision && bushfire.get('status') !== "new" // && this.isEditable(bushfire) && bushfire.get('tint') === "modified"
       },
       canSave:function(bushfire) {
         return this.revision && bushfire.get('status') !== "new" && this.isEditable(bushfire) && bushfire.get('tint') === "modified"
@@ -374,18 +382,30 @@
       },
       newFeature:function(feat) {
         var vm = this
-        this._bushfireSequence = (this._bushfireSequence || 0) + 1
-        var label = "New bushfire " + ((this._bushfireSequence < 10)?"00":(this._bushfireSequence < 100?"0":"")) + this._bushfireSequence
+        var autoSelect = true
+        this._bushfireSequence = (this._bushfireSequence || 0) 
+        var featId = 0
+        if (feat && feat.get('id')) {
+            if (Math.abs(feat.get('id')) > this._bushfireSequence) {
+                this._bushfireSequence = Math.abs(feat.get('id'))
+            }
+            autoSelect = false
+            featId = Math.abs(feat.get('id'))
+        } else {
+            this._bushfireSequence += 1
+            featId = this._bushfireSequence 
+        }
+        var label = "New bushfire " + ((featId < 10)?"00":(featId < 100?"0":"")) + featId
         if (feat) {
-            feat.set('status','new')
-            feat.set('tint','new')
-            feat.set('id',this._bushfireSequence * -1) 
-            feat.set('originalTint','new')
-            feat.set('label',label)
-            feat.set('name',"")
-            feat.set('toolName','Bfrs Origin Point')
-            feat.set('fillColour',this.tints["new.fillColour"])
-            feat.set('colour',this.tints["new.colour"])
+            feat.set('status','new',true)
+            feat.set('tint','new',true)
+            feat.set('id',featId * -1,true) 
+            feat.set('originalTint','new',true)
+            feat.set('label',label,true)
+            feat.set('name',"",true)
+            feat.set('toolName','Bfrs Origin Point',true)
+            feat.set('fillColour',this.tints["new.fillColour"],true)
+            feat.set('colour',this.tints["new.colour"],true)
         } else {
             feat = new ol.Feature({
                 geometry:new ol.geom.GeometryCollection([]),
@@ -405,7 +425,12 @@
         this.bfrsMapLayer.getSource().addFeature(feat)
         var insertIndex = null
         $.each(this.allFeatures.getArray(),function(index,f){
-            if (f.get('status') !== 'new') {
+            if (f.get('status') === 'new') {
+                if (featId < Math.abs(f.get('id'))) {
+                    insertIndex = index
+                    return false
+                }
+            } else {
                 insertIndex = index
                 return false
             }
@@ -417,9 +442,11 @@
         }
         
         this.revision += 1
-        this.selectedFeatures.clear()
-        this.selectedFeatures.push(feat)
-        this.annotations.setTool(this.ui.originPointTool)
+        if (autoSelect) {
+            this.selectedFeatures.clear()
+            this.selectedFeatures.push(feat)
+            this.annotations.setTool(this.ui.originPointTool)
+        }
       },
       createFeature:function(feat) {
         if (this.canCreate(feat)) {
@@ -731,26 +758,37 @@
                 console.warn("The following features are ignored.\r\n" + vm.$root.geojson.writeFeatures(features))
             }
             if (features && features.length > 0) {
+                var notFoundBushfires = null
                 $.each(features,function(index,feature){
-                    if (feature.get('id')) {
+                    if (feature.get('id') !== undefined) {
                         //existed bushfire report
                         var feat = vm.allFeatures.getArray().find(function(f) {return f.get('id') === feature.get('id')})
                         if (feat) {
                             if (!vm.map.isGeometryEqual(feat.getGeometry(),feature.getGeometry())) {
-                                console.log("====================")
-                                console.log(JSON.stringify(vm.getSpatialData(feat)))
-                                console.log(JSON.stringify(vm.getSpatialData(feature)))
+                                //console.log("====================")
+                                //console.log(JSON.stringify(vm.getSpatialData(feat)))
+                                //console.log(JSON.stringify(vm.getSpatialData(feature)))
                                 feat.setGeometry(feature.getGeometry())  
                                 vm.postModified(feat)
                             }
+                        } else if(feature.get('id') < 0) {
+                            //new feature,
+                            vm.newFeature(feature)
                         } else {
-                            console.warn("Can't find the bushfire (" + feature.get('id')  + ")")
+                            notFoundBushfires = notFoundBushfires || []
+                            notFoundBushfires.push(feature)
                         }
-                    } else {
+                    }
+                }) 
+                $.each(features,function(index,feature){
+                    if (feature.get('id') === undefined) {
                         //non existed bushfire report
                         vm.newFeature(feature)
                     }
-                })            
+                }) 
+                if (notFoundBushfires) {
+                    alert("Some bushfires are not found." + JSON.stringify(notFoundBushfires.map(function(o) {return {id:o.get('id'),name:o.get('name')}})))
+                }
             }
         })
       },
@@ -795,7 +833,6 @@
                     vm.updateFeatureFilter(true)
                 } else {
                     //clear bushfire filter or change other filter
-                    vm.bfrsMapLayer.set('updated', moment().toLocaleString())
                     vm.bfrsMapLayer.getSource().loadSource("query")
                 }
             },500)
@@ -1151,13 +1188,43 @@
         getFeatureInfo:function (f) {
             return {name:f.get("name"), img:map.getBlob(f, ['icon', 'tint']), comments:"TBD"}
         },
-        //refresh: 60,
+        refresh: 60,
+        getUpdatedTime:function(features) {
+            var updatedTime = null
+            $.each(features,function(index,f){
+                if (f.get('status') !== 'new') {
+                    var featureModifiedDate = moment(new Date(f.get('modified')))
+                    if (updatedTime === null) {
+                        updatedTime =  featureModifiedDate
+                    } else if(updatedTime < featureModifiedDate) {
+                        updatedTime =  featureModifiedDate
+                    }
+                }
+            })
+            return updatedTime
+        },
         onload: function(loadType,vectorSource,features,defaultOnload) {
             //combine the two spatial columns into one
             $.each(features,function(index,feature){
                 vm.initBushfire(feature)
             })
             function processResources() {
+                //merge the current changes with the new features
+                $.each(vm.allFeatures.getArray().filter(function(f) {return ['new','modified'].indexOf(f.get('tint')) >= 0 }),function(index,f){
+                    if (f.get('tint') === 'new') {
+                        //new features always are the begining and sorted.
+                        features.splice(index,0,f)
+                    } else {
+                        newFeature = features.find(function(f2){return f.get('id') === f2.get('id')})
+                        if (newFeature) {
+                            //replace the newFeature's geometry with the modified version
+                            newFeature.setGeometry(f.getGeometry())
+                            newFeature.set('tint','modified',true)
+                            newFeature.set('fillColour',vm.tints[newFeature.get('tint') + ".fillColour"])
+                            newFeature.set('colour',vm.tints[newFeature.get('tint') + ".colour"])
+                        } 
+                    }
+                })
                 defaultOnload(loadType,vectorSource,features)
                 if (vm.selectedBushfires.length > 0) {
                     var bushfireIds = vm.selectedBushfires.slice()

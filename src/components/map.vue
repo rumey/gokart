@@ -823,7 +823,16 @@
               }
               vm.$root.active.refreshRevision += 1
               vector.progress = 'idle'
-              vector.set('updated', moment().toLocaleString())
+              if(options.getUpdatedTime) {
+                var time = options.getUpdatedTime(features)
+                if (time) {
+                    vector.set('updated', time.toLocaleString())
+                } else {
+                    vector.set('updated', "")
+                }
+              } else {
+                vector.set('updated', moment().toLocaleString())
+              }
               vectorSource.dispatchEvent('loadsource')
               if (onSuccess) {
                 onSuccess()

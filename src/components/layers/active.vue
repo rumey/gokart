@@ -195,7 +195,7 @@
         return this.refreshRevision && (l.progress || "")
       },
       layerRefreshStatus: function(l) {
-        return this.refreshRevision && l.get("updated")
+        return this.refreshRevision && l && l.get("updated") || ""
       },
       activeLayers: function () {
         var catalogue = this.$root.catalogue
