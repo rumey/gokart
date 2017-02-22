@@ -157,7 +157,7 @@
               <div v-for="f in features" class="row feature-row" v-bind:class="{'feature-selected': selected(f) }"
                 @click="toggleSelect(f)" track-by="get('id')">
                 <div class="columns">
-                  <a v-if="whoami.editVehicle" @click.stop.prevent="map.editResource($event)" title="Edit resource" href="{{sssService}}/sss_admin/tracking/device/{{ f.get('id') }}/change/" target="_blank" class="button tiny secondary float-right"><i class="fa fa-pencil"></i></a>
+                  <a v-if="whoami.editVehicle && f.get('source_device_type') != 'tracplus'" @click.stop.prevent="map.editResource($event)" title="Edit resource" href="{{sssService}}/sss_admin/tracking/device/{{ f.get('id') }}/change/" target="_blank" class="button tiny secondary float-right"><i class="fa fa-pencil"></i></a>
                   <div class="feature-title"><img class="feature-icon" id="device-icon-{{f.get('id')}}" v-bind:src="featureIconSrc(f)" /> {{ f.get('label') }} <i><small>({{ ago(f.get('seen')) }})</small></i></div>
                 </div>
               </div>
@@ -193,7 +193,7 @@
         cql: '',
         tools: [],
         history: '',
-        fields: ['id', 'name', 'callsign', 'deviceid', 'symbol', 'district'],
+        fields: ['id', 'registration', 'rin_display', 'deviceid', 'symbol', 'district', 'usual_driver', 'usual_callsign', 'usual_location', 'current_driver', 'current_callsign', 'contractor_details', 'source_device_type'],
         allFeatures: [],
         extentFeatures: [],
         selectedDevices: [],
@@ -606,6 +606,27 @@
           }
       }
 
+      var deviceLabel = function(device) {
+        var name = ''
+        var district = device.get('district')
+        var rin_display = device.get('rin_display')
+        var registration = device.get('registration')
+        if (district == null || district == 'AV' || district == 'OTH'){
+            if (device.get('rin_display') == null){
+                name = device.get('registration')
+            } else {
+                name = device.get('rin_display') +' '+ device.get('registration')
+            }
+        } else {
+            if (device.get('rin_display') == null){
+                name = district +' '+ device.get('registration')
+            } else {
+                name = district +' '+ device.get('rin_display') +' '+ device.get('registration')
+            }
+        }
+        return name
+      }
+
       var addResourceFunc = function(styleFunc) {
         return function (f) {
             var now = moment()
@@ -623,11 +644,7 @@
             f.set('icon', 'dist/static/symbols/device/' + f.get('symbolid') + '.svg',true)
             f.set('tint', tint,true)
             f.set('originalTint', tint,true)
-            if (f.get('district') == null){
-                f.set('label', f.get('callsign') +' '+ f.get('name'),true)
-            } else {
-                f.set('label', f.get('district') +' '+ f.get('callsign') +' '+ f.get('name'),true)
-            }
+            f.set('label', deviceLabel(f), true)
             f.set('time', timestamp.toLocaleString(),true)
             // Set a different vue template for rendering
             f.set('partialId', 'resourceInfo',true)
@@ -637,13 +654,60 @@
         }
       }
 
+      var deviceExtraHoverLabel = function(device) {
+          var return_label = ''
+          var c_label = ''
+          var u_label = ''
+          var c_driver = ' ' + (device.get("current_driver") || '');
+          var c_callsign = ' ' + (device.get("current_callsign") || '');
+          var u_driver = ' ' + (device.get("usual_driver") || '');
+          var u_callsign = ' ' + (device.get("usual_callsign") || '');
+          var u_location = ' ' + (device.get("usual_location") || '');
+          var contractor_label = "Contractor: " + ((device.get("contractor_details") || '');
+
+          // Set "Usual" Label
+          if (u_driver != ' ' || u_callsign != ' ') {
+              u_label += "Usual:" + u_driver + u_callsign
+              if (u_location != ' '){
+                  u_label += ", Location:" + u_location
+              }
+          } else if (u_location != ' '){
+              u_label += "Usual location:" + u_location
+          }
+
+          // Set "Current" Label
+          if (c_driver != ' ' || c_callsign != ' ') {
+              c_label += "Current:" + c_driver + c_callsign
+          }
+
+          // Generate Full Label
+          if (c_label != ''){
+              return_label += c_label
+          }
+          if (c_label != '' && u_label != ''){
+              return_label += '<br>' + u_label
+          } else if (u_label != ''){
+              return_label += u_label
+          }
+          if ((c_label != '' || u_label != '') && contractor_label != 'Contractor: '){
+              return_label += '<br>' + contractor_label
+          } else if (contractor_label != 'Contractor: '){
+              return_label += contractor_label
+          }
+
+          return return_label
+      }
+
       this.$root.fixedLayers.push({
         type: 'WFSLayer',
         name: 'Resource Tracking',
         id: 'dpaw:resource_tracking_live',
         onadd: addResourceFunc(resourceTrackingStyleFunc('dpaw:resource_tracking_live')),
         getFeatureInfo:function (f) {
-            return {name:f.get("label"), img:map.getBlob(f, ['icon', 'tint']), comments:"(" + vm.ago(f.get("seen")) + " ago, Heading:" + f.get("heading") + "&deg;)"}
+			var extra_device_label = deviceExtraHoverLabel(f)
+            return {name:f.get("label"), img:map.getBlob(f, ['icon', 'tint']),
+                comments:"(" + vm.ago(f.get("seen")) + " ago, Heading:" + f.get("heading") + "&deg;)<br>" +
+                    extra_device_label}
         },
         refresh: 60,
         onload: function(loadType,vectorSource,features,defaultOnload) {
@@ -664,10 +728,16 @@
                 vm.updateResourceFilter(true)
             }
             if (features.length > 0) {
-                utils.checkPermission(vm.sssService + "/sss_admin/tracking/device/" + features[0].get('id') + "/change/",function(allowed){
-                    vm.whoami.editVehicle = allowed
+                var f = features.find(function(f) {return f.get('source_device_type') != "tracplus"})
+                if (f){
+                    utils.checkPermission(vm.sssService + "/sss_admin/tracking/device/" + f.get('id') + "/change/",function(allowed){
+                        vm.whoami.editVehicle = allowed
+                        processResources()
+                    })
+                } else {
+                    vm.whoami.editVehicle = false
                     processResources()
-                })
+                }
             } else {
                 vm.whoami.editVehicle = false
                 processResources()
@@ -687,13 +757,11 @@
         cql_filter: false,
         getFeatureInfo:function (f) {
             if (f.getGeometry() instanceof ol.geom.Point) {
-                var name = ''
-                if (f.get('district') == null){
-                    name = f.get('callsign') +' '+ f.get('name')
-                } else {
-                    name = f.get('district') +' '+ f.get('callsign') +' '+ f.get('name')
-                }
-                return {name:name, img:map.getBlob(f, ['icon', 'tint']), comments:"(" + f.get("label") + ", Heading:" + f.get("heading") + "&deg;)"}
+                var name = deviceLabel(f)
+                var extra_device_label = deviceExtraHoverLabel(f)
+                return {name:name, img:map.getBlob(f, ['icon', 'tint']),
+                    comments:"(" + f.get("label") + ", Heading:" + f.get("heading") + "&deg;)<br>" +
+                        extra_device_label}
             } else {
                 return {name:f.get("name"), img:map.getBlob(f, ['icon', 'tint']), comments:"(" + f.get("startTime") + " - " + f.get("endTime") + ")"}
             }
@@ -719,13 +787,8 @@
                     return point.getGeometry().getCoordinates()
                 })
                 // create a new linestring
-                var name = ''
+                var name = deviceLabel(f)
                 var f = devices[device][0]
-                if (f.get('district') == null){
-                    name = f.get('callsign') +' '+ f.get('name')
-                } else {
-                    name = f.get('district') +' '+ f.get('callsign') +' '+ f.get('name')
-                }
                 var feature = new ol.Feature({
                   name: name + ' path',
                   icon: f.get('icon'),
