@@ -748,7 +748,7 @@
         map.olmap.getLayerGroup().on('change', layersAdded)
         layersAdded()*/
 
-        this.selectedFeatures.on('add', function (event) {
+        vm.selectedFeatures.on('add', function (event) {
           if (event.element.get('deviceid')) {
             vm.selectedDevices.push(event.element.get('deviceid'))
             if (vm.selectedOnly) {
@@ -756,7 +756,7 @@
             }
           }
         })
-        this.selectedFeatures.on('remove', function (event) {
+        vm.selectedFeatures.on('remove', function (event) {
           if (event.element.get('deviceid')) {
             vm.selectedDevices.$remove(event.element.get('deviceid'))
             if (vm.selectedOnly) {

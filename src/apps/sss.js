@@ -89,7 +89,7 @@ var systemSettings = {
   undoLimit:0,
   lengthUnit:"km",
   areaUnit:"ha",
-  measureAnnotation:false,
+  measureFeature:false,
   print:{
       retainBoundingbox:true,
       snapToFixedScale:true,

@@ -54,12 +54,12 @@
 
             <div class="tool-slice row collapse">
               <div class="switch tiny">
-                <input class="switch-input" id="toggleMeasureAnnotation" type="checkbox" v-bind:checked="measureAnnotation" @change="toggleMeasureAnnotation"/>
-                <label class="switch-paddle" for="toggleMeasureAnnotation">
-                  <span class="show-for-sr">Measure annotation</span>
+                <input class="switch-input" id="toggleMeasureFeature" type="checkbox" v-bind:checked="measureFeature" @change="toggleMeasureFeature"/>
+                <label class="switch-paddle" for="toggleMeasureFeature">
+                  <span class="show-for-sr">Measure feature</span>
                 </label>
               </div>
-              <label for="toggleMeasureAnnotation" class="side-label">Measure annotation</label>
+              <label for="toggleMeasureFeature" class="side-label">Measure feature</label>
             </div>
 
             <div class="tool-slice row collapse">
@@ -184,7 +184,7 @@
         settings:'settings',
         overviewMap:'settings.overviewMap',
         undoLimit:'settings.undoLimit',
-        measureAnnotation:'settings.measureAnnotation',
+        measureFeature:'settings.measureFeature',
         lengthUnit:'settings.lengthUnit',
         areaUnit:'settings.areaUnit',
         rightHandTools: 'settings.rightHandTools',
@@ -278,8 +278,8 @@
         this.info.hoverInfo = ev.target.checked
         this.saveState()
       },
-      toggleMeasureAnnotation:function(ev) {
-        this.measureAnnotation = ev.target.checked
+      toggleMeasureFeature:function(ev) {
+        this.measureFeature = ev.target.checked
         this.export.saveState()
       },
       toggleOverviewMap:function(ev) {

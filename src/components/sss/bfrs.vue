@@ -104,7 +104,7 @@
                   <a v-if="canCreate(f)" @click.stop.prevent="createFeature(f)" title="Create" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-save actionicon"></i></a>
                   <a v-if="canEdit(f) " @click.stop.prevent="map.editResource($event)" title="Edit" href="{{editUrl(f)}}" target="_blank" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-pencil actionicon"></i></a>
                   <a v-if="canSave(f)" @click.stop.prevent="saveFeature(f)" title="Save" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-save actionicon"></i></a>
-                  <a v-if="canAuthorize(f)" @click.stop.prevent="authorizeFeature(f)" title="Authorize" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-check actionicon"></i></a>
+                  <a v-if="canAuthorise(f)" @click.stop.prevent="authoriseFeature(f)" title="Authorise" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-check actionicon"></i></a>
                   <div class="feature-title"><img class="feature-icon" id="bushfire-icon-{{f.get('id')}}" v-bind:src="featureIconSrc(f)" /> {{ f.get('label') }} <i><small></small></i></div>
                 </div>
               </div>
@@ -161,13 +161,13 @@
           'final.text': '#b7d28d',
           'final.fillColour':[0, 0, 0, 0.25],
           'final.colour': '#b7d28d',
-          'final_authroized': [['#b43232', '#7ecca3']],
-          'final_authroized.text': '#7ecca3',
-          'final_authorized.fillColour':[0, 0, 0, 0.25],
-          'final_authroized.colour': '#7ecca3',
+          'final_authorised': [['#b43232', '#7ecca3']],
+          'final_authorised.text': '#7ecca3',
+          'final_authorised.fillColour':[0, 0, 0, 0.25],
+          'final_authorised.colour': '#7ecca3',
           'modified':[["#b43232","#f57900"]],
           'modified.text':"#f57900",
-          'modified_authorized.fillColour':[0, 0, 0, 0.25],
+          'modified_authorised.fillColour':[0, 0, 0, 0.25],
           'modified.colour':"#f57900",
           'selected': [['#b43232', '#2199e8']],
           'selected.text': '#2199e8',
@@ -208,9 +208,9 @@
       editableFeatures:function() {
         if (this.whoami.bushfire === undefined) {
             this._editableFeatures = (this._editableFeatures && this._editableFeatures !== this.allFeatures && this._editableFeatures.getLength() == 0)?this._editableFeatures:new ol.Collection()
-        } else if (this.whoami.bushfire["initital.edit"] && this.whoami.bushfire["final.edit"] && this.whoami.bushfire["final_authorized.edit"]) {
+        } else if (this.whoami.bushfire["initital.edit"] && this.whoami.bushfire["final.edit"] && this.whoami.bushfire["final_authorised.edit"]) {
             this._editableFeatures = this.allFeatures
-        } else if (!this.whoami.bushfire["initital.edit"] && !this.whoami.bushfire["final.edit"] && !this.whoami.bushfire["final_authorized.edit"]) {
+        } else if (!this.whoami.bushfire["initital.edit"] && !this.whoami.bushfire["final.edit"] && !this.whoami.bushfire["final_authorised.edit"]) {
             this._editableFeatures = (this._editableFeatures && this._editableFeatures !== this.allFeatures && this._editableFeatures.getLength() == 0)?this._editableFeatures:new ol.Collection()
         } else if (!this.allFeatures.getArray().find(function(bushfire){return !this.isEditable(bushfire)},this)) {
             this._editableFeatures = this.allFeatures
@@ -241,7 +241,7 @@
                     var feat = this
                     var geometries = feat.getGeometry().getGeometriesArray()
                     var pointStyle = (geometries.length > 0 || geometries[0] instanceof ol.geom.Point)?pointStyleFunc.call(feat,res):null
-                    var boundaryStyle = (geometries.length > 1 || geometries[0] instanceof ol.geom.Polygon)?boundaryStyleFunc.call(feat,res):null
+                    var boundaryStyle = (geometries.length > 1 || geometries[0] instanceof ol.geom.MultiPolygon)?boundaryStyleFunc.call(feat,res):null
                     var labelStyle = null
                     if (res < 0.003 && geometries.length > 0 && feat.get('label') && vm.bushfireLabels && !vm.$root.active.isHidden(vm.map.getMapLayer("bfrs:bushfire_dev"))) {
                       labelStyle = labelStyleFunc.call(feat,res)
@@ -306,7 +306,7 @@
         }
       },
       isAuthorizable:function(bushfire){
-        return this.whoami["bushfire"][bushfire.get('status') + ".authorize"] 
+        return this.whoami["bushfire"][bushfire.get('status') + ".authorise"] 
       },
       canEdit:function(bushfire) {
         return this.revision && bushfire.get('status') !== "new" && this.isEditable(bushfire) && bushfire.get('tint') !== "modified"
@@ -323,7 +323,7 @@
       canDelete:function(bushfire) {
         return this.revision && this.isDeletable(bushfire)
       },
-      canAuthorize:function(bushfire) {
+      canAuthorise:function(bushfire) {
         return this.revision && this.isAuthorizable(bushfire) && bushfire.get('tint') !== "modified"
       },
       createUrl:function() {
@@ -338,19 +338,14 @@
       deleteUrl:function(feat) {
         return this.bfrs + "/delete/" + feat.get('id')
       },
-      authorizeUrl:function(feat) {
-        return this.bfrs + "/authorize/" + feat.get('id')
+      authoriseUrl:function(feat) {
+        return this.bfrs + "/authorise/" + feat.get('id')
       },
       getSpatialData:function(feat) {
         var geometries = feat.getGeometry().getGeometriesArray()
         var originPoint = (geometries.length > 0 && geometries[0] instanceof ol.geom.Point)?geometries[0].getCoordinates():null
-        var fireBoundary = null
-        $.each(geometries,function(index,g){
-            if (g instanceof ol.geom.Polygon) {
-                fireBoundary = fireBoundary || new ol.geom.MultiPolygon()
-                fireBoundary.appendPolygon(g)
-            }
-        })
+        var fireBoundary = (geometries.length > 1)?geometries[1]:((geometries.length ===  1 && geometries[0] instanceof ol.geom.MultiPolygon)?geometries[0]:null)
+
         fireBoundary = fireBoundary?fireBoundary.getCoordinates():null
 
         var requestData = {origin_point:originPoint, fire_boundary: fireBoundary}
@@ -461,11 +456,11 @@
             window.open(url,target.target);
         }
       },
-      authorizeFeature:function(feat) {
-        if (this.canAuthorize(feat)) {
+      authoriseFeature:function(feat) {
+        if (this.canAuthorise(feat)) {
             var vm = this
             $.ajax({
-                url: vm.authorizeUrl(feat),
+                url: vm.authoriseUrl(feat),
                 method:"GET",
                 success: function (response, stat, xhr) {
                     vm.resetFeature(feat)
@@ -609,9 +604,7 @@
       initBushfire:function(feature) {
         var geometries = feature.getGeometry()?[feature.getGeometry()]:[]
         if (feature.get("fire_boundary") && feature.get("fire_boundary").coordinates) {
-            $.each(feature.get("fire_boundary").coordinates,function(index,polygonCoordinates){
-                geometries.push(new ol.geom.Polygon(polygonCoordinates))
-            })
+            geometries.push(new ol.geom.MultiPolygon(feature.get("fire_boundary").coordinates))
             feature.unset("fire_boundary",true)
         }
         feature.setGeometry(new ol.geom.GeometryCollection(geometries),true)
@@ -620,7 +613,7 @@
         if (!feature.get('init_authorised_by_id')) {
             feature.set('status','initial',true)
         } else if(feature.get('authorised_by_id')) {
-            feature.set('status','final_authorized',true)
+            feature.set('status','final_authorised',true)
         } else {
             feature.set('status','final',true)
         }
@@ -660,7 +653,6 @@
         this.export.importVector(this.$els.bushfiresfile.files[0],function(features,fileFormat){
             var ignoredFeatures = []
             var f = null
-            var newFeature = null
             if ((fileFormat === ".geojson") || (fileFormat === ".json")) {
                 //geo json file
                 for(var i = features.length - 1;i >= 0;i--) {
@@ -668,38 +660,35 @@
                     if (feature.get("toolName") !== "Bfrs Origin Point" ) {
                         //external feature.
                         if (feature.getGeometry() instanceof ol.geom.Point) {
-                            //the last point will be used as the origin point of a new bushfire report
-                            if (newFeature === null) {
-                                vm.map.clearFeatureProperties(feature)
-                                feature.setGeometry(new ol.geom.GeometryCollction([feature.getGeometry()]))
-                                newFeature = feature
-                            } else if(newFeature.getGeometry().getGeometriesArray()[0] instanceof ol.geom.Point){
-                                newFeature.getGeometry().getGeometriesArray()[0] = feature.getGeometry()
-                                features.splice(i,1)
-                            } else {
-                                newFeature.getGeometry().getGeometriesArray().splice(0,0,feature.getGeometry())
-                                features.splice(i,1)
-                            }
+                            vm.map.clearFeatureProperties(feature)
+                            feature.setGeometry(new ol.geom.GeometryCollction([feature.getGeometry()]))
                         } else if (feature.getGeometry() instanceof ol.geom.Polygon) {
-                            //All polygon will be used as the fire boundary of a new bushfire report
-                            if (newFeature === null) {
-                                vm.map.clearFeatureProperties(feature)
-                                feature.setGeometry(new ol.geom.GeometryCollction([feature.getGeometry()]))
-                                newFeature = feature
-                            } else {
-                                newFeature.getGeometry().getGeometriesArray().push(feature.getGeometry())
-                                features.splice(i,1)
-                            }
+                            vm.map.clearFeatureProperties(feature)
+                            feature.setGeometry(new ol.geom.GeometryCollction([new ol.geom.MultiPloygon([feature.getGeometry().getCoordinates()])]))
                         } else if (feature.getGeometry() instanceof ol.geom.MultiPolygon) {
                             //A multi polygon will be imported as a bushfire report
                             vm.map.clearFeatureProperties(feature)
-                            feature.setGeometry(new ol.geom.GeometryCollction(feature.getGeometry().getPolygons()))
+                            feature.setGeometry(new ol.geom.GeometryCollction([feature.getGeometry()]))
                         } else if (feature.getGeometry() instanceof ol.geom.GeometryCollection) {
                             //A geometry collection will be imported as a bushfire report
                             vm.map.clearFeatureProperties(feature)
                             var geometries = feature.getGeometry().getGeometriesArray().find(function(g,i){return g instanceof ol.geom.Point})
                             geometries = geometries?[geometries]:[]
-                            geometries.push.apply(geometries,feature.getGeometry().getGeometriesArray().filter(function(g,i) {return g instanceof ol.geom.Polygon}))
+                            var fireBoundary = null
+                            $.each(feature.getGeometry().getGeometriesArra().filter(function(g,i) {return g instanceof ol.geom.MultiPolygon}),function(index,mp){
+                                if (fireBoundary) {
+                                    $.each(mp.getPolygons(),function(index,p){fireBoundary.appendPolygon(p)})
+                                } else {
+                                    fireBoundary = mp
+                                }
+                            })
+                            $.each(feature.getGeometry().getGeometriesArra().filter(function(g,i) {return g instanceof ol.geom.Polygon}),function(index,p){
+                                fireBoundary = fireBoundary || new ol.geom.MultiPolygon()
+                                fireBoundary.appendPolygon(p)
+                            })
+                            if (fireBoundary) {
+                                geometries.push(fireBoundary)
+                            }
                             feature.setGeometry(new ol.geom.GeometryCollction(geometries))
                         } else {
                             ignoredFeatures.push(feature)
@@ -716,32 +705,21 @@
                         ignoredFeatures.push(feature)
                         features.splice(i,1)
                     } else if(feature.getGeometry() instanceof ol.geom.LineString) {
-                        //All linestring will be used as the fire boundary of a new bushfire report
-                        if (newFeature === null) {
-                            vm.map.clearFeatureProperties(feature)
-                            var coordinates = feature.getGeometry().getCoordinates()
-                            coordinates.push(coordinates[0])
-                            feature.setGeometry(new ol.geom.GeometryCollection([new ol.geom.Polygon([coordinates])]))
-                            newFeature = feature
-                        } else {
-                            var coordinates = feature.getGeometry().getCoordinates()
-                            coordinates.push(coordinates[0])
-                            newFeature.getGeometry().getGeometriesArray().push(new ol.geom.Polygon([coordinates]))
-                            features.splice(i,1)
-                        }
+                        vm.map.clearFeatureProperties(feature)
+                        var coordinates = feature.getGeometry().getCoordinates()
+                        coordinates.push(coordinates[0])
+                        feature.setGeometry(new ol.geom.GeometryCollection([new ol.geom.MultiPolygon([[coordinates]])]))
                     } else if(feature.getGeometry() instanceof ol.geom.MultiLineString) {
-                        //A multi polygon will be imported as a bushfire report
                         var geom = feature.getGeometry()
-                        feature.setGeometry(null)
                         var coordinates = null
+                        var mp = null
                         $.each(geom.getLineStrings(),function(index,linestring) {
-                            f = feature.clone()
                             coordinates = linestring.getCoordinates()
                             coordinates.push(coordinates[0])
-                            f.setGeometry(new ol.geom.Polygon([coordinates]))
-                            f.set('toolName','FireBoundary')
-                            features.push(f)
+                            mp = mp || new ol.geom.MultiPolygon()
+                            mp.appendPolygon(new ol.geom.Polygon([coordinates]))
                         })
+                        feature.setGeometry(new ol.geom.GeometryCollection(mp?[mp]:[]))
                     } else {
                         ignoredFeatures.push(feature)
                         features.splice(i,1)
@@ -910,7 +888,49 @@
             vm._updateViewport()
         }
       },
+      selectDefaultGeometry:function(feature) {
+        var geometries = feature.getGeometry().getGeometriesArray()
+        if (geometries.length > 1) {
+            if (geometries[1].getPolygons().length === 0){
+                feature["selectedIndex"] = [0]
+            } else {
+                feature["selectedIndex"] = [1,0]
+            }
+        } else if (geometries.length === 0) {
+            delete feature["selectedIndex"]
+        } else if (geometries[0] instanceof ol.geom.Point){
+            feature["selectedIndex"] = [0]
+        } else if (geometries[0].getPolygons().length === 0){
+            delete feature["selectedIndex"]
+        } else {
+            feature["selectedIndex"] = [0,0]
+        }
+      },
       setup: function() {
+        var vm = this
+        this._selectedFeautures_add = this.selectedFeatures.on('add', function (event) {
+          if (event.element.get('id')) {
+            vm.selectedBushfires.push(event.element.get('id'))
+            if (vm.annotations.tool.selectMode === "geometry") {
+                if (event.element["selectedIndex"] === undefined) {
+                    vm.selectDefaultGeometry(event.element)
+                }
+            }
+            if (vm.selectedOnly) {
+                vm.updateCQLFilter('selectedBushfire')
+            }
+          }
+        })
+        this._selectedFeatures_remove = this.selectedFeatures.on('remove', function (event) {
+          if (event.element.get('id')) {
+            vm.selectedBushfires.$remove(event.element.get('id'))
+            if (vm.selectedOnly) {
+                vm.updateCQLFilter('selectedBushfire')
+            }
+          }
+          //remove the index of the selected geometry in geometry collection
+          //delete event.element['selectedIndex']
+        })
         // enable resource bfrs layer, if disabled
         var catalogue = this.$root.catalogue
         if (!this.bfrsMapLayer) {
@@ -947,6 +967,8 @@
         this.$nextTick(this.adjustHeight)
       },
       tearDown:function() {
+        if (this._selectedFeatures_remove) {this.selectedFeatures.unByKey(this._selectedFeatures_remove)}
+        if (this._selectedFeatures_add) {this.selectedFeatures.unByKey(this._selectedFeatures_add)}
         this.selectable = null
       }
     },
@@ -992,6 +1014,7 @@
       }
 
       vm.ui.originPointDraw = vm.annotations.pointDrawFactory({
+        featuremodified:true,
         drawOptions:{
             condition:function(ev) {
                 var feat = (vm.selectedFeatures.getLength() == 1)?vm.selectedFeatures.item(0):null
@@ -1012,6 +1035,7 @@
       })
 
       vm.ui.fireboundaryDraw = vm.annotations.polygonDrawFactory({
+        featuremodified:true,
         drawOptions:{
             condition:function(ev) {
                 var feat = (vm.selectedFeatures.getLength() == 1)?vm.selectedFeatures.item(0):null
@@ -1034,11 +1058,19 @@
         if (vm.selectedFeatures.getLength() === 1){
             var f = vm.selectedFeatures.item(0)
             if (vm.annotations.tool.name === "Bfrs Fire Boundary") {
-                f.getGeometry().getGeometriesArray().push(new ol.geom.Polygon(ev.element.getGeometry().getCoordinates()))
+                var mp = f.getGeometry().getGeometriesArray().find(function(g){return g instanceof ol.geom.MultiPolygon})
+                if (mp) {
+                    mp.appendPolygon(new ol.geom.Polygon(ev.element.getGeometry().getCoordinates()))
+                } else {
+                    f.getGeometry().push(new ol.geom.MultiPolygon([ev.element.getGeometry().getCoordinates()]))
+                }
+                vm.fireboundaryDraw.dispatchEvent(new ol.interaction.Draw.Event("featuremodified",f))
             } else if (f.getGeometry().getGeometriesArray().length > 0 && f.getGeometry().getGeometriesArray()[0] instanceof ol.geom.Point){
                 f.getGeometry().getGeometriesArray()[0] = ev.element.getGeometry()
+                vm.originPointDraw.dispatchEvent(new ol.interaction.Draw.Event("featuremodified",f))
             } else {
                 f.getGeometry().getGeometriesArray().splice(0,0,ev.element.getGeometry())
+                vm.originPointDraw.dispatchEvent(new ol.interaction.Draw.Event("featuremodified",f))
             }
             f.getGeometry().setGeometriesArray(f.getGeometry().getGeometriesArray())
             vm.postModified(f)
@@ -1059,9 +1091,11 @@
                   vm.ui.selectInter,
                   vm.ui.translateInter,
                   vm.annotations.keyboardInterFactory({
+                    featuresmodified:true,
                     selectEnabled:false,
                     deleteSelected:function(features,selectedFeatures) {
                         var feature = null
+                        var features = null
                         for(i = selectedFeatures.getLength() - 1;i >= 0;i--) {
                             feature = selectedFeatures.item(i)
                             if (vm.isDeletable(feature)) {
@@ -1074,7 +1108,12 @@
                                 feature.getGeometry().setGeometriesArray(feature.getGeometry().getGeometriesArray())
                                 vm.postModified(feature)
                                 feature.changed()
+                                features = features || []
+                                features.push(feature)
                             }
+                        }
+                        if (features) {
+                            this.dispatchEvent(new ol.interaction.Modify.Event("featuresmodified",new ol.Collection(features)))
                         }
                     }
                   }),
@@ -1092,21 +1131,22 @@
               interactions: [
                   vm.ui.geometrySelectInter,
                   vm.annotations.keyboardInterFactory({
+                    featuresmodified:true,
                     selectEnabled:false,
                     deleteSelected:function(features,selectedFeatures) {
+                        var features = null
                         selectedFeatures.forEach(function (feature) {
                             if (vm.isEditable(feature) && feature["selectedIndex"] !== undefined) {
-                                feature.getGeometry().getGeometriesArray().splice(feature["selectedIndex"],1)
-                                if (feature.getGeometry().getGeometriesArray().length > 0) {
-                                    feature["selectedIndex"] = 0
-                                } else {
-                                    delete feature["selectedIndex"]
-                                }
-                                feature.getGeometry().setGeometriesArray(feature.getGeometry().getGeometriesArray())
+                                vm.annotations.deleteSelectedGeometry(feature)
+                                vm.selectDefaultGeometry(feature)
                                 vm.postModified(feature)
-                                feature.changed()
+                                features = features || []
+                                features.push(feature)
                             }
                         })
+                        if (features) {
+                            this.dispatchEvent(new ol.interaction.Modify.Event("featuresmodified",new ol.Collection(features)))
+                        }
                     }
                   }),
               ],
@@ -1120,12 +1160,7 @@
                   } else if (vm.selectedFeatures.getLength() == 1) {
                     var selectedFeature = vm.selectedFeatures.item(0)
                     if (selectedFeature["selectedIndex"] === undefined ) {
-                        var geometries = selectedFeature.getGeometry().getGeometries()
-                        if (geometries.length == 1) {
-                            selectedFeature["selectedIndex"] = 0
-                        } else if(geometries.length > 1) {
-                            selectedFeature["selectedIndex"] = (geometries[0] instanceof ol.geom.Polygon)?0:1
-                        }
+                        vm.selectDefaultGeometry(selectedFeature)
                     } 
                  }
               }
@@ -1249,25 +1284,25 @@
             var permissionConfig = [
                 ["create",null,null],
                 ["initial.edit",null,function(f){return f.get('status') === "initial"}],
-                ["initial.authorize",null,function(f) {return f.get('status') === "initial"}],
+                ["initial.authorise",null,function(f) {return f.get('status') === "initial"}],
                 ["final.edit",null,function(f) {return f.get('status') === "final"}],
-                ["final.authorize",null,function(f) {return f.get('status') === "final"}],
-                ["final_authorized.edit",null,function(f) {return f.get('status') === "final_authorized"}],
+                ["final.authorise",null,function(f) {return f.get('status') === "final"}],
+                ["final_authorised.edit",null,function(f) {return f.get('status') === "final_authorised"}],
             ]
             vm.whoami["bushfire"] = vm.whoami["bushfire"] || {
                 "create":null,
                 "new.edit":true,
                 "new.delete":true,
-                "new.authorize":false,
+                "new.authorise":false,
                 "initial.edit":null,
                 "initial.delete":false,
-                "initial.authorize":null,
+                "initial.authorise":null,
                 "final.edit":null,
                 "final.delete":false,
-                "final.authorize":null,
-                "final_authorized.edit":null,
-                "final_authorized.delete":false,
-                "final_authorized.authorize":false,
+                "final.authorise":null,
+                "final_authorised.edit":null,
+                "final_authorised.delete":false,
+                "final_authorised.authorise":false,
             }
             var checkPermission = function(index){
                 var p = permissionConfig[index]
@@ -1323,39 +1358,10 @@
       this.$on('gk-init', function () {
         bfrsStatus.progress(80,"Process 'gk-init' event")
         map.olmap.getView().on('propertychange', vm.updateViewport)
-        this.selectedFeatures.on('add', function (event) {
-          if (event.element.get('id')) {
-            vm.selectedBushfires.push(event.element.get('id'))
-            if (vm.annotations.tool.selectMode === "geometry") {
-                if (!event.element["selectIndex"]) {
-                    var geometries = event.element.getGeometry().getGeometries()
-                    if (geometries.length == 1) {
-                        event.element["selectedIndex"] = 0
-                    } else if(geometries.length > 1) {
-                        event.element["selectedIndex"] = (geometries[0] instanceof ol.geom.Polygon)?0:1
-                    }
-                }
-            }
-            if (vm.selectedOnly) {
-                vm.updateCQLFilter('selectedBushfire')
-            }
-          }
-        })
-        this.selectedFeatures.on('remove', function (event) {
-          if (event.element.get('id')) {
-            vm.selectedBushfires.$remove(event.element.get('id'))
-            if (vm.selectedOnly) {
-                vm.updateCQLFilter('selectedBushfire')
-            }
-          }
-        })
+
         //vm.annotations.setDefaultTool('bfrs','Pan')
         vm.tools = vm.annotations.tools.filter(function (t) {
           return t.scope && t.scope.indexOf("bfrs") >= 0
-        })
-        vm.selectedFeatures.on('remove', function (ev) {
-          //remove the index of the selected geometry in geometry collection
-          delete ev.element['selectedIndex']
         })
         bfrsStatus.end()
       })

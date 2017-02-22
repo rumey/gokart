@@ -503,6 +503,10 @@
               ev.feature.set('author',vm.whoami.email)
               ev.feature.set('createTime',Date.now())
             })
+
+            draw.events = {
+              featuremodified:(options && options.featuremodified)||false
+            }
             return draw
         }
       },
@@ -522,6 +526,10 @@
               ev.feature.set('author',vm.whoami.email)
               ev.feature.set('createTime',Date.now())
             })
+
+            draw.events = {
+              featuremodified:(options && options.featuremodified)||false
+            }
             return draw
         }
       },
@@ -553,6 +561,10 @@
                 ev.feature.set('rotation', vm.getPerpendicular(coords))
               }
             })
+
+            draw.events = {
+              featuremodified:(options && options.featuremodified)||false
+            }
             return draw
         }
       },
@@ -629,6 +641,126 @@
           return dragSelectInter
         }
       },
+      isGeometrySelected:function(geom,mapBrowserEvent) {
+        if (geom instanceof ol.geom.Point) {
+            var geomPosition  = this.map.olmap.getPixelFromCoordinate(geom.getCoordinates())
+            var position = mapBrowserEvent.pixel
+            return (Math.abs(position[0] - geomPosition[0]) <= 5  && Math.abs(position[1] - geomPosition[1]) <= 5)
+        } else {
+            return geom.intersectsCoordinate(mapBrowserEvent.coordinate) 
+        }
+      },
+      getSelectedGeometry:function(f,end) {
+        var indexes = f['selectedIndex']
+        if (indexes) {
+            end = (end === null || end === undefined)?(indexes.length - 1):end
+            if (end >= indexes.length || end < 0) {return null}
+            var geom = f.getGeometry()
+            for (i = 0;i <= end;i++) {
+                if (geom instanceof ol.geom.GeometryCollection) {
+                    if (indexes[i] < geom.getGeometriesArray().length) {
+                        geom = geom.getGeometriesArray()[indexes[i]]
+                    } else {
+                        return null
+                    }
+                } else if (geom instanceof ol.geom.MultiPolygon) {
+                    if (indexes[i] < geom.getPolygons().length) {
+                        geom = geom.getPolygon(indexes[i])
+                    } else {
+                        return null
+                    }
+                } else if (geom instanceof ol.geom.MultiPoint) {
+                    if (indexes[i] < geom.getPoints().length) {
+                        geom = geom.getPoint(indexes[i])
+                    } else {
+                        return null
+                    }
+                } else if (geom instanceof ol.geom.MultiLineString) {
+                    if (indexes[i] < geom.getLineStrings().length) {
+                        geom = geom.getLineString(indexes[i])
+                    } else {
+                        return null
+                    }
+                } else {
+                    return null
+                }
+            }
+            return geom
+        } else {
+            //no in geometry select mode
+            return null
+        }
+      },
+      deleteSelectedGeometry:function(f) {
+        var indexes = f['selectedIndex']
+        if (!indexes) {return}
+
+        var geom = this.getSelectedGeometry(f,indexes.length - 2)
+        if (geom) {
+            var deleteIndex = indexes[indexes.length - 1]
+            if (geom instanceof ol.geom.GeometryCollection) {
+                if (deleteIndex < geom.getGeometriesArray().length) {
+                    geom.getGeometriesArray().splice(deleteIndex,1)
+                    geom.setGeometriesArray(geom.getGeometriesArray())
+                    f.getGeometry().changed()
+                }
+            } else if (geom instanceof ol.geom.MultiPolygon || geom instanceof ol.geom.MultiPoint || geom instanceof ol.geom.MultiLineString) {
+                var coordinates = geom.getCoordinates()
+                if (deleteIndex < coordinates.length) {
+                    coordinates.splice(deleteIndex,1)
+                    geom.setCoordinates(coordinates)
+                    f.getGeometry().changed()
+                } else {
+                    return null
+                }
+            }
+        }
+      },
+      getSelectedGeometryIndex:function(geom,mapBrowserEvent) {
+        var vm = this
+        var indexes = null
+        if (geom instanceof ol.geom.GeometryCollection) {
+            $.each(geom.getGeometriesArray(),function(index,g){
+                if (g instanceof ol.geom.MultiPoint || g instanceof ol.geom.MultiLineString || g instanceof ol.geom.MultiPolygon || g instanceof ol.geom.GeometryCollection) {
+                    indexes = vm.getSelectedGeometryIndex(g,mapBrowserEvent)
+                    if (indexes) {
+                        indexes.splice(0,0,index)
+                        return false
+                    }
+                    
+                } else {
+                    if (vm.isGeometrySelected(g,mapBrowserEvent)) {
+                        indexes = [index]
+                        return false
+                    }
+                }
+            })
+        } else if (geom instanceof ol.geom.MultiPolygon) {
+            $.each(geom.getPolygons(),function(index,g){
+                if (vm.isGeometrySelected(g,mapBrowserEvent)) {
+                    indexes = [index]
+                    return false
+                }
+            })
+        } else if (geom instanceof ol.geom.MultiPoint) {
+            $.each(geom.getPoints(),function(index,g){
+                if (vm.isGeometrySelected(g,mapBrowserEvent)) {
+                    indexes = [index]
+                    return false
+                }
+            })
+        } else if (geom instanceof ol.geom.MultiLineString) {
+            $.each(geom.getLineStrings(),function(index,g){
+                if (vm.isGeometrySelected(g,mapBrowserEvent)) {
+                    indexes = [index]
+                    return false
+                }
+            })
+        } else {
+            return false
+        }
+        return indexes
+      },
       selectInterFactory:function(options) {
         var vm = this
         return function(tool) {
@@ -663,21 +795,14 @@
           }
           if (tool && tool.selectMode === "geometry") {
               selectInter.on('select',function(ev) {
+                if (!ev.mapBrowserEvent) {return}
                 $.each(ev.selected,function(index,f){
-                    if (f.getGeometry() instanceof ol.geom.GeometryCollection && ev.mapBrowserEvent) {
-                        $.each(f.getGeometry().getGeometriesArray(),function(index2,geom){
-                            if (geom instanceof ol.geom.Point) {
-                                var position  = vm.map.olmap.getPixelFromCoordinate(geom.getCoordinates())
-                                if (Math.abs(ev.mapBrowserEvent.pixel[0] - position[0]) <= 5  && Math.abs(ev.mapBrowserEvent.pixel[1] - position[1]) <= 5) {
-                                    f['selectedIndex'] = index2
-                                    return false
-                                }
-                            } else if (geom.intersectsCoordinate(ev.mapBrowserEvent.coordinate)) {
-                                f['selectedIndex'] = index2
-                            }
-                        })
+                    var indexes = vm.getSelectedGeometryIndex(f.getGeometry(),ev.mapBrowserEvent)
+                    if (indexes) {
+                        f['selectedIndex'] = indexes
+                    } else {
+                        delete f['selectedIndex']
                     }
-                    
                 })
             })
           }
@@ -705,9 +830,9 @@
                   case 46: // Delete
                     if (!options || options.deleteEnabled === undefined || options.deleteEnabled) {
                         if (options && options.deleteSelected) {
-                            options.deleteSelected( (tool && tool.features) || vm.features,(tool && tool.selectedFeatures) || vm.selectedFeatures )
+                            options.deleteSelected.call(keyboardInter, (tool && tool.features) || vm.features,(tool && tool.selectedFeatures) || vm.selectedFeatures )
                         } else {
-                            vm.deleteSelected( (tool && tool.features) || vm.features,(tool && tool.selectedFeatures) || vm.selectedFeatures )
+                            vm.deleteSelected.call(keyboardInter, (tool && tool.features) || vm.features,(tool && tool.selectedFeatures) || vm.selectedFeatures )
                         }
                         stopEvent = true
                     }
@@ -723,6 +848,9 @@
               return !stopEvent
             }
           })
+          keyboardInter.events = {
+            featuresmodified:(options && options.featuresmodified)||false
+          }
           return keyboardInter
         }
       },
@@ -889,16 +1017,7 @@
             selectedFeatures.clear()
         } else if (this.tool.selectMode === "geometry") {
             selectedFeatures.forEach(function (feature) {
-              if (feature["selectedIndex"] !== undefined) {
-                  feature.getGeometry().getGeometriesArray().splice(feature["selectedIndex"],1)
-                  if (feature.getGeometry().getGeometriesArray().length > 0) {
-                    feature["selectedIndex"] = 0
-                  } else {
-                    delete feature["selectedIndex"]
-                  }
-                  feature.getGeometry().setGeometriesArray(feature.getGeometry().getGeometriesArray())
-                  feature.changed()
-              }
+                vm.deleteSelectedGeometry(feature)
             })
         }
       },
@@ -1079,21 +1198,18 @@
                 //not in geometry selection mode
                 selectMode = "all"
                 keySuffix = "all"
-            } else if (f['selectedIndex'] === undefined || f['selectedIndex'] < 0) {
-                //not select any geometry,
-                selectMode = "none"
-                keySuffix = f.get('tint') + ":none"
-            } else if (!(f.getGeometry() instanceof ol.geom.GeometryCollection)) {
-                //select a geometry, but feature's geometry type does not support
-                selectMode = "none"
-                keySuffix = f.get('tint') + ":none"
-                delete f['selectedIndex']
-            } else if (f.getGeometry().getGeometriesArray()[f["selectedIndex"]] instanceof ol.geom.Point) {
-                selectMode = "partial"
-                keySuffix = f.get('tint') + ":partial"
             } else {
-                selectMode = "none"
-                keySuffix = f.get('tint') + ":none"
+                var selectedGeometry =  vm.getSelectedGeometry(f) 
+                if (!selectedGeometry) {
+                    selectMode = "none"
+                    keySuffix = f.get('tint') + ":none"
+                } else if (selectedGeometry instanceof ol.geom.Point) {
+                    selectMode = "partial"
+                    keySuffix = f.get('tint') + ":partial"
+                }  else {
+                    selectMode = "none"
+                    keySuffix = f.get('tint') + ":none"
+                }
             }
             var style = vm.map.cacheStyle(function (f) {
                 var tint = null
@@ -1130,7 +1246,7 @@
                         style,
                         new ol.style.Style({
                           geometry: function(f) {
-                            return f.getGeometry().getGeometriesArray()[f["selectedIndex"]]
+                            return vm.getSelectedGeometry(f)
                           },
                           image: new ol.style.Icon({
                               src: src,
@@ -1191,17 +1307,15 @@
             } else if (vm.tool.selectMode !== "geometry") {
                 //not in geometry selection mode
                 selectMode = "all"
-            } else if (f['selectedIndex'] === undefined || f['selectedIndex'] < 0) {
-                //not select any geometry,
-                selectMode = "none"
-            } else if (!(f.getGeometry() instanceof ol.geom.GeometryCollection)) {
-                //select a geometry, but feature's geometry type does not support
-                selectMode = "none"
-                delete f['selectedIndex']
-            } else if (!(f.getGeometry().getGeometriesArray()[f["selectedIndex"]] instanceof ol.geom.Point)) {
-                selectMode = "partial"
             } else {
-                selectMode = "none"
+                var selectedGeometry =  vm.getSelectedGeometry(f) 
+                if (!selectedGeometry) {
+                    selectMode = "none"
+                } else if (!(selectedGeometry instanceof ol.geom.Point)) {
+                    selectMode = "partial"
+                }  else {
+                    selectMode = "none"
+                }
             }
 
             var baseStyle = vm.map.cacheStyle(function (f) {
@@ -1218,7 +1332,7 @@
                    }),
                    new ol.style.Style({
                       geometry: function(f) {
-                        return f.getGeometry().getGeometriesArray()[f["selectedIndex"]]
+                        return vm.getSelectedGeometry(f)
                       },
                       fill: new ol.style.Fill({
                         color: vm.getStyleProperty(f,'selectedFillColour','rgba(255, 255, 255, 0.2)',tool)
@@ -1231,7 +1345,7 @@
                    new ol.style.Style({
                       geometry: function(f) {
                         //console.log("===============" + f.get('label'))
-                        return f.getGeometry().getGeometriesArray()[f["selectedIndex"]]
+                        return vm.getSelectedGeometry(f)
                       },
                       stroke: new ol.style.Stroke({
                         color: '#ffffff',
@@ -1722,6 +1836,9 @@
         name: 'My Drawing',
         getFeatureInfo:getFeatureInfo
       })
+
+      this.measure.register("annotations",this.features)
+
       annotationStatus.wait(30,"Listen 'gk-init' event")
       this.$on("gk-init",function() {
         annotationStatus.progress(80,"Process 'gk-init' event")

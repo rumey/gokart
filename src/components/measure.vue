@@ -24,6 +24,7 @@
     data: function () {
       return {
       }
+
     },
     // parts of the template to be computed live
     computed: {
@@ -44,13 +45,13 @@
         return this.measureType != "" && this.features.getLength()
       },
       isMeasureLength: function () {
-        return this.measureType == "MeasureLength"
+        return this.measureType === "MeasureLength"
       },
       isMeasureArea:function() {
-        return this.measureType == "MeasureArea"
+        return this.measureType === "MeasureArea"
       },
       isMeasureBearing:function() {
-        return this.measureType == "MeasureBearing"
+        return this.measureType === "MeasureBearing"
       },
       mapControl:function() {
         if (!this._controller) {
@@ -67,8 +68,8 @@
       areaUnit: function() {
         return this.settings.areaUnit
       },
-      measureAnnotation:function() {
-        return this.settings.measureAnnotation
+      measureFeature:function() {
+        return this.settings.measureFeature
       }
     },
     watch:{
@@ -84,13 +85,15 @@
                 }
             })
 
-            this.annotations.features.forEach(function(feature){
-                var tooltipElement = feature['tooltipElement']
-                if (!tooltipElement) return
-                var element = $(tooltipElement).find(".length")
-                if (element.length > 0) {
-                    element.html(vm.formatLength(feature))
-                }
+            $.each(vm._measureLayers,function(index,layer){
+                layer[1].forEach(function(feature){
+                    var tooltipElement = feature['tooltipElement']
+                    if (!tooltipElement) return
+                    var element = $(tooltipElement).find(".length")
+                    if (element.length > 0) {
+                        element.html(vm.formatLength(feature))
+                    }
+                })
             })
         },
         areaUnit:function(newValue,oldValue) {
@@ -104,19 +107,25 @@
                 }
             })
 
-            this.annotations.features.forEach(function(feature){
-                var tooltipElement = feature['tooltipElement']
-                if (!tooltipElement) return
-                var element = $(tooltipElement).find(".area")
-                if (element.length > 0) {
-                    element.html(vm.formatArea(feature))
-                }
+            $.each(vm._measureLayers,function(index,layer){
+                layer[1].forEach(function(feature){
+                    var tooltipElement = feature['tooltipElement']
+                    if (!tooltipElement) return
+                    var element = $(tooltipElement).find(".area")
+                    if (element.length > 0) {
+                        element.html(vm.formatArea(feature))
+                    }
+                })
             })
         },
-        measureAnnotation:function(newValue,oldValue) {
-            if (this.map.getMapLayer("annotations") && !this.active.isHidden(this.map.getMapLayer("annotations"))) {
-                this.enableAnnotationMeasurement(newValue)
-            }
+        measureFeature:function(newValue,oldValue) {
+            var vm = this
+            $.each(this._measureLayers,function(index,layer) {
+                var mapLayer = vm.map.getMapLayer(layer[0])
+                if (mapLayer && !vm.active.isHidden(mapLayer)) {
+                    vm.enableFeatureMeasurement(layer,newValue)
+                }
+            })
         },
         measureType:function(newVal,oldVal){
             if (newVal == "") {
@@ -145,11 +154,19 @@
     },
     // methods callable from inside the template
     methods: {
-      enableAnnotationMeasurement:function(enable) {
+      //layer can be layer id, layer setting
+      register:function(layer,features) {
+        this._measureLayers = this._measureLayers || []
+        this._measureLayers.push([layer["id"] || layer,features || null])
+      },
+      //layer can be layerid, layer settings, and memeber of this._measureLayers
+      enableFeatureMeasurement:function(layer,enable) {
         var vm = this
+        var layer = (Array.isArray(layer))?layer:this._measuerLayers.find(function(l) {return l[0] === layer["id"] || layer})
+        if (!layer) return
         if(enable) {
             //enable
-            $.each(this.annotations.features.getArray(),function(index,feature){
+            $.each(layer[1].getArray(),function(index,feature){
                 var tool = vm.annotations.getTool(feature.get('toolName'))
                 if (!tool) {return}
                 if (!tool.measureLength && !tool.measureArea) {return}
@@ -169,7 +186,7 @@
             })
         } else {
             //disable
-            this.showTooltip(this.annotations.features,false)
+            this.showTooltip(layer[1],false)
         }
       },
       toggleMeasure: function (type) {
@@ -535,79 +552,91 @@
             measureSnap
         ]
       }
-
-      this.annotations.features.on("remove",function(ev){
-        var feature = ev.element
-        if (feature.tooltip) {
-            vm.removeTooltip(feature)
-        }
-      })
-
-      this.annotations.features.on("add",function(ev){
-        if (vm.map.getMapLayer("annotations")) {
+      $.each(vm._measureLayers,function(index,layer) {
+          layer[1].on("remove",function(ev){
             var feature = ev.element
-            var tool = vm.annotations.getTool(feature.get('toolName'))
-            if (!tool) {return}
-            if (tool.measureLength || tool.measureArea) {
-                if (vm.measureAnnotation) {
-                    vm.createTooltip(feature,tool.measureLength,tool.measureArea)
-                    vm.measuring(feature,tool.measureLength,tool.measureArea)
-                    vm.endMeasure(feature)
+            if (feature.tooltip) {
+                vm.removeTooltip(feature)
+            }
+          })
+
+          layer[1].on("add",function(ev){
+            if (vm.map.getMapLayer(layer[0])) {
+                var feature = ev.element
+                var tool = vm.annotations.getTool(feature.get('toolName'))
+                if (!tool) {return}
+                if (tool.measureLength || tool.measureArea) {
+                    if (vm.measureFeature) {
+                        vm.createTooltip(feature,tool.measureLength,tool.measureArea)
+                        vm.measuring(feature,tool.measureLength,tool.measureArea)
+                        vm.endMeasure(feature)
+                    }
                 }
+            }
+
+          })
+      })
+      var featureChanged = function(feature){
+        var tool = vm.annotations.getTool(feature.get('toolName'))
+        if (!tool) {return}
+        if (tool.measureLength) {
+            feature.unset('length',true)
+        }
+        if (tool.measureArea) {
+            feature.unset('area',true)
+        }
+        if (feature.tooltip) {
+            if (vm.measureFeature) {
+                vm.measuring(feature,tool.measureLength,tool.measureArea)
+                vm.endMeasure(feature)
+                //console.log("Recalculated")
+            } else {
+                vm.removeTooltip(feature,false)
+                //console.log("Remove tooltip because feature is changed")
             }
         }
-
-      })
-      var featuresChanged = function(ev){
-        ev.features.forEach(function(feature) {
-            var tool = vm.annotations.getTool(feature.get('toolName'))
-            if (!tool) {return}
-            if (tool.measureLength) {
-                feature.unset('length',true)
-            }
-            if (tool.measureArea) {
-                feature.unset('area',true)
-            }
-            if (feature.tooltip) {
-                if (vm.measureAnnotation) {
-                    vm.measuring(feature,tool.measureLength,tool.measureArea)
-                    vm.endMeasure(feature)
-                    //console.log("Recalculated")
-                } else {
-                    vm.removeTooltip(feature,false)
-                    //console.log("Remove tooltip because feature is changed")
-                }
-            }
-        })
       }
 
-      this.annotations.ui.modifyInter.on("featuresmodified",featuresChanged)
-      this.annotations.ui.translateInter.on("translateend",featuresChanged)
+      this.annotations.tools.push(measureArea)
+      var featuresChangedListener = function(ev){
+        ev.features.forEach(function(feature) {
+            featureChanged(feature)
+        })
+      }
+      var featureChangedListener = function(ev){
+        featureChanged(ev.feature)
+      }
+
       this.annotations.tools.push(measureArea)
 
       this.wgs84Sphere = new ol.Sphere(6378137);
 
       measureStatus.wait(30,"Listen 'gk-init' event")
       this.$on("gk-init",function() {
-          measureStatus.progress(80,"Process 'gk-init' event")
+          measureStatus.progress(50,"Process 'gk-init' event")
         
-          //add measure tooltips when adding annotation layer and measureAnnotation is true
+          //add measure tooltips when adding annotation layer and measureFeature is true
           var changeOpacityHandler = function(ev) {
-            if (!vm.measureAnnotation) { return }
+            if (!vm.measureFeature) { return }
             if (ev.target.get(ev.key) === 0) {
-                vm.enableAnnotationMeasurement(false)
+                vm.enableFeatureMeasurement(ev.target.get('id'),false)
             } else if(ev.oldValue === 0) {
-                vm.enableAnnotationMeasurement(true)
+                vm.enableFeatureMeasurement(ev.target.get('id'),true)
             }
           }
 
-          if (vm.map.getMapLayer("annotations")) {
-            vm.map.getMapLayer("annotations").on("change:opacity",changeOpacityHandler)
-          }
+          $.each(vm._measureLayers,function(index,layer) {
+              var mapLayer = vm.map.getMapLayer(layer[0])
+              if (mapLayer) {
+                mapLayer.on("change:opacity",changeOpacityHandler)
+              }
+          })
+
           vm.map.olmap.getLayers().on("add",function(ev){
-              if (ev.element.get('id') === "annotations") {
-                  if (vm.measureAnnotation) {
-                      vm.enableAnnotationMeasurement(true)
+              var layer = vm._measureLayers.find(function(l){return l[0] === ev.element.get('id')})
+              if (layer) {
+                  if (vm.measureFeature) {
+                      vm.enableFeatureMeasurement(layer,true)
                   }
                   ev.element.on("change:opacity",changeOpacityHandler)
               }
@@ -615,14 +644,42 @@
 
           //remove measure tooltips when removing annotation layer
           vm.map.olmap.getLayers().on("remove",function(ev){
-              if (ev.element.get('id') === "annotations") {
-                  if (vm.measureAnnotation) {
-                      vm.enableAnnotationMeasurement(false)
+              var layer = vm._measureLayers.find(function(l){return l[0] === ev.element.get('id')})
+              if (layer) {
+                  if (vm.measureFeature) {
+                      vm.enableFeatureMeasurement(layer,false)
                   }
               }
           })
-          measureStatus.end()
+          measureStatus.wait(60,"Listen 'gk-postinit' event")
+          this.$on("gk-postinit",function() {
+              measureStatus.progress(80,"Process 'gk-postinit' event")
+              var processedInteractions = []
+              $.each(vm.annotations.tools,function(index1,tool){
+                $.each(tool.interactions,function(index2,interaction){
+                    if (!processedInteractions.find(function(o){return o === interaction})) {
+                        if (interaction instanceof ol.interaction.Modify) {
+                            interaction.on("featuresmodified",featuresChangedListener)
+                        } else if (interaction instanceof ol.interaction.Translate) {
+                            interaction.on("translateend",featuresChangedListener)
+                        } else if (interaction instanceof ol.interaction.Draw && interaction.events && interaction.events["featuremodified"]) {
+                            interaction.on("featuremodified",featureChangedListener)
+                        }
+                        if (interaction.events && interaction.events["featuresmodified"]) {
+                            interaction.on("featuresmodified",featuresChangedListener)
+                        }
+                        if (interaction.events && interaction.events["featuremodified"]) {
+                            interaction.on("featuremodified",featureChangedListener)
+                        }
+                        processedInteractions.push(interaction)
+                    }
+                })
+              })
+
+              measureStatus.end()
+          })
       })
+
     }
   }
 </script>
