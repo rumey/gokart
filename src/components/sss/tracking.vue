@@ -611,17 +611,17 @@
         var district = device.get('district')
         var rin_display = device.get('rin_display')
         var registration = device.get('registration')
-        if (district == null || district == 'AV' || district == 'OTH'){
-            if (device.get('rin_display') == null){
-                name = device.get('registration')
+        if (!district || district == 'AV' || district == 'OTH'){
+            if (!rin_display){
+                name = registration
             } else {
-                name = device.get('rin_display') +' '+ device.get('registration')
+                name = rin_display +' '+ registration
             }
         } else {
-            if (device.get('rin_display') == null){
-                name = district +' '+ device.get('registration')
+            if (!rin_display){
+                name = district +' '+ registration
             } else {
-                name = district +' '+ device.get('rin_display') +' '+ device.get('registration')
+                name = district +' '+ rin_display +' '+ registration
             }
         }
         return name
@@ -663,7 +663,7 @@
           var u_driver = ' ' + (device.get("usual_driver") || '');
           var u_callsign = ' ' + (device.get("usual_callsign") || '');
           var u_location = ' ' + (device.get("usual_location") || '');
-          var contractor_label = "Contractor: " + ((device.get("contractor_details") || '');
+          var contractor_label = "Contractor: " + (device.get("contractor_details") || '');
 
           // Set "Usual" Label
           if (u_driver != ' ' || u_callsign != ' ') {
@@ -787,8 +787,8 @@
                     return point.getGeometry().getCoordinates()
                 })
                 // create a new linestring
-                var name = deviceLabel(f)
                 var f = devices[device][0]
+                var name = deviceLabel(f)
                 var feature = new ol.Feature({
                   name: name + ' path',
                   icon: f.get('icon'),
