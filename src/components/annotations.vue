@@ -324,6 +324,22 @@
       }
     },
     methods: {
+      createEvent:function(interaction,type,options) {
+        try {
+            return new this._event(type,options)
+        } catch(ex) {
+            this._event = function(type,options) {
+                ol.events.Event.call(this,type)
+                if (options) {
+                    $.each(options,function(k,v){
+                        this.k = v
+                    })
+                }
+            }
+            ol.inherits(this._event,ol.events.Event)
+            return new this._event(type,options)
+        }
+      },
       importAnnotations:function() {
         if (this.$els.annotationsfile.files.length === 0) {
             return
@@ -505,7 +521,7 @@
             })
 
             draw.events = {
-              featuremodified:(options && options.featuremodified)||false
+              addfeaturegeometry:(options && options.addfeaturegeometry)||false
             }
             return draw
         }
@@ -528,7 +544,7 @@
             })
 
             draw.events = {
-              featuremodified:(options && options.featuremodified)||false
+              addfeaturegeometry:(options && options.addfeaturegeometry)||false
             }
             return draw
         }
@@ -563,7 +579,7 @@
             })
 
             draw.events = {
-              featuremodified:(options && options.featuremodified)||false
+              addfeaturegeometry:(options && options.addfeaturegeometry)||false
             }
             return draw
         }
@@ -691,7 +707,7 @@
             return null
         }
       },
-      deleteSelectedGeometry:function(f) {
+      deleteSelectedGeometry:function(f,interaction) {
         var indexes = f['selectedIndex']
         if (!indexes) {return}
 
@@ -702,6 +718,8 @@
                 if (deleteIndex < geom.getGeometriesArray().length) {
                     geom.getGeometriesArray().splice(deleteIndex,1)
                     geom.setGeometriesArray(geom.getGeometriesArray())
+                    delete f['selectedIndex']
+                    interaction.dispatchEvent(this.createEvent(interaction,"deletefeaturegeometry",{feature:f,indexes:indexes}))
                     f.getGeometry().changed()
                 }
             } else if (geom instanceof ol.geom.MultiPolygon || geom instanceof ol.geom.MultiPoint || geom instanceof ol.geom.MultiLineString) {
@@ -709,6 +727,8 @@
                 if (deleteIndex < coordinates.length) {
                     coordinates.splice(deleteIndex,1)
                     geom.setCoordinates(coordinates)
+                    delete f['selectedIndex']
+                    interaction.dispatchEvent(this.createEvent(interaction,"deletefeaturegeometry",{feature:f,indexes:indexes}))
                     f.getGeometry().changed()
                 } else {
                     return null
@@ -812,6 +832,21 @@
       keyboardInterFactory:function(options) { 
         var vm = this
         // OpenLayers3 hook for keyboard input
+        vm._deleteSelected = vm._deleteSelected || function (features,selectedFeatures,interaction) {
+            features = features || this.features
+            selectedFeatures = selectedFeatures || vm.selectedFeatures
+            if (vm.tool.selectMode === "feature") {
+                selectedFeatures.forEach(function (feature) {
+                  features.remove(feature)
+                })
+                selectedFeatures.clear()
+            } else if (vm.tool.selectMode === "geometry") {
+                selectedFeatures.forEach(function (feature) {
+                    vm.deleteSelectedGeometry(feature,this)
+                })
+            }
+        }
+
         return function(tool) {
           var keyboardInter = new ol.interaction.Interaction({
             handleEvent: function (mapBrowserEvent) {
@@ -832,7 +867,7 @@
                         if (options && options.deleteSelected) {
                             options.deleteSelected.call(keyboardInter, (tool && tool.features) || vm.features,(tool && tool.selectedFeatures) || vm.selectedFeatures )
                         } else {
-                            vm.deleteSelected.call(keyboardInter, (tool && tool.features) || vm.features,(tool && tool.selectedFeatures) || vm.selectedFeatures )
+                            vm._deleteSelected.call(keyboardInter, (tool && tool.features) || vm.features,(tool && tool.selectedFeatures) || vm.selectedFeatures )
                         }
                         stopEvent = true
                     }
@@ -1005,21 +1040,6 @@
             selectedFeatures.push(feature)
           }
         })
-      },
-      deleteSelected: function (features,selectedFeatures) {
-        features = features || this.features
-        selectedFeatures = selectedFeatures || this.selectedFeatures
-        var vm = this
-        if (this.tool.selectMode === "feature") {
-            selectedFeatures.forEach(function (feature) {
-              features.remove(feature)
-            })
-            selectedFeatures.clear()
-        } else if (this.tool.selectMode === "geometry") {
-            selectedFeatures.forEach(function (feature) {
-                vm.deleteSelectedGeometry(feature)
-            })
-        }
       },
       updateNote: function (save) {
         var note = null

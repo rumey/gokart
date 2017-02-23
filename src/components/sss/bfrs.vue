@@ -1014,7 +1014,7 @@
       }
 
       vm.ui.originPointDraw = vm.annotations.pointDrawFactory({
-        featuremodified:true,
+        addfeaturegeometry:true,
         drawOptions:{
             condition:function(ev) {
                 var feat = (vm.selectedFeatures.getLength() == 1)?vm.selectedFeatures.item(0):null
@@ -1035,7 +1035,7 @@
       })
 
       vm.ui.fireboundaryDraw = vm.annotations.polygonDrawFactory({
-        featuremodified:true,
+        addfeaturegeometry:true,
         drawOptions:{
             condition:function(ev) {
                 var feat = (vm.selectedFeatures.getLength() == 1)?vm.selectedFeatures.item(0):null
@@ -1058,19 +1058,22 @@
         if (vm.selectedFeatures.getLength() === 1){
             var f = vm.selectedFeatures.item(0)
             if (vm.annotations.tool.name === "Bfrs Fire Boundary") {
-                var mp = f.getGeometry().getGeometriesArray().find(function(g){return g instanceof ol.geom.MultiPolygon})
-                if (mp) {
-                    mp.appendPolygon(new ol.geom.Polygon(ev.element.getGeometry().getCoordinates()))
+                var indexes = null
+                var index = f.getGeometry().getGeometriesArray().findIndex(function(g){return g instanceof ol.geom.MultiPolygon})
+                if (index >= 0) {
+                    indexes = [index,f.getGeometry().getGeometriesArray()[index].getPolygons().length]
+                    f.getGeometry().getGeometriesArray()[index].appendPolygon(new ol.geom.Polygon(ev.element.getGeometry().getCoordinates()))
                 } else {
+                    indexes = [f.getGeometry().getGeometriesArray().length,0]
                     f.getGeometry().push(new ol.geom.MultiPolygon([ev.element.getGeometry().getCoordinates()]))
                 }
-                vm.fireboundaryDraw.dispatchEvent(new ol.interaction.Draw.Event("featuremodified",f))
+                vm.fireboundaryDraw.dispatchEvent(vm.annotations.createEvent(vm.fireboundaryDraw,"addfeaturegeometry",{feature:f,indexes:indexes}))
             } else if (f.getGeometry().getGeometriesArray().length > 0 && f.getGeometry().getGeometriesArray()[0] instanceof ol.geom.Point){
                 f.getGeometry().getGeometriesArray()[0] = ev.element.getGeometry()
-                vm.originPointDraw.dispatchEvent(new ol.interaction.Draw.Event("featuremodified",f))
+                vm.originPointDraw.dispatchEvent(vm.annotations.createEvent(vm.originPointDraw,"addfeaturegeometry",{feature:f,indexes:[0]}))
             } else {
                 f.getGeometry().getGeometriesArray().splice(0,0,ev.element.getGeometry())
-                vm.originPointDraw.dispatchEvent(new ol.interaction.Draw.Event("featuremodified",f))
+                vm.originPointDraw.dispatchEvent(vm.annotations.createEvent(vm.originPointDraw,"addfeaturegeometry",{feature:f,indexes:[0]}))
             }
             f.getGeometry().setGeometriesArray(f.getGeometry().getGeometriesArray())
             vm.postModified(f)
@@ -1095,25 +1098,19 @@
                     selectEnabled:false,
                     deleteSelected:function(features,selectedFeatures) {
                         var feature = null
-                        var features = null
                         for(i = selectedFeatures.getLength() - 1;i >= 0;i--) {
                             feature = selectedFeatures.item(i)
                             if (vm.isDeletable(feature)) {
                                 vm.deleteFeature(feature)
                             } else if (vm.isEditable(feature)) {
                                 feature.getGeometry().getGeometriesArray().length = 0
+                                this.dispatchEvent(vm.annotations.createEvent(this,"deletefeatureallgeometries",{feature:feature}))
                                 if (feature["selectedIndex"] !== undefined) {
                                     delete feature["selectedIndex"]
                                 }
-                                feature.getGeometry().setGeometriesArray(feature.getGeometry().getGeometriesArray())
                                 vm.postModified(feature)
                                 feature.changed()
-                                features = features || []
-                                features.push(feature)
                             }
-                        }
-                        if (features) {
-                            this.dispatchEvent(new ol.interaction.Modify.Event("featuresmodified",new ol.Collection(features)))
                         }
                     }
                   }),
@@ -1134,19 +1131,13 @@
                     featuresmodified:true,
                     selectEnabled:false,
                     deleteSelected:function(features,selectedFeatures) {
-                        var features = null
                         selectedFeatures.forEach(function (feature) {
                             if (vm.isEditable(feature) && feature["selectedIndex"] !== undefined) {
-                                vm.annotations.deleteSelectedGeometry(feature)
+                                vm.annotations.deleteSelectedGeometry(feature,this)
                                 vm.selectDefaultGeometry(feature)
                                 vm.postModified(feature)
-                                features = features || []
-                                features.push(feature)
                             }
-                        })
-                        if (features) {
-                            this.dispatchEvent(new ol.interaction.Modify.Event("featuresmodified",new ol.Collection(features)))
-                        }
+                        },this)
                     }
                   }),
               ],
