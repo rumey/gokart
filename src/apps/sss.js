@@ -155,7 +155,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
       tints: {
         'selectedPoint': [['#b43232', '#2199e8']],
         'selectedDivision': [['#000000', '#2199e8'], ['#7c3100','#2199e8'], ['#ff6600', '#ffffff']],
-        'selectedRoadClosurePoint': [['#000000', '#2199e8']],
+        'selectedRoadClosurePoint': [['#000', '#2199e8']],
         'selectedPlusIcon': [['#006400', '#2199e8']],
       }
     },

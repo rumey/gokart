@@ -330,9 +330,10 @@
         } catch(ex) {
             this._event = function(type,options) {
                 ol.events.Event.call(this,type)
+                var ev = this
                 if (options) {
                     $.each(options,function(k,v){
-                        this.k = v
+                        ev[k] = v
                     })
                 }
             }
@@ -520,9 +521,7 @@
               ev.feature.set('createTime',Date.now())
             })
 
-            draw.events = {
-              addfeaturegeometry:(options && options.addfeaturegeometry)||false
-            }
+            draw.events = (options && options.events)||{}
             return draw
         }
       },
@@ -543,9 +542,7 @@
               ev.feature.set('createTime',Date.now())
             })
 
-            draw.events = {
-              addfeaturegeometry:(options && options.addfeaturegeometry)||false
-            }
+            draw.events = (options && options.events)||{}
             return draw
         }
       },
@@ -578,9 +575,7 @@
               }
             })
 
-            draw.events = {
-              addfeaturegeometry:(options && options.addfeaturegeometry)||false
-            }
+            draw.events = (options && options.events)||{}
             return draw
         }
       },
@@ -666,11 +661,12 @@
             return geom.intersectsCoordinate(mapBrowserEvent.coordinate) 
         }
       },
-      getSelectedGeometry:function(f,end) {
-        var indexes = f['selectedIndex']
+      getSelectedGeometry:function(f,indexes,end) {
+        indexes = indexes || f['selectedIndex']
         if (indexes) {
             end = (end === null || end === undefined)?(indexes.length - 1):end
-            if (end >= indexes.length || end < 0) {return null}
+            if (end >= indexes.length) {return null}
+            if (end < 0) {return f.getGeometry()}
             var geom = f.getGeometry()
             for (i = 0;i <= end;i++) {
                 if (geom instanceof ol.geom.GeometryCollection) {
@@ -711,7 +707,7 @@
         var indexes = f['selectedIndex']
         if (!indexes) {return}
 
-        var geom = this.getSelectedGeometry(f,indexes.length - 2)
+        var geom = this.getSelectedGeometry(f,indexes,indexes.length - 2)
         if (geom) {
             var deleteIndex = indexes[indexes.length - 1]
             if (geom instanceof ol.geom.GeometryCollection) {
@@ -883,9 +879,8 @@
               return !stopEvent
             }
           })
-          keyboardInter.events = {
-            featuresmodified:(options && options.featuresmodified)||false
-          }
+          keyboardInter.events = (options && options.events)||{}
+          
           return keyboardInter
         }
       },

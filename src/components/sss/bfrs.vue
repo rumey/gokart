@@ -178,6 +178,7 @@
       map: function () { return this.$root.$refs.app.$refs.map },
       annotations: function () { return this.$root.$refs.app.$refs.annotations },
       active: function () { return this.$root.active},
+      measure: function () { return this.$root.measure },
       info: function () { return this.$root.info },
       setting: function () { return this.$root.setting },
       catalogue: function () { return this.$root.catalogue },
@@ -908,29 +909,6 @@
       },
       setup: function() {
         var vm = this
-        this._selectedFeautures_add = this.selectedFeatures.on('add', function (event) {
-          if (event.element.get('id')) {
-            vm.selectedBushfires.push(event.element.get('id'))
-            if (vm.annotations.tool.selectMode === "geometry") {
-                if (event.element["selectedIndex"] === undefined) {
-                    vm.selectDefaultGeometry(event.element)
-                }
-            }
-            if (vm.selectedOnly) {
-                vm.updateCQLFilter('selectedBushfire')
-            }
-          }
-        })
-        this._selectedFeatures_remove = this.selectedFeatures.on('remove', function (event) {
-          if (event.element.get('id')) {
-            vm.selectedBushfires.$remove(event.element.get('id'))
-            if (vm.selectedOnly) {
-                vm.updateCQLFilter('selectedBushfire')
-            }
-          }
-          //remove the index of the selected geometry in geometry collection
-          //delete event.element['selectedIndex']
-        })
         // enable resource bfrs layer, if disabled
         var catalogue = this.$root.catalogue
         if (!this.bfrsMapLayer) {
@@ -940,7 +918,6 @@
         this.$root.annotations.selectable = [this.bfrsMapLayer]
         this.annotations.setTool()
 
-        var vm = this
         //add feature to place an point based on coordinate
         this.$root.search.setSearchPointFunc(function(searchMethod,coords,name){
             var feat = vm.selectedFeatures.getLength() === 1?vm.selectedFeatures.item(0):null
@@ -967,8 +944,6 @@
         this.$nextTick(this.adjustHeight)
       },
       tearDown:function() {
-        if (this._selectedFeatures_remove) {this.selectedFeatures.unByKey(this._selectedFeatures_remove)}
-        if (this._selectedFeatures_add) {this.selectedFeatures.unByKey(this._selectedFeatures_add)}
         this.selectable = null
       }
     },
@@ -1014,7 +989,9 @@
       }
 
       vm.ui.originPointDraw = vm.annotations.pointDrawFactory({
-        addfeaturegeometry:true,
+        events: {
+            addfeaturegeometry:true
+        },
         drawOptions:{
             condition:function(ev) {
                 var feat = (vm.selectedFeatures.getLength() == 1)?vm.selectedFeatures.item(0):null
@@ -1035,7 +1012,9 @@
       })
 
       vm.ui.fireboundaryDraw = vm.annotations.polygonDrawFactory({
-        addfeaturegeometry:true,
+        events: {
+            addfeaturegeometry:true
+        },
         drawOptions:{
             condition:function(ev) {
                 var feat = (vm.selectedFeatures.getLength() == 1)?vm.selectedFeatures.item(0):null
@@ -1065,15 +1044,15 @@
                     f.getGeometry().getGeometriesArray()[index].appendPolygon(new ol.geom.Polygon(ev.element.getGeometry().getCoordinates()))
                 } else {
                     indexes = [f.getGeometry().getGeometriesArray().length,0]
-                    f.getGeometry().push(new ol.geom.MultiPolygon([ev.element.getGeometry().getCoordinates()]))
+                    f.getGeometry().getGeometriesArray().push(new ol.geom.MultiPolygon([ev.element.getGeometry().getCoordinates()]))
                 }
-                vm.fireboundaryDraw.dispatchEvent(vm.annotations.createEvent(vm.fireboundaryDraw,"addfeaturegeometry",{feature:f,indexes:indexes}))
+                vm.ui.fireboundaryDraw.dispatchEvent(vm.annotations.createEvent(vm.ui.fireboundaryDraw,"addfeaturegeometry",{feature:f,indexes:indexes}))
             } else if (f.getGeometry().getGeometriesArray().length > 0 && f.getGeometry().getGeometriesArray()[0] instanceof ol.geom.Point){
                 f.getGeometry().getGeometriesArray()[0] = ev.element.getGeometry()
-                vm.originPointDraw.dispatchEvent(vm.annotations.createEvent(vm.originPointDraw,"addfeaturegeometry",{feature:f,indexes:[0]}))
+                vm.ui.originPointDraw.dispatchEvent(vm.annotations.createEvent(vm.ui.originPointDraw,"addfeaturegeometry",{feature:f,indexes:[0]}))
             } else {
                 f.getGeometry().getGeometriesArray().splice(0,0,ev.element.getGeometry())
-                vm.originPointDraw.dispatchEvent(vm.annotations.createEvent(vm.originPointDraw,"addfeaturegeometry",{feature:f,indexes:[0]}))
+                vm.ui.originPointDraw.dispatchEvent(vm.annotations.createEvent(vm.ui.originPointDraw,"addfeaturegeometry",{feature:f,indexes:[0]}))
             }
             f.getGeometry().setGeometriesArray(f.getGeometry().getGeometriesArray())
             vm.postModified(f)
@@ -1094,8 +1073,10 @@
                   vm.ui.selectInter,
                   vm.ui.translateInter,
                   vm.annotations.keyboardInterFactory({
-                    featuresmodified:true,
                     selectEnabled:false,
+                    events: {
+                        deletefeatureallgeometries:true
+                    },
                     deleteSelected:function(features,selectedFeatures) {
                         var feature = null
                         for(i = selectedFeatures.getLength() - 1;i >= 0;i--) {
@@ -1128,8 +1109,10 @@
               interactions: [
                   vm.ui.geometrySelectInter,
                   vm.annotations.keyboardInterFactory({
-                    featuresmodified:true,
                     selectEnabled:false,
+                    events:{ 
+                        deletefeaturegeometry:true
+                    },
                     deleteSelected:function(features,selectedFeatures) {
                         selectedFeatures.forEach(function (feature) {
                             if (vm.isEditable(feature) && feature["selectedIndex"] !== undefined) {
@@ -1344,12 +1327,39 @@
         }
       })
 
+      this.measure.register("bfrs:bushfire_dev",this.allFeatures)
+
       bfrsStatus.wait(40,"Listen 'gk-init' event")
       // post init event hookup
       this.$on('gk-init', function () {
         bfrsStatus.progress(80,"Process 'gk-init' event")
         map.olmap.getView().on('propertychange', vm.updateViewport)
 
+        vm.selectedFeatures.on('add', function (event) {
+          if (event.element.get('toolName') === "Bfrs Origin Point") {
+            vm.selectedBushfires.push(event.element.get('id'))
+            if (vm.annotations.tool.selectMode === "geometry") {
+                if (event.element["selectedIndex"] === undefined) {
+                    vm.selectDefaultGeometry(event.element)
+                }
+            }
+            if (vm.selectedOnly) {
+                vm.updateCQLFilter('selectedBushfire')
+            }
+          }
+        })
+        vm.selectedFeatures.on('remove', function (event) {
+          if (event.element.get('toolName') === "Bfrs Origin Point") {
+            vm.selectedBushfires.$remove(event.element.get('id'))
+            if (vm.selectedOnly) {
+                vm.updateCQLFilter('selectedBushfire')
+            }
+          }
+          //remove the index of the selected geometry in geometry collection
+          //delete event.element['selectedIndex']
+        })
+
+        // enable resource bfrs layer, if disabled
         //vm.annotations.setDefaultTool('bfrs','Pan')
         vm.tools = vm.annotations.tools.filter(function (t) {
           return t.scope && t.scope.indexOf("bfrs") >= 0

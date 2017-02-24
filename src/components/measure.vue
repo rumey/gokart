@@ -135,9 +135,9 @@
     // methods callable from inside the template
     methods: {
       //layer can be layer id, layer setting
-      register:function(layer,features) {
+      register:function(layer,features,filter) {
         this._measureLayers = this._measureLayers || []
-        this._measureLayers.push([layer["id"] || layer,features || null])
+        this._measureLayers.push([layer["id"] || layer,features || null, filter||null,false,{}])
       },
       //layer can be layerid, layer settings, and memeber of this._measureLayers
       enableFeatureMeasurement:function(layer,enable) {
@@ -146,6 +146,41 @@
         if (!layer) return
         if(enable) {
             //enable
+            if (!layer[3]) {
+                //not initialized, 
+                //register the add /remove listener for features
+                layer[4]["features_remove"] = layer[4]["features_remove"] || layer[1].on("remove",function(ev){
+                    var feature = ev.element
+                    if (feature.tooltip) {
+                        vm.removeTooltip(feature)
+                    }
+                })
+
+                layer[4]["features_add"] = layer[4]["features_add"] || layer[1].on("add",function(ev){
+                    if (vm.map.getMapLayer(layer[0])) {
+                        var feature = ev.element
+                        if (!layer[2] || layer[2](feature)) {
+                            var tool = vm.annotations.getTool(feature.get('toolName'))
+                            if (!tool) {return}
+                            if (tool.measureLength || tool.measureArea) {
+                                if (vm.measureFeature) {
+                                    vm.createTooltip(feature,tool.measureLength,tool.measureArea)
+                                    vm.measuring(feature,tool.measureLength,tool.measureArea,false,"show")
+                                }
+                            }
+                        }
+                    }
+                })
+
+
+                var mapLayer = vm.map.getMapLayer(layer[0])
+                if (mapLayer && !mapLayer._change_opacity) {
+                    mapLayer._change_opacity = mapLayer._change_opacity || mapLayer.on("change:opacity",vm._changeOpacityHandler)
+                }
+
+                layer[3] = true
+            }
+
             $.each(layer[1].getArray(),function(index,feature){
                 var tool = vm.annotations.getTool(feature.get('toolName'))
                 if (!tool) {return}
@@ -154,7 +189,7 @@
                     vm.showTooltip(feature,true)
                 } else {
                     vm.createTooltip(feature,tool.measureLength,tool.measureArea)
-                    vm.measuring(feature,tool.measureLength,tool.measureArea,"show")
+                    vm.measuring(feature,tool.measureLength,tool.measureArea,false,"show")
                 }
             })
         } else {
@@ -204,7 +239,8 @@
             }(vm.drawingFeature,measureLength,measureArea,measureBearing))
         }
       },
-      measuring: function(feature,measureLength,measureArea,measureBearing,mode) {
+      measuring: function(feature,measureLength,measureArea,measureBearing,mode,indexes) {
+        var vm = this
         this._measure = this._measure || function(feature,geom,tooltipElement,tooltip,measurement,measureLength,measureArea,measureBearing,mode) {
             if (!tooltipElement) {
                 return measurement
@@ -216,26 +252,25 @@
                     measurement = measurement || {}
                     var length = null
                     if (!measurement["length"] || mode === "drawing") {
-                        var geom = feature.getGeometry()
                         if (geom instanceof ol.geom.LineString) {
-                            length = this.getLength(geom.getCoordinates())
+                            length = vm.getLength(geom.getCoordinates())
                         } else if(geom instanceof ol.geom.Polygon) {
-                            length = this.getLength(geom.getLinearRing(0).getCoordinates())
+                            length = vm.getLength(geom.getLinearRing(0).getCoordinates())
                         }
                         measurement["length"] = length
                     } else {
                         length = measurement["length"]
                     }
-                    tooltipElement.find(".length").html(this.formatLength(length))
-                    return measurement
+                    if (measureLength) {
+                        tooltipElement.find(".length").html(vm.formatLength(length))
+                    }
                 }
                 if (measureArea && geom instanceof ol.geom.Polygon) {
                     measurement = measurement || {}
                     var area = null
                     if (!measurement["area"] || mode === "drawing") {
-                        var geom = feature.getGeometry()
                         /*
-                        var sourceProj = this.$root.map.olmap.getView().getProjection()
+                        var sourceProj = vm.$root.map.olmap.getView().getProjection()
                         var geom = (polygon.clone().transform(
                             sourceProj, 'EPSG:4326'))
                         */
@@ -250,17 +285,16 @@
                     } else {
                         area = measurement["area"]
                     }
-                    tooltipElement.find(".area").html(this.formatArea(area))
+                    tooltipElement.find(".area").html(vm.formatArea(area))
                 }
                 if (measureBearing && geom instanceof ol.geom.LineString) {
                     measurement = measurement || {}
                     var bearing = null
                     if (!measurement["bearing"] || mode === "drawing") {
-                        var geom = feature.getGeometry()
                         var coordinates = geom.getCoordinates()
-                        bearing = Math.round(this.getBearing(coordinates[0],coordinates[coordinates.length - 1]) * 100) / 100 + "&deg;"
+                        bearing = Math.round(vm.getBearing(coordinates[0],coordinates[coordinates.length - 1]) * 100) / 100 + "&deg;"
     
-                        bearing = this.formatLength(measurement["length"],"km") + "\n" + this.formatLength(measurement["length"],"nm") + "\n" + bearing
+                        bearing = vm.formatLength(measurement["length"],"km") + "\n" + vm.formatLength(measurement["length"],"nm") + "\n" + bearing
                         measurement["bearing"] = bearing
                     } else {
                         bearing = measurement["bearing"]
@@ -289,9 +323,9 @@
                 measurement = measurement || []
                 $.each(geom.getPolygons(),function(index,p){
                     if (index >= measurement.length) {
-                        measurement.push(this._measure(feature,p,tooltipElement[index],tooltip[index],null,measureLength,measureArea,measureBearing,mode))
+                        measurement.push(vm._measure(feature,p,tooltipElement[index],tooltip[index],null,measureLength,measureArea,measureBearing,mode))
                     } else {
-                        measurement[index] = this._measure(feature,p,tooltipElement[index],tooltip[index],measurement[index],measureLength,measureArea,measureBearing,mode)
+                        measurement[index] = vm._measure(feature,p,tooltipElement[index],tooltip[index],measurement[index],measureLength,measureArea,measureBearing,mode)
                     }
                 })
                 return measurement
@@ -299,9 +333,9 @@
                 measurement = measurement || []
                 $.each(geom.getLineStrings(),function(index,p){
                     if (index >= measurement.length) {
-                        measurement.push(this._measure(feature,p,tooltipElement[index],tooltip[index],null,measureLength,measureArea,measureBearing,mode))
+                        measurement.push(vm._measure(feature,p,tooltipElement[index],tooltip[index],null,measureLength,measureArea,measureBearing,mode))
                     } else {
-                        measurement[index] = this._measure(feature,p,tooltipElement[index],tooltip[index],measurement[index],measureLength,measureArea,measureBearing,mode)
+                        measurement[index] = vm._measure(feature,p,tooltipElement[index],tooltip[index],measurement[index],measureLength,measureArea,measureBearing,mode)
                     }
                 })
                 return measurement
@@ -309,9 +343,9 @@
                 measurement = measurement || []
                 $.each(geom.getGeometriesArray(),function(index,p){
                     if (index >= measurement.length) {
-                        measurement.push(this._measure(feature,p,tooltipElement[index],tooltip[index],null,measureLength,measureArea,measureBearing,mode))
+                        measurement.push(vm._measure(feature,p,tooltipElement[index],tooltip[index],null,measureLength,measureArea,measureBearing,mode))
                     } else {
-                        measurement[index] = this._measure(feature,p,tooltipElement[index],tooltip[index],measurement[index],measureLength,measureArea,measureBearing,mode)
+                        measurement[index] = vm._measure(feature,p,tooltipElement[index],tooltip[index],measurement[index],measureLength,measureArea,measureBearing,mode)
                     }
                 })
                 return measurement
@@ -319,9 +353,20 @@
                 return measurement
             }
         }
-        var measurement = this._measure(feature,feature.geom,feature.tooltipElement,feature.tooltip,feature.get('measurement'),measureLength,measureArea,measureBearing,mode)
-        if (measurement && measurement !== feature.get('measurement')) {
-            feature.set('measurement',measurement,true)
+        if (indexes) {
+            if (!feature.get('measurement')) {
+                feature.set('measurement',[],true)
+            }
+            var geom = this.annotations.getSelectedGeometry(feature,indexes)
+            var measurement = this.getMeasurementObject(feature.get('measurement'),true,indexes.length - 2)
+            measurement.splice(indexes[indexes.length - 1],0,(geom instanceof ol.geom.GeometryCollection || geom instanceof ol.geom.MultiPoint || geom instanceof ol.geom.MultiLineString || geom instanceof ol.geom.MultiPolygon)?[]:{})
+            measurement = measurement[indexes[indexes.length - 1]]
+            this._measure(feature,geom,this.getMeasurementObject(feature.tooltipElement,indexes),this.getMeasurementObject(feature.tooltip,indexes),measurement,measureLength,measureArea,measureBearing,mode)
+        } else {
+            var measurement = this._measure(feature,feature.getGeometry(),feature.tooltipElement,feature.tooltip,feature.get('measurement'),measureLength,measureArea,measureBearing,mode)
+            if (measurement && measurement !== feature.get('measurement')) {
+                feature.set('measurement',measurement,true)
+            }
         }
       },
       endMeasure: function(feature) {
@@ -339,7 +384,7 @@
                 tooltip.setOffset([0, -7])
             }
         }
-        this._endMeasure(f.tooltipElement,f.tooltip)
+        this._endMeasure(feature.tooltipElement,feature.tooltip)
       },
       showTooltip:function(feature,show) {
         var vm = this
@@ -361,12 +406,12 @@
                         return false
                     } else {
                         vm.map.olmap.addOverlay(tooltip)
+                        tooltip.setOffset([0, -7])
                         return true
                     }
                 } else {
                     if (tooltip.getMap()) {
                         vm.map.olmap.removeOverlay(tooltip)
-                        tooltip.setOffset([0, -7])
                         return true
                     } else {
                         //already removed, return
@@ -387,10 +432,27 @@
             vm._showTooltip(feature.tooltip,show)
         }
       },
-      createTooltip: function (feature,measureLength,measureArea,measureBearing) {
+      getMeasurementObject:function(obj,indexes,createIfEmpty,end) {
+        if (obj === null || obj === undefined) {
+            return null
+        }
+        end = (end === null || end === undefined)?(indexes.length - 1):end
+        for (i = 0; i <= end;i++){
+            if (!obj[indexes[i]] && createIfEmpty) {
+                obj[indexes[i]] = []
+            }
+            if (obj[indexes[i]] ) {
+                obj = obj[indexes[i]]
+            } else {
+                return null
+            }
+        }
+        return obj
+      },
+      createTooltip: function (feature,measureLength,measureArea,measureBearing,indexes) {
         var vm = this
 
-        this._createTooltipElement = this._createTooltipElement || function(geom) {
+        this._createTooltipElement = this._createTooltipElement || function(geom,measureLength,measureArea,measureBearing) {
             if (geom instanceof ol.geom.Point) {
                 return null
             } else if (
@@ -415,19 +477,19 @@
             } else if(geom instanceof ol.geom.MultiLineString && (measureLength || measureBearing)) {
                 var elements = []
                 $.each(geom.getLineStrings(),function(index,g) {
-                    elements.push(vm._createTooltipElement(g))
+                    elements.push(vm._createTooltipElement(g,measureLength,measureArea,measureBearing))
                 })
                 return elements
             } else if(geom instanceof ol.geom.MultiPolygon && (measureLength || measureArea)) {
                 var elements = []
                 $.each(geom.getPolygons(),function(index,g) {
-                    elements.push(vm._createTooltipElement(g))
+                    elements.push(vm._createTooltipElement(g,measureLength,measureArea,measureBearing))
                 })
                 return elements
             } else if(geom instanceof ol.geom.GeometryCollection && (measureLength || measureArea || measureBearing)) {
                 var elements = []
                 $.each(geom.getGeometriesArray(),function(index,g) {
-                    elements.push(vm._createTooltipElement(g))
+                    elements.push(vm._createTooltipElement(g,measureLength,measureArea,measureBearing))
                 })
                 return elements
             } else {
@@ -455,17 +517,31 @@
                 return measureTooltip
             }
         }
-
-        if (feature.tooltipElement === null || feature.tooltipeElement === undefined) {
+    
+        var tooltipElement = null
+        if (feature.tooltipElement === null || feature.tooltipElement === undefined) {
             //console.log("Create measure tooltip element")
-            feature['tooltipElement'] = this._createTooltipElement(feature.getGeometry())
+            feature['tooltipElement'] = this._createTooltipElement(feature.getGeometry(),measureLength,measureArea,measureBearing)
+            tooltipElement = feature['tooltipElement']
+        } else if (Array.isArray(indexes)) {
+            tooltipElement = this.getMeasurementObject(feature.tooltipElement,indexes,true,indexes.length - 2)
+            var geom = this.annotations.getSelectedGeometry(feature,indexes)
+            tooltipElement.splice(indexes[indexes.length - 1],0,this._createTooltipElement(geom,measureLength,measureArea,measureBearing))
+            tooltipElement = tooltipElement[indexes[indexes.length - 1]] 
+        } else {
+            return
         }
-        if (feature.tooltip === null || feature.tooltip === undefined) {
+
+        if (feature.tooltip === null || feature.tooltip === undefined) { 
             //console.log("Create measure tooltip overlay")
             feature['tooltip'] = this._createTooltip(feature['tooltipElement'])
+        } else if(Array.isArray(indexes)){
+            var tooltip = this.getMeasurementObject(feature.tooltip,indexes,true,indexes.length - 2)
+            tooltip.splice(indexes[indexes.length - 1],0,this._createTooltip(tooltipElement))
         }
+
       },
-      removeTooltip: function (feature,removeTooltipElement) {
+      removeTooltip: function (feature,removeTooltipElement,indexes) {
         var vm = this
         this._removeTooltip = this._removeTooltip || function(tooltip) {
             if (!tooltip) {
@@ -489,18 +565,34 @@
                     vm._removeTooltipElement(t)
                 })
             } else {
-                tooltipElement.parentNode.removeChild(tooltipElement)
+                tooltipElement.remove()
             }
         }
 
         removeTooltipElement = removeTooltipElement === undefined?true:removeTooltipElement
         if (feature.tooltip) {
-            this._removeTooltip(feature.tooltip)
-            delete feature.tooltip
+            if(indexes) {
+                var tooltip = this.getMeasurementObject(feature.tooltip,indexes,false,indexes.length - 2)
+                if (tooltip && tooltip[indexes[indexes.length - 1]]) {
+                    this._removeTooltip(tooltip[indexes[indexes.length - 1]])
+                    tooltip.splice(indexes[indexes.length - 1],1)
+                }
+            } else {
+                this._removeTooltip(feature.tooltip)
+                delete feature.tooltip
+            }
         }
         if (removeTooltipElement && feature.tooltipElement) {
-            this._removeTooltipElement(feature.tooltipElement)
-            delete feature.tooltipElement
+            if (indexes) {
+                var tooltipElement = this.getMeasurementObject(feature.tooltipElement,indexes,false,indexes.length - 2)
+                if (tooltipElement && tooltipElement[indexes[indexes.length - 1]]) {
+                    this._removeTooltipElement(tooltipElement[indexes[indexes.length - 1]])
+                    tooltipElement.splice(indexes[indexes.length - 1],1)
+                }
+            } else {
+                this._removeTooltipElement(feature.tooltipElement)
+                delete feature.tooltipElement
+            }
         }
       },
       getLength: function(coordinates) {
@@ -681,41 +773,23 @@
             measureSnap
         ]
       }
-      $.each(vm._measureLayers,function(index,layer) {
-          layer[1].on("remove",function(ev){
-            var feature = ev.element
-            if (feature.tooltip) {
-                vm.removeTooltip(feature)
-            }
-          })
 
-          layer[1].on("add",function(ev){
-            if (vm.map.getMapLayer(layer[0])) {
-                var feature = ev.element
-                var tool = vm.annotations.getTool(feature.get('toolName'))
-                if (!tool) {return}
-                if (tool.measureLength || tool.measureArea) {
-                    if (vm.measureFeature) {
-                        vm.createTooltip(feature,tool.measureLength,tool.measureArea)
-                        vm.measuring(feature,tool.measureLength,tool.measureArea,"show")
-                    }
-                }
-            }
-
-          })
-      })
+      //add measure tooltips when adding annotation layer and measureFeature is true
+      vm._changeOpacityHandler = function(ev) {
+        if (!vm.measureFeature) { return }
+        if (ev.target.get(ev.key) === 0) {
+            vm.enableFeatureMeasurement(ev.target.get('id'),false)
+        } else if(ev.oldValue === 0) {
+            vm.enableFeatureMeasurement(ev.target.get('id'),true)
+        }
+      }
       var featureChanged = function(feature){
         var tool = vm.annotations.getTool(feature.get('toolName'))
         if (!tool) {return}
-        if (tool.measureLength) {
-            feature.unset('length',true)
-        }
-        if (tool.measureArea) {
-            feature.unset('area',true)
-        }
+        feature.unset('measurement',true)
         if (feature.tooltip) {
             if (vm.measureFeature) {
-                vm.measuring(feature,tool.measureLength,tool.measureArea,"show")
+                vm.measuring(feature,tool.measureLength,tool.measureArea,false,"show")
                 //console.log("Recalculated")
             } else {
                 vm.removeTooltip(feature,false)
@@ -734,10 +808,26 @@
         featureChanged(ev.feature)
       }
       var addFeatureGeometryListener = function(ev) {
+        var tool = ev.feature.get('toolName')
+        tool = tool?vm.annotations.getTool(tool):null
+        if (!tool) {return}
+        
+        vm.createTooltip(ev.feature,tool.measureLength,tool.measureArea,false,ev.indexes)
+        vm.measuring(ev.feature,tool.measureLength,tool.measureArea,false,"show",ev.indexes) 
       }
       var deleteFeatureGeometryListener = function(ev) {
+        var tool = ev.feature.get('toolName')
+        tool = tool?vm.annotations.getTool(tool):null
+        if (!tool) {return}
+        
+        vm.removeTooltip(ev.feature,true,ev.indexes) 
       }
       var deleteFeatureAllGeometriesListener = function(ev) {
+        var tool = ev.feature.get('toolName')
+        tool = tool?vm.annotations.getTool(tool):null
+        if (!tool) {return}
+        
+        vm.removeTooltip(ev.feature,true) 
       }
 
       this.annotations.tools.push(measureArea)
@@ -749,29 +839,13 @@
           measureStatus.progress(50,"Process 'gk-init' event")
         
           //add measure tooltips when adding annotation layer and measureFeature is true
-          var changeOpacityHandler = function(ev) {
-            if (!vm.measureFeature) { return }
-            if (ev.target.get(ev.key) === 0) {
-                vm.enableFeatureMeasurement(ev.target.get('id'),false)
-            } else if(ev.oldValue === 0) {
-                vm.enableFeatureMeasurement(ev.target.get('id'),true)
-            }
-          }
-
-          $.each(vm._measureLayers,function(index,layer) {
-              var mapLayer = vm.map.getMapLayer(layer[0])
-              if (mapLayer) {
-                mapLayer.on("change:opacity",changeOpacityHandler)
-              }
-          })
-
           vm.map.olmap.getLayers().on("add",function(ev){
               var layer = vm._measureLayers.find(function(l){return l[0] === ev.element.get('id')})
               if (layer) {
                   if (vm.measureFeature) {
                       vm.enableFeatureMeasurement(layer,true)
                   }
-                  ev.element.on("change:opacity",changeOpacityHandler)
+                  ev.element._change_opacity = ev.element._change_opacity || ev.element.on("change:opacity",vm._changeOpacityHandler)
               }
           })
 
@@ -779,6 +853,10 @@
           vm.map.olmap.getLayers().on("remove",function(ev){
               var layer = vm._measureLayers.find(function(l){return l[0] === ev.element.get('id')})
               if (layer) {
+                  if (ev.element._change_opacity) {
+                    ev.element.unByKey(ev.element._change_opacity)
+                    delete ev.element._change_opacity
+                  }
                   if (vm.measureFeature) {
                       vm.enableFeatureMeasurement(layer,false)
                   }
@@ -799,15 +877,22 @@
                             interaction.on("addfeaturegeometry",addFeatureGeometryListener)
                         }
                         if (interaction.events && interaction.events["deletefeaturegeometry"]) {
-                            interaction.on("deletefeaturegeometry",deleteFeatureGeometry)
+                            interaction.on("deletefeaturegeometry",deleteFeatureGeometryListener)
                         }
                         if (interaction.events && interaction.events["deletefeatureallgeometries"]) {
-                            interaction.on("deletefeatureallgeometries",deleteFeaturAllGeometries)
+                            interaction.on("deletefeatureallgeometries",deleteFeatureAllGeometriesListener)
                         }
                         processedInteractions.push(interaction)
                     }
                 })
               })
+
+              //initialize measure layers
+              if (vm.measureFeature) {
+                  $.each(vm._measureLayers,function(index,layer){
+                    vm.enableFeatureMeasurement(layer,true)
+                  })
+              }
 
               measureStatus.end()
           })
