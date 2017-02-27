@@ -144,6 +144,7 @@
         fields: ['id', 'name'],
         drawings:new ol.Collection(),
         allFeatures: new ol.Collection(),
+        editableFeatures:new ol.Collection(),
         extentFeatures: [],
         selectedBushfires: [],
         bushfiresfile:'',
@@ -205,31 +206,6 @@
       },
       bfrsMapLayer: function() {
         return this.$root.map?this.$root.map.getMapLayer(this.bfrsLayer):undefined
-      },
-      editableFeatures:function() {
-        if (this.whoami.bushfire === undefined) {
-            this._editableFeatures = (this._editableFeatures && this._editableFeatures !== this.allFeatures && this._editableFeatures.getLength() == 0)?this._editableFeatures:new ol.Collection()
-        } else if (this.whoami.bushfire["initital.edit"] && this.whoami.bushfire["final.edit"] && this.whoami.bushfire["final_authorised.edit"]) {
-            this._editableFeatures = this.allFeatures
-        } else if (!this.whoami.bushfire["initital.edit"] && !this.whoami.bushfire["final.edit"] && !this.whoami.bushfire["final_authorised.edit"]) {
-            this._editableFeatures = (this._editableFeatures && this._editableFeatures !== this.allFeatures && this._editableFeatures.getLength() == 0)?this._editableFeatures:new ol.Collection()
-        } else if (!this.allFeatures.getArray().find(function(bushfire){return !this.isEditable(bushfire)},this)) {
-            this._editableFeatures = this.allFeatures
-        } else {
-            var vm = this
-            if (this._editableFeatures && this._editableFeatures !== this.allFeatures) {
-                this._editableFeatures.clear()
-            } else {
-                this._editableFeatures = new ol.Collection()
-            }
-            
-            this.allFeatures.forEach(function(bushfire){
-                if (this.isEditable(bushfire)) {
-                    this._editableFeatures.push(bushfire)
-                }
-            },this)
-        }
-        return this._editableFeatures
       },
       bushfireStyleFunc:function() {
         if (!this._bushfireStyleFunc) {
@@ -482,8 +458,8 @@
                 console.log("Delete feature " + feat.get('label'))
                 vm.bfrsMapLayer.getSource().removeFeature(feat)
                 vm.allFeatures.remove(feat)
-                if (vm._editableFeatures && vm._editableFeatures !== vm.allFeatures) {
-                    vm._editableFeatures.remove(feat)
+                if (vm.editableFeatures) {
+                    vm.editableFeatures.remove(feat)
                 }
                 vm.selectedFeatures.remove(feat)
                 var index = vm.extentFeatures.findIndex(function(f){ return f == feat})
@@ -855,6 +831,9 @@
             allFeatures.sort(vm.featureOrder)
             vm.allFeatures.clear()
             vm.allFeatures.extend(allFeatures)
+            //
+            vm.editableFeatures.clear()
+            vm.editableFeatures.extend(allFeatures)
         }
         if (runNow) {
             updateFeatureFilterFunc()
@@ -962,31 +941,10 @@
       vm.ui.selectInter = vm.annotations.selectInterFactory()(toolConfig)
       vm.ui.geometrySelectInter = vm.annotations.selectInterFactory()($.extend({selectMode:"geometry"},toolConfig))
 
-      var updateModifyInter = function() {
-          if (vm._editableFeatures !== vm.editableFeatures) {
-            //editable features are changed
-            var modifyInter = vm.annotations.modifyInterFactory()({features:vm.editableFeatures,mapLayers:function(layer){return layer.get("id") === "bfrs:bushfire_dev" }})
-            modifyInter.on("featuresmodified",function(ev){
-                vm.postModified(ev.features.getArray())
-            })    
-            if (vm.ui.modifyTool) {
-                var interactions = vm.ui.modifyTool["interactions"]
-                if (interactions[interactions.length - 1] instanceof ol.interaction.Modify) {
-                    if (vm.annotations.tool === vm.ui.modifyTool) {
-                        //deactive the old modify interaction
-                        vm.map.olmap.removeInteraction(interactions[interactions.length - 1])
-                    }
-                    interactions[interactions.length - 1] = modifyInter
-                } else {
-                    interactions.push(modifyInter)
-                }
-                if (vm.annotations.tool === vm.ui.modifyTool) {
-                    //active the new modify interaction
-                    vm.map.olmap.addInteraction(modifyInter)
-                }
-            }
-          }
-      }
+      vm.ui.modifyInter = vm.annotations.modifyInterFactory()({features:vm.editableFeatures,mapLayers:function(layer){return layer.get("id") === "bfrs:bushfire_dev" }})
+      vm.ui.modifyInter.on("featuresmodified",function(ev){
+          vm.postModified(ev.features.getArray())
+      })    
 
       vm.ui.originPointDraw = vm.annotations.pointDrawFactory({
         events: {
@@ -1123,6 +1081,7 @@
                         },this)
                     }
                   }),
+                  vm.ui.modifyInter
               ],
               selectMode:"geometry",
               keepSelection:true,
@@ -1197,7 +1156,7 @@
         getFeatureInfo:function (f) {
             return {name:f.get("name"), img:map.getBlob(f, ['icon', 'tint']), comments:"TBD"}
         },
-        refresh: 60,
+        //refresh: 60,
         getUpdatedTime:function(features) {
             var updatedTime = null
             $.each(features,function(index,f){
@@ -1249,7 +1208,6 @@
                 }
                 vm.updateFeatureFilter(true)
 
-                updateModifyInter()
                 if (vm.whoami['bushfire']["permissionChanged"]) {
                     delete vm.whoami['bushfire']["permissionChanged"]
                     vm.revision += 1

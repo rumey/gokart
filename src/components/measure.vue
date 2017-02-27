@@ -189,6 +189,8 @@
                     vm.showTooltip(feature,true)
                 } else {
                     vm.createTooltip(feature,tool.measureLength,tool.measureArea)
+                }
+                if (!feature.get("measurement")) {
                     vm.measuring(feature,tool.measureLength,tool.measureArea,false,"show")
                 }
             })
@@ -353,19 +355,21 @@
                 return measurement
             }
         }
-        if (indexes) {
-            if (!feature.get('measurement')) {
-                feature.set('measurement',[],true)
-            }
+
+        if(indexes && feature.get('measurement') !== undefined && feature.get('measurement') !== null) {
             var geom = this.annotations.getSelectedGeometry(feature,indexes)
-            var measurement = this.getMeasurementObject(feature.get('measurement'),true,indexes.length - 2)
-            measurement.splice(indexes[indexes.length - 1],0,(geom instanceof ol.geom.GeometryCollection || geom instanceof ol.geom.MultiPoint || geom instanceof ol.geom.MultiLineString || geom instanceof ol.geom.MultiPolygon)?[]:{})
-            measurement = measurement[indexes[indexes.length - 1]]
-            this._measure(feature,geom,this.getMeasurementObject(feature.tooltipElement,indexes),this.getMeasurementObject(feature.tooltip,indexes),measurement,measureLength,measureArea,measureBearing,mode)
+            var measurement = this.getMeasurementObject(feature.get('measurement'),indexes,true,indexes.length - 2)
+            measurement.splice(indexes[indexes.length - 1],0,(geom instanceof ol.geom.GeometryCollection || geom instanceof ol.geom.MultiPoint || geom instanceof ol.geom.MultiLineString || geom instanceof ol.geom.MultiPolygon)?[]:(geom instanceof ol.geom.Point?null:{}))
+            if (vm.measureFeature) {
+                measurement = measurement[indexes[indexes.length - 1]]
+                this._measure(feature,geom,this.getMeasurementObject(feature.tooltipElement,indexes),this.getMeasurementObject(feature.tooltip,indexes),measurement,measureLength,measureArea,measureBearing,mode)
+            }
         } else {
-            var measurement = this._measure(feature,feature.getGeometry(),feature.tooltipElement,feature.tooltip,feature.get('measurement'),measureLength,measureArea,measureBearing,mode)
-            if (measurement && measurement !== feature.get('measurement')) {
-                feature.set('measurement',measurement,true)
+            if (vm.measureFeature || (feature.get('measurement') !== undefined && feature.get('measurement') !== null)) {
+                var measurement = this._measure(feature,feature.getGeometry(),feature.tooltipElement,feature.tooltip,feature.get('measurement'),measureLength,measureArea,measureBearing,mode)
+                if (measurement && measurement !== feature.get('measurement')) {
+                    feature.set('measurement',measurement,true)
+                }
             }
         }
       },
@@ -388,17 +392,17 @@
       },
       showTooltip:function(feature,show) {
         var vm = this
-        //return true, if show; return false, if already showed before.
+        //return true, if show/unshow the tootip; return false, if already showed/unshowed before.
         vm._showTooltip = vm._showTooltip || function(tooltip,show) {
             if (!tooltip) {
                 return true
             } else if (Array.isArray(tooltip)) {
-                var show = false
+                var process= true
                 $.each(tooltip,function(index,t){
-                    show = vm._showTooltip(t)
-                    if (show === false) {return false}
+                    process = vm._showTooltip(t,show)
+                    if (process === false) {return false}
                 })
-                return show
+                return process
             } else {
                 if (show) {
                     if (tooltip.getMap()) {
@@ -433,21 +437,41 @@
         }
       },
       getMeasurementObject:function(obj,indexes,createIfEmpty,end) {
-        if (obj === null || obj === undefined) {
+        if (obj === undefined || obj === null) {
             return null
         }
         end = (end === null || end === undefined)?(indexes.length - 1):end
+        if (end < 0) {return obj}
         for (i = 0; i <= end;i++){
             if (!obj[indexes[i]] && createIfEmpty) {
                 obj[indexes[i]] = []
             }
-            if (obj[indexes[i]] ) {
-                obj = obj[indexes[i]]
-            } else {
-                return null
-            }
+            obj = obj[indexes[i]]
         }
         return obj
+      },
+      removeMeasurementObject:function(feature,property,indexes,removeFunc,isProperty){
+        var measurementObj = this.getMeasurementObject(isProperty?feature.get(property):feature[property],indexes,false,indexes.length - 2)
+        if (measurementObj) {
+            if (measurementObj[indexes[indexes.length - 1]] && removeFunc) {
+                removeFunc(measurementObj[indexes[indexes.length - 1]])
+            }
+            //try to remove the empty array if the remove object is the only member 
+            measurementObj.splice(indexes[indexes.length - 1],1)
+            for(i = indexes.length - 3;i >= -1 && measurementObj.length === 0; i--) {
+                measurementObj = this.getMeasurementObject(isProperty?feature.get(property):feature[property],indexes,false,i)
+                measurementObj.splice(indexes[i + 1],1)
+            }
+            if (isProperty) {
+                if (feature.get(property) && feature.get(property).length === 0) {
+                    feature.unset(property,true)
+                 }
+            } else {
+                if (feature[property] && feature[property].length === 0) {
+                    delete feature[property]
+                 }
+            }
+        }
       },
       createTooltip: function (feature,measureLength,measureArea,measureBearing,indexes) {
         var vm = this
@@ -519,10 +543,14 @@
         }
     
         var tooltipElement = null
-        if (feature.tooltipElement === null || feature.tooltipElement === undefined) {
+        if (feature.tooltipElement === undefined || feature.tooltipElement === null) {
             //console.log("Create measure tooltip element")
-            feature['tooltipElement'] = this._createTooltipElement(feature.getGeometry(),measureLength,measureArea,measureBearing)
-            tooltipElement = feature['tooltipElement']
+            if (vm.measureFeature) {
+                tooltipElement = this._createTooltipElement(feature.getGeometry(),measureLength,measureArea,measureBearing)
+                if (tooltipElement && (!Array.isArray(tooltipElement) || tooltipElement.length > 0)) {
+                    feature['tooltipElement'] = tooltipElement
+                }
+            }
         } else if (Array.isArray(indexes)) {
             tooltipElement = this.getMeasurementObject(feature.tooltipElement,indexes,true,indexes.length - 2)
             var geom = this.annotations.getSelectedGeometry(feature,indexes)
@@ -532,9 +560,11 @@
             return
         }
 
-        if (feature.tooltip === null || feature.tooltip === undefined) { 
+        if (feature.tooltip === undefined || feature.tooltip === null) { 
             //console.log("Create measure tooltip overlay")
-            feature['tooltip'] = this._createTooltip(feature['tooltipElement'])
+            if (vm.measureFeature && feature['tooltipElement']) {
+                feature['tooltip'] = this._createTooltip(feature['tooltipElement'])
+            }
         } else if(Array.isArray(indexes)){
             var tooltip = this.getMeasurementObject(feature.tooltip,indexes,true,indexes.length - 2)
             tooltip.splice(indexes[indexes.length - 1],0,this._createTooltip(tooltipElement))
@@ -572,11 +602,7 @@
         removeTooltipElement = removeTooltipElement === undefined?true:removeTooltipElement
         if (feature.tooltip) {
             if(indexes) {
-                var tooltip = this.getMeasurementObject(feature.tooltip,indexes,false,indexes.length - 2)
-                if (tooltip && tooltip[indexes[indexes.length - 1]]) {
-                    this._removeTooltip(tooltip[indexes[indexes.length - 1]])
-                    tooltip.splice(indexes[indexes.length - 1],1)
-                }
+                this.removeMeasurementObject(feature,"tooltip",indexes,this._removeTooltip)
             } else {
                 this._removeTooltip(feature.tooltip)
                 delete feature.tooltip
@@ -584,11 +610,7 @@
         }
         if (removeTooltipElement && feature.tooltipElement) {
             if (indexes) {
-                var tooltipElement = this.getMeasurementObject(feature.tooltipElement,indexes,false,indexes.length - 2)
-                if (tooltipElement && tooltipElement[indexes[indexes.length - 1]]) {
-                    this._removeTooltipElement(tooltipElement[indexes[indexes.length - 1]])
-                    tooltipElement.splice(indexes[indexes.length - 1],1)
-                }
+                this.removeMeasurementObject(feature,"tooltipElement",indexes,this._removeTooltipElement)
             } else {
                 this._removeTooltipElement(feature.tooltipElement)
                 delete feature.tooltipElement
@@ -792,7 +814,7 @@
                 vm.measuring(feature,tool.measureLength,tool.measureArea,false,"show")
                 //console.log("Recalculated")
             } else {
-                vm.removeTooltip(feature,false)
+                feature.unset("measurement",true)
                 //console.log("Remove tooltip because feature is changed")
             }
         }
@@ -821,6 +843,8 @@
         if (!tool) {return}
         
         vm.removeTooltip(ev.feature,true,ev.indexes) 
+        vm.removeMeasurementObject(ev.feature,"measurement",ev.indexes,null,true)
+
       }
       var deleteFeatureAllGeometriesListener = function(ev) {
         var tool = ev.feature.get('toolName')
@@ -828,6 +852,7 @@
         if (!tool) {return}
         
         vm.removeTooltip(ev.feature,true) 
+        ev.feature.unset("measurement",true)
       }
 
       this.annotations.tools.push(measureArea)
@@ -867,9 +892,11 @@
               measureStatus.progress(80,"Process 'gk-postinit' event")
               var processedInteractions = []
               $.each(vm.annotations.tools,function(index1,tool){
+                console.log(tool.name)
                 $.each(tool.interactions,function(index2,interaction){
                     if (!processedInteractions.find(function(o){return o === interaction})) {
                         if (interaction instanceof ol.interaction.Modify) {
+                            console.log('===================')
                             interaction.on("featuresmodified",featuresChangedListener)
                         } else if (interaction instanceof ol.interaction.Translate) {
                             interaction.on("translateend",featuresChangedListener)
