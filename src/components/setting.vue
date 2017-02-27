@@ -89,7 +89,7 @@
 
             <div class="tool-slice row collapse">
               <div class="columns small-4"><label class="tool-label">Undo limit:<br/>{{ undoLimitDesc }}</label></div>
-              <div class="columns small-7"><input class="layer-opacity" type="range" min="0" max="1000" step="10" v-model="undoLimitInSetting" v-bind:disabled="!undoEnabled"></div>
+              <div class="columns small-7"><input class="layer-opacity" type="range" min="0" max="1000" step="10" v-model="configuringUndoLimit" v-bind:disabled="!undoEnabled"></div>
               <div class="columns small-1">
                 <a title="Disable undo feature" v-if="undoEnabled" class="button tiny secondary float-right" @click="enableUndo(false)" ><i class="fa fa-stop"></i></a>
                 <a title="Enable undo feature" v-if="!undoEnabled"class="button tiny secondary float-right" @click="enableUndo(true)" ><i class="fa fa-play"></i></a>
@@ -193,8 +193,7 @@
     },
     data: function () {
       return {
-        undoLimit:0,
-        undoEnabled:true,
+        configuredUndoLimit:0
       }
     },
     computed: {
@@ -207,26 +206,26 @@
       drawinglogs: function () { return this.$root.annotations.drawinglogs },
       map: function () { return this.$root.map },
       undoLimitDesc:function() {
-        return (this.undoEnabled?(this.undoLimit === 0?"Unlimited":this.undoLimit):"Off") + "/" + (this.undoLimit < 0?"Off":(this.undoLimit === 0?"Unlimited":this.undoLimit))
+        return (this.configuredUndoLimit < 0?"Off":(this.configuredUndoLimit === 0?"Unlimited":this.configuredUndoLimit)) + "/" + (this.undoLimit < 0?"Off":(this.undoLimit === 0?"Unlimited":this.undoLimit))
       },
-      undoLimitInSetting:{
+      configuringUndoLimit:{
         get: function() {
-            return this.undoLimit
+            return this.configuredUndoLimit
         },
         set: function(val) {
             var vm = this
             if (val < 0) {
-                this.undoEnabled = false
-            } else {
-                this.undoLimit =  val
-                this.undoEnabled = true
+                val = -1
             }
+            this.configuredUndoLimit = val
             this._changeUndoLimit = vm._changeUndoLimit || global.debounce(function () {
-                //console.log("Change undo limit from " +  (vm.undoLimit < 0?"Off":(vm.undoLimit === 0?"Unlimited":vm.undoLimit)) + " to " + (vm.undoEnabled?(vm.undoLimit === 0?"Unlimited":vm.undoLimit):"off"))
-                vm.drawinglogs.size = vm.undoEnabled?vm.undoLimit:-1
+                vm.drawinglogs.size = this.configuredUndoLimit
             }, 5000)
             this._changeUndoLimit()
         }
+      },
+      undoEnabled:function() {
+        return this.configuredUndoLimit >= 0
       },
       hoverInfoSwitchable: function () {
         return this.$root.annotations.tool && this.$root.annotations.tool.name === "Pan"
@@ -252,9 +251,9 @@
       },
       enableUndo:function(enable) {
         if (enable) {
-            this.undoLimitInSetting = this.undoLimit
+            this.configuringUndoLimit = (this.undoLimit < 0)?0:this.undoLimit
         } else {
-            this.undoLimitInSetting = -1
+            this.configuringUndoLimit = -1
         }
       },
       toggleRightHandTools: function (ev) {
@@ -308,16 +307,10 @@
       },
     },
     ready: function () {
-        var vm = this
-        var settingStatus = this.loading.register("setting","Setting Component", "Initialize")
-        if (this.undoLimit < 0) {
-            this.undoLimit = 0
-            this.undoEnabled = false
-        } else {
-            this.undoLimit = this.undoLimit
-            this.undoEnabled = true
-        }
-
+      var vm = this
+      var settingStatus = this.loading.register("setting","Setting Component", "Initialize")
+      this.configuredUndoLimit = this.undoLimit
+     
       settingStatus.wait(30,"Listen 'gk-init' event")
       this.$on('gk-init', function() {
         settingStatus.progress(80,"Process 'gk-init' event")

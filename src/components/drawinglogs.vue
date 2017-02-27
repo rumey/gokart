@@ -22,6 +22,7 @@
       computed: {
         annotations: function() {return this.$root.annotations},
         loading: function () { return this.$root.loading },
+        setting: function() {return this.$root.setting},
         undoSteps:function() {
             return this.drawingLogs.length && this.redoPointer
         },
@@ -40,14 +41,17 @@
                     if (this.settings.undoLimit >= 0) {
                         //currently, logs is enabled, turn it off
                         this.off()
+                        this.setting.saveState()
                     }
                 } else {
                     //want to enable drawing logs
                     if (this.settings.undoLimit < 0) {
                         //currently, logs is disabled, turn it on
                         this.on(val)
-                    } else {
+                        this.setting.saveState()
+                    } else if (this.settings.undoLimit !== val){
                         this.settings.undoLimit = val
+                        this.setting.saveState()
                     }
                 }
             }
