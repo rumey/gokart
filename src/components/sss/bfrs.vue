@@ -123,7 +123,7 @@
                   <a v-if="canReset(f)"  @click.stop.prevent="resetFeature(f)" title="Reset" class="button tiny secondary float-right acion" style="margin-left:2px"><i class="fa fa-undo actionicon"></i></a>
                   <a v-if="canDelete(f)" @click.stop.prevent="deleteFeature(f)" title="Delete" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-trash actionicon"></i></a>
                   <a v-if="canCreate(f)" @click.stop.prevent="createFeature(f)" title="Create" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-save actionicon"></i></a>
-                  <a v-if="canEdit(f) " @click.stop.prevent="map.editResource($event)" title="Edit" href="{{editUrl(f)}}" target="_blank" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-pencil actionicon"></i></a>
+                  <a v-if="canEdit(f) " @click.stop.prevent="utils.editResource($event)" title="Edit" href="{{editUrl(f)}}" target="_blank" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-pencil actionicon"></i></a>
                   <a v-if="canSave(f)" @click.stop.prevent="saveFeature(f)" title="Save" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-save actionicon"></i></a>
                   <div class="feature-title"><img class="feature-icon" id="bushfire-icon-{{f.get('id')}}" v-bind:src="featureIconSrc(f)" /> {{ f.get('label') }} <i><small></small></i></div>
                 </div>
@@ -134,6 +134,9 @@
         </div>
       </div>
     </div>
+    <form id="bushfire_create" name="bushfire_create" action="{{createUrl()}}" method="post" target="{{utils.getAddressTarget("_blank")}}">
+        <input type="hidden" name="sss_create" id="sss_create">
+    </form>
   </div>
 </template>
 <style>
@@ -142,7 +145,7 @@
 }
 </style>
 <script>
-  import { ol, moment,utils } from 'src/vendor.js'
+  import { ol, moment,hash } from 'src/vendor.js'
   export default {
     store: {
         bfrsService:'bfrsService',
@@ -224,6 +227,7 @@
       catalogue: function () { return this.$root.catalogue },
       export: function () { return this.$root.export },
       loading: function () { return this.$root.loading },
+      utils: function () { return this.$root.utils },
       features: function () {
         if (this.viewportOnly) {
           return this.revision && this.extentFeatures
@@ -324,9 +328,6 @@
       "screenHeight":function(newValue,oldvalue) {
         this.adjustHeight()
       },
-      "toggleHistory":function() {
-        this.adjustHeight()
-      }
     },
     methods: {
       isModifiable:function(bushfire) {
@@ -370,7 +371,7 @@
         return this.revision && this.isAuthorizable(bushfire) && bushfire.get('tint') !== "modified"
       },
       createUrl:function() {
-        return this.bfrsService + "/create/" 
+        return this.bfrsService + "/bfrs/create/" 
       },
       editUrl:function(feat) {
         var status = feat.get('report_status')
@@ -393,6 +394,29 @@
       authoriseUrl:function(feat) {
         return this.bfrsService + "/authorise/" + feat.get('id')
       },
+      validateFireBoundary:function(feat,polygon) {
+        return true 
+      },
+      getSSSId:function(feat,create) {
+        create = (create === undefined || create === null)?false:create
+        var sssId = feat.get('sss_id')
+        if (!sssId && create) {
+            var geometries = feat.getGeometry().getGeometriesArray()
+            var originPoint = (geometries.length > 0 && geometries[0] instanceof ol.geom.Point)?geometries[0].getCoordinates():null
+            var fireBoundary = (geometries.length > 1)?geometries[1]:((geometries.length ===  1 && geometries[0] instanceof ol.geom.MultiPolygon)?geometries[0]:null)
+            fireBoundary = fireBoundary?fireBoundary.getCoordinates():null
+
+            sssId = hash.MD5({
+                'origin_point': JSON.stringify(originPoint),
+                'fire_boundary': JSON.stringify(fireBoundary),
+                'author': this.whoami.email,
+                'time': Date.now()
+            })
+
+            feat.set('sss_id',sssId,true)
+        }
+        return sssId
+      },
       getSpatialData:function(feat) {
         var geometries = feat.getGeometry().getGeometriesArray()
         var originPoint = (geometries.length > 0 && geometries[0] instanceof ol.geom.Point)?geometries[0].getCoordinates():null
@@ -414,7 +438,7 @@
             var vm = this
             $.ajax({
                 url: vm.saveUrl(feat),
-                method:"POST",
+                method:"PATCH",
                 data:JSON.stringify(vm.getSpatialData(feat)),
                 contentType:"application/json",
                 success: function (response, stat, xhr) {
@@ -502,15 +526,10 @@
       },
       createFeature:function(feat) {
         if (this.canCreate(feat)) {
-            var target = "_blank"
-            if (env.appType == "cordova") {
-                target = "_system"       
-            }
             var data = this.getSpatialData(feat)
-            
-            var url = this.createUrl() + "?origin_point=" + JSON.stringify(data.origin_point) + "&fire_boundary=" + JSON.stringify(data.fire_boundary) + "&sss_id=" + feat.get('sss_id')
-            //console.log(url)
-            window.open(url,target.target);
+            data['sss_id'] = this.getSSSId(feat,true)
+            $("#sss_create").val(JSON.stringify(data))
+            $("#bushfire_create").submit()
         }
       },
       authoriseFeature:function(feat) {
@@ -598,7 +617,7 @@
       },  
       adjustHeight:function() {
         if (this.activeMenu === "bfrs") {
-            $("#bfrs-list").height(this.screenHeight - this.leftPanelHeadHeight - $("#bfrs-list-controller-container").height())
+            $("#bfrs-list").height(this.screenHeight - this.leftPanelHeadHeight - 10 - $("#bfrs-list-controller-container").height())
         }
       },
       postModified:function(bushfires) {
@@ -1432,7 +1451,7 @@
                     }
                 }
                 if (url) {
-                    utils.checkPermission(url,function(allowed){
+                    vm.utils.checkPermission(url,function(allowed){
                         vm.whoami['bushfire']["permission"][p[0]] = allowed
                         vm.whoami['bushfire']["permission"]["changed"] = true
                         if (index < permissionConfig.length - 1) {
@@ -1491,6 +1510,8 @@
         vm.tools = vm.annotations.tools.filter(function (t) {
           return t.scope && t.scope.indexOf("bfrs") >= 0
         })
+
+
         bfrsStatus.end()
       })
     }

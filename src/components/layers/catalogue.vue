@@ -43,7 +43,7 @@
         <div id="layers-catalogue-list">
           <div v-for="l in catalogue.getArray() | filterBy search in searchAttrs | orderBy 'name'" class="row layer-row" @mouseover="preview(l)" track-by="id" @mouseleave="preview(false)" style="margin-left:0px;margin-right:0px">
             <div class="small-10">
-              <a v-if="editable(l)" @click.stop.prevent="map.editResource($event)" title="Edit catalogue entry" href="{{oimService}}/django-admin/catalogue/record/{{l.systemid}}/change/" target="_blank" class="button tiny secondary float-right short"><i class="fa fa-pencil"></i></a>
+              <a v-if="editable(l)" @click.stop.prevent="utils.editResource($event)" title="Edit catalogue entry" href="{{oimService}}/django-admin/catalogue/record/{{l.systemid}}/change/" target="_blank" class="button tiny secondary float-right short"><i class="fa fa-pencil"></i></a>
               <div class="layer-title">{{ l.name || l.id }}</div>
             </div>
             <div class="small-2">
@@ -159,6 +159,7 @@ div.ol-previewmap.ol-uncollapsible {
     },
     computed: {
       map: function () { return this.$root.$refs.app.$refs.map },
+      utils: function () { return this.$root.utils},
       loading: function () { return this.$root.loading },
     },
     watch:{

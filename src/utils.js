@@ -35,6 +35,19 @@ Utils.prototype.checkPermission = function(url,callback) {
     })
 }
 
+Utils.prototype.editResource = function(event) {
+    var target = (event.target.nodeName == "A")?event.target:event.target.parentNode;
+    if (env.appType == "cordova") {
+        window.open(target.href,"_system");
+    } else {
+        window.open(target.href,target.target);
+    }
+}
+
+Utils.prototype.getAddressTarget = function(target){
+    return (env.appType === "cordova")?"_system":target
+}
+
 var utils = new Utils()
 
 export default utils

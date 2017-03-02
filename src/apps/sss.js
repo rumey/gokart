@@ -7,7 +7,8 @@ import {
   moment,
   localforage,
   Vue,
-  VueStash
+  VueStash,
+  utils
 } from 'src/vendor.js'
 import App from './sss.vue'
 import tour from './sss-tour.js'
@@ -178,6 +179,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
       geojson: function () { return new ol.format.GeoJSON() },
       wgs84Sphere: function () { return new ol.Sphere(6378137) },
       profile: function(){return profile},
+      utils: function() {return utils},
       persistentData:function() {
           var vm = this
           $.each(persistentData,function(key,val){

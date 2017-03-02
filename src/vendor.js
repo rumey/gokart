@@ -46,6 +46,7 @@ import jsPDF from 'jspdf'
 import interact from 'interact.js'
 import hash from "object-hash"
 import utils from './utils.js'
+import turf from 'turf'
 
 var saveAs = function (blob,name,no_auto_bom) {
     if (env.appType == "cordova") {
@@ -124,5 +125,6 @@ export {
   jsPDF,
   interact,
   hash,
+  turf,
   utils
 }

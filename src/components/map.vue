@@ -283,14 +283,6 @@
         }
         control.enabled = enable
       },
-      editResource: function(event) {
-        var target = (event.target.nodeName == "A")?event.target:event.target.parentNode;
-        if (env.appType == "cordova") {
-            window.open(target.href,"_system");
-        } else {
-            window.open(target.href,target.target);
-        }
-      },
       tintSVG: function(svgstring, tints) {
         tints.forEach(function(colour) {
           svgstring = svgstring.split(colour[0]).join(colour[1])
