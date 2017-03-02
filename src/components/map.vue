@@ -871,7 +871,9 @@
           }, options.refresh * 1000)
         }
         // populate the source with data
-        vectorSource.loadSource("initial")
+        if (options.initialLoad === undefined || options.initialLoad === true) {
+            vectorSource.loadSource("initial")
+        }
 
         vector.set('name', options.name)
         vector.set('id', options.id)

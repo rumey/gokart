@@ -1,4 +1,5 @@
 import {
+
   $,
   svg4everybody,
   ol,
@@ -224,7 +225,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         var req = new window.XMLHttpRequest()
         req.withCredentials = true
         req.onload = function () {
-          self.store.whoami = JSON.parse(this.responseText)
+          $.extend(self.store.whoami,JSON.parse(this.responseText))
         }
         req.open('GET', self.store.oimService + '/api/whoami')
         req.send()

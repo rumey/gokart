@@ -276,13 +276,7 @@
                         var geom = (polygon.clone().transform(
                             sourceProj, 'EPSG:4326'))
                         */
-                        $.each(geom.getLinearRings(),function(index,linearRing){
-                            if (index === 0) {
-                                area = Math.abs(vm.wgs84Sphere.geodesicArea(linearRing.getCoordinates()))
-                            } else {
-                                area -= Math.abs(vm.wgs84Sphere.geodesicArea(linearRing.getCoordinates()))
-                            }
-                        })
+                        area = vm.getArea(geom)
                         measurement["area"] = area
                     } else {
                         area = measurement["area"]
@@ -617,6 +611,34 @@
             }
         }
       },
+      getArea:function(polygon) {
+        var area = 0
+        var vm = this
+        $.each(polygon.getLinearRings(),function(index,linearRing){
+            if (index === 0) {
+                area = Math.abs(vm.wgs84Sphere.geodesicArea(linearRing.getCoordinates()))
+            } else {
+                area -= Math.abs(vm.wgs84Sphere.geodesicArea(linearRing.getCoordinates()))
+            }
+        })
+        return area
+      },
+      getTotalArea:function(geom) {
+        var area = 0
+        var vm = this
+        if (geom instanceof ol.geom.Polygon) {
+            area = this.getArea(geom)
+        } else if (geom instanceof ol.geom.MultiPolygon){
+            $.each(geom.getPolygons(),function(index,p){
+                area += vm.getArea(p)
+            })
+        } else if (geom instanceof ol.geom.GeometryCollection) {
+            $.each(geom.getGeometriesArray(),function(index,g){
+                area += vm.getTotalArea(g)
+            })
+        }
+        return area
+      },
       getLength: function(coordinates) {
         var length = 0
         var sourceProj = this.$root.map.olmap.getView().getProjection()
@@ -624,6 +646,27 @@
           var c1 = ol.proj.transform(coordinates[i], sourceProj, 'EPSG:4326')
           var c2 = ol.proj.transform(coordinates[i + 1], sourceProj, 'EPSG:4326')
           length += this.wgs84Sphere.haversineDistance(c1, c2)
+        }
+        return length
+      },
+      getTotalLength: function(geom) {
+        var length = 0
+        if (geom instanceof ol.geom.Polygon) {
+            length = this.getLength(geom.getCoordinates())
+        } else if (geom instanceof ol.geom.LineString) {
+            length = this.getLength(geom.getCoordinates())
+        } else if (geom instanceof ol.geom.MultiPolygon){
+            $.each(geom.getPolygons(),function(index,p){
+                length += this.getLength(p.getCoordinates())
+            })
+        } else if (geom instanceof ol.geom.MultiLineString){
+            $.each(geom.getLineStrings(),function(index,l){
+                length += this.getLength(l.getCoordinates())
+            })
+        } else if (geom instanceof ol.geom.GeometryCollection) {
+            $.each(geom.getGeometriesArray(),function(index,g){
+                length += this.getTotalLength(g)
+            })
         }
         return length
       },
@@ -892,11 +935,11 @@
               measureStatus.progress(80,"Process 'gk-postinit' event")
               var processedInteractions = []
               $.each(vm.annotations.tools,function(index1,tool){
-                console.log(tool.name)
+                //console.log(tool.name)
                 $.each(tool.interactions,function(index2,interaction){
                     if (!processedInteractions.find(function(o){return o === interaction})) {
                         if (interaction instanceof ol.interaction.Modify) {
-                            console.log('===================')
+                            //console.log('===================')
                             interaction.on("featuresmodified",featuresChangedListener)
                         } else if (interaction instanceof ol.interaction.Translate) {
                             interaction.on("translateend",featuresChangedListener)
