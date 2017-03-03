@@ -108,7 +108,7 @@
             })
         },
         measureType:function(newVal,oldVal){
-            if (newVal == "") {
+            if (newVal === "") {
                 //switchoff
                 if (this.overlay) {
                     this.overlay.setMap(null)
@@ -119,7 +119,7 @@
                 }
                 //hidden measuretips
                 this.showTooltip(this.features,false)
-            } else if (oldVal == ""){
+            } else if (oldVal === ""){
                 //switchon
                 this.overlay.setMap(this.map.olmap)
                 this.showTooltip(this.features,true)
@@ -142,7 +142,7 @@
       //layer can be layerid, layer settings, and memeber of this._measureLayers
       enableFeatureMeasurement:function(layer,enable) {
         var vm = this
-        var layer = (Array.isArray(layer))?layer:this._measuerLayers.find(function(l) {return l[0] === layer["id"] || layer})
+        var layer = (Array.isArray(layer))?layer:this._measureLayers.find(function(l) {return l[0] === (layer["id"] || layer)})
         if (!layer) return
         if(enable) {
             //enable
@@ -187,10 +187,11 @@
                 if (!tool.measureLength && !tool.measureArea) {return}
                 if (feature.tooltip) {
                     vm.showTooltip(feature,true)
+                    if (!feature.get("measurement")) {
+                        vm.measuring(feature,tool.measureLength,tool.measureArea,false,"show")
+                    }
                 } else {
                     vm.createTooltip(feature,tool.measureLength,tool.measureArea)
-                }
-                if (!feature.get("measurement")) {
                     vm.measuring(feature,tool.measureLength,tool.measureArea,false,"show")
                 }
             })
@@ -200,7 +201,7 @@
         }
       },
       toggleMeasure: function (type) {
-        if (this.measureType == type) {
+        if (this.measureType === type) {
             this.annotations.setTool('Pan')
         } else  {
             this.annotations.setTool(type)
@@ -614,13 +615,24 @@
       getArea:function(polygon) {
         var area = 0
         var vm = this
-        $.each(polygon.getLinearRings(),function(index,linearRing){
-            if (index === 0) {
-                area = Math.abs(vm.wgs84Sphere.geodesicArea(linearRing.getCoordinates()))
-            } else {
-                area -= Math.abs(vm.wgs84Sphere.geodesicArea(linearRing.getCoordinates()))
-            }
-        })
+        if (Array.isArray(polygon)) {
+            //coodinates array
+            $.each(polygon,function(index,linearRing){
+                if (index === 0) {
+                    area = Math.abs(vm.wgs84Sphere.geodesicArea(linearRing))
+                } else {
+                    area -= Math.abs(vm.wgs84Sphere.geodesicArea(linearRing))
+                }
+            })
+        } else {
+            $.each(polygon.getLinearRings(),function(index,linearRing){
+                if (index === 0) {
+                    area = Math.abs(vm.wgs84Sphere.geodesicArea(linearRing.getCoordinates()))
+                } else {
+                    area -= Math.abs(vm.wgs84Sphere.geodesicArea(linearRing.getCoordinates()))
+                }
+            })
+        }
         return area
       },
       getTotalArea:function(geom) {
