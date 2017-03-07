@@ -303,6 +303,13 @@ def gdal(fmt):
     bottle.response.set_header("Content-Disposition", "attachment;filename='{}'".format(output_filename))
     return output
 
+feature_count_re = re.compile("^Feature Count:\s+(?P<count>\d+)",re.MULTILINE)
+def featureCount(jsonfile,featureType):
+    info = subprocess.check_output(["ogrinfo", "-al","-so","-ro", "-where", "OGR_GEOMETRY='{}'".format(featureType), jsonfile])
+    m = feature_count_re.search(info)
+    return (m and int(m.group('count'))) or 0
+    
+
 
 # Vector translation using ogr
 @bottle.route("/ogr/<fmt>", method="POST")
@@ -338,18 +345,14 @@ def ogr(fmt):
         return "Not supported format({})".format(fmt)
 
     if split:
-        subprocess.check_call([
-            "ogr2ogr", "-overwrite", "-where", "OGR_GEOMETRY='POINT'",
-            "-a_srs", "EPSG:4326", "-nln", layername+"_points", "-f", f, dst_datasource, jsonfile
-        ])
-        subprocess.check_call([
-            "ogr2ogr", "-update", "-append", "-where", "OGR_GEOMETRY='LINESTRING'",
-            "-a_srs", "EPSG:4326", "-nln", layername+"_linestrings", "-f", f, dst_datasource, jsonfile
-        ])
-        subprocess.check_call([
-            "ogr2ogr", "-update", "-append", "-where", "OGR_GEOMETRY='POLYGON'",
-            "-a_srs", "EPSG:4326", "-nln", layername+"_polygons", "-f", f, dst_datasource, jsonfile
-        ])
+        mode = "-overwrite"
+        for t in ["POINT","LINESTRING","POLYGON","MULTIPOINT","MULTILINESTRING","MULTIPOLYGON"]:
+            if featureCount(jsonfile,t):
+                subprocess.check_call([
+                    "ogr2ogr", mode, "-where", "OGR_GEOMETRY='{}'".format(t),
+                    "-a_srs", "EPSG:4326", "-nln", layername+"_{}s".format(t.lower()), "-f", f, dst_datasource, jsonfile
+                ])
+                mode = "-update"
     else:
         subprocess.check_call([
             "ogr2ogr","-overwrite" ,"-a_srs","EPSG:4326","-nln",layername, "-f", f,dst_datasource, jsonfile]) 

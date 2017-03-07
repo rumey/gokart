@@ -32,7 +32,7 @@ global.debounce = function (func, wait, immediate) {
     }
     var callNow = immediate && !timeout
     clearTimeout(timeout)
-    timeout = setTimeout(later, wait)
+    timeout = setTimeout(later, (context && context.wait) || wait)
     if (callNow) func.apply(context, args)
   }
 }

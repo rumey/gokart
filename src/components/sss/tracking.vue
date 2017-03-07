@@ -85,7 +85,7 @@
                 <div class="columns">
                   <div class="row">
                     <div class="switch tiny">
-                      <input class="switch-input" id="selectedResourcesOnly" type="checkbox" v-model="selectedOnly" @change="updateCQLFilter('selectedDevice')" />
+                      <input class="switch-input" id="selectedResourcesOnly" type="checkbox" v-bind:disabled="selectedOnlyDisabled" v-model="selectedOnly" @change="updateCQLFilter('selectedDevice')" />
                       <label class="switch-paddle" for="selectedResourcesOnly">
                     <span class="show-for-sr">Show selected only</span>
                  </label>
@@ -225,6 +225,9 @@
         } else {
           return this.allFeatures
         }
+      },
+      selectedOnlyDisabled:function() {
+        return this.selectedDevices.length === 0
       },
       isTrackingMapLayerHidden:function() {
         return this.$root.active.isHidden(this.trackingMapLayer)
@@ -403,6 +406,10 @@
       },
       updateCQLFilter: function (updateType) {
         var vm = this
+        if (updateType === "selectedDevice" && this.selectedDevices === 0 && vm.selectedOnly === true) {
+            vm.selectedOnly = false
+            return
+        }
         if (!vm._updateCQLFilter) {
             vm._updateCQLFilter = debounce(function(updateType){
                 var groupFilter = vm.cql
@@ -760,7 +767,10 @@
         vm.selectedFeatures.on('remove', function (event) {
           if (event.element.get('deviceid')) {
             vm.selectedDevices.$remove(event.element.get('deviceid'))
-            if (vm.selectedOnly) {
+            if (vm.selectedDevices.length === 0) {
+                vm.selectedOnly = false
+                vm.updateCQLFilter('selectedDevice')
+            } else if (vm.selectedOnly) {
                 vm.updateCQLFilter('selectedDevice')
             }
           }

@@ -125,6 +125,19 @@
               }
           })
       },
+      cloneFeature:function(feat,cloneGeometry) {
+        if (cloneGeometry === false) {
+            var feature = new ol.Feature()
+            $.each(feat.getProperties(),function(key,value){
+                if (key !== feat.getGeometryName()) {
+                    feature.set(key,value,true)
+                }
+            })
+            return feature
+        } else {
+            return feat.clone()
+        }
+      },
       isGeometryEqual:function(geom1,geom2){
         if ( !geom1 && !geom2 ) {
             return true

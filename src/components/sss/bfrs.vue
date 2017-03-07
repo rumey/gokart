@@ -16,105 +16,109 @@
         <div class="tabs-content vertical" data-tabs-content="bfrs-tabs">
           <div id="bfrs-list-tab" class="tabs-panel is-active" v-cloak>
             <div id="bfrs-list-controller-container">
-            <div class="tool-slice row collapse">
-              <div class="small-12">
-                <div class="expanded button-group">
-                  <a v-for="t in tools | filterIf 'showName' undefined" class="button button-tool" v-bind:class="{'selected': t.name == annotations.tool.name}"
-                    @click="annotations.setTool(t)" v-bind:title="t.label">{{{ annotations.icon(t) }}}</a>
-                </div>
-                <div class="row resetmargin">
-                  <div v-for="t in tools | filterIf 'showName' true" class="small-6" v-bind:class="{'rightmargin': $index % 2 === 0}" >
-                    <a class="expanded secondary button" v-bind:class="{'selected': t.name == annotations.tool.name}" @click="annotations.setTool(t)"
-                      v-bind:title="t.label">{{{ annotations.icon(t) }}} {{ t.label }}</a>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="row">
-              <div class="switch tiny">
-                <input class="switch-input" id="bushfiresInViewport" type="checkbox" v-bind:checked="viewportOnly" @change="toggleViewportOnly" />
-                <label class="switch-paddle" for="bushfiresInViewport">
-                  <span class="show-for-sr">Viewport bushfires only</span>
-                </label>
-              </div>
-              <label for="bushfiresInViewport" class="side-label">Restrict to viewport ({{ stats }})</label>
-            </div>
-            <div class="row">
-              <div class="switch tiny">
-                <input class="switch-input" id="toggleBushfireLabels" type="checkbox" v-bind:checked="bushfireLabels" @change="toggleBushfireLabels" />
-                <label class="switch-paddle" for="toggleBushfireLabels">
-                  <span class="show-for-sr">Display bushfire labels</span>
-                </label>
-              </div>
-              <label for="toggleBushfireLabels" class="side-label">Display bushfire labels</label>
-            </div>
-            <div class="row">
-              <div class="switch tiny">
-                <input class="switch-input" id="toggleReportInfo" type="checkbox" v-bind:disabled="!setting.hoverInfoSwitchable" v-bind:checked="setting.hoverInfo" @change="setting.toggleHoverInfo" />
-                <label class="switch-paddle" for="toggleReportInfo">
-                  <span class="show-for-sr">Display hovering bushfire info</span>
-                </label>
-              </div>
-              <label for="toggleReportInfo" class="side-label">Display hovering bushfire info</label>
-            </div>
-
-            <div class="row collapse">
-              <div class="small-6 columns">
-                <select name="select" v-model="region" @change="updateCQLFilter('region')">
-                  <option value="" selected>All regions</option> 
-                  <option v-for="r in regions"  value="{{r.region_id}}" track-by="region_id">
-                    {{r.region}}
-                  </option>
-                </select>
-              </div>
-              <div class="small-6 columns">
-                <select name="select" v-model="district" @change="updateCQLFilter('district')">
-                  <option value="" selected>All districts</option> 
-                  <option v-for="d in districts"  value="{{d.id}}" track-by="id">
-                    {{d.district}}
-                  </option>
-                </select>
-              </div>
-            </div>
-
-            <div class="row collapse">
-              <div class="small-6 columns">
-                <select name="select" v-model="statusFilter" @change="updateCQLFilter('bushfireStatus')">
-                  <option value="" selected>All bushfires</option> 
-                  <option value="init_authorised_by_id is null">Initial Bushfires</option>
-                  <option value="init_authorised_by_id is not null AND authorised_by_id is null">Final Bushfires</option>
-                  <option value="authorised_by_id is not null">Final Authroized Bushfires</option>
-                </select>
-              </div>
-              <div class="small-6 columns">
-                <input type="search" v-model="search" placeholder="Find a bushfire" @keyup="updateFeatureFilter">
-              </div>
-            </div>
-
-            <div class="row">
-              <div class="small-6">
-                <div class="columns">
-                  <div class="row">
-                    <div class="switch tiny">
-                      <input class="switch-input" id="selectedBushfiresOnly" type="checkbox" v-model="selectedOnly" @change="updateCQLFilter('selectedBushfire')" />
-                      <label class="switch-paddle" for="selectedBushfiresOnly">
-                        <span class="show-for-sr">Show selected only</span>
-                     </label>
+                <div class="tool-slice row collapse">
+                  <div class="small-12">
+                    <div class="expanded button-group">
+                      <a v-for="t in tools | filterIf 'showName' undefined" class="button button-tool" v-bind:class="{'selected': t.name == annotations.tool.name}"
+                        @click="annotations.setTool(t)" v-bind:title="t.label">{{{ annotations.icon(t) }}}</a>
                     </div>
-                    <label for="selectedBushfiresOnly" style="margin-left:3px" class="side-label">Show selected only</label>
+                    <div class="row resetmargin">
+                      <div v-for="t in tools | filterIf 'showName' true" class="small-6" v-bind:class="{'rightmargin': $index % 2 === 0}" >
+                        <a class="expanded secondary button" v-bind:class="{'selected': t.name == annotations.tool.name}" @click="annotations.setTool(t)"
+                          v-bind:title="t.label">{{{ annotations.icon(t) }}} {{ t.label }}</a>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div class="small-6">
-                <a title="Zoom to selected" class="button" @click="map.zoomToSelected()" ><i class="fa fa-search"></i></a>
-                <a v-if="isCreatable()" title="Create bushfire" class="button" @click="newFeature()" ><i class="fa fa-plus"></i></a>
-                <a title="Download list as geoJSON" class="button" @click="downloadList()" ><i class="fa fa-download"></i></a>
-                <label class="button" style="line-height:1;font-size:0.9rem;" for="uploadBushfires" title="Support GeoJSON(.geojson .json), GPS data(.gpx)"><i class="fa fa-upload"></i></label><input type="file" id="uploadBushfires" class="show-for-sr" name="bushfiresfile" accept=".json,.geojson,.gpx" v-model="bushfiresfile" v-el:bushfiresfile @change="importList()"/>
-                <!--a title="Download all or selected as CSV" class="button" href="{{bfrsService}}/bushfire.csv?{{downloadSelectedCSV()}}" target="_blank" ><i class="fa fa-table"></i></a-->
-              </div>
+                <div class="row">
+                  <div class="switch tiny">
+                    <input class="switch-input" id="bushfiresInViewport" type="checkbox" v-bind:checked="viewportOnly" @change="toggleViewportOnly" />
+                    <label class="switch-paddle" for="bushfiresInViewport">
+                      <span class="show-for-sr">Viewport bushfires only</span>
+                    </label>
+                  </div>
+                  <label for="bushfiresInViewport" class="side-label">Restrict to viewport ({{ stats }})</label>
+                </div>
+                <div class="row">
+                  <div class="switch tiny">
+                    <input class="switch-input" id="toggleBushfireLabels" type="checkbox" v-bind:checked="bushfireLabels" @change="toggleBushfireLabels" />
+                    <label class="switch-paddle" for="toggleBushfireLabels">
+                      <span class="show-for-sr">Display bushfire labels</span>
+                    </label>
+                  </div>
+                  <label for="toggleBushfireLabels" class="side-label">Display bushfire labels</label>
+                </div>
+                <div class="row">
+                  <div class="switch tiny">
+                    <input class="switch-input" id="toggleReportInfo" type="checkbox" v-bind:disabled="!setting.hoverInfoSwitchable" v-bind:checked="setting.hoverInfo" @change="setting.toggleHoverInfo" />
+                    <label class="switch-paddle" for="toggleReportInfo">
+                      <span class="show-for-sr">Display hovering bushfire info</span>
+                    </label>
+                  </div>
+                  <label for="toggleReportInfo" class="side-label">Display hovering bushfire info</label>
+                </div>
+    
+                <div class="row collapse">
+                  <div class="small-6 columns">
+                    <select name="select" v-model="region" @change="updateCQLFilter('region',2000)">
+                      <option value="" selected>All regions</option> 
+                      <option v-for="r in regions"  value="{{r.region_id}}" track-by="region_id">
+                        {{r.region}}
+                      </option>
+                    </select>
+                  </div>
+                  <div class="small-6 columns">
+                    <select name="select" v-model="district" @change="updateCQLFilter('district',500)">
+                      <option value="" selected>All districts</option> 
+                      <option v-for="d in districts"  value="{{d.id}}" track-by="id">
+                        {{d.district}}
+                      </option>
+                    </select>
+                  </div>
+                </div>
+    
+                <div class="row collapse">
+                  <div class="small-6 columns">
+                    <select name="select" v-model="statusFilter" @change="updateCQLFilter('bushfireStatus',500)">
+                      <option value="" selected>All bushfires</option> 
+                      <option value="report_status = 1">Initial Bushfires</option>
+                      <option value="report_status = 2">Submitted Bushfires</option>
+                      <option value="report_status = 3">Draft Final Bushfires</option>
+                      <option value="report_status >= 4">Authroised Final Bushfires</option>
+                    </select>
+                  </div>
+                  <div class="small-6 columns">
+                    <input type="search" v-model="search" placeholder="Find a bushfire" @keyup="updateFeatureFilter">
+                  </div>
+                </div>
+    
+                <div class="tool-slice row collapse">
+                  <div class="small-12 expanded button-group">
+                    <a title="Zoom to selected" class="button button-tool" @click="map.zoomToSelected()" ><i class="fa fa-search"></i></a>
+                    <a v-if="isCreatable()" title="Create bushfire" class="button" @click="newFeature()" ><i class="fa fa-plus"></i></a>
+    
+                    <a class="button" @click="importList()" title="Support GeoJSON(.geojson .json), GPS data(.gpx)"><i class="fa fa-upload" aria-hidden="true"></i></a>
+                    <a class="button" @click="downloadList('geojson')" title="Export Bushfire as GeoJSON"><i class="fa fa-download" aria-hidden="true"></i><br> geojson </a>
+                    <a class="button" @click="downloadList('gpkg')" title="Export Bushfire as GeoPackage"><i class="fa fa-download" aria-hidden="true"></i><br> gpkg</a>
+                  </div>
+                </div>
+    
+                <div class="row">
+                  <div class="small-12">
+                    <div class="columns">
+                      <div class="row">
+                        <div class="switch tiny">
+                          <input class="switch-input" id="selectedBushfiresOnly" type="checkbox" v-bind:disabled="selectedOnlyDisabled" v-model="selectedOnly" @change="updateCQLFilter('selectedBushfire',200)" />
+                          <label class="switch-paddle" for="selectedBushfiresOnly">
+                            <span class="show-for-sr">Show selected only</span>
+                         </label>
+                        </div>
+                        <label for="selectedBushfiresOnly" style="margin-left:3px" class="side-label">Show selected only</label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
             </div>
-            </div>
-
 
             <div id="bfrs-list" class="layers-flexibleframe scroller" style="margin-left:-15px; margin-right:-15px;">
               <div v-for="f in features" class="row feature-row" v-bind:class="{'feature-selected': selected(f) }"
@@ -238,6 +242,9 @@
       },
       isReportMapLayerHidden:function() {
         return this.$root.active.isHidden(this.bfrsMapLayer)
+      },
+      selectedOnlyDisabled:function() {
+        return this.selectedBushfires.length === 0
       },
       selectedFeatures: function () {
         return this.annotations.selectedFeatures
@@ -398,7 +405,7 @@
       validateFireBoundary:function(feat,polygon) {
         var geometries = feat.getGeometry().getGeometries()
         var indexes = (geometries.length > 1)?[1]:((geometries.length ===  1 && geometries[0] instanceof ol.geom.MultiPolygon)?[0]:null)
-        if (!indexes) {return null}
+        if (!indexes) {return true}
         var fireBoundary = geometries[indexes[0]]
         var polygonIndex = polygon?fireBoundary.find(function(o) {return o === polygon}):-1
         fireBoundary = fireBoundary.getCoordinates()
@@ -526,16 +533,17 @@
                         var intersectPolygons = []
                         var failed = false
                         var tenurePolygon = null
+                        var fireBoundaryPolygon = []
                         $.each(response.features,function(index,tenure){
                             intersectPolygons.length = 0
                             $.each(tenure.geometry.coordinates,function(index2,p){
                                 tenurePolygon = turf.polygon(p)
                                 $.each(fireBoundary,function(index3,f){
-                                    if (index === 0 && index3 === 0) {
-                                        fireBoundary[index3] = turf.polygon(f)
+                                    if (index === 0 && index2 === 0) {
+                                        fireBoundaryPolygon.push(turf.polygon(f))
                                     }
                                     try{
-                                        intersect = turf.intersect(fireBoundary[index3],tenurePolygon)
+                                        intersect = turf.intersect(fireBoundaryPolygon[index3],tenurePolygon)
                                     } catch(ex) {
                                         alert("Calculate the area of the fire boundary in tenure failed." + ex)
                                         failed = true
@@ -572,6 +580,7 @@
                         if (failed) {return}
                     }
                     console.log( JSON.stringify(requestData ) )
+                    delete requestData['tenures']
                     callback(requestData)
                 },
                 error: function (xhr,status,message) {
@@ -692,8 +701,9 @@
             if (!this.validateFireBoundary(feat)) {
                 return
             }
+            var vm = this
             this.getSpatialData(feat,function(spatialData) {
-                data['sss_id'] = this.getSSSId(feat,true)
+                spatialData['sss_id'] = vm.getSSSId(feat,true)
                 $("#sss_create").val(JSON.stringify(spatialData))
                 $("#bushfire_create").submit()
             })
@@ -888,8 +898,30 @@
       selected: function (f) {
         return f.get('id') && (this.selectedBushfires.indexOf(f.get('id')) > -1)
       },
-      downloadList: function () {
-        this.$root.export.exportVector(this.features.filter(this.featureFilter).sort(this.featureOrder), 'bfrs')
+      downloadList: function (fmt) {
+        var downloadFeatures = []
+        var vm = this
+        var feature = null
+        var geometries = null
+        $.each(this.features,function(index,f){
+            geometries = f.getGeometry().getGeometriesArray()
+            if (geometries.length === 0) {
+                downloadFeatures.push(vm.map.cloneFeature(f,false))
+            } else if (geometries.length === 1) {
+                feature = vm.map.cloneFeature(f,false)
+                feature.setGeometry(geometries[0])
+                downloadFeatures.push(feature)
+            } else {
+                feature = vm.map.cloneFeature(f,false)
+                feature.setGeometry(geometries[0])
+                downloadFeatures.push(feature)
+                feature = vm.map.cloneFeature(f,false)
+                feature.setGeometry(geometries[1])
+                downloadFeatures.push(feature)
+
+            }
+        })
+        this.$root.export.exportVector(downloadFeatures, 'bfrs',fmt)
       },
       importList: function () {
         if (this.$els.bushfiresfile.files.length === 0) {
@@ -1023,10 +1055,14 @@
           }
           return bushfireFilter
       },
-      updateCQLFilter: function (updateType,runNow) {
+      updateCQLFilter: function (updateType,wait) {
         var vm = this
         if (updateType === "region") {
             this.district = ""
+        }
+        if (updateType === "selectedBushfire" && this.selectedBushfires.length === 0 && vm.selectedOnly === true) {
+            vm.selectedOnly = false
+            return
         }
         if (!vm._updateCQLFilterFunc) {
             vm._updateCQLFilterFunc = function(updateType){
@@ -1071,10 +1107,12 @@
                 vm._updateCQLFilterFunc(updateType)
             },2000)
         }
-        if (runNow) {
+        if (wait === 0) {
             vm._updateCQLFilterFunc(updateType)
-        } else {
+        } else if (wait === undefined || wait === null) {
             vm._updateCQLFilter(updateType)
+        } else {
+            vm._updateCQLFilter.call({wait:wait},updateType)
         }
       },
       featureFilter: function (f) {
@@ -1181,7 +1219,7 @@
                 if (vm.whoami["bushfire"]["regions"]) {
                     vm.region = vm.whoami["bushfire"]["profile"]["region_id"] || ""
                     vm.district = vm.whoami["bushfire"]["profile"]["district_id"] || ""
-                    vm.updateCQLFilter('district',true)
+                    vm.updateCQLFilter('district',0)
                     vm.bfrsLayer.initialLoad = true
                 }
             },
@@ -1205,7 +1243,7 @@
                 if (vm.whoami["bushfire"]["profile"]) {
                     vm.region = vm.whoami["bushfire"]["profile"]["region_id"] || ""
                     vm.district = vm.whoami["bushfire"]["profile"]["district_id"] || ""
-                    vm.updateCQLFilter('district',true)
+                    vm.updateCQLFilter('district',0)
                     vm.bfrsLayer.initialLoad = true
                 }
             },
@@ -1688,7 +1726,10 @@
         vm.selectedFeatures.on('remove', function (event) {
           if (event.element.get('toolName') === "Bfrs Origin Point") {
             vm.selectedBushfires.$remove(event.element.get('id'))
-            if (vm.selectedOnly) {
+            if (vm.selectedBushfires.length === 0) {
+                vm.selectedOnly = false
+                vm.updateCQLFilter('selectedBushfire')
+            } else if (vm.selectedOnly) {
                 vm.updateCQLFilter('selectedBushfire')
             }
           }
