@@ -108,7 +108,7 @@
                     <div class="columns">
                       <div class="row">
                         <div class="switch tiny">
-                          <input class="switch-input" id="selectedBushfiresOnly" type="checkbox" v-bind:disabled="selectedOnlyDisabled" v-model="selectedOnly" @change="updateCQLFilter('selectedBushfire',200)" />
+                          <input class="switch-input" id="selectedBushfiresOnly" type="checkbox" v-bind:disabled="selectedOnlyDisabled" v-model="selectedOnly" @change="updateCQLFilter('selectedBushfire',500)" />
                           <label class="switch-paddle" for="selectedBushfiresOnly">
                             <span class="show-for-sr">Show selected only</span>
                          </label>
@@ -244,7 +244,7 @@
         return this.$root.active.isHidden(this.bfrsMapLayer)
       },
       selectedOnlyDisabled:function() {
-        return this.selectedBushfires.length === 0
+        return this.selectedBushfires.length === 0 && !this.selectedOnly
       },
       selectedFeatures: function () {
         return this.annotations.selectedFeatures
@@ -509,7 +509,7 @@
         var geometries = feat.getGeometry().getGeometriesArray()
         var originPoint = (geometries.length > 0 && geometries[0] instanceof ol.geom.Point)?geometries[0].getCoordinates():null
         var fireBoundary = (geometries.length > 1)?geometries[1]:((geometries.length ===  1 && geometries[0] instanceof ol.geom.MultiPolygon)?geometries[0]:null)
-        var area = fireBoundary?this.measure.getTotalArea(fireBoundary):null
+        var area = fireBoundary?this.measure.convertArea(this.measure.getTotalArea(fireBoundary),"ha"):null
         //var length = fireBoundary?this.measure.getTotalLength(fireBoundary):null
 
         feat.set("area",area,true)
@@ -906,19 +906,15 @@
         $.each(this.features,function(index,f){
             geometries = f.getGeometry().getGeometriesArray()
             if (geometries.length === 0) {
-                downloadFeatures.push(vm.map.cloneFeature(f,false))
-            } else if (geometries.length === 1) {
                 feature = vm.map.cloneFeature(f,false)
-                feature.setGeometry(geometries[0])
+                feature.setGeometry(new ol.geom.MultiPolygon())
                 downloadFeatures.push(feature)
             } else {
-                feature = vm.map.cloneFeature(f,false)
-                feature.setGeometry(geometries[0])
-                downloadFeatures.push(feature)
-                feature = vm.map.cloneFeature(f,false)
-                feature.setGeometry(geometries[1])
-                downloadFeatures.push(feature)
-
+                $.each(geometries,function(index,geometry){
+                    feature = vm.map.cloneFeature(f,false)
+                    feature.setGeometry(geometry)
+                    downloadFeatures.push(feature)
+                })
             }
         })
         this.$root.export.exportVector(downloadFeatures, 'bfrs',fmt)
@@ -1112,6 +1108,7 @@
         } else if (wait === undefined || wait === null) {
             vm._updateCQLFilter(updateType)
         } else {
+            console.log("wait = " + wait)
             vm._updateCQLFilter.call({wait:wait},updateType)
         }
       },
@@ -1718,20 +1715,11 @@
                     vm.selectDefaultGeometry(event.element)
                 }
             }
-            if (vm.selectedOnly) {
-                vm.updateCQLFilter('selectedBushfire')
-            }
           }
         })
         vm.selectedFeatures.on('remove', function (event) {
           if (event.element.get('toolName') === "Bfrs Origin Point") {
             vm.selectedBushfires.$remove(event.element.get('id'))
-            if (vm.selectedBushfires.length === 0) {
-                vm.selectedOnly = false
-                vm.updateCQLFilter('selectedBushfire')
-            } else if (vm.selectedOnly) {
-                vm.updateCQLFilter('selectedBushfire')
-            }
           }
           //remove the index of the selected geometry in geometry collection
           //delete event.element['selectedIndex']

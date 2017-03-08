@@ -651,6 +651,16 @@
         }
         return area
       },
+      convertArea:function(area,unit) {
+        unit = unit || "km"
+        if (unit === "ha") {
+            return area / 10000
+        } else if(unit === "km2") {
+            return area / 1000000
+        } else {
+            return area
+        }
+      },
       getLength: function(coordinates) {
         var length = 0
         var sourceProj = this.$root.map.olmap.getView().getProjection()
@@ -682,6 +692,18 @@
         }
         return length
       },
+      convertLength:function(length,unit) {
+        unit = unit || "m"
+        if (unit === "nm") {
+            return (length * 250) / (463 * 1000)
+        } else if (unit === "mile") {
+            return (length * 15625) / (25146 * 1000)
+        } else if (unit === "km"){
+            return length / 1000
+        } else {
+            return length
+        }
+      },
       getBearing: function (coordinates1, coordinates2) {
         var lon1 = this._degrees2radians * coordinates1[0];
         var lon2 = this._degrees2radians * coordinates2[0];
@@ -698,41 +720,37 @@
         var output = null
         unit = unit || this.lengthUnit
         if (unit === "nm") {
-              output = (Math.round( (length * 250) / (10 * 463) ) / 100) +
-                  ' ' + 'nm'
+              output = "nm"
         } else if (unit === "mile") {
-              output = (Math.round( (length * 15625) / (10 * 25146) ) / 100) +
-                  ' ' + 'mile'
+              output = 'mile'
         } else {
             if (length > 100) {
-              output = (Math.round(length / 10) / 100) +
-                  ' ' + 'km'
+                unit = "km"
+                output = "km"
             } else {
-              output = (Math.round(length * 100) / 100) +
-                  ' ' + 'm'
+                unit = "m"
+                output = "m"
             }
         }
+        output = Math.round(this.convertLength(length,unit) * 100) / 100 + " " + output
         return output
       },
       formatArea : function(area) {
         var output = null
         if (this.areaUnit === "ha") {
-            if (area > 10000) {
+            if (area > 1) {
+                
               // large than 1 hectare
-              output = Math.round(area / 10000) + 
-                  ' ' + 'ha'
+              output = Math.round(this.convertArea(area,"ha")) + ' ' + 'ha'
             } else {
               //less than 1 hectare
-              output = (Math.round(area / 10000 * 100) / 100) +
-                  ' ' + 'ha'
+              output = (Math.round(this.convertArea(area,"ha") * 100) / 100) + ' ' + 'ha'
             }
         } else {
             if (area > 10000) {
-              output = (Math.round(area / 1000000 * 100) / 100) +
-                  ' ' + 'km<sup>2</sup>'
+              output = (Math.round(this.convertArea(area,"km2") * 100) / 100) +  ' ' + 'km<sup>2</sup>'
             } else {
-              output = (Math.round(area * 100) / 100) +
-                  ' ' + 'm<sup>2</sup>'
+              output = (Math.round(this.convertArea(area,"m2") * 100) / 100) +  ' ' + 'm<sup>2</sup>'
             }
         }
         return output

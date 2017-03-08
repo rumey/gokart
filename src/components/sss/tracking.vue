@@ -227,7 +227,7 @@
         }
       },
       selectedOnlyDisabled:function() {
-        return this.selectedDevices.length === 0
+        return this.selectedDevices.length === 0 && !this.selectedOnly
       },
       isTrackingMapLayerHidden:function() {
         return this.$root.active.isHidden(this.trackingMapLayer)
@@ -759,20 +759,11 @@
         vm.selectedFeatures.on('add', function (event) {
           if (event.element.get('deviceid')) {
             vm.selectedDevices.push(event.element.get('deviceid'))
-            if (vm.selectedOnly) {
-                vm.updateCQLFilter('selectedDevice')
-            }
           }
         })
         vm.selectedFeatures.on('remove', function (event) {
           if (event.element.get('deviceid')) {
             vm.selectedDevices.$remove(event.element.get('deviceid'))
-            if (vm.selectedDevices.length === 0) {
-                vm.selectedOnly = false
-                vm.updateCQLFilter('selectedDevice')
-            } else if (vm.selectedOnly) {
-                vm.updateCQLFilter('selectedDevice')
-            }
           }
         })
         //vm.annotations.setDefaultTool('tracking','Pan')
