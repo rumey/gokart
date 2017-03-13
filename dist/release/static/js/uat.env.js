@@ -12,3 +12,16 @@ var env = {
     staticService:"https://static.dpaw.wa.gov.au",
     s3Service:"http://gokart.dpaw.io/"
 };
+
+
+document.body.onload = function() {
+    var setStyle = function (){
+        var leftPanel = document.getElementById("offCanvasLeft");
+        if (leftPanel) {
+            leftPanel.style = "background-image:url('dist/static/images/uat.svg')"
+        } else {
+            setTimeout(setStyle,500)
+        }
+    }
+    setTimeout(setStyle,500)
+}
