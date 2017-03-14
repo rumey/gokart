@@ -484,6 +484,10 @@ localforage.getItem('sssOfflineStore').then(function (store) {
                 $("#layers-active-label").trigger("click")
                 self.store.activeSubmenu = "active"
                 self.active.setup()
+
+                //check gokart version
+                utils.checkVersion(self.profile)
+
                 self.loading.app.end()
             } catch(err) {
                 //some exception happens

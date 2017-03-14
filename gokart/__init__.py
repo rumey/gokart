@@ -12,6 +12,8 @@ import re
 import smtplib
 import json
 import pytesseract
+import hashlib
+import base64
 try:
     from PIL import Image
 except:
@@ -30,6 +32,8 @@ bottle.TEMPLATE_PATH.append('./gokart')
 bottle.debug(True)
 
 BASE_PATH = os.path.dirname(__file__)
+
+BASE_DIST_PATH = os.path.join(os.path.dirname(BASE_PATH),"dist")
 
 
 ENV_TYPE = (os.environ.get("ENV_TYPE") or "prod").lower()
@@ -51,6 +55,68 @@ FIREWATCH_GETCAPS = FIREWATCH_SERVICE + "?service=wms&request=getcapabilities"
 HTTPS_VERIFY = os.environ.get("HTTPS_VERIFY") or "True"
 HTTPS_VERIFY = True if HTTPS_VERIFY.lower() in ["true","on","yes"] else (False if HTTPS_VERIFY.lower() in ["False","off","no"] else HTTPS_VERIFY )
 
+
+profile_re = re.compile("gokartProfile\s*=\s*(?P<profile>\{.+\})\s*;?\s*exports.+default.+gokartProfile",re.DOTALL)
+@bottle.route("/profile/<app>/<dist>")
+def profile(app,dist):
+    #get app profile
+    profile = None
+    appPath = os.path.join(BASE_DIST_PATH,dist,"{}.js".format(app))
+    if not os.path.exists(appPath):
+        raise Exception("Application({}<{}>) not found".format(app,dist))
+
+    key = "{}_{}_profile".format(app,dist)
+    
+    if uwsgi.cache_exists(key):
+        profile = uwsgi.cache_get(key)
+    
+    if profile:
+        profile = json.loads(profile)
+        if repr(os.path.getmtime(appPath)) != profile["mtime"] or os.path.getsize(appPath) != profile["size"]:
+            profile = None
+
+    if not profile:
+        with open(appPath,"rb") as f:
+            m = profile_re.search(f.read())
+            profile = m.group("profile") if m else "{}"
+
+        profile = {
+            'mtime':repr(os.path.getmtime(appPath)),
+            'size':os.path.getsize(appPath),
+            'profile':json.loads(profile)
+        }
+        uwsgi.cache_set(key, json.dumps(profile))
+
+    #get vendor md5
+    vendorPath = os.path.join(BASE_DIST_PATH,dist,"vendor.js")
+    if not os.path.exists(vendorPath):
+        raise Exception("Vendor library({}) not found".format(dist))
+    key = "{}_{}_profile".format("vendor",dist)
+
+    vendorProfile = None
+    if uwsgi.cache_exists(key):
+        vendorProfile = uwsgi.cache_get(key)
+    
+    if vendorProfile:
+        vendorProfile = json.loads(vendorProfile)
+        if repr(os.path.getmtime(vendorPath)) != vendorProfile["mtime"] or os.path.getsize(vendorPath) != vendorProfile["size"]:
+            vendorProfile = None
+
+    if not vendorProfile:
+        m = hashlib.md5()
+        with open(vendorPath,"rb") as f:
+            m.update(f.read())
+        vendorProfile = {
+            'mtime':repr(os.path.getmtime(vendorPath)),
+            'size':os.path.getsize(vendorPath),
+            'vendorMD5':base64.b64encode(m.digest())
+        }
+        uwsgi.cache_set(key, json.dumps(vendorProfile))
+
+    profile["profile"]["build"]["vendorMD5"] = vendorProfile["vendorMD5"]
+
+    bottle.response.set_header("Content-Type", "application/json")
+    return profile["profile"]
 
 @bottle.route("/hi8/<target>")
 def himawari8(target):

@@ -18,7 +18,7 @@ document.body.onload = function() {
     var setStyle = function (){
         var leftPanel = document.getElementById("offCanvasLeft");
         if (leftPanel) {
-            leftPanel.style = "background-image:url('dist/static/images/uat.svg')"
+            leftPanel.style = "background-image:url('dist/static/images/uat.svg');background-size:cover;background-repeat:no-repeat;background-position:center center;"
         } else {
             setTimeout(setStyle,500)
         }

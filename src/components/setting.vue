@@ -123,6 +123,16 @@
                     <a id="take-tour" class="button" title="Take a tour of the new SSS interface" @click="$root.takeTour()"><i class="fa fa-book"></i> Take Tour</a>
                   </div>
                </div>
+
+               <div class="small-3">
+                   <label class="tool-label">Version:</label>
+               </div>
+               <div class="small-9">
+                  <div class="expanded button-group">
+                    <a id="take-tour" class="button" title="Check new version" @click="$root.utils.checkVersion($root.profile,true)"> Check New Version</a>
+                  </div>
+               </div>
+
             </div>
             
 

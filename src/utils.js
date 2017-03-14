@@ -48,6 +48,31 @@ Utils.prototype.getAddressTarget = function(target){
     return (env.appType === "cordova")?"_system":target
 }
 
+Utils.prototype.checkVersion = function(profile,check) {
+    $.ajax({
+        url: "/profile/sss/" + profile.distributionType,
+        contentType:"application/json",
+        success: function (response, stat, xhr) {
+            if (profile.build.datetime !== response.build.datetime || 
+                profile.build.host !== response.build.host || 
+                profile.build.platform !== response.build.platform
+            ) {
+                alert("New version is available, please press <F5> to reload the system; if can't fix, please clean browser's cache.")
+            } else if (profile.build.vendorMD5 !== response.build.vendorMD5) {
+                alert("Application was not built on the latest vendor library, please rebuild the application again.")
+            } else if (check){
+                alert("You have the latest version.")
+            }
+        },
+        error: function (xhr,status,message) {
+            alert(status + " : " + message)
+        },
+        xhrFields: {
+            withCredentials: true
+        }
+    })
+}
+
 var utils = new Utils()
 
 export default utils

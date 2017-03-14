@@ -1,4 +1,5 @@
 import os
+import sys
 import string
 import datetime
 import pytz
@@ -6,8 +7,11 @@ import socket
 import json
 import platform
 import subprocess
+import hashlib
+import base64
 
 base_path = os.path.abspath(os.path.dirname(__file__))
+base_dist_path = os.path.join(base_path,"dist")
 
 def generate_app_profile():
     profile_template_file = os.path.join(base_path,"src/apps/profile-template.js")
@@ -25,12 +29,26 @@ def generate_app_profile():
     now = datetime.datetime.now(pytz.timezone('Australia/Perth'))
 
     package.update(package['config'])
+    package["distributionType"] = sys.argv[1] if len(sys.argv) >= 2 else "unknown"
+
+    vendor_file = os.path.join(base_dist_path,package["distributionType"],"vendor.js")
+
+    if not os.path.exists(vendor_file):
+        raise Exception("Vendor file({}) is missing".format(vendor_file))
+
+    m = hashlib.md5()
+    with open(vendor_file,"rb") as f:
+        m.update(f.read())
+
+    vendor_md5 = base64.b64encode(m.digest())
+
     package.update({
         "build_datetime":now.strftime("%Y-%m-%d %H:%M:%S %Z(%z)"),
         "build_date":now.strftime("%Y-%m-%d %Z(%z)"),
         "build_time":now.strftime("%H-%M-%S %Z(%z)"),
         "build_platform":platform.system(),
-        "build_host":socket.gethostname()
+        "build_host":socket.gethostname(),
+        "vendor_md5":vendor_md5
     })
 
 
