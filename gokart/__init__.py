@@ -49,7 +49,7 @@ FIREWATCH_TZ = pytz.timezone('Australia/Perth')
 FIREWATCH_SERVICE = "/mapproxy/firewatch/service"
 FIREWATCH_GETCAPS = FIREWATCH_SERVICE + "?service=wms&request=getcapabilities"
 HTTPS_VERIFY = os.environ.get("HTTPS_VERIFY") or "True"
-HTTPS_VERIFY = True if HTTPS_VERIFY.lower() in ["true","on","yes"] else (False if HTTPS_VERIFY.lower() in ["false","off","no"] else HTTPS_VERIFY )
+HTTPS_VERIFY = True if HTTPS_VERIFY.lower() in ["true","on","yes"] else (False if HTTPS_VERIFY.lower() in ["False","off","no"] else HTTPS_VERIFY )
 
 
 @bottle.route("/hi8/<target>")
@@ -304,68 +304,179 @@ def gdal(fmt):
     return output
 
 feature_count_re = re.compile("^Feature Count:\s+(?P<count>\d+)",re.MULTILINE)
-def featureCount(jsonfile,featureType):
-    info = subprocess.check_output(["ogrinfo", "-al","-so","-ro", "-where", "OGR_GEOMETRY='{}'".format(featureType), jsonfile])
+def featureCount(datasource,layer,feature_type):
+    cmd = ["ogrinfo", "-al","-so","-ro"]
+    if feature_type:
+        if feature_type == "EMPTY":
+            cmd.extend(["-where", "OGR_GEOMETRY IS NULL"])
+        else:
+            cmd.extend(["-where", "OGR_GEOMETRY='{}'".format(feature_type)])
+
+    cmd.append(datasource)
+
+    if layer:
+        cmd.append(layer)
+
+    info = subprocess.check_output(cmd)
     m = feature_count_re.search(info)
     return (m and int(m.group('count'))) or 0
     
+layer_info_re = re.compile('[\r\n]+\s*Layer name:\s+(?P<name>[^\r\n]+)([\r\n]+\s*Geometry:\s+(?P<geometry>[^\r\n]+))?([\r\n]+Feature Count:\s+(?P<count>\d+))?[\r\n]+')
+def layerinfo(datasource):
+    cmd = ["ogrinfo", "-al","-so","-ro",datasource]
 
+    info = subprocess.check_output(cmd)
+
+    return [ (m.group('name'),m.group('geometry').replace(" ","").upper() if m.group('geometry') else None,int(m.group('count')) if m.group('count') else None) for m in layer_info_re.finditer(info)]
 
 # Vector translation using ogr
+SUPPORTED_GEOMETRY_TYPES = ["POINT","LINESTRING","POLYGON","MULTIPOINT","MULTILINESTRING","MULTIPOLYGON"] 
+@bottle.route("/ogrinfo", method="POST")
+def ogrinfo():
+    # needs gdal 1.10+
+    datasource = bottle.request.files.get("datasource")
+    workdir = tempfile.mkdtemp()
+    try:
+        datasource.save(workdir)
+        datasourcefile = os.path.join(workdir, datasource.filename)
+
+        layers = layerinfo(datasourcefile)
+
+        layers = [{"layer":l[0],"geometry":l[1],"featureCount":l[2]} for l in layers if l[1] in SUPPORTED_GEOMETRY_TYPES or l[1].find("UNKNOWN") >= 0]
+        bottle.response.set_header("Content-Type", "application/json")
+        return {"layers":layers}
+
+    finally:
+        try:
+            shutil.rmtree(workdir)
+        except:
+            pass
+
 @bottle.route("/ogr/<fmt>", method="POST")
 def ogr(fmt):
     # needs gdal 1.10+
-    json = bottle.request.files.get("json")
+    datasource = bottle.request.files.get("datasource")
+    layer = bottle.request.files.get("layer")
     workdir = tempfile.mkdtemp()
-    #if json.filename contains '.', only use the left part of the first '.' as the layername
-    layername =  json.filename if (json.filename.find('.') < 0) else json.filename[:json.filename.find('.')]
-    json.save(workdir)
-    jsonfile = os.path.join(workdir, json.filename)
-    extra = []
-    split = False
-    if fmt == "shp" and False:
-        #Disable now
-        f = "ESRI Shapefile"
-        ct = "application/zip"
-    elif fmt == 'sqlite':
-        f = "SQLite"
-        ct = "application/x-sqlite3"
-        dst_datasource = os.path.splitext(jsonfile)[0] + ".sqlite"
-    elif fmt == 'gpkg':
-        f = "GPKG"
-        ct = "application/x-sqlite3"
-        dst_datasource = os.path.splitext(jsonfile)[0] + ".gpkg"
-        split = True
-    elif fmt == 'csv':
-        f = "CSV"
-        ct = "text/csv"
-        dst_datasource = os.path.splitext(jsonfile)[0] + ".csv"
-    else:
-        bottle.response.status = 400
-        return "Not supported format({})".format(fmt)
+    try:
+        outputdir = os.path.join(workdir,"output")
+        os.mkdir(outputdir)
+        #if datasource.filename contains '.', only use the left part of the first '.' as the layername
+        sourcefmt = "" if (datasource.filename.rfind('.') < 0) else datasource.filename[datasource.filename.rfind('.') + 1:]
+        defaultlayername =  datasource.filename if (datasource.filename.find('.') < 0) else datasource.filename[:datasource.filename.find('.')]
+        datasource.save(workdir)
+        datasourcefile = os.path.join(workdir, datasource.filename)
+        extra = []
+        dst_datasource_ext = ""
 
-    if split:
+        multilayer = False
+        multitype = False
+        dst_datasource_pattern = None
+
+        if fmt == "shp" :
+            f = "ESRI Shapefile"
+            ct = "application/zip"
+            multilayer = False
+            multitype = False
+            dst_datasource_pattern = os.path.join(outputdir, datasource.filename if (datasource.filename.rfind('.') < 0) else datasource.filename[:datasource.filename.rfind('.')])
+        elif fmt == 'sqlite':
+            f = "SQLite"
+            ct = "application/x-sqlite3"
+            dst_datasource_ext = ".sqlite"
+            multilayer = True
+            multitype = False
+        elif fmt == 'gpkg':
+            f = "GPKG"
+            ct = "application/x-sqlite3"
+            dst_datasource_ext = ".gpkg"
+            multilayer = True
+            multitype = False
+        elif fmt == 'csv':
+            f = "CSV"
+            ct = "text/csv"
+            dst_datasource_ext = ".csv"
+            multilayer = False
+            multitype = True
+        elif fmt in ('geojson','json'):
+            f = "GeoJSON"
+            ct = "application/vnd.geo+json"
+            dst_datasource_ext = ".geojson"
+            multilayer = False
+            multitype = True
+        elif fmt == 'gpx' and False:
+            f = "GPX"
+            ct = "application/gpx+xml"
+            dst_datasource_ext = ".gpx"
+            multilayer = True
+            multitype = False
+        else:
+            bottle.response.status = 400
+            return "Not supported format({})".format(fmt)
+
+        layers = layerinfo(datasourcefile)
+
+        if layer:
+            layers = [l for l in layers if l[0] == layer]
+            if len(layers) == 0:
+                raise Exception("The layer({}) is not found.".found(layer))
+        unsupported_layers = ["{}({})".format(l[0],l[1]) for l in layers if l[1] not in SUPPORTED_GEOMETRY_TYPES and l[1].find("UNKNOWN") < 0]
+        if unsupported_layers:
+            raise Exception("The geometry type of the layers({}) are not supported.".format(unsupported_layers))
+
+        def get_dst_datasource(l,t=None):
+            pattern = None
+            if not dst_datasource_pattern:
+                pattern = os.path.join(outputdir, datasource.filename if (datasource.filename.rfind('.') < 0) else datasource.filename[:datasource.filename.rfind('.')])
+                if len(layers) > 1 and not multilayer:
+                    pattern = pattern + "_{layer}"
+                if t and not multilayer:
+                    pattern = pattern + "_{geometry_type}"
+                pattern = pattern + "{ext}"
+            else:
+                pattern = dst_datasource_pattern
+            return pattern.format(layer=l,geometry_type=t,ext=dst_datasource_ext)
+
+        geometry_types = None
         mode = "-overwrite"
-        for t in ["POINT","LINESTRING","POLYGON","MULTIPOINT","MULTILINESTRING","MULTIPOLYGON"]:
-            if featureCount(jsonfile,t):
-                subprocess.check_call([
-                    "ogr2ogr", mode, "-where", "OGR_GEOMETRY='{}'".format(t),
-                    "-a_srs", "EPSG:4326", "-nln", layername+"_{}s".format(t.lower()), "-f", f, dst_datasource, jsonfile
-                ])
-                mode = "-update"
-    else:
-        subprocess.check_call([
-            "ogr2ogr","-overwrite" ,"-a_srs","EPSG:4326","-nln",layername, "-f", f,dst_datasource, jsonfile]) 
+        for layer in layers:
+            layername =  defaultlayername if sourcefmt in ("geojson","json") else layer[0]
 
-    if fmt == "shp":
-        shutil.make_archive(path.replace('geojson', 'zip'), 'zip', workdir, workdir)
-        dst_datasource = path + ".zip"
+            if not multitype and layer[1] not in SUPPORTED_GEOMETRY_TYPES: 
+                geometry_types = [t for t in SUPPORTED_GEOMETRY_TYPES if featureCount(datasourcefile,layer[0],t)]
+                if len(geometry_types) > 1:
+                    if featureCount(datasourcefile,layer[0],"EMPTY"):
+                        geometry_types.append("EMPTY")
+                    for t in geometry_types:
+                        dst_datasource = get_dst_datasource(layer[0],t)
+                        subprocess.check_call([
+                            "ogr2ogr", mode, "-where", "OGR_GEOMETRY='{}'".format(t) if t != "EMPTY" else "OGR_GEOMETRY IS NULL",
+                            "-a_srs", "EPSG:4326", "-nln", layername + "_{}".format(t.lower()), "-f", f, dst_datasource, datasourcefile,layer[0]
+                        ])
+                        mode = "-update" if multilayer else "-overwrite"
+                    continue
 
-    output = open(dst_datasource)
-    shutil.rmtree(workdir)
-    bottle.response.set_header("Content-Type", ct)
-    bottle.response.set_header("Content-Disposition", "attachment;filename='{}'".format(os.path.basename(dst_datasource)))
-    return output
+            dst_datasource = get_dst_datasource(layer[0])
+            subprocess.check_call([
+                "ogr2ogr","-overwrite" ,"-a_srs","EPSG:4326","-nln",layername, "-f", f,dst_datasource, datasourcefile,layer[0]]) 
+            mode = "-update" if multilayer else "-overwrite"
+    
+        if len(os.listdir(outputdir)) > 1 or (len(os.listdir(outputdir)) == 1 and os.path.isdir(os.path.join(outputdir,os.listdir(outputdir)[0]))):
+            ct = "application/zip"
+            zipfile = dst_datasourcebase = os.path.join(workdir, datasource.filename if (datasource.filename.rfind('.') < 0) else datasource.filename[:datasource.filename.rfind('.')])
+            zipfile = zipfile + "." + fmt
+            shutil.make_archive(zipfile, 'zip', outputdir)
+            dst_datasource = zipfile + ".zip"
+    
+        output = open(dst_datasource)
+        bottle.response.set_header("Content-Type", ct)
+        bottle.response.set_header("Content-Disposition", "attachment;filename='{}'".format(os.path.basename(dst_datasource)))
+        return output
+    finally:
+        try:
+            shutil.rmtree(workdir)
+        except:
+            pass
+
 
 
 # saveas

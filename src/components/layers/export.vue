@@ -131,6 +131,32 @@
 
       <gk-layerlegends v-ref:layerlegends></gk-layerlegends>
     </div>
+
+    <div class="reveal" id="chooseImportLayer" data-reveal> 
+        <h1>Please choose the layer to import</h1>
+        <div class="row feature-row" >
+            <div class="small-2 columns">
+            </div>
+            <div class="small-5 columns">Layer</div>
+            <div class="small-3 columns">Geometry</div>
+            <div class="small-2 columns">Features</div>
+        </div>
+        <div v-for="l in layers" class="row feature-row" >
+            <div class="small-2 columns">
+                <input type="radio" v-model="importLayer" value="{{l[0]}}">
+            </div>
+            <div class="small-5 columns">{{l[0]}}</div>
+            <div class="small-3 columns">{{l[1]}}</div>
+            <div class="small-2 columns">{{l[2]}}</div>
+        </div>
+        <button type="button" @click="importLayer()">
+        Import
+        </button>
+        <button class="close-button" data-close aria-label="Close modal" type="button">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
+
   </div>
 </template>
 <script>
@@ -142,6 +168,7 @@
     components: { gkLegend,gkLayerlegends },
     data: function () {
       return {
+        importLayer:null,
         minDPI: 150,
         paperSizes: {
           A0: [1189, 841],
@@ -233,7 +260,7 @@
           saveAs(blob, name + '.geojson')
         } else {
           var formData = new window.FormData()
-          formData.append('json', blob, name + '.json')
+          formData.append('datasource', blob, name + '.json')
           var req = new window.XMLHttpRequest()
           req.open('POST', this.gokartService + '/ogr/' + format)
           req.responseType = 'blob'
@@ -248,20 +275,111 @@
             } else {
                 var filename = null
                 if (req.getResponseHeader("Content-Disposition")) {
-                    if (!vm._filename_re) {
-                        vm._filename_re = new RegExp("filename=[\'\"](.+)[\'\"]")
-                    }
                     var matches = vm._filename_re.exec(req.getResponseHeader("Content-Disposition"))
                     filename = (matches && matches[1])? matches[1]: null
                 }
                 if (!filename) {
-                    filename = name + "." + this.vectotFormat
+                    filename = name + "." + format
                 }
                 saveAs(req.response, filename)
             }
           }
           req.send(formData)
         }
+      },
+      importVector: function(file,callback) {
+        // upload vector  
+        var vm = this
+        var p = file.name.lastIndexOf('.')
+        console.log(file.name)
+        if (p < 0) {
+            alert("Unknown file (" + file.name + ") format.")
+        }
+        var fileFormat = file.name.substring(p + 1)
+        if ((fileFormat === "geojson") || (fileFormat === "json")) {
+            var reader = new window.FileReader()
+            reader.onload = function (e) {
+                var features = new ol.format.GeoJSON().readFeatures(e.target.result,{dataProjection:"EPSG:4326"})
+                if (features && features.length) {
+                   callback(features,fileFormat)
+                }
+            }
+            reader.readAsText(file)
+        } else {
+            var reader = new window.FileReader()
+            reader.onload = function (e) {
+                vm._formData = new window.FormData()
+                if (fileFormat === "gpx") {
+                    vm._formData.append('datasource', new window.Blob([e.target.result],{type:'application/gpx+xml'}), file.name)
+                } else {
+                    alert("Not support file format(" + fileFormat + ")")
+                }
+                var req = new window.XMLHttpRequest()
+                req.open('POST', vm.gokartService + '/ogrinfo')
+                req.responseType = 'json'
+                req.withCredentials = true
+                req.onload = function (event) {
+                    if (req.status >= 400) {
+                        var reader = new FileReader()
+                        reader.readAsText(req.response)
+                        reader.addEventListener("loadend",function(e){
+                            alert(e.target.result)
+                        })
+                        delete vm._formData
+                    } else {
+                        var layers = req.response.layers || []
+                        layers = layers.filter(function(l){return l.featureCount > 0})
+                        if (!layers || layers.length === 0) {
+                            return
+                        } else if(layers.length === 1) {
+                            importLayer(layers[0][0])
+                        } else {
+                            $("#chooseImportLayer").foundation('open')
+                        }
+                    }
+                }
+                req.send(vm._formData)
+            }
+            reader.readAsArrayBuffer(file)
+        }
+      },
+      importLayer:function(layer){
+        if (!vm._formdata) {
+            alert("Form data is missing.")
+        }
+        if (!layer) {
+            $("#chooseImportLayer").foundation('close')
+        }
+        layer = layer || this.importLayer
+        if (!layer) {
+            alert("Please choose import layer.")
+        }
+        vm._formData.append('layer', layer)
+        var req = new window.XMLHttpRequest()
+          req.open('POST', vm.gokartService + '/ogr/geojson')
+          req.responseType = 'blob'
+          req.withCredentials = true
+          req.onload = function (event) {
+              if (req.status >= 400) {
+                  var reader = new FileReader()
+                  reader.readAsText(req.response)
+                  reader.addEventListener("loadend",function(e){
+                      alert(e.target.result)
+                  })
+              } else {
+                  var responseReader = new window.FileReader()
+                  responseReader.onload = function (e) {
+                      var features = new ol.format.GeoJSON().readFeatures(e.target.result,{dataProjection:"EPSG:4326"})
+                      if (features && features.length) {
+                          callback(features,fileFormat)
+                      }
+                  }
+                  reader.readAsText(req.response)
+              }
+          }
+          req.send(vm._formData)
+          delete this._formData
+          this.importLayer = null
       },
       // resize map to page dimensions (in mm) for printing, save layout
       prepareMapForPrinting: function () {
@@ -569,38 +687,6 @@
           reader.readAsText(this.$els.statefile.files[0])
         }
       },
-      importVector: function(file,callback) {
-        // upload vector  
-        var vm = this
-        var reader = new window.FileReader()
-        reader.onload = function (e) {
-          var data = e.target.result
-          var p = file.name.lastIndexOf('.')
-          var fileFormat = file.name
-          if (p>=0) {
-              fileFormat = file.name.substring(p).toLowerCase()
-          } 
-          var features = null
-          if ((fileFormat === ".geojson") || (fileFormat === ".json")) {
-              //geo json file
-              features = new ol.format.GeoJSON().readFeatures(data,{dataProjection:"EPSG:4326"})
-          } else if (fileFormat === ".gpx") {
-              //gpx file
-              features = new ol.format.GPX().readFeatures(data,{dataProjection:"EPSG:4326"})
-          } else {
-              if (fileFormat === file.name) {
-                  alert("Unknown file format (" + file.name + ")")
-              } else {
-                  alert("File format(" + fileFormat + ") not support")
-              }
-              return
-          }
-          if (features && features.length) {
-            callback(features,fileFormat)
-          }
-        }
-        reader.readAsText(file)
-      },
       saveStateButton: function () {
         var key = this.$els.savestatename.value
         if (!key) {
@@ -647,6 +733,7 @@
     },
     ready: function () {
       var vm = this
+      this._filename_re = new RegExp("filename=[\'\"](.+)[\'\"]")
       var exportStatus = vm.loading.register("export","Export Component","Initialize")
       exportStatus.wait(10,"Listen 'gk-init' event")
       this.$on('gk-init', function () {

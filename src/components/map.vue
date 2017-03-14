@@ -1278,7 +1278,11 @@
             var catLayer = vm.$root.catalogue.getLayer(fixedLayer.id)
             if (catLayer) {
                 //fixed layer already exist, update the properties 
-                $.extend(catLayer,fixedLayer)
+                $.extend(catLayer,fixedLayer,{
+                    name:catLayer["name"] || fixedLayer["name"],
+                    title:catLayer["title"] || fixedLayer["title"],
+                    abstract:catLayer["abstract"] || fixedLayer["abstract"],
+                })
             } else {
                 //fixed layer not exist, add it
                 vm.$root.catalogue.catalogue.push(fixedLayer)

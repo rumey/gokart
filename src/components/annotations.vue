@@ -349,7 +349,7 @@
         this.export.importVector(this.$els.annotationsfile.files[0],function(features,fileFormat){
             var ignoredFeatures = []
             var f = null
-            if ((fileFormat === ".geojson") || (fileFormat === ".json")) {
+            if ((fileFormat === "geojson") || (fileFormat === "json")) {
                 //geo json file
                 for(var i = features.length - 1;i >= 0;i--) {
                     feature = features[i]
@@ -403,7 +403,7 @@
                         }  
                     }
                 }
-            } else if (fileFormat === ".gpx") {
+            } else if (fileFormat === "gpx") {
                 //gpx file
                 for(var i = features.length - 1;i >= 0;i--) {
                     feature = features[i]

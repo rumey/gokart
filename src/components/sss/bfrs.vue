@@ -171,7 +171,7 @@
         region:'',
         district:'',
         tools: [],
-        fields: ['id', 'name'],
+        fields: ['job_code', 'name'],
         drawings:new ol.Collection(),
         allFeatures: new ol.Collection(),
         editableFeatures:new ol.Collection(),

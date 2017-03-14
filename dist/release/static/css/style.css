@@ -18,7 +18,7 @@ body {
 #info {
     position: absolute;
     z-index: 2;
-    padding: 2em;
+    padding: 0.5em;
     background-color: #424f5a;
     max-width: 40%;
     width: 100%;
@@ -28,6 +28,11 @@ body {
     max-height: 30vh;
     overflow: auto;
 }
+
+#info .close-button {
+    display: none;
+}
+
 /* full-height the foundation off-canvas stuff also */
 
 .off-canvas-wrapper {
@@ -414,16 +419,6 @@ input[type="range"] {
     margin-left: 1em;
 }
 /* Set height of internal layers to allow for bottom details */
-
-.layers-topframe_75vh {
-    height: 75vh;
-    border-bottom: 1px solid rgba(37, 45, 51, 0.9);
-}
-
-.layers-topframe_60vh {
-    height: 60vh;
-    border-bottom: 1px solid rgba(37, 45, 51, 0.9);
-}
 
 .layers-flexibleframe {
     border-bottom: 1px solid rgba(37, 45, 51, 0.9);
