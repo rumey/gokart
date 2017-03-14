@@ -132,26 +132,23 @@
       <gk-layerlegends v-ref:layerlegends></gk-layerlegends>
     </div>
 
-    <div class="reveal" id="chooseImportLayer" data-reveal> 
-        <h1>Please choose the layer to import</h1>
+    <div class="small reveal" id="chooseImportLayer" data-reveal data-close-on-click='false'> 
+        <h3>Please choose the layer to import</h3>
         <div class="row feature-row" >
-            <div class="small-2 columns">
-            </div>
-            <div class="small-5 columns">Layer</div>
+            <div class="small-6 columns">Layer</div>
             <div class="small-3 columns">Geometry</div>
             <div class="small-2 columns">Features</div>
+            <div class="small-1 columns"></div>
         </div>
         <div v-for="l in layers" class="row feature-row" >
-            <div class="small-2 columns">
-                <input type="radio" v-model="importLayer" value="{{l[0]}}">
+            <div class="small-6 columns">{{l.layer}}</div>
+            <div class="small-3 columns">{{l.geometry}}</div>
+            <div class="small-2 columns">{{l.featureCount}}</div>
+            <div class="small-1 columns">
+                <a class="button tiny secondary float-right" @click="importLayer(l)"><i class="fa fa-upload"></i></a>
             </div>
-            <div class="small-5 columns">{{l[0]}}</div>
-            <div class="small-3 columns">{{l[1]}}</div>
-            <div class="small-2 columns">{{l[2]}}</div>
         </div>
-        <button type="button" @click="importLayer()">
-        Import
-        </button>
+
         <button class="close-button" data-close aria-label="Close modal" type="button">
             <span aria-hidden="true">&times;</span>
         </button>
@@ -168,7 +165,7 @@
     components: { gkLegend,gkLayerlegends },
     data: function () {
       return {
-        importLayer:null,
+        layers:null,
         minDPI: 150,
         paperSizes: {
           A0: [1189, 841],
@@ -291,7 +288,7 @@
         // upload vector  
         var vm = this
         var p = file.name.lastIndexOf('.')
-        console.log(file.name)
+        //console.log(file.name)
         if (p < 0) {
             alert("Unknown file (" + file.name + ") format.")
         }
@@ -308,11 +305,14 @@
         } else {
             var reader = new window.FileReader()
             reader.onload = function (e) {
-                vm._formData = new window.FormData()
+                vm._importData = {formData:new window.FormData(),callback:callback,fileFormat:fileFormat}
                 if (fileFormat === "gpx") {
-                    vm._formData.append('datasource', new window.Blob([e.target.result],{type:'application/gpx+xml'}), file.name)
+                    vm._importData.formData.append('datasource', new window.Blob([e.target.result],{type:'application/gpx+xml'}), file.name)
+                } else if(fileFormat === "gpkg") {
+                    vm._importData.formData.append('datasource', new window.Blob([e.target.result],{type:'application/x-sqlite3'}), file.name)
                 } else {
                     alert("Not support file format(" + fileFormat + ")")
+                    return
                 }
                 var req = new window.XMLHttpRequest()
                 req.open('POST', vm.gokartService + '/ogrinfo')
@@ -325,61 +325,70 @@
                         reader.addEventListener("loadend",function(e){
                             alert(e.target.result)
                         })
-                        delete vm._formData
+                        delete vm._importData
                     } else {
                         var layers = req.response.layers || []
-                        layers = layers.filter(function(l){return l.featureCount > 0})
                         if (!layers || layers.length === 0) {
                             return
                         } else if(layers.length === 1) {
-                            importLayer(layers[0][0])
+                            vm.importLayer(layers[0],true)
                         } else {
+                            vm.layers = layers
                             $("#chooseImportLayer").foundation('open')
                         }
                     }
                 }
-                req.send(vm._formData)
+                req.send(vm._importData.formData)
             }
             reader.readAsArrayBuffer(file)
         }
       },
-      importLayer:function(layer){
-        if (!vm._formdata) {
-            alert("Form data is missing.")
+      importLayer:function(selectedLayer,autoChoose){
+        try {
+            if (!this._importData) {
+                alert("Import data is missing.")
+                return
+            }
+            if (!selectedLayer) {
+                alert("Please choose import layer.")
+                return
+            }
+            if (selectedLayer.featureCount <= 0) {
+                return
+            }
+            var vm = this
+            this._importData.formData.append('layer', selectedLayer.layer)
+            var req = new window.XMLHttpRequest()
+            req.open('POST', this.gokartService + '/ogr/geojson')
+            req.responseType = 'blob'
+            req.withCredentials = true
+            var importData = vm._importData
+            req.onload = function (event) {
+                if (req.status >= 400) {
+                    var reader = new FileReader()
+                    reader.readAsText(req.response)
+                    reader.addEventListener("loadend",function(e){
+                        alert(e.target.result)
+                    })
+                } else {
+                    var responseReader = new window.FileReader()
+                    responseReader.onload = function (e) {
+                        var features = new ol.format.GeoJSON().readFeatures(e.target.result,{dataProjection:"EPSG:4326"})
+                        if (features && features.length) {
+                            importData.callback(features,importData.fileFormat)
+                        }
+                    }
+                    responseReader.readAsText(req.response)
+                }
+            }
+            req.send(this._importData.formData)
+        } finally {
+            if (!autoChoose) {
+                $("#chooseImportLayer").foundation('close')
+            } else {
+                if (this._importData) {delete this._importData}
+            }
         }
-        if (!layer) {
-            $("#chooseImportLayer").foundation('close')
-        }
-        layer = layer || this.importLayer
-        if (!layer) {
-            alert("Please choose import layer.")
-        }
-        vm._formData.append('layer', layer)
-        var req = new window.XMLHttpRequest()
-          req.open('POST', vm.gokartService + '/ogr/geojson')
-          req.responseType = 'blob'
-          req.withCredentials = true
-          req.onload = function (event) {
-              if (req.status >= 400) {
-                  var reader = new FileReader()
-                  reader.readAsText(req.response)
-                  reader.addEventListener("loadend",function(e){
-                      alert(e.target.result)
-                  })
-              } else {
-                  var responseReader = new window.FileReader()
-                  responseReader.onload = function (e) {
-                      var features = new ol.format.GeoJSON().readFeatures(e.target.result,{dataProjection:"EPSG:4326"})
-                      if (features && features.length) {
-                          callback(features,fileFormat)
-                      }
-                  }
-                  reader.readAsText(req.response)
-              }
-          }
-          req.send(vm._formData)
-          delete this._formData
-          this.importLayer = null
       },
       // resize map to page dimensions (in mm) for printing, save layout
       prepareMapForPrinting: function () {
@@ -735,6 +744,10 @@
       var vm = this
       this._filename_re = new RegExp("filename=[\'\"](.+)[\'\"]")
       var exportStatus = vm.loading.register("export","Export Component","Initialize")
+
+      $("#chooseImportLayer").on("closed.zf.reveal",function(){
+          if (vm._importData) {delete vm._importData}
+      })
       exportStatus.wait(10,"Listen 'gk-init' event")
       this.$on('gk-init', function () {
         exportStatus.progress(80,"Process 'gk-init' event")

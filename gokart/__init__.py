@@ -356,7 +356,7 @@ def ogrinfo():
 def ogr(fmt):
     # needs gdal 1.10+
     datasource = bottle.request.files.get("datasource")
-    layer = bottle.request.files.get("layer")
+    layer = bottle.request.forms.get("layer")
     workdir = tempfile.mkdtemp()
     try:
         outputdir = os.path.join(workdir,"output")
@@ -448,10 +448,16 @@ def ogr(fmt):
                         geometry_types.append("EMPTY")
                     for t in geometry_types:
                         dst_datasource = get_dst_datasource(layer[0],t)
-                        subprocess.check_call([
-                            "ogr2ogr", mode, "-where", "OGR_GEOMETRY='{}'".format(t) if t != "EMPTY" else "OGR_GEOMETRY IS NULL",
-                            "-a_srs", "EPSG:4326", "-nln", layername + "_{}".format(t.lower()), "-f", f, dst_datasource, datasourcefile,layer[0]
-                        ])
+                        if t == "EMPTY" :
+                            subprocess.check_call([
+                                "ogr2ogr", mode, "-where", "OGR_GEOMETRY IS NULL",
+                                "-a_srs", "EPSG:4326", "-nln", layername + "_{}".format(t.lower()), "-f", f, dst_datasource, datasourcefile,layer[0]
+                            ])
+                        else:
+                            subprocess.check_call([
+                                "ogr2ogr", mode, "-where", "OGR_GEOMETRY='{}'".format(t),
+                                "-a_srs", "EPSG:4326", "-nln", layername + "_{}".format(t.lower()),"-nlt",t, "-f", f, dst_datasource, datasourcefile,layer[0]
+                            ])
                         mode = "-update" if multilayer else "-overwrite"
                     continue
 

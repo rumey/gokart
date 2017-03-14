@@ -40,7 +40,7 @@
                 </div>
 
                 <div class="expanded button-group">
-                  <label class="button " for="uploadAnnotations" title="Support GeoJSON(.geojson .json), GPS data(.gpx)"><i class="fa fa-upload"></i> Import Editing </label><input type="file" id="uploadAnnotations" class="show-for-sr" name="annotationsfile" accept=".json,.geojson,.gpx" v-model="annotationsfile" v-el:annotationsfile @change="importAnnotations()"/>
+                  <label class="button " for="uploadAnnotations" title="Support GeoJSON(.geojson .json), GPS data(.gpx), GeoPackage(.gpkg)"><i class="fa fa-upload"></i> Import Editing </label><input type="file" id="uploadAnnotations" class="show-for-sr" name="annotationsfile" accept=".json,.geojson,.gpx,.gpkg" v-model="annotationsfile" v-el:annotationsfile @change="importAnnotations()"/>
                   <a class="button" @click="downloadAnnotations('geojson')" title="Export Editing as GeoJSON"><i class="fa fa-download" aria-hidden="true"></i> Export Editing <br>(geojson) </a>
                   <a class="button" @click="downloadAnnotations('gpkg')" title="Export Editing as GeoPackage"><i class="fa fa-download" aria-hidden="true"></i> Export Editing <br>(gpkg)</a>
                 </div>
@@ -346,10 +346,44 @@
             return
         }
         var vm = this
-        this.export.importVector(this.$els.annotationsfile.files[0],function(features,fileFormat){
+        var file = this.$els.annotationsfile.files[0]
+        this.export.importVector(file,function(features,fileFormat){
             var ignoredFeatures = []
             var f = null
-            if ((fileFormat === "geojson") || (fileFormat === "json")) {
+            if (fileFormat === "gpx") {
+                //gpx file
+                for(var i = features.length - 1;i >= 0;i--) {
+                    feature = features[i]
+                    if (feature.getGeometry() instanceof ol.geom.Point) {
+                        //feature.set('toolName','Spot Fire')
+                        ignoredFeatures.push(feature)
+                        features.splice(i,1)
+                    } else if(feature.getGeometry() instanceof ol.geom.LineString) {
+                        vm.map.clearFeatureProperties(feature)
+                        var coordinates = feature.getGeometry().getCoordinates()
+                        coordinates.push(coordinates[0])
+                        feature.setGeometry(new ol.geom.Polygon([coordinates]))
+                        feature.set('toolName','Fire Boundary')
+                    } else if(feature.getGeometry() instanceof ol.geom.MultiLineString) {
+                        //convert each linstring in MultiLineString as a fire boundary
+                        vm.map.clearFeatureProperties(feature)
+                        features.splice(i,1)
+                        var geom = feature.getGeometry()
+                        var coordinates = null
+                        $.each(geom.getLineStrings(),function(index,linestring) {
+                            f = feature.clone()
+                            coordinates = linestring.getCoordinates()
+                            coordinates.push(coordinates[0])
+                            f.setGeometry(new ol.geom.Polygon([coordinates]))
+                            f.set('toolName','Fire Boundary')
+                            features.splice(i,0,f)
+                        })
+                    } else {
+                        ignoredFeatures.push(feature)
+                        features.splice(i,1)
+                    }
+                }
+            } else {
                 //geo json file
                 for(var i = features.length - 1;i >= 0;i--) {
                     feature = features[i]
@@ -402,45 +436,6 @@
                             features.splice(i,1)
                         }  
                     }
-                }
-            } else if (fileFormat === "gpx") {
-                //gpx file
-                for(var i = features.length - 1;i >= 0;i--) {
-                    feature = features[i]
-                    if (feature.getGeometry() instanceof ol.geom.Point) {
-                        //feature.set('toolName','Spot Fire')
-                        ignoredFeatures.push(feature)
-                        features.splice(i,1)
-                    } else if(feature.getGeometry() instanceof ol.geom.LineString) {
-                        vm.map.clearFeatureProperties(feature)
-                        var coordinates = feature.getGeometry().getCoordinates()
-                        coordinates.push(coordinates[0])
-                        feature.setGeometry(new ol.geom.Polygon([coordinates]))
-                        feature.set('toolName','Fire Boundary')
-                    } else if(feature.getGeometry() instanceof ol.geom.MultiLineString) {
-                        //convert each linstring in MultiLineString as a fire boundary
-                        vm.map.clearFeatureProperties(feature)
-                        features.splice(i,1)
-                        var geom = feature.getGeometry()
-                        var coordinates = null
-                        $.each(geom.getLineStrings(),function(index,linestring) {
-                            f = feature.clone()
-                            coordinates = linestring.getCoordinates()
-                            coordinates.push(coordinates[0])
-                            f.setGeometry(new ol.geom.Polygon([coordinates]))
-                            f.set('toolName','Fire Boundary')
-                            features.splice(i,0,f)
-                        })
-                    } else {
-                        ignoredFeatures.push(feature)
-                        features.splice(i,1)
-                    }
-                }
-            } else {
-                if (fileFormat === file.name) {
-                    alert("Unknown file format (" + file.name + ")")
-                } else {
-                    alert("File format(" + fileFormat + ") not support")
                 }
             }
             if (ignoredFeatures.length) {
