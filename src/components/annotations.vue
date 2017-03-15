@@ -324,23 +324,6 @@
       }
     },
     methods: {
-      createEvent:function(interaction,type,options) {
-        try {
-            return new this._event(type,options)
-        } catch(ex) {
-            this._event = function(type,options) {
-                ol.events.Event.call(this,type)
-                var ev = this
-                if (options) {
-                    $.each(options,function(k,v){
-                        ev[k] = v
-                    })
-                }
-            }
-            ol.inherits(this._event,ol.events.Event)
-            return new this._event(type,options)
-        }
-      },
       importAnnotations:function() {
         if (this.$els.annotationsfile.files.length === 0) {
             return
@@ -710,7 +693,7 @@
                     geom.getGeometriesArray().splice(deleteIndex,1)
                     geom.setGeometriesArray(geom.getGeometriesArray())
                     delete f['selectedIndex']
-                    interaction.dispatchEvent(this.createEvent(interaction,"deletefeaturegeometry",{feature:f,indexes:indexes}))
+                    interaction.dispatchEvent(this.map.createEvent(interaction,"deletefeaturegeometry",{feature:f,indexes:indexes}))
                     f.getGeometry().changed()
                 }
             } else if (geom instanceof ol.geom.MultiPolygon || geom instanceof ol.geom.MultiPoint || geom instanceof ol.geom.MultiLineString) {
@@ -719,7 +702,7 @@
                     coordinates.splice(deleteIndex,1)
                     geom.setCoordinates(coordinates)
                     delete f['selectedIndex']
-                    interaction.dispatchEvent(this.createEvent(interaction,"deletefeaturegeometry",{feature:f,indexes:indexes}))
+                    interaction.dispatchEvent(this.map.createEvent(interaction,"deletefeaturegeometry",{feature:f,indexes:indexes}))
                     f.getGeometry().changed()
                 } else {
                     return null

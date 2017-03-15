@@ -118,6 +118,23 @@
     },
     // methods callable from inside the template
     methods: {
+      createEvent:function(source,type,options) {
+        try {
+            return new this._event(type,options)
+        } catch(ex) {
+            this._event = function(type,options) {
+                ol.events.Event.call(this,type)
+                var ev = this
+                if (options) {
+                    $.each(options,function(k,v){
+                        ev[k] = v
+                    })
+                }
+            }
+            ol.inherits(this._event,ol.events.Event)
+            return new this._event(type,options)
+        }
+      },
       clearFeatureProperties:function(feature){
           $.each(feature.getKeys(),function(index,key){
               if (key !== feature.getGeometryName()) {

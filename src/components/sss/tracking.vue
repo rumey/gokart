@@ -211,7 +211,8 @@
       }
     },
     computed: {
-      map: function () { return this.$root.$refs.app.$refs.map },
+      map: function () { return this.$root.map },
+      active: function () { return this.$root.active },
       annotations: function () { return this.$root.$refs.app.$refs.annotations },
       info: function () { return this.$root.info },
       setting: function () { return this.$root.setting },
@@ -528,9 +529,10 @@
       },
       setup: function() {
         // enable resource tracking layer, if disabled
-        var catalogue = this.$root.catalogue
         if (!this.trackingMapLayer) {
-          catalogue.onLayerChange(this.trackingLayer, true)
+            this.catalogue.onLayerChange(this.trackingLayer, true)
+        } else if (this.active.isHidden(this.trackingMapLayer)) {
+            this.active.toggleHidden(this.trackingMapLayer)
         }
 
         this.$root.annotations.selectable = [this.trackingMapLayer]
@@ -831,6 +833,15 @@
         vm.tools = vm.annotations.tools.filter(function (t) {
           return t.scope && t.scope.indexOf("resourcetracking") >= 0
         })
+
+        vm.map.olmap.on("removeLayer",function(ev){
+            if (ev.layer.get('id') === "dpaw:resource_tracking_live") {
+                vm.allFeatures = []
+                vm.extentFeatures = []
+            }
+        })
+
+
         trackingStatus.end()
       })
     }

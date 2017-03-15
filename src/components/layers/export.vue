@@ -246,7 +246,7 @@
         }
         return result
       },
-      exportVector: function(features, name,format) {
+      exportVector: function(features, name,format,configure) {
         var vm = this
         //add applicaiton name and timestamp
         var name = (name || '') + "." + this.$root.profile.name + "_export_" + moment().format("YYYYMMDD_HHmm")
@@ -258,6 +258,9 @@
         } else {
           var formData = new window.FormData()
           formData.append('datasource', blob, name + '.json')
+          if (configure) {
+              formData.append('configure', JSON.stringify(configure))
+          }
           var req = new window.XMLHttpRequest()
           req.open('POST', this.gokartService + '/ogr/' + format)
           req.responseType = 'blob'

@@ -73,6 +73,7 @@
     },
     // parts of the template to be computed live
     computed: {
+      map: function () { return this.$root.map },
       sliderTimeline: {
         get: function () {
           var mapLayer = this.mapLayer()
@@ -239,7 +240,8 @@
       },
       removeLayer: function (olLayer) {
         if (olLayer.postRemove) olLayer.postRemove()
-        this.$root.map.olmap.removeLayer(olLayer)
+        this.map.olmap.removeLayer(olLayer)
+        this.map.olmap.dispatchEvent(this.map.createEvent(this.map,"removeLayer",{layer:olLayer}))
       },
       // change order of OL layers based on "Map Layers" list order
       updateOrder: function (el) {
