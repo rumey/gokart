@@ -584,7 +584,7 @@
                                         if (intersect.geometry.type === "Polygon") {
                                             intersectPolygons.push(intersect.geometry.coordinates)
                                         } else if (intersect.geometry.type === "MultiPolygon"){
-                                            intersectPolygons.push.call(intersectPolygons,intersect.geometry.coordinates)
+                                            intersectPolygons.push.apply(intersectPolygons,intersect.geometry.coordinates)
                                         }
                                     }
                                 })
