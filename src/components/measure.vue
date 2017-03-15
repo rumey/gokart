@@ -716,13 +716,32 @@
         var bearing = this._radians2degrees * Math.atan2(a, b); 
         return bearing = (bearing >= 0)?bearing:bearing + 360
       },
+      getDirection:function(bearing){
+        if (bearing <= 1 || bearing >= 359) {
+            return "N"
+        } else if (bearing > 1 && bearing < 89) {
+            return "NE"
+        } else if (bearing >= 89 && bearing <= 91) {
+            return "E"
+        } else if (bearing > 91 && bearing < 179) {
+            return "SE"
+        } else if (bearing >= 179 && bearing <= 181) {
+            return "S"
+        } else if (bearing > 181 && bearing < 269) {
+            return "SW"
+        } else if (bearing >= 269 && bearing <= 271) {
+            return "W"
+        } else {
+            return "NW"
+        }
+      },
       formatLength : function(length,unit) {
         var output = null
         unit = unit || this.lengthUnit
         if (unit === "nm") {
               output = "nm"
         } else if (unit === "mile") {
-              output = 'mile'
+              output = ' mile'
         } else {
             if (length > 100) {
                 unit = "km"
@@ -732,7 +751,7 @@
                 output = "m"
             }
         }
-        output = Math.round(this.convertLength(length,unit) * 100) / 100 + " " + output
+        output = Math.round(this.convertLength(length,unit) * 100) / 100 + output
         return output
       },
       formatArea : function(area) {
@@ -741,16 +760,16 @@
             if (area > 1) {
                 
               // large than 1 hectare
-              output = Math.round(this.convertArea(area,"ha")) + ' ' + 'ha'
+              output = Math.round(this.convertArea(area,"ha")) + 'ha'
             } else {
               //less than 1 hectare
-              output = (Math.round(this.convertArea(area,"ha") * 100) / 100) + ' ' + 'ha'
+              output = (Math.round(this.convertArea(area,"ha") * 100) / 100) + 'ha'
             }
         } else {
             if (area > 10000) {
-              output = (Math.round(this.convertArea(area,"km2") * 100) / 100) +  ' ' + 'km<sup>2</sup>'
+              output = (Math.round(this.convertArea(area,"km2") * 100) / 100) + 'km<sup>2</sup>'
             } else {
-              output = (Math.round(this.convertArea(area,"m2") * 100) / 100) +  ' ' + 'm<sup>2</sup>'
+              output = (Math.round(this.convertArea(area,"m2") * 100) / 100) + 'm<sup>2</sup>'
             }
         }
         return output

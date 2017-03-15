@@ -201,6 +201,14 @@
         vm.register("app",this.application,"Initialize")
         var loadingStatus = vm.register("LoadingStatus","Loading Status Component")
         //override console.error
+        var getArguments = function(args,startIndex) {
+            var result = []
+            startIndex = (startIndex === null||startIndex === undefined)?0:startIndex
+            for(var i = startIndex; i < args.length ; i++) {
+                result.push(args[i])
+            }
+            return result
+        }
         loadingStatus.progress(10,"Override console.error")
         console.error = (function(){
             var originFunc = console.error
@@ -212,7 +220,7 @@
                         vm.errors.push({"id": vm.errors.length + 1 ,"message":JSON.stringify(arguments[0])})
                     }
                 } else {
-                    vm.errors.push({"id": vm.errors.length + 1 ,"message":JSON.stringify(arguments)})
+                    vm.errors.push({"id": vm.errors.length + 1 ,"message":JSON.stringify(getArguments(arguments))})
                 }
                 originFunc.apply(this,arguments)
             }
@@ -230,7 +238,7 @@
                             vm.errors.push(JSON.stringify(arguments[1]))
                         }
                     } else {
-                        vm.errors.push(JSON.stringify(arguments.slice(1)))
+                        vm.errors.push(JSON.stringify(getArguments(arguments,1)))
                     }
                 }
                 originFunc.apply(this,arguments)

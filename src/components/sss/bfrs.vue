@@ -509,6 +509,11 @@
         var vm = this
         var geometries = feat.getGeometry().getGeometriesArray()
         var originPoint = (geometries.length > 0 && geometries[0] instanceof ol.geom.Point)?geometries[0].getCoordinates():null
+        if (!originPoint) {
+            alert("No origin point placed.")
+            return
+        }
+
         var fireBoundary = (geometries.length > 1)?geometries[1]:((geometries.length ===  1 && geometries[0] instanceof ol.geom.MultiPolygon)?geometries[0]:null)
         var area = fireBoundary?this.measure.convertArea(this.measure.getTotalArea(fireBoundary),"ha"):null
         //var length = fireBoundary?this.measure.getTotalLength(fireBoundary):null
@@ -519,11 +524,24 @@
         var bbox = (fireBoundary && fireBoundary.getPolygons().length > 0)?fireBoundary.getExtent():null
         fireBoundary = (fireBoundary && fireBoundary.getPolygons().length > 0)?fireBoundary.getCoordinates():null
 
-        var processingJobs = []
-        if (fireBoundary) {processingJobs.push("tenure_area") }
-        //if (originPoint) {processingJobs.push("tenure_origin_point") }
-
         var spatialData = {origin_point:originPoint, fire_boundary: fireBoundary,area:area}
+
+        if (!fireBoundary && !originPoint) {
+            spatialData["tenure_area"] = null
+            spatialData["tenure_origin_point"] = null
+            console.log( JSON.stringify(spatialData ) )
+            callback(spatialData)
+            return
+        }
+        var processingJobs = []
+        if (fireBoundary) {
+            processingJobs.push("tenure_area") 
+        }
+        if (originPoint) {
+            processingJobs.push("tenure_origin_point") 
+            processingJobs.push("fire_position") 
+        }
+
         var callbackWrapper = function(spatialData) {
             if (processingJobs.length === 0) {
                 console.log( JSON.stringify(spatialData ) )
@@ -576,7 +594,7 @@
                             if (intersectPolygons.length > 0) {
                                 tenureArea = 0
                                 $.each(intersectPolygons,function(index,p){
-                                    tenureArea += vm.measure.getArea(p)
+                                    tenureArea += vm.measure.convertArea(vm.measure.getArea(p),"ha")
                                 })
                                 spatialData.tenure_area.push({id:tenure.properties["ogc_fid"],name:tenure.properties["name"],category:tenure.properties["category"],area:tenureArea})
                                 totalTenureArea += tenureArea
@@ -590,7 +608,7 @@
 
                         if (failed) {return}
                     }
-                    processingJobs.splice(processingJobs.indexOf("tenure_area"))
+                    processingJobs.splice(processingJobs.indexOf("tenure_area"),1)
                     callbackWrapper(spatialData)
                 },
                 error: function (xhr,status,message) {
@@ -601,67 +619,21 @@
                 }
             })
         }
-
-        if (originPoint && false) {
+        if (originPoint) {
             $.ajax({
-                url:vm.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:dpaw_tenure&outputFormat=json&",
+                url:vm.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:dpaw_tenure&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
                 dataType:"json",
                 success: function (response, stat, xhr) {
-                    spatialData["tenure_area"] = []
                     if (response.totalFeatures === 0) {
-                        spatialData.tenure_area.push({id:null,name:null,category:null,area:area})
+                        spatialData["tenure_iginition_point"] = null
                     } else {
-                        var tenureArea = 0
-                        var totalTenureArea = 0
-                        var intersect = null
-                        var intersectPolygons = []
-                        var failed = false
-                        var tenurePolygon = null
-                        var fireBoundaryPolygon = []
-                        $.each(response.features,function(index,tenure){
-                            intersectPolygons.length = 0
-                            $.each(tenure.geometry.coordinates,function(index2,p){
-                                tenurePolygon = turf.polygon(p)
-                                $.each(fireBoundary,function(index3,f){
-                                    if (index === 0 && index2 === 0) {
-                                        fireBoundaryPolygon.push(turf.polygon(f))
-                                    }
-                                    try{
-                                        intersect = turf.intersect(fireBoundaryPolygon[index3],tenurePolygon)
-                                    } catch(ex) {
-                                        alert("Calculate the area of the fire boundary in tenure failed." + ex)
-                                        failed = true
-                                        return false
-                                    }
-                                    if (intersect) {
-                                        if (intersect.geometry.type === "Polygon") {
-                                            intersectPolygons.push(intersect.geometry.coordinates)
-                                        } else if (intersect.geometry.type === "MultiPolygon"){
-                                            intersectPolygons.push.call(intersectPolygons,intersect.geometry.coordinates)
-                                        }
-                                    }
-                                })
-                                if (failed) {return false}
-                            })
-                            if (failed) {return false}
-                            if (intersectPolygons.length > 0) {
-                                tenureArea = 0
-                                $.each(intersectPolygons,function(index,p){
-                                    tenureArea += vm.measure.getArea(p)
-                                })
-                                spatialData.tenure_area.push({id:tenure.properties["ogc_fid"],name:tenure.properties["name"],category:tenure.properties["category"],area:tenureArea})
-                                totalTenureArea += tenureArea
-                            }
-                        })
-                        if (totalTenureArea < area) {
-                            spatialData.tenure_area.push({id:null,name:null,category:null,area:area - totalTenureArea})
-                        } else {
-                            spatialData["area"] = totalTenureArea
+                        spatialData["tenure_iginition_point"] = {
+                            id: response.features[0].properties["ogc_fid"],
+                            name: response.features[0].properties["name"],
+                            category: response.features[0].properties["category"]
                         }
-
-                        if (failed) {return}
                     }
-                    processingJobs.splice(processingJobs.indexOf("tenure_area"))
+                    processingJobs.splice(processingJobs.indexOf("tenure_origin_point"),1)
                     callbackWrapper(spatialData)
                 },
                 error: function (xhr,status,message) {
@@ -671,8 +643,55 @@
                     withCredentials: true
                 }
             })
+            var buffers = [50,100,150,200,300,400,1000,2000,100000]
+            var getFirePosition = function(index) {
+                var buffered = turf.bbox(turf.buffer(turf.point(originPoint),buffers[index],"kilometers"))
+                $.ajax({
+                    url:vm.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:townsite_points&outputFormat=json&bbox=" + buffered[1] + "," + buffered[0] + "," + buffered[3] + "," + buffered[2],
+                    dataType:"json",
+                    success: function (response, stat, xhr) {
+                        if (response.totalFeatures === 0) {
+                            getFirePosition(index + 1)
+                        } else {
+                            var nearestTown = null
+                            var nearestDistance = null
+                            var distance = null
+                            $.each(response.features,function(index,feature){
+                                if (nearestTown === null) {
+                                    nearestTown = feature
+                                    nearestDistance = vm.measure.getLength([feature.geometry.coordinates,originPoint])
+                                } else {
+                                    distance = vm.measure.getLength([feature.geometry.coordinates,originPoint])
+                                    if (distance < nearestDistance) {
+                                        nearestTown = feature
+                                        nearestDistance = distance
+                                    }
+                                }
+                            })
+                            nearestDistance = vm.measure.formatLength(nearestDistance,"km")
+                            var bearing = null
+                            if (nearestDistance === 0) {
+                                spatialData["fire_position"] = "0m from " + nearestTown.properties["name"]
+                            } else {
+                                bearing = vm.measure.getBearing(nearestTown.geometry.coordinates,originPoint)
+                                spatialData["fire_position"] = nearestDistance + " " + vm.measure.getDirection(bearing) + " from " + nearestTown.properties["name"]
+                            }
+    
+                            processingJobs.splice(processingJobs.indexOf("fire_position"),1)
+                            callbackWrapper(spatialData)
+    
+                        }
+                    },
+                    error: function (xhr,status,message) {
+                        alert(status + " : " + message)
+                    },
+                    xhrFields: {
+                        withCredentials: true
+                    }
+                })
+            }
+            getFirePosition(0)
         }
-        callbackWrapper(spatialData)
       },
       saveFeature:function(feat) {
         if (this.canSave(feat)) {
