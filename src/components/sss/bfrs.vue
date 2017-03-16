@@ -405,13 +405,11 @@
       validateFireBoundary:function(feat,polygon) {
         var geometries = feat.getGeometry().getGeometries()
         var indexes = (geometries.length > 1)?[1]:((geometries.length ===  1 && geometries[0] instanceof ol.geom.MultiPolygon)?[0]:null)
-        if (!indexes) {return true}
-        var fireBoundary = geometries[indexes[0]]
-        var polygonIndex = polygon?fireBoundary.find(function(o) {return o === polygon}):-1
-        fireBoundary = fireBoundary.getCoordinates()
+        var fireBoundary = (indexes)?geometries[indexes[0]]:null
         var  invalid = false
         if (polygon) {
             //validate whether polygon is intersect with current existed polygons
+            var polygonIndex = (fireBoundary)?fireBoundary.getPolygons().find(function(o) {return o === polygon}):-1
             polygon = turf.polygon(polygon.getCoordinates())
             if (turf.kinks(polygon).features.length > 0) {
                 alert("The polygon is self intersection, please fix it.")
@@ -421,8 +419,9 @@
                     indexes = null
                 }
                 invalid = true
-            } else {
-                $.each(fireBoundary,function(index,p){
+            } else if (fireBoundary) {
+                $.each(fireBoundary.getCoordinates(),function(index,p) {
+                    if (index === polygonIndex) {return}
                     try {
                         if (turf.intersect(polygon,turf.polygon(p))) {
                             indexes.push(index)
@@ -431,7 +430,7 @@
                             return false
                         }
                     } catch(ex) {
-                        if (turf.kinks(p).features.length > 0) {
+                        if (turf.kinks(turf.polygon(p)).features.length > 0) {
                             alert("Some fire boundary are self intersection, please fix it.")
                         } else {
                             alert("Some fire boundary are invalid, please fix it.")
@@ -441,7 +440,14 @@
                     }
                 })
             }
-        } else {
+        } else if (fireBoundary && fireBoundary.getPolygons().length === 1) {
+            if (turf.kinks(turf.polygon(fireBoundary.getCoordinates()[0])).features.length > 0) {
+                alert("The polygon is self intersection, please fix it.")
+                indexes.push(0)
+                invalid = true
+            }
+        } else if (fireBoundary && fireBoundary.getPolygons().length > 1) {
+            fireBoundary = fireBoundary.getCoordinates()
             //validate whether any existed polygons are intersect
             for(index = 0;index < fireBoundary.length;index++) {
                 if (index === 0) {fireBoundary[index] = turf.polygon(fireBoundary[index])}
@@ -674,7 +680,7 @@
                                 spatialData["fire_position"] = "0m from " + nearestTown.properties["name"]
                             } else {
                                 bearing = vm.measure.getBearing(nearestTown.geometry.coordinates,originPoint)
-                                spatialData["fire_position"] = nearestDistance + " " + vm.measure.getDirection(bearing) + " from " + nearestTown.properties["name"]
+                                spatialData["fire_position"] = nearestDistance + " " + vm.measure.getDirection(bearing,32) + " from " + nearestTown.properties["name"]
                             }
     
                             processingJobs.splice(processingJobs.indexOf("fire_position"),1)
@@ -1456,6 +1462,9 @@
 
       vm.ui.modifyInter = vm.annotations.modifyInterFactory()({features:vm.editableFeatures,mapLayers:function(layer){return layer.get("id") === "bfrs:bushfire_dev" }})
       vm.ui.modifyInter.on("featuresmodified",function(ev){
+          if (ev.features.getLength() === 1) {
+              vm.validateFireBoundary(ev.features.item(0))
+          }
           vm.postModified(ev.features.getArray())
       })    
 
@@ -1509,6 +1518,7 @@
             var f = vm.selectedFeatures.item(0)
             if (vm.annotations.tool.name === "Bfrs Fire Boundary") {
                 var indexes = null
+                vm.validateFireBoundary(f,ev.element.getGeometry())
                 var index = f.getGeometry().getGeometriesArray().findIndex(function(g){return g instanceof ol.geom.MultiPolygon})
                 if (index >= 0) {
                     indexes = [index,f.getGeometry().getGeometriesArray()[index].getPolygons().length]

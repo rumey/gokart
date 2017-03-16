@@ -716,24 +716,25 @@
         var bearing = this._radians2degrees * Math.atan2(a, b); 
         return bearing = (bearing >= 0)?bearing:bearing + 360
       },
-      getDirection:function(bearing){
-        if (bearing <= 1 || bearing >= 359) {
-            return "N"
-        } else if (bearing > 1 && bearing < 89) {
-            return "NE"
-        } else if (bearing >= 89 && bearing <= 91) {
-            return "E"
-        } else if (bearing > 91 && bearing < 179) {
-            return "SE"
-        } else if (bearing >= 179 && bearing <= 181) {
-            return "S"
-        } else if (bearing > 181 && bearing < 269) {
-            return "SW"
-        } else if (bearing >= 269 && bearing <= 271) {
-            return "W"
-        } else {
-            return "NW"
+      getDirection:function(bearing,mode){
+        if (!this._direction) {
+            this._direction = {
+                '4':[360/4,Math.floor(360 / 8 * 100) / 100,["N","E","S","W"]],
+                '8':[360/8,Math.floor(360 / 16 * 100) / 100,["N","NE","E","SE","S","SW","W","NW"]],
+                '16':[360/16,Math.floor(360 / 32 * 100) / 100,["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"]],
+                '32':[360/32,Math.floor(360 / 64 * 100) / 100,["N","NbE","NNE","NEbN","NE","NEbE","ENE","EbN","E","EbS","ESE","SEbE","SE","SEbS","SSE","SbE","S","SbW","SSW","SWbS","SW","SWbW","WSW","WbS","W","WbN","WNW","NWbW","NW","NWbN","NNW","NbW"]],
+            }
         }
+
+        mode = mode || 16
+        var key = mode.toString()
+        if (!this._direction[key]) {
+            mode = 16
+            key = "16"
+        }
+
+        var directionIndex = (Math.floor(bearing / this._direction[key][0])  + ((Math.round(bearing % this._direction[key][0] * 100) / 100 <= this._direction[key][1])?0:1)) % mode
+        return this._direction[key][2][directionIndex]
       },
       formatLength : function(length,unit) {
         var output = null
