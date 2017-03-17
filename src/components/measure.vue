@@ -103,7 +103,7 @@
             $.each(this._measureLayers,function(index,layer) {
                 var mapLayer = vm.map.getMapLayer(layer[0])
                 if (mapLayer && !vm.active.isHidden(mapLayer)) {
-                    vm.enableFeatureMeasurement(layer,newValue)
+                    vm.enableLayerMeasurement(layer,newValue)
                 }
             })
         },
@@ -140,7 +140,7 @@
         this._measureLayers.push([layer["id"] || layer,features || null, filter||null,false,{}])
       },
       //layer can be layerid, layer settings, and memeber of this._measureLayers
-      enableFeatureMeasurement:function(layer,enable) {
+      enableLayerMeasurement:function(layer,enable) {
         var vm = this
         var layer = (Array.isArray(layer))?layer:this._measureLayers.find(function(l) {return l[0] === (layer["id"] || layer)})
         if (!layer) return
@@ -198,6 +198,49 @@
         } else {
             //disable
             this.showTooltip(layer[1],false)
+        }
+      },
+      clearFeatureMeasurement:function(feature) {
+        var vm = this
+        vm._clearFeatureMeasurement = vm._clearFeatureMeasurement || function(feat) {
+            if (!feat) return
+            this.removeTooltip(feat,true) 
+            feat.unset("measurement",true)
+        }
+        if (feature instanceof ol.Collection) {
+            feature.forEach(function(feat) {
+                vm._clearFeatureMeasurement(feat)
+            })
+        } else if (Array.isArray(feature)) {
+            $.each(feature,function(index,feat) {
+                vm._clearFeatureMeasurement(feat)
+            })
+        } else {
+            vm._remeasureFeature(feature)
+        }
+      },
+      remeasureFeature:function(feature) {
+        var vm = this
+        vm._remeasureFeature = vm._remeasureFeature || function(feat) {
+            if (!feat) return
+            this.removeTooltip(feat,true) 
+            feat.unset("measurement",true)
+
+            var tool = vm.annotations.getTool(feat.get('toolName'))
+            if (!tool) {return}
+            vm.createTooltip(feat,tool.measureLength,tool.measureArea)
+            vm.measuring(feat,tool.measureLength,tool.measureArea,false,"show")
+        }
+        if (feature instanceof ol.Collection) {
+            feature.forEach(function(feat) {
+                vm._remeasureFeature(feat)
+            })
+        } else if (Array.isArray(feature)) {
+            $.each(feature,function(index,feat) {
+                vm._remeasureFeature(feat)
+            })
+        } else {
+            vm._remeasureFeature(feature)
         }
       },
       toggleMeasure: function (type) {
@@ -775,6 +818,20 @@
         }
         return output
       },
+      featureChanged:function(feature) {
+        var vm = this
+        if (feature instanceof ol.Collection) {
+            feature.forEach(function(feat) {
+                vm._featureChanged(feat)
+            })
+        } else if (Array.isArray(feature)) {
+            $.each(feature,function(index,feat) {
+                vm._featureChanged(feat)
+            })
+        } else {
+            vm._featureChanged(feature)
+        }
+      }
     },
     ready: function () {
       var vm = this
@@ -893,12 +950,12 @@
       vm._changeOpacityHandler = function(ev) {
         if (!vm.measureFeature) { return }
         if (ev.target.get(ev.key) === 0) {
-            vm.enableFeatureMeasurement(ev.target.get('id'),false)
+            vm.enableLayerMeasurement(ev.target.get('id'),false)
         } else if(ev.oldValue === 0) {
-            vm.enableFeatureMeasurement(ev.target.get('id'),true)
+            vm.enableLayerMeasurement(ev.target.get('id'),true)
         }
       }
-      var featureChanged = function(feature){
+      vm._featureChanged = function(feature){
         var tool = vm.annotations.getTool(feature.get('toolName'))
         if (!tool) {return}
         feature.unset('measurement',true)
@@ -916,11 +973,11 @@
       this.annotations.tools.push(measureArea)
       var featuresChangedListener = function(ev){
         ev.features.forEach(function(feature) {
-            featureChanged(feature)
+            vm._featureChanged(feature)
         })
       }
       var featureChangedListener = function(ev){
-        featureChanged(ev.feature)
+        vm._featureChanged(ev.feature)
       }
       var addFeatureGeometryListener = function(ev) {
         var tool = ev.feature.get('toolName')
@@ -961,7 +1018,7 @@
               var layer = vm._measureLayers.find(function(l){return l[0] === ev.element.get('id')})
               if (layer) {
                   if (vm.measureFeature) {
-                      vm.enableFeatureMeasurement(layer,true)
+                      vm.enableLayerMeasurement(layer,true)
                   }
                   ev.element._change_opacity = ev.element._change_opacity || ev.element.on("change:opacity",vm._changeOpacityHandler)
               }
@@ -976,7 +1033,7 @@
                     delete ev.element._change_opacity
                   }
                   if (vm.measureFeature) {
-                      vm.enableFeatureMeasurement(layer,false)
+                      vm.enableLayerMeasurement(layer,false)
                   }
               }
           })
@@ -1010,7 +1067,7 @@
               //initialize measure layers
               if (vm.measureFeature) {
                   $.each(vm._measureLayers,function(index,layer){
-                    vm.enableFeatureMeasurement(layer,true)
+                    vm.enableLayerMeasurement(layer,true)
                   })
               }
 

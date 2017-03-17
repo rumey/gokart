@@ -97,7 +97,7 @@
                     <a title="Zoom to selected" class="button button-tool" @click="map.zoomToSelected()" ><i class="fa fa-search"></i></a>
                     <a v-if="isCreatable()" title="Create bushfire" class="button" @click="newFeature()" ><i class="fa fa-plus"></i></a>
     
-                    <a class="button" @click="importList()" title="Support GeoJSON(.geojson .json), GPS data(.gpx)"><i class="fa fa-upload" aria-hidden="true"></i></a>
+                    <label class="button " for="uploadBushfires" title="Support GeoJSON(.geojson .json), GPS data(.gpx), GeoPackage(.gpkg)"><i class="fa fa-upload"></i> </label><input type="file" id="uploadBushfires" class="show-for-sr" name="bushfiresfile" accept=".json,.geojson,.gpx,.gpkg" v-model="bushfiresfile" v-el:bushfiresfile @change="importList()"/>
                     <a class="button" @click="downloadList('geojson')" title="Export Bushfire as GeoJSON"><i class="fa fa-download" aria-hidden="true"></i><br> geojson </a>
                     <a class="button" @click="downloadList('gpkg')" title="Export Bushfire as GeoPackage"><i class="fa fa-download" aria-hidden="true"></i><br> gpkg</a>
                   </div>
@@ -126,6 +126,7 @@
                 <div class="columns">
                   <a v-if="canReset(f)"  @click.stop.prevent="resetFeature(f)" title="Reset" class="button tiny secondary float-right acion" style="margin-left:2px"><i class="fa fa-undo actionicon"></i></a>
                   <a v-if="canDelete(f)" @click.stop.prevent="deleteFeature(f)" title="Delete" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-trash actionicon"></i></a>
+                  <a v-if="canUpload(f)"  @click.stop.prevent="uploadBushfire(f)" title="Upload" class="button tiny secondary float-right acion" style="margin-left:2px"><i class="fa fa-upload actionicon"></i></a>
                   <a v-if="canCreate(f)" @click.stop.prevent="createFeature(f)" title="Create" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-save actionicon"></i></a>
                   <a v-if="canEdit(f) " @click.stop.prevent="utils.editResource($event)" title="Edit" href="{{editUrl(f)}}" target="_blank" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-pencil actionicon"></i></a>
                   <a v-if="canSave(f)" @click.stop.prevent="saveFeature(f)" title="Save" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-save actionicon"></i></a>
@@ -178,6 +179,7 @@
         extentFeatures: [],
         selectedBushfires: [],
         bushfiresfile:'',
+        bushfirefile:'',
         revision:1,
         profileRevision:1,
         tints: {
@@ -363,6 +365,9 @@
       canEdit:function(bushfire) {
         return this.revision && bushfire.get('status') !== "new" && this.isEditable(bushfire) && bushfire.get('tint') !== "modified"
       },
+      canUpload:function(bushfire) {
+        return this.revision && this.isModifiable(bushfire)
+      },
       canReset:function(bushfire) {
         return this.revision && bushfire.get('status') !== "new" // && this.isEditable(bushfire) && bushfire.get('tint') === "modified"
       },
@@ -370,7 +375,8 @@
         return this.revision && bushfire.get('status') !== "new" && this.isModifiable(bushfire) && bushfire.get('tint') === "modified"
       },
       canCreate:function(bushfire) {
-        return this.revision && bushfire.get('status') === "new"
+
+        return this.revision && bushfire.get('status') === "new" && bushfire.getGeometry().getGeometriesArray().find(function(g) {return g instanceof ol.geom.Point})
       },
       canDelete:function(bushfire) {
         return this.revision && this.isDeletable(bushfire)
@@ -1006,129 +1012,248 @@
         var vm = this
         var feature = null
         var geometries = null
+        var id = 0
         $.each(this.features,function(index,f){
             geometries = f.getGeometry().getGeometriesArray()
-            if (geometries.length === 0) {
-                feature = vm.map.cloneFeature(f,false)
-                feature.setGeometry(new ol.geom.MultiPolygon())
-                downloadFeatures.push(feature)
-            } else {
-                $.each(geometries,function(index,geometry){
-                    feature = vm.map.cloneFeature(f,false)
-                    feature.setGeometry(geometry)
-                    downloadFeatures.push(feature)
-                })
-            }
+
+            feature = vm.map.cloneFeature(f,false,['toolName','tint','originalTint','fillColour','colour','status','label','measurement'])
+            feature.setGeometry((geometries.length > 0 && geometries[0] instanceof ol.geom.Point)?geometries[0]:null)
+            feature.setId(++id)
+            downloadFeatures.push(feature)
+
+            feature = vm.map.cloneFeature(feature,false)
+            //remove properties injected by sss
+            $.each(['toolName','tint','originalTint','fillColour','colour','status','label','measurement'],function(index,p) {feature.unset(p,true)})
+            feature.setGeometry((geometries.length > 1)?geometries[1]:((geometries.length === 1)?((geometries[0] instanceof ol.geom.MultiPolygon)?geometries[0]:new ol.geom.MultiPolygon()):new ol.geom.MultiPolygon()))
+            feature.setId(++id)
+            downloadFeatures.push(feature)
+            
         })
-        this.$root.export.exportVector(downloadFeatures, 'bfrs',fmt,{"layerName":{"POINT":"origin point","MULTIPOLYGON":"fire boundary"}})
+        this.$root.export.exportVector(downloadFeatures, 'bfrs',fmt,{"POINT":"origin_point","MULTIPOLYGON":"fire_boundary","EMPTY_GEOMETRY":"POINT"})
+      },
+      uploadBushfire:function(targetFeature) {
+        this._uploadTargetFeature = targetFeature
+        this._uploadType = "fireboundary"
+        this._uploadTargetOnly = true
+        $("#uploadBushfires").click()
       },
       importList: function () {
-        if (this.$els.bushfiresfile.files.length === 0) {
+        var files = targetFeature?this.$els.bushfirefile.files:this.$els.bushfiresfile.files
+        if (files.length === 0) {
             return
         }
+        var targetFeature = this._uploadTargetFeature
+        delete this._uploadTargetFeature
+
+        var uploadType = this._uploadType
+        delete this._uploadType
+
+        var targetOnly = (targetFeature && this._uploadTargetOnly)?true:false
+        delete this._uploadTargetOnly
+
         var vm = this
-        this.export.importVector(this.$els.bushfiresfile.files[0],function(features,fileFormat){
+        this.export.importVector(files[0],function(features,fileFormat){
             var ignoredFeatures = []
             var f = null
-            if ((fileFormat === ".geojson") || (fileFormat === ".json")) {
-                //geo json file
-                for(var i = features.length - 1;i >= 0;i--) {
-                    feature = features[i]
-                    if (feature.get("toolName") !== "Bfrs Origin Point" ) {
-                        //external feature.
-                        if (feature.getGeometry() instanceof ol.geom.Point) {
-                            vm.map.clearFeatureProperties(feature)
-                            feature.setGeometry(new ol.geom.GeometryCollction([feature.getGeometry()]))
-                        } else if (feature.getGeometry() instanceof ol.geom.Polygon) {
-                            vm.map.clearFeatureProperties(feature)
-                            feature.setGeometry(new ol.geom.GeometryCollction([new ol.geom.MultiPloygon([feature.getGeometry().getCoordinates()])]))
-                        } else if (feature.getGeometry() instanceof ol.geom.MultiPolygon) {
-                            //A multi polygon will be imported as a bushfire report
-                            vm.map.clearFeatureProperties(feature)
-                            feature.setGeometry(new ol.geom.GeometryCollction([feature.getGeometry()]))
-                        } else if (feature.getGeometry() instanceof ol.geom.GeometryCollection) {
-                            //A geometry collection will be imported as a bushfire report
-                            vm.map.clearFeatureProperties(feature)
-                            var geometries = feature.getGeometry().getGeometriesArray().find(function(g,i){return g instanceof ol.geom.Point})
-                            geometries = geometries?[geometries]:[]
-                            var fireBoundary = null
-                            $.each(feature.getGeometry().getGeometriesArra().filter(function(g,i) {return g instanceof ol.geom.MultiPolygon}),function(index,mp){
-                                if (fireBoundary) {
-                                    $.each(mp.getPolygons(),function(index,p){fireBoundary.appendPolygon(p)})
-                                } else {
-                                    fireBoundary = mp
-                                }
-                            })
-                            $.each(feature.getGeometry().getGeometriesArra().filter(function(g,i) {return g instanceof ol.geom.Polygon}),function(index,p){
-                                fireBoundary = fireBoundary || new ol.geom.MultiPolygon()
-                                fireBoundary.appendPolygon(p)
-                            })
-                            if (fireBoundary) {
-                                geometries.push(fireBoundary)
-                            }
-                            feature.setGeometry(new ol.geom.GeometryCollction(geometries))
-                        } else {
-                            ignoredFeatures.push(feature)
-                            features.splice(i,1)
-                        }  
-                    }
-                }
-            } else if (fileFormat === ".gpx") {
+            if (fileFormat === "gpx") {
                 //gpx file
+                if (uploadType === "originpoint") {
+                    features.length = 0
+                }
                 for(var i = features.length - 1;i >= 0;i--) {
                     feature = features[i]
+                    if (targetFeature) {feature.set('id',targetFeature.get('id'),true)}
+                    if (uploadType === "originpoint") {
+                        features.splice(i,1)
+                        continue
+                    }
                     if (feature.getGeometry() instanceof ol.geom.Point) {
                         //feature.set('toolName','Spot Fire')
                         ignoredFeatures.push(feature)
                         features.splice(i,1)
                     } else if(feature.getGeometry() instanceof ol.geom.LineString) {
-                        vm.map.clearFeatureProperties(feature)
                         var coordinates = feature.getGeometry().getCoordinates()
                         coordinates.push(coordinates[0])
-                        feature.setGeometry(new ol.geom.GeometryCollection([new ol.geom.MultiPolygon([[coordinates]])]))
+                        feature.setGeometry(new ol.geom.Polygon([coordinates]))
                     } else if(feature.getGeometry() instanceof ol.geom.MultiLineString) {
                         var geom = feature.getGeometry()
                         var coordinates = null
-                        var mp = null
+                        var mp = new ol.geom.MultiPolygon()
                         $.each(geom.getLineStrings(),function(index,linestring) {
                             coordinates = linestring.getCoordinates()
                             coordinates.push(coordinates[0])
-                            mp = mp || new ol.geom.MultiPolygon()
                             mp.appendPolygon(new ol.geom.Polygon([coordinates]))
                         })
-                        feature.setGeometry(new ol.geom.GeometryCollection(mp?[mp]:[]))
+                        feature.setGeometry(mp)
                     } else {
                         ignoredFeatures.push(feature)
                         features.splice(i,1)
                     }
                 }
             } else {
-                if (fileFormat === file.name) {
-                    alert("Unknown file format (" + file.name + ")")
-                } else {
-                    alert("File format(" + fileFormat + ") not support")
+                //geo json file
+                for(var i = features.length - 1;i >= 0;i--) {
+                    feature = features[i]
+                    if (targetFeature && (feature.get('id') === undefined || feature.get('id') === null)) {feature.set('id',targetFeature.get('id'),true)}
+                    if (targetOnly && feature.get('id') !== targetFeature.get('id')) { 
+                        //not target feature, ignore
+                        features.splice(i,1)
+                        continue
+                    } 
+                    if (feature.getGeometry() instanceof ol.geom.Point) {
+                        if (uploadType === "fireboundary") {
+                            features.splice(i,1)
+                        }
+                        continue
+                    } else if (feature.getGeometry() instanceof ol.geom.Polygon) {
+                        if (uploadType === "originpoint") {
+                            features.splice(i,1)
+                        }
+                        continue
+                    } else if (feature.getGeometry() instanceof ol.geom.MultiPolygon) {
+                        if (uploadType === "originpoint") {
+                            features.splice(i,1)
+                        }
+                        continue
+                    } else if (feature.getGeometry() instanceof ol.geom.GeometryCollection) {
+                        //remove the MultiPoint feature
+                        features.splice(i,1)
+                        //split the gemoetry collection into mutiple features
+                        var geometries = null
+                        geometries = feature.getGeometry().getGeometries()
+                                    
+                        //split MultiPoint to multiple point feature
+                        $.each(geometries,function(index,geometry){
+                            f = new ol.Feature({ geometry:geometry}) 
+                            features.splice(i,0,f)
+                            i += 1
+                        })
+                    } else {
+                        ignoredFeatures.push(feature)
+                        features.splice(i,1)
+                    }  
                 }
             }
             if (ignoredFeatures.length) {
-                console.warn("The following features are ignored.\r\n" + vm.$root.geojson.writeFeatures(features))
+                //console.warn("The following features are ignored.\r\n" + vm.$root.geojson.writeFeatures(features))
             }
             if (features && features.length > 0) {
+                //Combine multile features of bushfire into one feature.
+                features.sort(function(f1,f2){
+                    var id1 = f1.get('id')
+                    var id2 = f2.get('id')
+                    if (id1) {
+                        if (id2) {
+                            return (id1 === id2)?0:(id1 < id2 ?-1:1)
+                        } else {
+                            return 1
+                        }
+                    } else if(id2) {
+                        reurn -1
+                    } else {
+                        return 0
+                    }
+                })
+
+                var feat = null
+                for(var i = features.length - 1;i >= 0;i--) {
+                    if (feat &&
+                        (
+                            feat.get('id') === features[i].get('id') ||
+                            ((feat.get('id') === undefined || feat.get('id') === null) && (features[i].get('id') === undefined || features[i].get('id') === null))
+                        )
+                    ) {
+                        if (features[i].getGeometry() instanceof ol.geom.Point) {
+                            if (feat.getGeometry() instanceof ol.geom.MultiPolygon) {
+                                feat.setGeometry(new ol.geom.GeometryCollection([features[i].getGeometry(),feat.getGeometry()]))
+                                features.splice(i,1)
+                            } else {
+                                features.splice(i,1)
+                            }
+                        } else if (features[i].getGeometry() instanceof ol.geom.Polygon) {
+                            if (feat.getGeometry() instanceof ol.geom.MultiPolygon) {
+                                feat.getGeometry().appendPolygon(feat.getGeometry())
+                                features.splice(i,1)
+                            } else if (feat.getGeometry() instanceof ol.geom.Point) {
+                                feat.setGeometry(new ol.geom.GeometryCollection([feat.getGeometry,new ol.geom.MultiPolygon([features[i].getGeometry().getCoordinates()])]))
+                                features.splice(i,1)
+                            } else if (feat.getGeometry() instanceof ol.geom.GeometryCollection) {
+                                feat.getGeometry().getGeometriesArray()[1].appendPolygon(features[i].getGeometry())
+                                features.splice(i,1)
+                            }
+                        } else if (features[i].getGeometry() instanceof ol.geom.MultiPolygon) {
+                            if (feat.getGeometry() instanceof ol.geom.MultiPolygon) {
+                                $.each(features[i].getGeometry().getPolygons(),function(index,p) {
+                                    feat.getGeometry().appendPolygon(p)
+                                })
+                                features.splice(i,1)
+                            } else if (feat.getGeometry() instanceof ol.geom.Point) {
+                                feat.setGeometry(new ol.geom.GeometryCollection([feat.getGeometry,features[i].getGeometry()]))
+                                features.splice(i,1)
+                            } else if (feat.getGeometry() instanceof ol.geom.GeometryCollection) {
+                                $.each(features[i].getGeometry().getPolygons(),function(index,p) {
+                                    feat.getGeometry().appendPolygon(p)
+                                    feat.getGeometry().getGeometriesArray()[1].appendPolygon(p)
+                                })
+                                features.splice(i,1)
+                            }
+                        }
+                    } else {
+                        feat = features[i]
+                        if (feat.getGeometry() instanceof ol.geom.Polygon) {
+                            feat.setGeometry(new ol.geom.MultiPolygon([feat.getGeometry().getCoordinates()]))
+                        }
+                    }
+                    
+                }
+                
                 var notFoundBushfires = null
+                var geometries = null
+                var changedBushfires = []
                 $.each(features,function(index,feature){
                     if (feature.get('id') !== undefined) {
                         //existed bushfire report
                         var feat = vm.allFeatures.getArray().find(function(f) {return f.get('id') === feature.get('id')})
                         if (feat) {
-                            if (!vm.map.isGeometryEqual(feat.getGeometry(),feature.getGeometry())) {
-                                //console.log("====================")
-                                //console.log(JSON.stringify(vm.getSpatialData(feat)))
-                                //console.log(JSON.stringify(vm.getSpatialData(feature)))
-                                feat.setGeometry(feature.getGeometry())  
-                                vm.postModified(feat)
+                            changed = false
+                            geometries = feat.getGeometry().getGeometriesArray()
+                            if (feature.getGeometry() instanceof ol.geom.Point) {
+                                if (geometries.length > 0 && geometries[0] instanceof ol.geom.Point) {
+                                    if (!vm.map.isGeometryEqual(geometries[0],feature.getGeometry())) {
+                                        geometries[0] = feature.getGeometry()
+                                        feat.getGeometry().setGeometriesArray(geometries)
+                                        changedBushfires.push(feat)
+                                    }
+                                } else {
+                                    geometries.splice(0,0,feature.getGeometry())
+                                    feat.getGeometry().setGeometriesArray(geometries)
+                                    changedBushfires.push(feat)
+                                }
+                            } else if(feature.getGeometry() instanceof ol.geom.GeometryCollection) {
+                                if (!vm.map.isGeometryEqual(feat.getGeometry(),feature.getGeometry())) {
+                                    feat.setGeometry(feature.getGeometry())   
+                                    changedBushfires.push(feat)
+                                }
+                            } else if(feature.getGeometry() instanceof ol.geom.MultiPolygon) {
+                                var index = geometries.findIndex(function(g) { return g instanceof ol.geom.MultiPolygon})
+                                if (index < 0 && !vm.map.isGeometryEqual(feature.getGeometry(),null)) {
+                                    geometries.push(feature.getGeometry())
+                                    feat.getGeometry().setGeometriesArray(geometries)
+                                    changedBushfires.push(feat)
+                                } else if (!vm.map.isGeometryEqual(geometries[index],feature.getGeometry())) {
+                                    geometries[index] = feature.getGeometry()
+                                    feat.getGeometry().setGeometriesArray(geometries)
+                                    changedBushfires.push(feat)
+                                }
                             }
+
                         } else if(feature.get('id') < 0) {
                             //new feature,
+                            if (feature.getGeometry() instanceof ol.geom.Point || feature.getGeometry() instanceof ol.geom.MultiPolygon) {
+                                feature.setGeometry(new ol.geom.GeometryCollection([feature.getGeometry()]))
+                            }
                             vm.newFeature(feature)
+                            vm.measure.remeasureFeature(feature)
                         } else {
                             notFoundBushfires = notFoundBushfires || []
                             notFoundBushfires.push(feature)
@@ -1138,9 +1263,39 @@
                 $.each(features,function(index,feature){
                     if (feature.get('id') === undefined) {
                         //non existed bushfire report
+                        if (feature.getGeometry() instanceof ol.geom.Point || feature.getGeometry() instanceof ol.geom.MultiPolygon) {
+                            feature.setGeometry(new ol.geom.GeometryCollection([feature.getGeometry()]))
+                        }
                         vm.newFeature(feature)
+                        vm.measure.remeasureFeature(feature)
                     }
                 }) 
+                if (changedBushfires.length > 0) {
+                    vm.measure.remeasureFeature(changedBushfires.filter(function(f) {return f.get('id') < 0}))
+                    changedBushfires = changedBushfires.filter(function(f){return f.get('id') >= 0})
+                    if (changedBushfires.length > 0) {
+                        var filter = 'id in (' + changedBushfires.map(function(f){return f.get('id')}).join(',') + ')'
+                        //check whethter new geometry is equal with the geometry in table
+                        vm.bfrsMapLayer.getSource().retrieveFeatures(filter,function(features){
+                            $.each(changedBushfires,function(index,f){
+                                feat = features.find(function(o){return o.get('id') === f.get('id')})
+                                if (feat) {vm.initBushfire(feat)}
+                                if (!feat || !vm.map.isGeometryEqual(f.getGeometry(),feat.getGeometry())) {
+                                    vm.postModified(f)
+                                } else {
+                                    f.set('tint',f.get('originalTint'),true)
+                                    f.set('fillColour',vm.tints[f.get('tint') + ".fillColour"])
+                                    f.set('colour',vm.tints[f.get('tint') + ".colour"])
+                                }
+                                f.getGeometry().changed()
+                            })
+    
+                        
+                            vm.measure.remeasureFeature(changedBushfires)
+                        })
+                    }
+                }
+
                 if (notFoundBushfires) {
                     alert("Some bushfires are not found." + JSON.stringify(notFoundBushfires.map(function(o) {return {id:o.get('id'),name:o.get('name')}})))
                 }

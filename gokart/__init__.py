@@ -426,6 +426,8 @@ def ogr(fmt):
     configure = bottle.request.forms.get("configure")
     if configure:
         configure = json.loads(configure)
+    else:
+        configure = {}
 
     workdir = tempfile.mkdtemp()
     try:
@@ -508,32 +510,43 @@ def ogr(fmt):
 
         geometry_types = None
         mode = "-overwrite"
+        empty_geometry = None
         for layer in layers:
             layername =  defaultlayername if sourcefmt in ("geojson","json") else layer[0]
 
+            empty_geometry = None
             if not multitype and layer[1] not in SUPPORTED_GEOMETRY_TYPES: 
                 geometry_types = [t for t in SUPPORTED_GEOMETRY_TYPES if featureCount(datasourcefile,layer[0],t)]
                 if len(geometry_types) > 1:
                     if featureCount(datasourcefile,layer[0],"EMPTY"):
-                        geometry_types.append("EMPTY")
+                        if "EMPTY_GEOMETRY" not in configure:
+                            geometry_types.append("EMPTY")
+                        else:
+                            empty_geometry = configure["EMPTY_GEOMETRY"]
+                    
                     for t in geometry_types:
                         dst_datasource = get_dst_datasource(layer[0],t)
                         if t == "EMPTY" :
                             subprocess.check_call([
-                                "ogr2ogr", mode, "-where", "OGR_GEOMETRY IS NULL",
-                                "-a_srs", "EPSG:4326", "-nln", layername + "_{}".format(configure["layerName"][t] if (configure and configure["layerName"] and t in configure["layerName"]) else t.lower()), "-f", f, dst_datasource, datasourcefile,layer[0]
+                                "ogr2ogr", mode,"-preserve_fid", "-where", "OGR_GEOMETRY IS NULL",
+                                "-a_srs", "EPSG:4326", "-nln", layername + "_{}".format(configure[t] if (t in configure) else t.lower()), "-f", f, dst_datasource, datasourcefile,layer[0]
+                            ])
+                        elif empty_geometry == t:
+                            subprocess.check_call([
+                                "ogr2ogr", mode,"-preserve_fid", "-where", "OGR_GEOMETRY='{}' OR OGR_GEOMETRY IS NULL".format(t),
+                                "-a_srs", "EPSG:4326", "-nln", layername + "_{}".format(configure[t] if (t in configure) else t.lower()),"-nlt",t, "-f", f, dst_datasource, datasourcefile,layer[0]
                             ])
                         else:
                             subprocess.check_call([
-                                "ogr2ogr", mode, "-where", "OGR_GEOMETRY='{}'".format(t),
-                                "-a_srs", "EPSG:4326", "-nln", layername + "_{}".format(configure["layerName"][t] if (configure and configure["layerName"] and t in configure["layerName"]) else t.lower()),"-nlt",t, "-f", f, dst_datasource, datasourcefile,layer[0]
+                                "ogr2ogr", mode,"-preserve_fid", "-where", "OGR_GEOMETRY='{}'".format(t),
+                                "-a_srs", "EPSG:4326", "-nln", layername + "_{}".format(configure[t] if (t in configure) else t.lower()),"-nlt",t, "-f", f, dst_datasource, datasourcefile,layer[0]
                             ])
                         mode = "-update" if multilayer else "-overwrite"
                     continue
 
             dst_datasource = get_dst_datasource(layer[0])
             subprocess.check_call([
-                "ogr2ogr","-overwrite" ,"-a_srs","EPSG:4326","-nln",layername, "-f", f,dst_datasource, datasourcefile,layer[0]]) 
+                "ogr2ogr","-overwrite","-preserve_fid" ,"-a_srs","EPSG:4326","-nln",layername, "-f", f,dst_datasource, datasourcefile,layer[0]]) 
             mode = "-update" if multilayer else "-overwrite"
     
         if len(os.listdir(outputdir)) > 1 or (len(os.listdir(outputdir)) == 1 and os.path.isdir(os.path.join(outputdir,os.listdir(outputdir)[0]))):

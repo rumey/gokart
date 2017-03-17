@@ -581,3 +581,8 @@ input:disabled ~ .switch-paddle {
 .default-name {
     color:#e2e3e5
 }
+
+.button.tiny{
+    line-height:1em;
+    margin-left:2px;
+}

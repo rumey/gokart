@@ -142,20 +142,42 @@
               }
           })
       },
-      cloneFeature:function(feat,cloneGeometry) {
+      cloneFeature:function(feat,cloneGeometry,excludedProperties) {
         if (cloneGeometry === false) {
             var feature = new ol.Feature()
             $.each(feat.getProperties(),function(key,value){
-                if (key !== feat.getGeometryName()) {
-                    feature.set(key,value,true)
+                if (key === feat.getGeometryName()) {
+                    return
                 }
+                if (excludedProperties && excludedProperties.indexOf(key) >= 0) {
+                    return
+                }
+                feature.set(key,value,true)
             })
             return feature
         } else {
-            return feat.clone()
+            var feature = feat.clone()
+            if (excludedProperties) {
+                $.each(excludedProperties,function(index,p){feature.unset(p,true)})
+            }
+            return feature
         }
       },
       isGeometryEqual:function(geom1,geom2){
+        geom1 = (
+                    (geom1 instanceof ol.geom.GeometryCollection && geom1.getGeometriesArray().length === 0) ||
+                    (geom1 instanceof ol.geom.MultiPolygon && geom1.getPolygons().length === 0) ||
+                    (geom1 instanceof ol.geom.MultiPoint && geom1.getPoints().length === 0) ||
+                    (geom1 instanceof ol.geom.MultiLineString && geom1.getLineStrings().length === 0)
+                )?null:geom1
+
+        geom2 = (
+                    (geom2 instanceof ol.geom.GeometryCollection && geom2.getGeometriesArray().length === 0) ||
+                    (geom2 instanceof ol.geom.MultiPolygon && geom2.getPolygons().length === 0) ||
+                    (geom2 instanceof ol.geom.MultiPoint && geom2.getPoints().length === 0) ||
+                    (geom2 instanceof ol.geom.MultiLineString && geom2.getLineStrings().length === 0)
+                )?null:geom2
+
         if ( !geom1 && !geom2 ) {
             return true
         } else if ( (geom1 && 1 || 0) + (geom2 && 1 || 0) === 1) {
@@ -165,21 +187,70 @@
         } else if (geom1 instanceof ol.geom.LineString && geom2 instanceof ol.geom.LineString) {
             var coords1 = geom1.getCoordinates()
             var coords2 = geom2.getCoordinates()
-            if (coords1.length !== coords2.length) return false
-            var i2 = coords2.findIndex(function(c) { return c[0] === coords1[0][0] && c[1] === coords1[0][1]})
-            if (i2 < 0) {return false}
-            for( i1 = 1,i2 = i2 + 1;i1 < coords1.length;i1++,i2 = (i2 + 1) % coords2.length) {
-                if (coords1[i1][0] !== coords2[i2][0] || coords1[i1][1] !== coords2[i2][1]) {return false}
+            var len1 = coords1.length
+            var len2 = coords2.length
+            if (len1 !== len2) return false
+            if (this.isGeometryEqual(coords1[0],coords1[len1 - 1])) {
+                len1 = len1 - 1
+            }
+            if (this.isGeometryEqual(coords2[0],coords2[len1 - 1])) {
+                len2 = len2 - 1
+            }
+            if (len1 !== len2) return false
+
+            var baseIndex1 = 0
+            var baseIndex2 = coords2.findIndex(function(c) { return c[0] === coords1[baseIndex1][0] && c[1] === coords1[baseIndex1][1]})
+            if (baseIndex2 < 0) {return false}
+
+            var equal = true
+            for( i1 = baseIndex1 + 1,i2 = baseIndex2 + 1;i1 < len1;i1++,i2 = (i2 + 1) % len2) {
+                if (coords1[i1][0] !== coords2[i2][0] || coords1[i1][1] !== coords2[i2][1]) {
+                    if (i1 === baseIndex1 + 1) {
+                        equal = false
+                        break
+                    } else {
+                        return false
+                    }
+                }
+            }
+            if (!equal) {
+                //check in reverse direction
+                for( i1 = baseIndex1 + 1,i2 = (len2 + baseIndex2 - 1) % len2;i1 < len1;i1++,i2 = (len2 + i2 - 1) % len2) {
+                    if (coords1[i1][0] !== coords2[i2][0] || coords1[i1][1] !== coords2[i2][1]) {
+                        return false
+                    }
+                }
             }
             return true
         } else if (geom1 instanceof ol.geom.LinearRing && geom2 instanceof ol.geom.LinearRing) {
             var coords1 = geom1.getCoordinates()
             var coords2 = geom2.getCoordinates()
-            if (coords1.length !== coords2.length) return false
-            var i2 = coords2.findIndex(function(c) { return c[0] === coords1[0][0] && c[1] === coords1[0][1]})
-            if (i2 < 0) {return false}
-            for( i1 = 1,i2 = i2 + 1;i1 < coords1.length - 1;i1++,i2 = (i2 + 1) % (coords2.length - 1)) {
-                if (coords1[i1][0] !== coords2[i2][0] || coords1[i1][1] !== coords2[i2][1]) {return false}
+            var len1 = coords1.length - 1
+            var len2 = coords2.length - 1
+            if (len1 !== len2) return false
+
+            var baseIndex1 = 0
+            var baseIndex2 = coords2.findIndex(function(c) { return c[0] === coords1[baseIndex1][0] && c[1] === coords1[baseIndex1][1]})
+            if (baseIndex2 < 0) {return false}
+
+            var equal = true
+            for( i1 = baseIndex1 + 1,i2 = baseIndex2 + 1;i1 < len1;i1++,i2 = (i2 + 1) % len2) {
+                if (coords1[i1][0] !== coords2[i2][0] || coords1[i1][1] !== coords2[i2][1]) {
+                    if (i1 === baseIndex1 + 1) {
+                        equal = false
+                        break
+                    } else {
+                        return false
+                    }
+                }
+            }
+            if (!equal) {
+                //check in reverse direction
+                for( i1 = baseIndex1 + 1,i2 = (len2 + baseIndex2 - 1) % len2;i1 < len1;i1++,i2 = (len2 + i2 - 1) % len2) {
+                    if (coords1[i1][0] !== coords2[i2][0] || coords1[i1][1] !== coords2[i2][1]) {
+                        return false
+                    }
+                }
             }
             return true
         } else if(geom1 instanceof ol.geom.Polygon && geom2 instanceof ol.geom.Polygon) {
