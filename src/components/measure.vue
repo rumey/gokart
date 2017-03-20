@@ -31,6 +31,7 @@
       loading: function () { return this.$root.loading },
       map: function () { return this.$root.map },
       active: function () { return this.$root.active },
+      catalogue: function () { return this.$root.catalogue },
       annotations: function () { 
         return this.$root.$refs.app.$refs.annotations 
       },
@@ -1014,23 +1015,23 @@
           measureStatus.progress(50,"Process 'gk-init' event")
         
           //add measure tooltips when adding annotation layer and measureFeature is true
-          vm.map.olmap.getLayers().on("add",function(ev){
-              var layer = vm._measureLayers.find(function(l){return l[0] === ev.element.get('id')})
+          vm.map.olmap.on("addLayer",function(ev){
+              var layer = vm._measureLayers.find(function(l){return l[0] === ev.layer.get('id')})
               if (layer) {
                   if (vm.measureFeature) {
                       vm.enableLayerMeasurement(layer,true)
                   }
-                  ev.element._change_opacity = ev.element._change_opacity || ev.element.on("change:opacity",vm._changeOpacityHandler)
+                  ev.layer._change_opacity = ev.layer._change_opacity || ev.layer.on("change:opacity",vm._changeOpacityHandler)
               }
           })
 
           //remove measure tooltips when removing annotation layer
-          vm.map.olmap.getLayers().on("remove",function(ev){
-              var layer = vm._measureLayers.find(function(l){return l[0] === ev.element.get('id')})
+          vm.map.olmap.on("removeLayer",function(ev){
+              var layer = vm._measureLayers.find(function(l){return l[0] === ev.layer.get('id')})
               if (layer) {
-                  if (ev.element._change_opacity) {
-                    ev.element.unByKey(ev.element._change_opacity)
-                    delete ev.element._change_opacity
+                  if (ev.layer._change_opacity) {
+                    ev.layer.unByKey(ev.layer._change_opacity)
+                    delete ev.layer._change_opacity
                   }
                   if (vm.measureFeature) {
                       vm.enableLayerMeasurement(layer,false)
@@ -1067,7 +1068,9 @@
               //initialize measure layers
               if (vm.measureFeature) {
                   $.each(vm._measureLayers,function(index,layer){
-                    vm.enableLayerMeasurement(layer,true)
+                    if (vm.active.isHidden(vm.map.getMapLayer(layer[0])) === false) {
+                        vm.enableLayerMeasurement(layer,true)
+                    }
                   })
               }
 

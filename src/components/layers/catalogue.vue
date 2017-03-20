@@ -252,6 +252,7 @@ div.ol-previewmap.ol-uncollapsible {
           } else {
             map.olmap.addLayer(olLayer)
           }
+          this.map.olmap.dispatchEvent(this.map.createEvent(this.map,"addLayer",{layer:olLayer}))
         } else {
           active.removeLayer(map.getMapLayer(layer))
         }

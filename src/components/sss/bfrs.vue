@@ -1409,7 +1409,11 @@
             vm.allFeatures.extend(allFeatures)
             //
             vm.editableFeatures.clear()
-            vm.editableFeatures.extend(allFeatures)
+            allFeatures.forEach(function(f){
+                if (vm.isModifiable(f)) {
+                    vm.editableFeatures.push(f)
+                }
+            })
         }
         if (runNow) {
             updateFeatureFilterFunc()
