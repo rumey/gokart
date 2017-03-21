@@ -637,9 +637,9 @@
                 dataType:"json",
                 success: function (response, stat, xhr) {
                     if (response.totalFeatures === 0) {
-                        spatialData["tenure_iginition_point"] = null
+                        spatialData["tenure_ignition_point"] = null
                     } else {
-                        spatialData["tenure_iginition_point"] = {
+                        spatialData["tenure_ignition_point"] = {
                             id: response.features[0].properties["ogc_fid"],
                             name: response.features[0].properties["name"],
                             category: response.features[0].properties["category"]
