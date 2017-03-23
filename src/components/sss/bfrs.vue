@@ -150,7 +150,7 @@
 }
 </style>
 <script>
-  import { ol, moment,hash,turf } from 'src/vendor.js'
+  import { ol, moment,hash,turf,utils } from 'src/vendor.js'
   export default {
     store: {
         bfrsService:'bfrsService',
@@ -686,7 +686,7 @@
                                 spatialData["fire_position"] = "0m from " + nearestTown.properties["name"]
                             } else {
                                 bearing = vm.measure.getBearing(nearestTown.geometry.coordinates,originPoint)
-                                spatialData["fire_position"] = nearestDistance + " " + vm.measure.getDirection(bearing,32) + " from " + nearestTown.properties["name"]
+                                spatialData["fire_position"] = nearestDistance + " " + vm.measure.getDirection(bearing,16) + " from " + nearestTown.properties["name"]
                             }
     
                             processingJobs.splice(processingJobs.indexOf("fire_position"),1)
@@ -844,7 +844,10 @@
                 vm.bfrsMapLayer.getSource().removeFeature(feat)
                 vm.allFeatures.remove(feat)
                 if (vm.editableFeatures) {
-                    vm.editableFeatures.remove(feat)
+                    var index = vm.editableFeatures.getArray().findIndex(function(f){return f.get('id') === feat.get('id')})
+                    if (index >= 0) {
+                        vm.editableFeatures.removeAt(index)
+                    }
                 }
                 vm.selectedFeatures.remove(feat)
                 var index = vm.extentFeatures.findIndex(function(f){ return f == feat})
@@ -1621,7 +1624,7 @@
 
       vm.ui.modifyInter = vm.annotations.modifyInterFactory()({features:vm.editableFeatures,mapLayers:function(layer){return layer.get("id") === "bfrs:bushfire_dev" }})
       vm.ui.modifyInter.on("featuresmodified",function(ev){
-          if (ev.features.getLength() === 1) {
+          if (ev.features.getLength() === 1 ) {
               vm.validateFireBoundary(ev.features.item(0))
           }
           vm.postModified(ev.features.getArray())
