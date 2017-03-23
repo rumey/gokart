@@ -1263,6 +1263,7 @@
                         }
                     }
                 }) 
+                vm.selectedFeatures.clear()
                 $.each(features,function(index,feature){
                     if (feature.get('id') === undefined) {
                         //non existed bushfire report
@@ -1271,10 +1272,17 @@
                         }
                         vm.newFeature(feature)
                         vm.measure.remeasureFeature(feature)
+                        vm.selectedFeatures.push(feature)
                     }
                 }) 
                 if (changedBushfires.length > 0) {
                     vm.measure.remeasureFeature(changedBushfires.filter(function(f) {return f.get('id') < 0}))
+                    $.each(changedBushfires.filter(function(f){return f.get('id') >= 0}),function(index,feature){
+                        vm.postModified(feature)
+                    })
+                    vm.selectedFeatures.extend(changedBushfires)
+                    
+                    /*
                     changedBushfires = changedBushfires.filter(function(f){return f.get('id') >= 0})
                     if (changedBushfires.length > 0) {
                         var filter = 'id in (' + changedBushfires.map(function(f){return f.get('id')}).join(',') + ')'
@@ -1297,6 +1305,11 @@
                             vm.measure.remeasureFeature(changedBushfires)
                         })
                     }
+                    */
+                }
+                if (vm.selectedFeatures.getLength() > 0) {
+                    vm.annotations.setTool("Bfrs Select")
+                    vm.map.zoomToSelected()
                 }
 
                 if (notFoundBushfires) {
