@@ -235,6 +235,9 @@
       },
       // info for the legend block on the print raster
       legendInfo: function () {
+        if (!this.$root.map || !this.$root.map.olmap) {
+            return {}
+        }
         var result = {
           title: this.finalTitle,
           author: "Produced by the Department of Parks and Wildlife", //this.whoami.email,

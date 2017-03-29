@@ -227,6 +227,7 @@
     computed: {
       map: function () { return this.$root.$refs.app.$refs.map },
       annotations: function () { return this.$root.$refs.app.$refs.annotations },
+      dialog: function () { return this.$root.dialog },
       active: function () { return this.$root.active},
       measure: function () { return this.$root.measure },
       info: function () { return this.$root.info },
@@ -408,7 +409,7 @@
       authoriseUrl:function(feat) {
         return this.bfrsService + "/authorise/" + feat.get('id')
       },
-      validateBushfire:function(feat,validateType,polygon) {
+      validateBushfire:function(feat,validateType,geom) {
         var geometries = feat.getGeometry().getGeometries()
         var originPoint = (geometries.length > 0 && geometries[0] instanceof ol.geom.Point)?geometries[0]:null
         if (!originPoint) {
@@ -418,20 +419,28 @@
         var indexes = (geometries.length > 1)?[1]:((geometries.length ===  1 && geometries[0] instanceof ol.geom.MultiPolygon)?[0]:null)
         var fireBoundary = (indexes)?geometries[indexes[0]]:null
         var invalid = false
+        var polygon = null
         var polygonIndex = -1
         var convertedToTurf = true
         //check self-intersect and polygon intersect.
         //during checking, polygons are converted into turf polygon and cached in the local variable
         if (validateType === "moveOriginPoint" ||
-            validateType === "deleteOriginPoint" ||
-            validateType === "deleteFireBoundary"
+            validateType === "deleteOriginPoint"
         ) {
             fireBoundary = fireBoundary?fireBoundary.getCoordinates():null
             convertedToTurf = false
-        } else if (polygon) {
+        } else if (validateType === "deleteFireBoundary") {
+            polygonIndex = (fireBoundary)?fireBoundary.getPolygons().findIndex(function(o) {return o === geom}):-1
+            fireBoundary = fireBoundary?fireBoundary.getCoordinates():null
+            convertedToTurf = false
+        } else if (validateType === "addOriginPoint") {
+            originPoint = geom
+            fireBoundary = fireBoundary?fireBoundary.getCoordinates():null
+            convertedToTurf = false
+        } else if (geom) {
             //validate whether polygon is intersect with current existed polygons
-            var polygonIndex = (fireBoundary)?fireBoundary.getPolygons().findIndex(function(o) {return o === polygon}):-1
-            polygon = turf.polygon(polygon.getCoordinates())
+            polygonIndex = (fireBoundary)?fireBoundary.getPolygons().findIndex(function(o) {return o === geom}):-1
+            polygon = turf.polygon(geom.getCoordinates())
             if (turf.kinks(polygon).features.length > 0) {
                 alert("The polygon is self intersection, please fix it.")
                 if (polygonIndex !== -1) {
@@ -505,25 +514,29 @@
             }
         }
 
-        if (!invalid && fireBoundary && originPoint) {
-            inFireBoundary = false
+        if (!invalid && originPoint) {
+            inFireBoundary = null
             originPoint = turf.point(originPoint.getCoordinates())
-            for(index = 0;index < fireBoundary.length;index++) {
-                if (!convertedToTurf) {
-                    fireBoundary[index] = turf.polygon(fireBoundary[index])
-                }
-                if (turf.inside(originPoint,fireBoundary[index])) {
-                    inFireBoundary = true
-                    break;
+            if (fireBoundary && fireBoundary.length > 0) {
+                inFireBoundary = false
+                for(index = 0;index < fireBoundary.length;index++) {
+                    if (!convertedToTurf) {
+                        fireBoundary[index] = turf.polygon(fireBoundary[index])
+                    }
+                    if (turf.inside(originPoint,fireBoundary[index])) {
+                        inFireBoundary = true
+                        break;
+                    }
                 }
             }
-            if (!inFireBoundary && polygon && validateType !== "deleteFireBoundary" && polygonIndex === -1) {
+            if (inFireBoundary !== true && polygon && validateType !== "deleteFireBoundary" && polygonIndex === -1) {
+                inFireBoundary = false
                 //the checking polygon is not in the fireboudary now, check it too.
                 if (turf.inside(originPoint,polygon)) {
                     inFireBoundary = true
                 }
             }
-            if (!inFireBoundary) {
+            if (inFireBoundary === false) {
                 invalid = true
                 alert("Original point should be inside a fire boundary.");
                 indexes = [0]
@@ -543,26 +556,6 @@
             }
         }
         return !invalid
-      },
-      getSSSId:function(feat,create) {
-        create = (create === undefined || create === null)?false:create
-        var sssId = feat.get('sss_id')
-        if (!sssId && create) {
-            var geometries = feat.getGeometry().getGeometriesArray()
-            var originPoint = (geometries.length > 0 && geometries[0] instanceof ol.geom.Point)?geometries[0].getCoordinates():null
-            var fireBoundary = (geometries.length > 1)?geometries[1]:((geometries.length ===  1 && geometries[0] instanceof ol.geom.MultiPolygon)?geometries[0]:null)
-            fireBoundary = fireBoundary?fireBoundary.getCoordinates():null
-
-            sssId = hash.MD5({
-                'origin_point': JSON.stringify(originPoint),
-                'fire_boundary': JSON.stringify(fireBoundary),
-                'author': this.whoami.email,
-                'time': Date.now()
-            })
-
-            feat.set('sss_id',sssId,true)
-        }
-        return sssId
       },
       getSpatialData:function(feat,callback) {
         var vm = this
@@ -636,19 +629,32 @@
                     if (feat.get("district_id") != spatialData["district_id"] || feat.get("region_id") != spatialData["region_id"]) {
                         var oldPlace = (oldDistrict?oldDistrict.district:"Unknown") + " of " + (oldRegion?oldRegion.region:"Unknown")
                         var newPlace = (district?district.district:"Unknown") + " of " + (region?region.region:"Unknown")
-                        var messages = "Bushfire's origin point was moved from " + oldPlace + " to " + newPlace + "."
-                        messages += "\r\nIf move the bushfire to " + newPlace + ", a new bushfire will be created from this bushfire with new assigned fire number in " + newPlace +", this bushfire will be reserverd and link to the new bushfire."
-                        messages += "\r\nChoose 'OK' to move to " + newPlace + "."
-                        messages += "\r\nChoose 'Cancel' to stay in " + oldPlace + "."
-                        if (true || !window.confirm(messages)) {
-                            delete spatialData["region_id"]
-                            delete spatialData["district_id"]
-                        }
+                        var messages = ["Bushfire's origin point was moved from " + oldPlace + " to " + newPlace + "."]
+                        messages.push("If move the bushfire to " + newPlace + ", a new bushfire will be created from this bushfire with new assigned fire number in " + newPlace +", this bushfire will be reserverd and link to the new bushfire.")
+                        messages.push("Click 'Move to New District' to move to " + newPlace + ".")
+                        messages.push("Click 'Stay in Current District' to stay in " + oldPlace + ".")
+                        messages.push("Click 'X' or press ESC to cancel this operation.")
+                        vm.dialog.show({
+                            title:"Bushfire's district was changed",
+                            messages:messages,
+                            buttons:[[true,"Move to New District"],[false,"Stay in Current District"]],
+                            callback(option) {
+                                if (!option) {
+                                    delete spatialData["region_id"]
+                                    delete spatialData["district_id"]
+                                }
+                                console.log( JSON.stringify(spatialData ) )
+                                callback(spatialData)
+                            }
+			            })
+                    } else {
+                        console.log( JSON.stringify(spatialData ) )
+                        callback(spatialData)
                     }
+                } else {
+                    console.log( JSON.stringify(spatialData ) )
+                    callback(spatialData)
                 }
-
-                console.log( JSON.stringify(spatialData ) )
-                callback(spatialData)
             }
         }
 
@@ -816,7 +822,7 @@
             })
 
             $.ajax({
-                url:vm.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:dpaw_districts&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
+                url:vm.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=dpaw:pw_districts_fssvers&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
                 dataType:"json",
                 success: function (response, stat, xhr) {
                     if (response.totalFeatures === 0) {
@@ -938,7 +944,8 @@
         if (this.canCreate(feat)) {
             var vm = this
             this.getSpatialData(feat,function(spatialData) {
-                spatialData['sss_id'] = vm.getSSSId(feat,true)
+                feat.set("saved",true,true)
+                feat.set("sss_id",feat.getGeometry().getGeometriesArray()[0].getCoordinates(),true)
                 $("#sss_create").val(JSON.stringify(spatialData))
                 $("#bushfire_create").submit()
             })
@@ -1046,7 +1053,7 @@
         var vm = this
         var sortRequired = false
         this._bushfirePostModified = this._bushfirePostModified || function(bushfire) {
-            if (bushfire.get('tint') !== "modified" && bushfire.get('tint') !== "new") {
+            if (bushfire.get('tint') !== "modified" && (bushfire.get('status') !== "new" || bushfire.get("saved"))) {
                 bushfire.set('tint',"modified",true)
                 bushfire.set('fillColour',vm.tints[bushfire.get('tint') + ".fillColour"])
                 bushfire.set('colour',vm.tints[bushfire.get('tint') + ".colour"])
@@ -1088,6 +1095,9 @@
               this.selectedFeatures.clear()
           }
           this.selectedFeatures.push(f)
+          if (["Bfrs Fire Boundary","Bfrs Origin Point","Bfrs Edit Geometry"].indexOf(this.annotations.tool.name) >= 0) {
+              this.map.zoomToSelected(10)
+          }
         }
       },
       toggleViewportOnly: function () {
@@ -1761,7 +1771,7 @@
       vm.ui.selectInter = vm.annotations.selectInterFactory()(toolConfig)
       vm.ui.geometrySelectInter = vm.annotations.selectInterFactory()($.extend({selectMode:"geometry"},toolConfig))
 
-      vm.ui.modifyInter = vm.annotations.modifyInterFactory()({features:vm.editableFeatures,mapLayers:function(layer){return layer.get("id") === "bfrs:bushfire_dev" }})
+      vm.ui.modifyInter = vm.annotations.modifyInterFactory()({features:vm.selectedFeatures,mapLayers:function(layer){return layer.get("id") === "bfrs:bushfire_dev" }})
       vm.ui.modifyInter.on("featuresmodified",function(ev){
           if (ev.features.getLength() === 1 ) {
               vm.validateBushfire(ev.features.item(0),"modifyBushfire")
@@ -1784,6 +1794,7 @@
                         return false
                     }
                 } else {
+                    alert("Plase choose a bushfire to place a origin point.")
                     return false
                 }
             }
@@ -1807,6 +1818,7 @@
                         return false
                     }
                 } else {
+                    alert("Plase choose a bushfire to place a fire boundary.")
                     return false
                 }
             }
@@ -1937,6 +1949,7 @@
                     if (selectedFeature["selectedIndex"] === undefined ) {
                         vm.selectDefaultGeometry(selectedFeature)
                     } 
+                    vm.map.zoomToSelected()
                  }
               }
           }, {
@@ -1960,6 +1973,8 @@
               onSet: function() {
                   if (vm.selectedFeatures.getLength() > 1) {
                       vm.selectedFeatures.clear()
+                  } else {
+                      vm.map.zoomToSelected()
                   }
               }
           },{
@@ -1979,6 +1994,8 @@
               onSet: function() {
                   if (vm.selectedFeatures.getLength() > 1) {
                       vm.selectedFeatures.clear()
+                  } else {
+                      vm.map.zoomToSelected()
                   }
               }
           }
@@ -2023,20 +2040,32 @@
                 //merge the current changes with the new features
                 var insertPosition = 0
                 $.each(vm.allFeatures.getArray().filter(function(f) {return ['new','modified'].indexOf(f.get('tint')) >= 0 }),function(index,f){
-                    if (f.get('tint') === 'new') {
+                    if (f.get('status') === 'new') {
                         //new features always are the begining and sorted.
-                        if (f.get('sss_id')) {
+                        if (f.get('saved')) {
                             //save before
-                            loadedFeature = features.find(function(f2){return f.get('sss_id') === f2.get('sss_id')})
-                            if (loadedFeature) {
-                                //already saved into the database, ignore the current new bushfire
-                            } else {
+                            loadedFeature = features.find(function(f2){
+                                var geometries = f2.getGeometry().getGeometriesArray()
+                                var originPoint = (geometries.length > 0 && geometries[0] instanceof ol.geom.Point)?geometries[0]:null
+                           
+                                return originPoint?vm.map.isGeometryEqual(new ol.geom.Point(f.get('sss_id')),originPoint,0.000000005):false
+                            })
+                            if (!loadedFeature) {
                                 //still not save, keep the current new bushfire
                                 features.splice(insertPosition,0,f)
                                 insertPosition += 1
+                            } else if (f.get('tint') === 'modified'){
+                                //feature was changed after saving
+                                //replace the loadedFeature's geometry with the modified version
+                                loadedFeature.setGeometry(f.getGeometry())
+                                loadedFeature.set('tint','modified',true)
+                                loadedFeature.set('fillColour',vm.tints[loadedFeature.get('tint') + ".fillColour"])
+                                loadedFeature.set('colour',vm.tints[loadedFeature.get('tint') + ".colour"])
+                            } else {
+                                //already saved into the database, and not change after saving, ignore it
                             }
                         } else {
-                            //not save before`
+                            //not save before
                             features.splice(insertPosition,0,f)
                             insertPosition += 1
                         }

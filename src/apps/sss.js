@@ -163,6 +163,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
     },
     computed: {
       loading: function () { return this.$refs.app.$refs.loading },
+      dialog: function () { return this.$refs.app.$refs.dialog },
       map: function () { return this.$refs.app.$refs.map },
       scales: function () { return this.$refs.app.$refs.map.$refs.scales },
       search: function () { return this.$refs.app.$refs.map.$refs.search },

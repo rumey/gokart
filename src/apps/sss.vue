@@ -10,6 +10,7 @@
                     <gk-annotations v-ref:annotations></gk-annotations>
                     <gk-tracking v-ref:tracking></gk-tracking>
                     <gk-bfrs v-ref:bfrs></gk-bfrs>
+                    <gk-dialog v-ref:dialog></gk-dialog>
                 </div>
             </div>
             <div class="off-canvas-content" data-off-canvas-content>
@@ -57,6 +58,7 @@
     import gkLoading from '../components/loading.vue'
     import gkSetting from '../components/setting.vue'
     import gkBfrs from '../components/sss/bfrs.vue'
+    import gkDialog from '../components/dialog.vue'
     import { ol } from 'src/vendor.js'
 
 
@@ -68,7 +70,7 @@
         return {
         }
       },
-      components: { gkMap, gkLayers, gkAnnotations, gkTracking, gkLoading,gkSetting , gkBfrs },
+      components: { gkMap, gkLayers, gkAnnotations, gkTracking, gkLoading,gkSetting , gkBfrs ,gkDialog},
       ready: function () {
         var vm = this
         $("#menu-tabs").on("change.zf.tabs",function(target,selectedTab){

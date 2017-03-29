@@ -213,15 +213,21 @@
         console.error = (function(){
             var originFunc = console.error
             return function(args) {
+                var message = null
                 if (arguments.length == 1) {
                     if (typeof arguments[0] === "string") {
-                        vm.errors.push({"id": vm.errors.length + 1 ,"message":arguments[0]})
+                        message = arguments[0]
                     } else {
-                        vm.errors.push({"id": vm.errors.length + 1 ,"message":JSON.stringify(arguments[0])})
+                        message = JSON.stringify(arguments[0])
                     }
                 } else {
-                    vm.errors.push({"id": vm.errors.length + 1 ,"message":JSON.stringify(getArguments(arguments))})
+                    message = JSON.stringify(getArguments(arguments))
                 }
+                if (vm.errors.findIndex(function(e){return e.message === message}) >= 0) {
+                    //already exist, return to prevent dead loop
+                    return
+                }
+                vm.errors.push({"id": vm.errors.length + 1 ,"message":message})
                 originFunc.apply(this,arguments)
             }
         })()

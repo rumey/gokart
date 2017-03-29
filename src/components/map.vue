@@ -163,27 +163,47 @@
             return feature
         }
       },
-      isGeometryEqual:function(geom1,geom2){
-        geom1 = (
-                    (geom1 instanceof ol.geom.GeometryCollection && geom1.getGeometriesArray().length === 0) ||
-                    (geom1 instanceof ol.geom.MultiPolygon && geom1.getPolygons().length === 0) ||
-                    (geom1 instanceof ol.geom.MultiPoint && geom1.getPoints().length === 0) ||
-                    (geom1 instanceof ol.geom.MultiLineString && geom1.getLineStrings().length === 0)
-                )?null:geom1
-
-        geom2 = (
-                    (geom2 instanceof ol.geom.GeometryCollection && geom2.getGeometriesArray().length === 0) ||
-                    (geom2 instanceof ol.geom.MultiPolygon && geom2.getPolygons().length === 0) ||
-                    (geom2 instanceof ol.geom.MultiPoint && geom2.getPoints().length === 0) ||
-                    (geom2 instanceof ol.geom.MultiLineString && geom2.getLineStrings().length === 0)
-                )?null:geom2
+      isGeometryEqual:function(geom1,geom2,epsilon){
+        epsilon = (epsilon === null || epsilon === undefined)?false:epsilon
+        var initGeom = function(geom) {
+            var geometries = null
+            if (geom instanceof ol.geom.GeometryCollection) {
+                geometries = geom.getGeometriesArray()
+            } else if (geom instanceof ol.geom.MultiPolygon ) {
+                geometries = geom.getPolygons()
+            } else if (geom instanceof ol.geom.MultiPoint ) {
+                geometries = geom.getPolygons()
+            } else if (geom instanceof ol.geom.MultiLineString ) {
+                geometries = geom.getLineStrings()
+            } else if (geom instanceof ol.geom.Polygon ) {
+                geometries = geom.getLinearRings()
+            } else {
+                return geom
+            }
+            if (geometries.length === 0) {
+                return null
+            } else if (geometries.length === 1) {
+                return initGeom(geometries[0])
+            } else {
+                return geom
+            }
+        }
+        var isCoordinateEqual = function(coords1,coords2) {
+            if (epsilon) {
+                return Math.abs(coords1[0] - coords2[0]) <= epsilon && Math.abs(coords1[1] - coords2[1]) <= epsilon
+            } else {
+                return coords1[0] === coords2[0] && coords1[1] === coords2[1]
+            }
+        }
+        geom1 = initGeom(geom1)
+        geom2 = initGeom(geom2)
 
         if ( !geom1 && !geom2 ) {
             return true
         } else if ( (geom1 && 1 || 0) + (geom2 && 1 || 0) === 1) {
             return false
         } else if (geom1 instanceof ol.geom.Point && geom2 instanceof ol.geom.Point) {
-            return geom1.getCoordinates()[0] === geom2.getCoordinates()[0] && geom1.getCoordinates()[1] === geom2.getCoordinates()[1]
+            return isCoordinateEqual(geom1.getCoordinates(),geom2.getCoordinates())
         } else if (geom1 instanceof ol.geom.LineString && geom2 instanceof ol.geom.LineString) {
             var coords1 = geom1.getCoordinates()
             var coords2 = geom2.getCoordinates()
@@ -199,12 +219,12 @@
             if (len1 !== len2) return false
 
             var baseIndex1 = 0
-            var baseIndex2 = coords2.findIndex(function(c) { return c[0] === coords1[baseIndex1][0] && c[1] === coords1[baseIndex1][1]})
+            var baseIndex2 = coords2.findIndex(function(c) { return isCoordinateEqual(c,coords1[baseIndex1])})
             if (baseIndex2 < 0) {return false}
 
             var equal = true
             for( i1 = baseIndex1 + 1,i2 = baseIndex2 + 1;i1 < len1;i1++,i2 = (i2 + 1) % len2) {
-                if (coords1[i1][0] !== coords2[i2][0] || coords1[i1][1] !== coords2[i2][1]) {
+                if (!isCoordinateEqual(coords1[i1],coords2[i2])) {
                     if (i1 === baseIndex1 + 1) {
                         equal = false
                         break
@@ -216,7 +236,7 @@
             if (!equal) {
                 //check in reverse direction
                 for( i1 = baseIndex1 + 1,i2 = (len2 + baseIndex2 - 1) % len2;i1 < len1;i1++,i2 = (len2 + i2 - 1) % len2) {
-                    if (coords1[i1][0] !== coords2[i2][0] || coords1[i1][1] !== coords2[i2][1]) {
+                    if (!isCoordinateEqual(coords1[i1],coords2[i2])) {
                         return false
                     }
                 }
@@ -230,12 +250,12 @@
             if (len1 !== len2) return false
 
             var baseIndex1 = 0
-            var baseIndex2 = coords2.findIndex(function(c) { return c[0] === coords1[baseIndex1][0] && c[1] === coords1[baseIndex1][1]})
+            var baseIndex2 = coords2.findIndex(function(c) { return isCoordinateEqual(c,coords1[baseIndex1])})
             if (baseIndex2 < 0) {return false}
 
             var equal = true
             for( i1 = baseIndex1 + 1,i2 = baseIndex2 + 1;i1 < len1;i1++,i2 = (i2 + 1) % len2) {
-                if (coords1[i1][0] !== coords2[i2][0] || coords1[i1][1] !== coords2[i2][1]) {
+                if (!isCoordinateEqual(coords1[i1],coords2[i2])) {
                     if (i1 === baseIndex1 + 1) {
                         equal = false
                         break
@@ -247,7 +267,7 @@
             if (!equal) {
                 //check in reverse direction
                 for( i1 = baseIndex1 + 1,i2 = (len2 + baseIndex2 - 1) % len2;i1 < len1;i1++,i2 = (len2 + i2 - 1) % len2) {
-                    if (coords1[i1][0] !== coords2[i2][0] || coords1[i1][1] !== coords2[i2][1]) {
+                    if (!isCoordinateEqual(coords1[i1],coords2[i2])) {
                         return false
                     }
                 }
@@ -1530,7 +1550,7 @@
             }
         })
       },
-      zoomToSelected: function () {
+      zoomToSelected: function (minScale) {
         var selectedFeatures = this.annotations.selectedFeatures
         if (selectedFeatures.getLength() === 0) {
             return
@@ -1549,6 +1569,9 @@
             }
             if (extent) {
                 this.olmap.getView().fit(extent, this.olmap.getSize())
+                if (minScale && this.getScale() < minScale) {
+                    this.setScale(minScale)
+                }
             }
         }
       }
