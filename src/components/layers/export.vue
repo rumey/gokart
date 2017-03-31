@@ -135,19 +135,26 @@
     <div class="small reveal" id="chooseImportLayer" data-reveal data-close-on-click='false'> 
         <h3>Please choose the layer to import</h3>
         <div class="row feature-row" >
-            <div class="small-6 columns">Layer</div>
-            <div class="small-3 columns">Geometry</div>
+            <div class="small-5 columns">Layer</div>
+            <div class="small-2 columns">SRS</div>
+            <div class="small-2 columns">Geometry</div>
             <div class="small-2 columns">Features</div>
             <div class="small-1 columns"></div>
         </div>
-        <div v-for="l in layers" class="row feature-row" >
-            <div class="small-6 columns">{{l.layer}}</div>
-            <div class="small-3 columns">{{l.geometry}}</div>
-            <div class="small-2 columns">{{l.featureCount}}</div>
-            <div class="small-1 columns">
-                <a class="button tiny secondary float-right" @click="importLayer(l)"><i class="fa fa-upload"></i></a>
+        <template v-for="dslayers in layers['datasources']" class="row feature-row"  track-by="$index">
+            <div class="row" v-if="layers['datasourceCount'] > 1">
+                <div class="small-12 columns datasource"><a>{{dslayers["datasource"]}}</a></div>
             </div>
-        </div>
+            <div v-for="l in dslayers['layers']" class="row feature-row"  track-by="$index">
+                <div class="small-5 columns">{{l.layer}}</div>
+                <div class="small-2 columns">{{l.srs}}</div>
+                <div class="small-2 columns">{{l.geometry}}</div>
+                <div class="small-2 columns">{{l.featureCount}}</div>
+                <div class="small-1 columns">
+                    <a class="button tiny secondary float-right" @click="importLayer(dslayers['datasource'],l)"><i class="fa fa-upload"></i></a>
+                </div>
+            </div>
+        </template>
 
         <button class="close-button" data-close aria-label="Close modal" type="button">
             <span aria-hidden="true">&times;</span>
@@ -156,6 +163,14 @@
 
   </div>
 </template>
+<style>
+.datasource {
+    font-size: 18px;
+    font-weight: bold;
+    font-style: italic;
+    background-color: #266f78;
+}
+</style>
 <script>
   import { kjua, saveAs, moment, $, localforage,hash} from 'src/vendor.js'
   import gkLegend from './legend.vue'
@@ -165,7 +180,7 @@
     components: { gkLegend,gkLayerlegends },
     data: function () {
       return {
-        layers:null,
+        layers:{},
         minDPI: 150,
         paperSizes: {
           A0: [1189, 841],
@@ -290,39 +305,35 @@
           req.send(formData)
         }
       },
+      getFileFormat:function(filename) {
+        return this._fileformats.find(function(f){return filename.substring(filename.length - f[1].length).toLowerCase() === f[1]})
+      },
       importVector: function(file,callback) {
         // upload vector  
         var vm = this
-        var p = file.name.lastIndexOf('.')
-        //console.log(file.name)
-        if (p < 0) {
-            alert("Unknown file (" + file.name + ") format.")
+        var fileFormat = this.getFileFormat(file.name)
+        if (!fileFormat) {
+            alert("Not support file format(" + filename + ")")
+            return
         }
-        var fileFormat = file.name.substring(p + 1)
-        if ((fileFormat === "geojson") || (fileFormat === "json")) {
+
+        if ((fileFormat[0] === "geojson") || (fileFormat[0] === "json")) {
             var reader = new window.FileReader()
             reader.onload = function (e) {
                 var features = new ol.format.GeoJSON().readFeatures(e.target.result,{dataProjection:"EPSG:4326"})
                 if (features && features.length) {
-                   callback(features,fileFormat)
+                   callback(features,fileFormat[0])
                 }
             }
             reader.readAsText(file)
         } else {
             var reader = new window.FileReader()
             reader.onload = function (e) {
-                vm._importData = {formData:new window.FormData(),callback:callback,fileFormat:fileFormat}
-                if (fileFormat === "gpx") {
-                    vm._importData.formData.append('datasource', new window.Blob([e.target.result],{type:'application/gpx+xml'}), file.name)
-                } else if(fileFormat === "gpkg") {
-                    vm._importData.formData.append('datasource', new window.Blob([e.target.result],{type:'application/x-sqlite3'}), file.name)
-                } else {
-                    alert("Not support file format(" + fileFormat + ")")
-                    return
-                }
+                vm._importData = {formData:new window.FormData(),callback:callback}
+                vm._importData.formData.append('datasource', new window.Blob([e.target.result],{type:fileFormat[2]}), file.name)
                 var req = new window.XMLHttpRequest()
                 req.open('POST', vm.gokartService + '/ogrinfo')
-                req.responseType = 'json'
+                req.responseType = 'blob'
                 req.withCredentials = true
                 req.onload = function (event) {
                     if (req.status >= 400) {
@@ -333,15 +344,23 @@
                         })
                         delete vm._importData
                     } else {
-                        var layers = req.response.layers || []
-                        if (!layers || layers.length === 0) {
-                            return
-                        } else if(layers.length === 1) {
-                            vm.importLayer(layers[0],true)
-                        } else {
-                            vm.layers = layers
-                            $("#chooseImportLayer").foundation('open')
-                        }
+                        var reader = new FileReader()
+                        reader.readAsText(req.response)
+                        reader.addEventListener("loadend",function(e){
+                            if (!e.target.result) {
+                                return
+                            }
+                            var layers = JSON.parse(e.target.result)
+                            if (!layers || !layers["layerCount"]) {
+                                alert("No spatial data are found.")
+                                return
+                            } else if(layers["layerCount"] === 1) {
+                                vm.importLayer(layers["datasources"][0]["datasource"],layers["datasources"][0]["layers"][0],true)
+                            } else {
+                                vm.layers = layers
+                                $("#chooseImportLayer").foundation('open')
+                            }
+                        })
                     }
                 }
                 req.send(vm._importData.formData)
@@ -349,7 +368,12 @@
             reader.readAsArrayBuffer(file)
         }
       },
-      importLayer:function(selectedLayer,autoChoose){
+      importLayer:function(datasource,selectedLayer,autoChoose){
+        fileFormat = this.getFileFormat(datasource)
+        if (!fileFormat) {
+            alert("Not support file format(" + datasource + ")")
+            return
+        }
         try {
             if (!this._importData) {
                 alert("Import data is missing.")
@@ -364,6 +388,7 @@
             }
             var vm = this
             this._importData.formData.append('layer', selectedLayer.layer)
+            this._importData.formData.append('datasourcefile', datasource)
             var req = new window.XMLHttpRequest()
             req.open('POST', this.gokartService + '/ogr/geojson')
             req.responseType = 'blob'
@@ -381,7 +406,7 @@
                     responseReader.onload = function (e) {
                         var features = new ol.format.GeoJSON().readFeatures(e.target.result,{dataProjection:"EPSG:4326"})
                         if (features && features.length) {
-                            importData.callback(features,importData.fileFormat)
+                            importData.callback(features,fileFormat[0])
                         }
                     }
                     responseReader.readAsText(req.response)
@@ -749,6 +774,20 @@
     ready: function () {
       var vm = this
       this._filename_re = new RegExp("filename=[\'\"](.+)[\'\"]")
+      this._fileformats = [
+        ["geojson",".geojson","application/vnd.geo+json"],
+        ["shp",".shp","application/shp"],
+        ["json",".geojson","application/json"],
+        ["gpx",".gpx","application/gpx+xml"],
+        ["gpkg",".gpkg","application/x-sqlite3"],
+        ["7zip",".7z","application/x-7z-compressed"],
+        ["zip",".zip","application/zip"],
+        ["tar",".tar","application/x-tar"],
+        ["tar.gz",".tar.gz","application/x-gtar-compressed"],
+        ["tar.bz",".tar.bz","application/gzip"],
+        ["tar.xz",".tar.xz","application/gzip"],
+      ]
+
       var exportStatus = vm.loading.register("export","Export Component","Initialize")
 
       $("#chooseImportLayer").on("closed.zf.reveal",function(){

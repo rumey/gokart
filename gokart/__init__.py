@@ -387,16 +387,102 @@ def featureCount(datasource,layer,feature_type):
     m = feature_count_re.search(info)
     return (m and int(m.group('count'))) or 0
     
-layer_info_re = re.compile('[\r\n]+\s*Layer name:\s+(?P<name>[^\r\n]+)([\r\n]+\s*Geometry:\s+(?P<geometry>[^\r\n]+))?([\r\n]+Feature Count:\s+(?P<count>\d+))?[\r\n]+')
-def layerinfo(datasource):
+def detect_epsg(filename):
+    gdal_cmd = ['gdalsrsinfo', '-e', filename]
+    gdal = subprocess.Popen(gdal_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    gdal_output = gdal.communicate()
+
+    result = None
+    for line in gdal_output[0].split('\n'):
+        if line.startswith('EPSG') and line != 'EPSG:-1':
+            result = line
+            break
+
+    return result
+
+layer_re = re.compile('[\r\n]+\s*Layer name:\s+(?P<name>[^\r\n]+)')
+feature_count_re = re.compile('[\r\n]+Feature Count:\s+(?P<count>\d+)')
+geometry_re = re.compile('[\r\n]+\s*Geometry:\s+(?P<geometry>[^\r\n]+)')
+def layerinfo(datasource,rel_file_path):
+    epsg = detect_epsg(datasource)
+    if epsg is None:
+        raise Exception("Can't detect file({})'s srs information".format(rel_file_path))
+
     cmd = ["ogrinfo", "-al","-so","-ro",datasource]
+    try:
+        info = subprocess.check_output(cmd)
+        layers = []
+        previous_match = None
+        for m in layer_re.finditer(info):
+            if previous_match is not None:
+                fm = feature_count_re.search(info[previous_match.start():m.start()])
+                gm = geometry_re.search(info[previous_match.start():m.start()])
+                layers.append((previous_match.group("name"),gm.group("geometry").replace(" ","").strip().upper() if gm else None, fm.group("count") if fm else None,epsg ))
+            previous_match = m
+        if previous_match is not None:
+            fm = feature_count_re.search(info[previous_match.start():])
+            gm = geometry_re.search(info[previous_match.start():])
+            layers.append((previous_match.group("name"),gm.group("geometry").replace(" ","").strip().upper() if gm else None, fm.group("count") if fm else None,epsg ))
 
-    info = subprocess.check_output(cmd)
-
-    return [ (m.group('name'),m.group('geometry').replace(" ","").upper() if m.group('geometry') else None,int(m.group('count')) if m.group('count') else None) for m in layer_info_re.finditer(info)]
+        return layers
+    except:
+        return None
 
 # Vector translation using ogr
 SUPPORTED_GEOMETRY_TYPES = ["POINT","LINESTRING","POLYGON","MULTIPOINT","MULTILINESTRING","MULTIPOLYGON"] 
+COMPRESS_FILE_SETTINGS = {
+    ".7z":lambda f,output:["7za","x",f,"-o{}".format(output)],
+    ".zip":lambda f,output:["unzip",f,"-d",output],
+    ".tar":lambda f,output:["tar","-x","-f",f,"-C",output],
+    ".tar.gz":lambda f,output:["tar","-x","-z","-f",f,"-C",output],
+    ".tgz":lambda f,output:["tar","-x","-z","-f",f,"-C",output],
+    ".tar.xz":lambda f,output:["tar","-x","-J","-f",f,"-C",output],
+    ".tar.bz2":lambda f,output:["tar","-x","-j","-f",f,"-C",output],
+    ".tar.bz":lambda f,output:["tar","-x","-j","-f",f,"-C",output],
+}
+
+def getDatasourceFiles(workdir,datasourcefile):
+    # needs gdal 1.10+
+    datasourcefiles = []
+    uncompress_cmd = None
+    for (fileext,cmd) in COMPRESS_FILE_SETTINGS.iteritems():
+        if datasourcefile.endswith(fileext):
+            uncompress_cmd = cmd
+            break
+
+    if uncompress_cmd:
+        extract_dir = os.path.join(workdir,"extract")
+        os.mkdir(extract_dir)
+        subprocess.check_call(uncompress_cmd(datasourcefile,extract_dir))
+        datasourcefile = []
+        for f in os.walk(extract_dir):
+            for file_name in f[2]:
+                if (file_name[0] == "."):
+                    #ignore the file starts with "."
+                    continue
+                else:
+                    if(any([file_ext for file_ext in [".shp",".gpx",".geojson",".json",".gpkg","sqlite"] if file_name.lower().endswith(file_ext)])):
+                        datasourcefiles.append((os.path.join(f[0],file_name),os.path.relpath(os.path.join(f[0],file_name),extract_dir)))
+
+    else:
+        datasourcefiles = [(datasourcefile,os.path.relpath(datasourcefile,workdir))]
+
+    return datasourcefiles
+
+def getLayers(datasourcefiles):
+    # needs gdal 1.10+
+    datasources = []
+    layer_size = 0
+    datasource_size = 0
+    for file_path,rel_file_path in datasourcefiles:
+        layers = layerinfo(file_path,rel_file_path)
+        if layers:
+            datasources.append({"datasource":rel_file_path,"layers": [{"layer":l[0],"geometry":l[1],"featureCount":l[2],"srs":l[3]} for l in layers if l[1] in SUPPORTED_GEOMETRY_TYPES or l[1].find("UNKNOWN") >= 0]})
+            layer_size += len(datasources[len(datasources) - 1]["layers"])
+            datasource_size += 1
+
+    return {"layerCount":layer_size,"datasourceCount":datasource_size,"datasources":datasources}
+
 @bottle.route("/ogrinfo", method="POST")
 def ogrinfo():
     # needs gdal 1.10+
@@ -405,12 +491,15 @@ def ogrinfo():
     try:
         datasource.save(workdir)
         datasourcefile = os.path.join(workdir, datasource.filename)
-
-        layers = layerinfo(datasourcefile)
-
-        layers = [{"layer":l[0],"geometry":l[1],"featureCount":l[2]} for l in layers if l[1] in SUPPORTED_GEOMETRY_TYPES or l[1].find("UNKNOWN") >= 0]
+        layers = getLayers(getDatasourceFiles(workdir,datasourcefile))
+        if len(layers) == 0:
+            raise Exception("No spatial data is found.")
         bottle.response.set_header("Content-Type", "application/json")
-        return {"layers":layers}
+        return layers
+    except Exception as ex:
+        bottle.response.status = 500
+        bottle.response.set_header("Content-Type", "text/plain")
+        return  str(ex)
 
     finally:
         try:
@@ -422,8 +511,10 @@ def ogrinfo():
 def ogr(fmt):
     # needs gdal 1.10+
     datasource = bottle.request.files.get("datasource")
+    datasourcefile = bottle.request.forms.get("datasourcefile")
     layer = bottle.request.forms.get("layer")
     configure = bottle.request.forms.get("configure")
+    multilayer = bottle.request.forms.get("multilayer") or False
     if configure:
         configure = json.loads(configure)
     else:
@@ -433,14 +524,62 @@ def ogr(fmt):
     try:
         outputdir = os.path.join(workdir,"output")
         os.mkdir(outputdir)
-        #if datasource.filename contains '.', only use the left part of the first '.' as the layername
-        sourcefmt = "" if (datasource.filename.rfind('.') < 0) else datasource.filename[datasource.filename.rfind('.') + 1:]
-        defaultlayername =  datasource.filename if (datasource.filename.find('.') < 0) else datasource.filename[:datasource.filename.find('.')]
         datasource.save(workdir)
-        datasourcefile = os.path.join(workdir, datasource.filename)
-        extra = []
-        dst_datasource_ext = ""
+        
+        datasourcefiles = getDatasourceFiles(workdir,os.path.join(workdir, datasource.filename))
+        if datasourcefile:
+            datasourcefiles = [ f for f in datasourcefiles if f[1] == datasourcefile ]
+            if len(datasourcefiles) == 0:
+                raise Exception("Datasource({}) is not found".format(datasourcefile))
 
+        layers = getLayers(datasourcefiles)
+
+        if layer:
+            found = False
+            for dslayers in layers["datasources"]:
+                for l in dslayers["layers"]:
+                    if layer == l["layer"]:
+                        found = True
+                        layer = l
+                        break
+                if found:
+                    datasourcefile = dslayers
+                    break
+            if not found:
+                raise Exception("Layer({}) is not found".format(layer))
+            layers = {"layerCount":1,"datasources":[{"datasource":datasourcefile["datasource"],"layers":[layer]}]}
+        elif multilayer:
+            if layers["layerCount"] == 0:
+                bottle.response.status = 400
+                return "No spatial data is found"
+        else:
+            for dslayers in layers["datasources"]:
+                for l in dslayers["layers"]:
+                    if layer:
+                        bottle.response.set_header("Content-Type", "application/json")
+                        bottle.response.status = 290
+                        return layers
+                    else:
+                        datasourcefile = dslayers
+                        layer = l
+
+            if not layer :
+                bottle.response.status = 400
+                return "No spatial data is found"
+
+            layers = {"layerCount":1,"datasources":[{"datasource":datasourcefile["datasource"],"layers":[layer]}]}
+
+        unsupported_layers = []
+        print "{}".format(layers)
+        for dslayers in layers["datasources"]:
+            unsupported_layers += ["{}({})".format(l["layer"],l["geometry"]) for l in dslayers["layers"] if l["geometry"] not in SUPPORTED_GEOMETRY_TYPES and l["geometry"].find("UNKNOWN") < 0]
+
+        if len(unsupported_layers) > 0:
+            raise Exception("The geometry type of the layers({}) are not supported.".format(unsupported_layers))
+
+        layer_size = layers["layerCount"]
+
+        dst_datasource_ext = ""
         multilayer = False
         multitype = False
         dst_datasource_pattern = None
@@ -450,7 +589,7 @@ def ogr(fmt):
             ct = "application/zip"
             multilayer = False
             multitype = False
-            dst_datasource_pattern = os.path.join(outputdir, datasource.filename if (datasource.filename.rfind('.') < 0) else datasource.filename[:datasource.filename.rfind('.')])
+            dst_datasource_pattern = os.path.join(outputdir, datasourcefilename if (datasourcefilename.rfind('.') < 0) else datasourcefilename[:datasourcefilename.rfind('.')])
         elif fmt == 'sqlite':
             f = "SQLite"
             ct = "application/x-sqlite3"
@@ -485,21 +624,13 @@ def ogr(fmt):
             bottle.response.status = 400
             return "Not supported format({})".format(fmt)
 
-        layers = layerinfo(datasourcefile)
-
-        if layer:
-            layers = [l for l in layers if l[0] == layer]
-            if len(layers) == 0:
-                raise Exception("The layer({}) is not found.".found(layer))
-        unsupported_layers = ["{}({})".format(l[0],l[1]) for l in layers if l[1] not in SUPPORTED_GEOMETRY_TYPES and l[1].find("UNKNOWN") < 0]
-        if unsupported_layers:
-            raise Exception("The geometry type of the layers({}) are not supported.".format(unsupported_layers))
+        datasourcefilename = None
 
         def get_dst_datasource(l,t=None):
             pattern = None
             if not dst_datasource_pattern:
-                pattern = os.path.join(outputdir, datasource.filename if (datasource.filename.rfind('.') < 0) else datasource.filename[:datasource.filename.rfind('.')])
-                if len(layers) > 1 and not multilayer:
+                pattern = os.path.join(outputdir, datasourcefilename if (datasourcefilename.rfind('.') < 0) else datasourcefilename[:datasourcefilename.rfind('.')])
+                if layer_size > 1 and not multilayer:
                     pattern = pattern + "_{layer}"
                 if t and not multilayer:
                     pattern = pattern + "_{geometry_type}"
@@ -511,47 +642,58 @@ def ogr(fmt):
         geometry_types = None
         mode = "-overwrite"
         empty_geometry = None
-        for layer in layers:
-            layername =  defaultlayername if sourcefmt in ("geojson","json") else layer[0]
+        for dslayers in layers["datasources"]:
+            for dsfile in datasourcefiles:
+                if dsfile[1] == dslayers["datasource"]:
+                    datasourcefile = dsfile[0]
+                    break
+            datasourcefilename = os.path.split(datasourcefile)[1]
+            #if datasourcefilename contains '.', only use the left part of the first '.' as the layername
+            sourcefmt = "" if (datasourcefilename.rfind('.') < 0) else datasourcefilename[datasourcefilename.rfind('.') + 1:]
+            defaultlayername =  datasourcefilename if (datasourcefilename.find('.') < 0) else datasourcefilename[:datasourcefilename.find('.')]
 
-            empty_geometry = None
-            if not multitype and layer[1] not in SUPPORTED_GEOMETRY_TYPES: 
-                geometry_types = [t for t in SUPPORTED_GEOMETRY_TYPES if featureCount(datasourcefile,layer[0],t)]
-                if len(geometry_types) > 1:
-                    if featureCount(datasourcefile,layer[0],"EMPTY"):
-                        if "EMPTY_GEOMETRY" not in configure:
-                            geometry_types.append("EMPTY")
-                        else:
-                            empty_geometry = configure["EMPTY_GEOMETRY"]
+            geometry_types = None
+            for layer in dslayers["layers"]:
+                layername =  defaultlayername if sourcefmt in ("geojson","json") else layer["layer"]
+                srs = layer["srs"] or "EPSG:4326"
+
+                empty_geometry = None
+                if not multitype and layer["geometry"] not in SUPPORTED_GEOMETRY_TYPES: 
+                    geometry_types = [t for t in SUPPORTED_GEOMETRY_TYPES if featureCount(datasourcefile,layer["layer"],t)]
+                    if len(geometry_types) > 1:
+                        if featureCount(datasourcefile,layer["layer"],"EMPTY"):
+                            if "EMPTY_GEOMETRY" not in configure:
+                                geometry_types.append("EMPTY")
+                            else:
+                                empty_geometry = configure["EMPTY_GEOMETRY"]
                     
-                    for t in geometry_types:
-                        dst_datasource = get_dst_datasource(layer[0],t)
-                        if t == "EMPTY" :
-                            subprocess.check_call([
-                                "ogr2ogr", mode,"-preserve_fid", "-where", "OGR_GEOMETRY IS NULL",
-                                "-a_srs", "EPSG:4326", "-nln", layername + "_{}".format(configure[t] if (t in configure) else t.lower()), "-f", f, dst_datasource, datasourcefile,layer[0]
-                            ])
-                        elif empty_geometry == t:
-                            subprocess.check_call([
-                                "ogr2ogr", mode,"-preserve_fid", "-where", "OGR_GEOMETRY='{}' OR OGR_GEOMETRY IS NULL".format(t),
-                                "-a_srs", "EPSG:4326", "-nln", layername + "_{}".format(configure[t] if (t in configure) else t.lower()),"-nlt",t, "-f", f, dst_datasource, datasourcefile,layer[0]
-                            ])
-                        else:
-                            subprocess.check_call([
-                                "ogr2ogr", mode,"-preserve_fid", "-where", "OGR_GEOMETRY='{}'".format(t),
-                                "-a_srs", "EPSG:4326", "-nln", layername + "_{}".format(configure[t] if (t in configure) else t.lower()),"-nlt",t, "-f", f, dst_datasource, datasourcefile,layer[0]
-                            ])
-                        mode = "-update" if multilayer else "-overwrite"
-                    continue
+                        for t in geometry_types:
+                            dst_datasource = get_dst_datasource(layer["layer"],t)
+                            if t == "EMPTY" :
+                                subprocess.check_call([
+                                    "ogr2ogr", mode,"-preserve_fid", "-where", "OGR_GEOMETRY IS NULL","-t_srs","EPSG:4326",
+                                    "-s_srs", srs, "-nln", layername + "_{}".format(configure[t] if (t in configure) else t.lower()), "-f", f, dst_datasource, datasourcefile,layer["layer"]
+                                ])
+                            elif empty_geometry == t:
+                                subprocess.check_call([
+                                    "ogr2ogr", mode,"-preserve_fid", "-where", "OGR_GEOMETRY='{}' OR OGR_GEOMETRY IS NULL".format(t),"-t_srs","EPSG:4326",
+                                    "-s_srs", srs, "-nln", layername + "_{}".format(configure[t] if (t in configure) else t.lower()),"-nlt",t, "-f", f, dst_datasource, datasourcefile,layer["layer"]
+                                ])
+                            else:
+                                subprocess.check_call([
+                                    "ogr2ogr", mode,"-preserve_fid", "-where", "OGR_GEOMETRY='{}'".format(t),"-t_srs","EPSG:4326",
+                                    "-s_srs", srs, "-nln", layername + "_{}".format(configure[t] if (t in configure) else t.lower()),"-nlt",t, "-f", f, dst_datasource, datasourcefile,layer["layer"]
+                                ])
+                            mode = "-update" if multilayer else "-overwrite"
+                        continue
 
-            dst_datasource = get_dst_datasource(layer[0])
-            subprocess.check_call([
-                "ogr2ogr","-overwrite","-preserve_fid" ,"-a_srs","EPSG:4326","-nln",layername, "-f", f,dst_datasource, datasourcefile,layer[0]]) 
-            mode = "-update" if multilayer else "-overwrite"
+                dst_datasource = get_dst_datasource(layer["layer"])
+                subprocess.check_call(["ogr2ogr","-overwrite","-preserve_fid" ,"-t_srs","EPSG:4326","-s_srs",srs,"-nln",layername, "-f", f,dst_datasource, datasourcefile,layer["layer"]]) 
+                mode = "-update" if multilayer else "-overwrite"
     
         if len(os.listdir(outputdir)) > 1 or (len(os.listdir(outputdir)) == 1 and os.path.isdir(os.path.join(outputdir,os.listdir(outputdir)[0]))):
             ct = "application/zip"
-            zipfile = dst_datasourcebase = os.path.join(workdir, datasource.filename if (datasource.filename.rfind('.') < 0) else datasource.filename[:datasource.filename.rfind('.')])
+            zipfile = dst_datasourcebase = os.path.join(workdir, datasourcefilename if (datasourcefilename.rfind('.') < 0) else datasourcefilename[:datasourcefilename.rfind('.')])
             zipfile = zipfile + "." + fmt
             shutil.make_archive(zipfile, 'zip', outputdir)
             dst_datasource = zipfile + ".zip"

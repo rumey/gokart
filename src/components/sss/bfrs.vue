@@ -97,7 +97,7 @@
                     <a title="Zoom to selected" class="button" @click="map.zoomToSelected()" ><i class="fa fa-search"></i><br></a>
                     <a v-if="isCreatable()" title="Create bushfire" class="button" @click="newFeature()" ><i class="fa fa-plus"></i><br>create</a>
     
-                    <label class="button" for="uploadBushfires" title="Support GeoJSON(.geojson .json), GPS data(.gpx), GeoPackage(.gpkg)" style="line-height:1"><i class="fa fa-upload"></i><br>upload</label><input type="file" id="uploadBushfires" class="show-for-sr" name="bushfiresfile" accept=".json,.geojson,.gpx,.gpkg" v-model="bushfiresfile" v-el:bushfiresfile @change="importList()"/>
+                    <label class="button" for="uploadBushfires" title="Support GeoJSON(.geojson .json), GPS data(.gpx), GeoPackage(.gpkg), 7zip(.7z), TarFile(.tar.gz,tar.bz,tar.xz),ZipFile(.zip)" style="line-height:1"><i class="fa fa-upload"></i><br>upload</label><input type="file" id="uploadBushfires" class="show-for-sr" name="bushfiresfile" accept=".json,.geojson,.gpx,.gpkg,.7z,.tar,.tar.gz,tar.ba,tar.xz,zip" v-model="bushfiresfile" v-el:bushfiresfile @change="importList()"/>
                     <a class="button" @click="downloadList('geojson')" title="Export Bushfire as GeoJSON"><i class="fa fa-download" aria-hidden="true"></i><br>geojson </a>
                     <a class="button" @click="downloadList('gpkg')" title="Export Bushfire as GeoPackage"><i class="fa fa-download" aria-hidden="true"></i><br>gpkg</a>
                   </div>
@@ -873,11 +873,13 @@
         var autoSelect = true
         this._bushfireSequence = (this._bushfireSequence || 0) 
         var featId = 0
+        if (feat) {
+            autoSelect = false
+        }
         if (feat && feat.get('id')) {
             if (Math.abs(feat.get('id')) > this._bushfireSequence) {
                 this._bushfireSequence = Math.abs(feat.get('id'))
             }
-            autoSelect = false
             featId = Math.abs(feat.get('id'))
         } else {
             this._bushfireSequence += 1
@@ -1298,8 +1300,8 @@
                 for(var i = features.length - 1;i >= 0;i--) {
                     if (feat &&
                         (
-                            feat.get('id') === features[i].get('id') ||
-                            ((feat.get('id') === undefined || feat.get('id') === null) && (features[i].get('id') === undefined || features[i].get('id') === null))
+                            feat.get('id') === features[i].get('id') && features[i].get('id') !== undefined && features[i].get('id') !== null
+                            //((feat.get('id') === undefined || feat.get('id') === null) && (features[i].get('id') === undefined || features[i].get('id') === null))
                         )
                     ) {
                         if (features[i].getGeometry() instanceof ol.geom.Point) {
@@ -1307,14 +1309,15 @@
                                 feat.setGeometry(new ol.geom.GeometryCollection([features[i].getGeometry(),feat.getGeometry()]))
                                 features.splice(i,1)
                             } else {
+                                //already have a point, ignore the point
                                 features.splice(i,1)
                             }
                         } else if (features[i].getGeometry() instanceof ol.geom.Polygon) {
                             if (feat.getGeometry() instanceof ol.geom.MultiPolygon) {
-                                feat.getGeometry().appendPolygon(feat.getGeometry())
+                                feat.getGeometry().appendPolygon(features[i].getGeometry())
                                 features.splice(i,1)
                             } else if (feat.getGeometry() instanceof ol.geom.Point) {
-                                feat.setGeometry(new ol.geom.GeometryCollection([feat.getGeometry,new ol.geom.MultiPolygon([features[i].getGeometry().getCoordinates()])]))
+                                feat.setGeometry(new ol.geom.GeometryCollection([feat.getGeometry(),new ol.geom.MultiPolygon([features[i].getGeometry().getCoordinates()])]))
                                 features.splice(i,1)
                             } else if (feat.getGeometry() instanceof ol.geom.GeometryCollection) {
                                 feat.getGeometry().getGeometriesArray()[1].appendPolygon(features[i].getGeometry())
@@ -1327,7 +1330,7 @@
                                 })
                                 features.splice(i,1)
                             } else if (feat.getGeometry() instanceof ol.geom.Point) {
-                                feat.setGeometry(new ol.geom.GeometryCollection([feat.getGeometry,features[i].getGeometry()]))
+                                feat.setGeometry(new ol.geom.GeometryCollection([feat.getGeometry(),features[i].getGeometry()]))
                                 features.splice(i,1)
                             } else if (feat.getGeometry() instanceof ol.geom.GeometryCollection) {
                                 $.each(features[i].getGeometry().getPolygons(),function(index,p) {
@@ -1375,7 +1378,7 @@
                                 }
                             } else if(feature.getGeometry() instanceof ol.geom.MultiPolygon) {
                                 var index = geometries.findIndex(function(g) { return g instanceof ol.geom.MultiPolygon})
-                                if (index < 0 && !vm.map.isGeometryEqual(feature.getGeometry(),null)) {
+                                if (index < 0 && !feature.getGeometry().getPolygons().length > 0) {
                                     geometries.push(feature.getGeometry())
                                     feat.getGeometry().setGeometriesArray(geometries)
                                     changedBushfires.push(feat)
@@ -1408,7 +1411,7 @@
                         }
                         vm.newFeature(feature)
                         vm.measure.remeasureFeature(feature)
-                        vm.selectedFeatures.push(feature)
+                        //vm.selectedFeatures.push(feature)
                     }
                 }) 
                 if (changedBushfires.length > 0) {
@@ -1445,7 +1448,7 @@
                 }
                 if (vm.selectedFeatures.getLength() > 0) {
                     vm.annotations.setTool("Bfrs Select")
-                    vm.map.zoomToSelected()
+                    vm.map.zoomToSelected(10)
                 }
 
                 if (notFoundBushfires) {
@@ -1949,7 +1952,7 @@
                     if (selectedFeature["selectedIndex"] === undefined ) {
                         vm.selectDefaultGeometry(selectedFeature)
                     } 
-                    vm.map.zoomToSelected()
+                    vm.map.zoomToSelected(10)
                  }
               }
           }, {
@@ -1974,7 +1977,7 @@
                   if (vm.selectedFeatures.getLength() > 1) {
                       vm.selectedFeatures.clear()
                   } else {
-                      vm.map.zoomToSelected()
+                      vm.map.zoomToSelected(10)
                   }
               }
           },{
@@ -1995,7 +1998,7 @@
                   if (vm.selectedFeatures.getLength() > 1) {
                       vm.selectedFeatures.clear()
                   } else {
-                      vm.map.zoomToSelected()
+                      vm.map.zoomToSelected(10)
                   }
               }
           }
