@@ -153,8 +153,6 @@
   import { ol, moment,hash,turf,utils } from 'src/vendor.js'
   export default {
     store: {
-        bfrsService:'bfrsService',
-        wfsService:'defaultWFSSrc',
         bushfireLabels:'settings.bfrs.bushfireLabels',
         viewportOnly:'settings.bfrs.viewportOnly',
         screenHeight:'layout.screenHeight',
@@ -226,6 +224,7 @@
     },
     computed: {
       map: function () { return this.$root.$refs.app.$refs.map },
+      env: function () { return this.$root.env },
       annotations: function () { return this.$root.$refs.app.$refs.annotations },
       dialog: function () { return this.$root.dialog },
       active: function () { return this.$root.active},
@@ -256,7 +255,7 @@
         return this.extentFeatures.length + '/' + this.allFeatures.getLength()
       },
       bfrsLayer: function() {
-        return this.$root.catalogue.getLayer('bfrs:bushfire_dev')
+        return this.$root.catalogue.getLayer(this.env.bfrsLayer)
       },
       bfrsMapLayer: function() {
         return this.$root.map?this.$root.map.getMapLayer(this.bfrsLayer):undefined
@@ -295,7 +294,7 @@
                     var pointStyle = (geometries.length > 0 || geometries[0] instanceof ol.geom.Point)?pointStyleFunc.call(feat,res):null
                     var boundaryStyle = (geometries.length > 1 || geometries[0] instanceof ol.geom.MultiPolygon)?boundaryStyleFunc.call(feat,res):null
                     var labelStyle = null
-                    if (res < 0.003 && geometries.length > 0 && feat.get('label') && vm.bushfireLabels && !vm.$root.active.isHidden(vm.map.getMapLayer("bfrs:bushfire_dev"))) {
+                    if (res < 0.003 && geometries.length > 0 && feat.get('label') && vm.bushfireLabels && !vm.$root.active.isHidden(vm.map.getMapLayer(vm.env.bfrsLayer))) {
                       labelStyle = labelStyleFunc.call(feat,res)
                       labelStyle.setGeometry(geometries[0])
                     }   
@@ -341,6 +340,45 @@
       },
     },
     methods: {
+      open:function(options) {
+        //active bfrs module
+        if (this.activeMenu !== "bfrs") {
+            $("#menu-tab-bfrs-label").trigger("click")
+        } else if(!$('#offCanvasLeft').hasClass('reveal-responsive')){
+            $('#offCanvasLeft').toggleClass('reveal-responsive')
+            self.map.olmap.updateSize()
+        }
+
+        var updateType = null
+        if (!options) {return}
+        if (options["region"] !== this.region) {
+            this.region = options["region"] || ""
+            updateType = "region"
+        }
+        if (options["district"] != this.district) {
+            this.district = options["district"] || ""
+            updateType = "district"
+        }
+        this.selectedFeatures.clear()
+
+        if (updateType) {
+            if (options["bushfireid"] !== null && options["bushfireid"] !== undefined){
+                this.selectedBushfires = [options["bushfireid"]]
+            }
+            this.updateCQLFilter(updateType,1)
+        } else if (options["bushfireid"] !== null && options["bushfireid"] !== undefined){
+            var bushfire = this.allFeatures.getArray().find(function(f) {return f.get('id') === options["bushfireid"]})
+            if (bushfire) {
+                this.selectedFeatures.push(bushfire)
+                this.map.zoomToSelected()
+            } else {
+                this.selectedBushfires = [options["bushfireid"]]
+                this.updateCQLFilter("query",0)
+            }
+            
+        }
+
+      },
       isModifiable:function(bushfire) {
         return this.whoami["bushfire"]["permission"][bushfire.get('status') + ".modify"]
       },
@@ -386,28 +424,28 @@
         return this.revision && this.isAuthorizable(bushfire) && bushfire.get('tint') !== "modified"
       },
       createUrl:function() {
-        return this.bfrsService + "/bfrs/create/" 
+        return this.env.bfrsService + "/bfrs/create/" 
       },
       editUrl:function(feat) {
         var status = feat.get('report_status')
         if ([1,2].indexOf(status) >= 0) {
-            return this.bfrsService + "/bfrs/initial/" + feat.get('id') + "/"
+            return this.env.bfrsService + "/bfrs/initial/" + feat.get('id') + "/"
         } else if ([3,4].indexOf(status) >= 0) {
-            return this.bfrsService + "/bfrs/final/" + feat.get('id') + "/"
+            return this.env.bfrsService + "/bfrs/final/" + feat.get('id') + "/"
         } else if ([5,6].indexOf(status) >= 0) {
-            return this.bfrsService + "/bfrs/review/" + feat.get('id') + "/"
+            return this.env.bfrsService + "/bfrs/review/" + feat.get('id') + "/"
         } else {
             return null
         }
       },
       saveUrl:function(feat) {
-        return this.bfrsService + "/api/v1/bushfire/" + feat.get('id') + "/?format=json" 
+        return this.env.bfrsService + "/api/v1/bushfire/" + feat.get('id') + "/?format=json" 
       },
       deleteUrl:function(feat) {
-        return this.bfrsService + "/delete/" + feat.get('id')
+        return this.env.bfrsService + "/delete/" + feat.get('id')
       },
       authoriseUrl:function(feat) {
-        return this.bfrsService + "/authorise/" + feat.get('id')
+        return this.env.bfrsService + "/authorise/" + feat.get('id')
       },
       validateBushfire:function(feat,validateType,geom) {
         var geometries = feat.getGeometry().getGeometries()
@@ -660,7 +698,7 @@
 
         if (fireBoundary) {
             $.ajax({
-                url:vm.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:dpaw_tenure&outputFormat=json&bbox=" + bbox[1] + "," + bbox[0] + "," + bbox[3] + "," + bbox[2],
+                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:dpaw_tenure&outputFormat=json&bbox=" + bbox[1] + "," + bbox[0] + "," + bbox[3] + "," + bbox[2],
                 dataType:"json",
                 success: function (response, stat, xhr) {
                     spatialData["tenure_area"] = []
@@ -730,7 +768,7 @@
         }
         if (originPoint) {
             $.ajax({
-                url:vm.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:dpaw_tenure&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
+                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:dpaw_tenure&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
                 dataType:"json",
                 success: function (response, stat, xhr) {
                     if (response.totalFeatures === 0) {
@@ -756,7 +794,7 @@
             var getFirePosition = function(index) {
                 var buffered = turf.bbox(turf.buffer(turf.point(originPoint),buffers[index],"kilometers"))
                 $.ajax({
-                    url:vm.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:townsite_points&outputFormat=json&bbox=" + buffered[1] + "," + buffered[0] + "," + buffered[3] + "," + buffered[2],
+                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:townsite_points&outputFormat=json&bbox=" + buffered[1] + "," + buffered[0] + "," + buffered[3] + "," + buffered[2],
                     dataType:"json",
                     success: function (response, stat, xhr) {
                         if (response.totalFeatures === 0) {
@@ -802,7 +840,7 @@
             getFirePosition(0)
 
             $.ajax({
-                url:vm.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:dpaw_regions&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
+                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:dpaw_regions&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
                 dataType:"json",
                 success: function (response, stat, xhr) {
                     if (response.totalFeatures === 0) {
@@ -822,7 +860,7 @@
             })
 
             $.ajax({
-                url:vm.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=dpaw:pw_districts_fssvers&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
+                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=dpaw:pw_districts_fssvers&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
                 dataType:"json",
                 success: function (response, stat, xhr) {
                     if (response.totalFeatures === 0) {
@@ -1623,7 +1661,7 @@
       loadUserProfile:function() {
         var vm = this
         $.ajax({
-            url: vm.bfrsService + "/api/v1/profile/?format=json",
+            url: vm.env.bfrsService + "/api/v1/profile/?format=json",
             method:"GET",
             dataType:"json",
             success: function (response, stat, xhr) {
@@ -1647,7 +1685,7 @@
       loadRegions:function() {
         var vm = this
         $.ajax({
-            url: vm.bfrsService + "/api/v1/region/?format=json",
+            url: vm.env.bfrsService + "/api/v1/region/?format=json",
             method:"GET",
             dataType:"json",
             success: function (response, stat, xhr) {
@@ -1765,7 +1803,7 @@
       vm.loadRegions()
 
       vm.ui = {}
-      var toolConfig = {features:vm.allFeatures,mapLayers:function(layer){return layer.get("id") === "bfrs:bushfire_dev" }}
+      var toolConfig = {features:vm.allFeatures,mapLayers:function(layer){return layer.get("id") === vm.env.bfrsLayer }}
       vm.ui.translateInter = vm.annotations.translateInterFactory()(toolConfig)
       vm.ui.translateInter.on("translateend",function(ev){
           vm.postModified(ev.features.getArray())
@@ -1774,7 +1812,7 @@
       vm.ui.selectInter = vm.annotations.selectInterFactory()(toolConfig)
       vm.ui.geometrySelectInter = vm.annotations.selectInterFactory()($.extend({selectMode:"geometry"},toolConfig))
 
-      vm.ui.modifyInter = vm.annotations.modifyInterFactory()({features:vm.selectedFeatures,mapLayers:function(layer){return layer.get("id") === "bfrs:bushfire_dev" }})
+      vm.ui.modifyInter = vm.annotations.modifyInterFactory()({features:vm.selectedFeatures,mapLayers:function(layer){return layer.get("id") === vm.env.bfrsLayer }})
       vm.ui.modifyInter.on("featuresmodified",function(ev){
           if (ev.features.getLength() === 1 ) {
               vm.validateBushfire(ev.features.item(0),"modifyBushfire")
@@ -2014,7 +2052,7 @@
       this.$root.fixedLayers.push({
         type: 'WFSLayer',
         name: 'Bush Fire Report',
-        id: 'bfrs:bushfire_dev',
+        id: vm.env.bfrsLayer,
         getFeatureInfo:function (f) {
             return {name:f.get("name"), img:map.getBlob(f, ['icon', 'tint']), comments:"TBD"}
         },
@@ -2087,6 +2125,7 @@
                 if (vm.selectedBushfires.length > 0) {
                     var bushfireIds = vm.selectedBushfires.slice()
                     vm.selectedFeatures.clear()
+                    vm.selectedBushfires.length = 0
                     features.filter(function(el, index, arr) {
                       var id = el.get('id')
                       if (!id) return false
@@ -2095,6 +2134,7 @@
                     }).forEach(function (el) {
                       vm.selectedFeatures.push(el)
                     })
+                    vm.map.zoomToSelected()
                 }
                 vm.updateFeatureFilter(true)
 
@@ -2158,7 +2198,7 @@
         }
       })
 
-      this.measure.register("bfrs:bushfire_dev",this.allFeatures)
+      this.measure.register(vm.env.bfrsLayer,this.allFeatures)
 
       bfrsStatus.wait(40,"Listen 'gk-init' event")
       // post init event hookup
@@ -2193,7 +2233,7 @@
 
 
         vm.map.olmap.on("removeLayer",function(ev){
-            if (ev.layer.get('id') === "bfrs:bushfire_dev") {
+            if (ev.layer.get('id') === vm.env.bfrsLayer) {
                 vm.allFeatures.clear()
                 vm.editableFeatures.clear()
                 vm.extentFeatures = []

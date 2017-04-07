@@ -40,6 +40,10 @@ ENV_TYPE = (os.environ.get("ENV_TYPE") or "prod").lower()
 
 gdalinfo = subprocess.check_output(["gdalinfo", "--version"])
 
+@bottle.route('/client')
+def server_static():
+    return bottle.static_file('client.html', root=BASE_PATH)
+
 # serve up map apps
 @bottle.route('/<app>')
 def index(app):

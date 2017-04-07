@@ -176,7 +176,7 @@
   import gkLegend from './legend.vue'
   import gkLayerlegends from './layerlegends.vue'
   export default {
-    store: ['whoami', 'dpmm', 'view', 'mmPerInch', 'gokartService','s3Service','settings','displayResolution'],
+    store: ['whoami', 'dpmm', 'view', 'mmPerInch','settings','displayResolution'],
     components: { gkLegend,gkLayerlegends },
     data: function () {
       return {
@@ -211,6 +211,7 @@
     // parts of the template to be computed live
     computed: {
       loading: function () { return this.$root.loading },
+      env: function () { return this.$root.env },
       annotations: function () { return this.$root.annotations },
       layerlegends:function() {return this.$refs.layerlegends},
       map:function() {return this.$root.map},
@@ -280,7 +281,7 @@
               formData.append('configure', JSON.stringify(configure))
           }
           var req = new window.XMLHttpRequest()
-          req.open('POST', this.gokartService + '/ogr/' + format)
+          req.open('POST', this.env.gokartService + '/ogr/' + format)
           req.responseType = 'blob'
           req.withCredentials = true
           req.onload = function (event) {
@@ -332,7 +333,7 @@
                 vm._importData = {formData:new window.FormData(),callback:callback}
                 vm._importData.formData.append('datasource', new window.Blob([e.target.result],{type:fileFormat[2]}), file.name)
                 var req = new window.XMLHttpRequest()
-                req.open('POST', vm.gokartService + '/ogrinfo')
+                req.open('POST', vm.env.gokartService + '/ogrinfo')
                 req.responseType = 'blob'
                 req.withCredentials = true
                 req.onload = function (event) {
@@ -390,7 +391,7 @@
             this._importData.formData.append('layer', selectedLayer.layer)
             this._importData.formData.append('datasourcefile', datasource)
             var req = new window.XMLHttpRequest()
-            req.open('POST', this.gokartService + '/ogr/geojson')
+            req.open('POST', this.env.gokartService + '/ogr/geojson')
             req.responseType = 'blob'
             req.withCredentials = true
             var importData = vm._importData
@@ -527,7 +528,7 @@
       },
       // generate legend block, scale ruler is 40mm wide
       renderLegend: function (bucketKey) {
-        var qrcanvas = bucketKey?kjua({text: this.s3Service + bucketKey, render: 'canvas', size: 100}):null
+        var qrcanvas = bucketKey?kjua({text: this.env.s3Service + bucketKey, render: 'canvas', size: 100}):null
         return ['data:image/svg+xml;utf8,' + encodeURIComponent(this.$els.legendsvg.innerHTML), qrcanvas]
       },
       // POST a generated JPG to the gokart server backend to convert to GeoPDF
@@ -547,7 +548,7 @@
                 formData.append('bucket_key',bucketKey)
             }
             var req = new window.XMLHttpRequest()
-            req.open('POST', vm.gokartService + '/gdal/' + format)
+            req.open('POST', vm.env.gokartService + '/gdal/' + format)
             req.withCredentials = true
             req.responseType = 'blob'
             req.onload = function (event) {

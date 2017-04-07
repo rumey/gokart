@@ -46,9 +46,6 @@
   import gkMeasure from './measure.vue'
   export default {
     store: {
-        defaultWMTSSrc:'defaultWMTSSrc', 
-        defaultWFSSrc:'defaultWFSSrc', 
-        gokartService:'gokartService', 
         fixedScales:'fixedScales', 
         resolutions:'resolutions', 
         matrixSets:'matrixSets', 
@@ -88,6 +85,7 @@
     // parts of the template to be computed live
     computed: {
       loading: function () { return this.$root.loading },
+      env: function () { return this.$root.env },
       annotations: function () { return this.$root.annotations    },
       active: function () { return this.$root.active    },
       measure: function () { return this.$root.measure    },
@@ -866,7 +864,7 @@
       // loader for vector layers with hover querying
       createWFSLayer: function (options) {
         var vm = this
-        var url = this.defaultWFSSrc  
+        var url = this.env.wfsService
 
         // default overridable params sent to the WFS source
         options.params = $.extend({
@@ -1033,7 +1031,7 @@
           tileSize: 1024,
           style: '',
           projection: 'EPSG:4326',
-          wmts_url: this.defaultWMTSSrc
+          wmts_url: this.env.wmtsService
         }, options)
 
         // create a tile grid using the stock KMI resolutions

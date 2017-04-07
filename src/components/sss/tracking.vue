@@ -108,7 +108,7 @@
               <div class="small-5">
                 <a title="Zoom to selected" class="button" @click="map.zoomToSelected()" ><i class="fa fa-search"></i></a>
                 <a title="Download list as geoJSON" class="button" @click="downloadList()" ><i class="fa fa-download"></i></a>
-                <a title="Download all or selected as CSV" class="button" href="{{sssService}}/devices.csv?{{downloadSelectedCSV()}}" target="_blank" ><i class="fa fa-table"></i></a>
+                <a title="Download all or selected as CSV" class="button" href="{{env.resourceTrackingService}}/devices.csv?{{downloadSelectedCSV()}}" target="_blank" ><i class="fa fa-table"></i></a>
               </div>
             </div>
             <div id="history-panel" v-if="toggleHistory">
@@ -157,7 +157,7 @@
               <div v-for="f in features" class="row feature-row" v-bind:class="{'feature-selected': selected(f) }"
                 @click="toggleSelect(f)" track-by="get('id')">
                 <div class="columns">
-                  <a v-if="whoami.editVehicle && f.get('source_device_type') != 'tracplus'" @click.stop.prevent="utils.editResource($event)" title="Edit resource" href="{{sssService}}/sss_admin/tracking/device/{{ f.get('id') }}/change/" target="_blank" class="button tiny secondary float-right"><i class="fa fa-pencil"></i></a>
+                  <a v-if="whoami.editVehicle && f.get('source_device_type') != 'tracplus'" @click.stop.prevent="utils.editResource($event)" title="Edit resource" href="{{env.resourceTrackingService}}/sss_admin/tracking/device/{{ f.get('id') }}/change/" target="_blank" class="button tiny secondary float-right"><i class="fa fa-pencil"></i></a>
                   <div class="feature-title"><img class="feature-icon" id="device-icon-{{f.get('id')}}" v-bind:src="featureIconSrc(f)" /> {{ f.get('label') }} <i><small>({{ ago(f.get('seen')) }})</small></i></div>
                 </div>
               </div>
@@ -173,7 +173,6 @@
   import { ol, moment,utils } from 'src/vendor.js'
   export default {
     store: {
-        sssService:'sssService',
         resourceLabels:'settings.resourceLabels',
         resourceDirections:'settings.resourceDirections',
         viewportOnly:'settings.viewportOnly',
@@ -212,6 +211,7 @@
     },
     computed: {
       map: function () { return this.$root.map },
+      env: function () { return this.$root.env },
       active: function () { return this.$root.active },
       annotations: function () { return this.$root.$refs.app.$refs.annotations },
       info: function () { return this.$root.info },
@@ -732,7 +732,7 @@
             if ((vm.whoami.editVehicle === null || vm.whoami.editVehicle === undefined ) && features.length > 0) {
                 var f = features.find(function(f) {return f.get('source_device_type') != "tracplus"})
                 if (f){
-                    utils.checkPermission(vm.sssService + "/sss_admin/tracking/device/" + f.get('id') + "/change/",function(allowed){
+                    utils.checkPermission(vm.env.resourceTrackingService + "/sss_admin/tracking/device/" + f.get('id') + "/change/",function(allowed){
                         vm.whoami.editVehicle = allowed
                         processResources()
                     })

@@ -13,6 +13,7 @@ import {
 import App from './sss.vue'
 import tour from './sss-tour.js'
 import profile from './sss-profile.js'
+import gokartListener from './gokart-listener.js'
 
 global.tour = tour
 
@@ -38,15 +39,6 @@ global.debounce = function (func, wait, immediate) {
 }
 var volatileData = {
   // overridable defaults for WMTS and WFS loading
-  remoteCatalogue: env.cswService + "?format=json&application__name=sss",
-  defaultWMTSSrc: env.wmtsService,
-  defaultWFSSrc: env.wfsService,
-  defaultLegendSrc: env.legendSrc,
-  gokartService: env.gokartService,
-  oimService:env.oimService,
-  sssService:env.sssService,
-  s3Service:env.s3Service,
-  bfrsService:env.bfrsService,
   appType:env.appType,
   // fixed scales for the scale selector (1:1K increments)
   fixedScales: [0.25, 0.5, 1, 2, 2.5, 5, 10, 20, 25, 50, 80, 100, 125, 250, 500, 1000, 2000, 3000, 5000, 10000, 25000],
@@ -131,7 +123,7 @@ var persistentData = {
   settings:$.extend({},JSON.parse(JSON.stringify(systemSettings)))
 }
 
-global.gokartService = volatileData.gokartService;
+global.gokartService = env.gokartService;
 
 global.localforage = localforage
 global.$ = $
@@ -180,7 +172,9 @@ localforage.getItem('sssOfflineStore').then(function (store) {
       geojson: function () { return new ol.format.GeoJSON() },
       wgs84Sphere: function () { return new ol.Sphere(6378137) },
       profile: function(){return profile},
+      app: function() {return "SSS"},
       utils: function() {return utils},
+      env:function() {return env},
       persistentData:function() {
           var vm = this
           $.each(persistentData,function(key,val){
@@ -230,7 +224,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         req.onload = function () {
           $.extend(self.store.whoami,JSON.parse(this.responseText))
         }
-        req.open('GET', self.store.oimService + '/api/whoami')
+        req.open('GET', self.env.ssoService + '/api/whoami')
         req.send()
       })()
       // bind menu side-tabs to reveal the side pane
@@ -266,7 +260,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         type: 'TimelineLayer',
         name: 'Himawari-8 Hotspots',
         id: 'himawari8:hotspots',
-        source: self.store.gokartService + '/hi8/AHI_TKY_FHS',
+        source: self.env.gokartService + '/hi8/AHI_TKY_FHS',
         params: {
           FORMAT: 'image/png'
         },
@@ -275,7 +269,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         type: 'TimelineLayer',
         name: 'Himawari-8 True Colour',
         id: 'himawari8:bandtc',
-        source: self.store.gokartService + '/hi8/AHI_TKY_b321',
+        source: self.env.gokartService + '/hi8/AHI_TKY_b321',
         refresh: 300,
         base: true
       /*
@@ -283,7 +277,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         type: 'TimelineLayer',
         name: 'Himawari-8 Band 3',
         id: 'himawari8:band3',
-        source: self.store.gokartService + '/hi8/AHI_TKY_b3',
+        source: self.env.gokartService + '/hi8/AHI_TKY_b3',
         refresh: 300,
         base: true
       */
@@ -291,7 +285,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         type: 'TimelineLayer',
         name: 'Himawari-8 Band 7',
         id: 'himawari8:band7',
-        source: self.store.gokartService + '/hi8/AHI_TKY_b7',
+        source: self.env.gokartService + '/hi8/AHI_TKY_b7',
         refresh: 300,
         base: true
      /*
@@ -299,7 +293,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         type: 'TimelineLayer',
         name: 'Himawari-8 Band 15',
         id: 'himawari8:band15',
-        source: self.store.gokartService + '/hi8/AHI_TKY_b15',
+        source: self.env.gokartService + '/hi8/AHI_TKY_b15',
         refresh: 300,
         base: true
       }, {
@@ -458,7 +452,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
       self.map.init()
       self.loading.app.progress(40,"Load Remote Catalogue")
       try {
-          self.catalogue.loadRemoteCatalogue(self.store.remoteCatalogue, function () {
+          self.catalogue.loadRemoteCatalogue( function () {
             //add default layers
             try {
                 self.loading.app.progress(50,"Initialize Active Layers")

@@ -28,9 +28,12 @@
 <script>
   import { $, ol } from 'src/vendor.js'
   export default {
-    store: ['defaultWFSSrc', 'gokartService', 'resolutions'],
+    store: ['resolutions'],
     data: function () {
       return {}
+    },
+    computed: {
+      env: function () { return this.$root.env }
     },
     methods: {
       searchKeyFix: function (ev) {
@@ -107,7 +110,7 @@
       queryFD: function(fdStr, victory, failure) {
         var vm = this
         $.ajax({
-          url: vm.defaultWFSSrc + '?' + $.param({
+          url: vm.env.wfsService + '?' + $.param({
             version: '1.1.0',
             service: 'WFS',
             request: 'GetFeature',
@@ -132,7 +135,7 @@
       queryPIL: function(pilStr, victory, failure) {
         var vm = this
         $.ajax({
-          url: vm.defaultWFSSrc + '?' + $.param({
+          url: vm.env.wfsService + '?' + $.param({
             version: '1.1.0',
             service: 'WFS',
             request: 'GetFeature',
@@ -158,7 +161,7 @@
         var vm = this
         var center = this.$root.map.getCenter()
         $.ajax({
-          url: vm.gokartService
+          url: vm.env.gokartService
             +'/mapbox/geocoding/v5/mapbox.places/'+encodeURIComponent(geoStr)+'.json?' + $.param({
             country: 'au',
             //types: 'country,region,postcode,place,locality,address',

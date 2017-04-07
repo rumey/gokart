@@ -1,0 +1,31 @@
+<html>
+<head>
+ <meta charset="UTF-8"> 
+ <script src="dist/gokart-client.js"></script>
+</head>
+<body>
+    <script language="javascript">
+        if (window.top !== window.self) {
+            window.addEventListener("message",receiveMessage,false)
+
+
+            var client = null
+            var options = null
+            function receiveMessage(event) {
+                var data = JSON.parse(event.data)
+                if (data.action === "setOptions") {
+                    options = data.options
+                    client = new GokartClient(options.app,options.module)
+                    window.top.postMessage(JSON.stringify({"action":"setStatus","status":"ok"}),options.origin)
+                } else if(data.action === "open") {
+                    options = data.options
+                    console.log("open sss, optios = " + data.options)
+                    client.open(options)
+                }
+            }
+        }
+
+    </script>
+</body>
+</html>
+

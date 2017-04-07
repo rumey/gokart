@@ -43,7 +43,7 @@
         <div id="layers-catalogue-list">
           <div v-for="l in catalogue.getArray() | filterBy search in searchAttrs | orderBy 'name'" class="row layer-row" @mouseover="preview(l)" track-by="id" @mouseleave="preview(false)" style="margin-left:0px;margin-right:0px">
             <div class="small-10">
-              <a v-if="editable(l)" @click.stop.prevent="utils.editResource($event)" title="Edit catalogue entry" href="{{oimService}}/django-admin/catalogue/record/{{l.systemid}}/change/" target="_blank" class="button tiny secondary float-right short"><i class="fa fa-pencil"></i></a>
+              <a v-if="editable(l)" @click.stop.prevent="utils.editResource($event)" title="Edit catalogue entry" href="{{env.catalogueAdminService}}/django-admin/catalogue/record/{{l.systemid}}/change/" target="_blank" class="button tiny secondary float-right short"><i class="fa fa-pencil"></i></a>
               <div class="layer-title">{{ l.name || l.id }}</div>
             </div>
             <div class="small-2">
@@ -138,8 +138,6 @@ div.ol-previewmap.ol-uncollapsible {
   export default {
     store: {
         catalogueFilters:'catalogueFilters', 
-        defaultLegendSrc:'defaultLegendSrc',
-        oimService:'oimService',
         screenHeight:'layout.screenHeight',
         leftPanelHeadHeight:'layout.leftPanelHeadHeight',
         activeMenu:'activeMenu',
@@ -159,6 +157,8 @@ div.ol-previewmap.ol-uncollapsible {
     },
     computed: {
       map: function () { return this.$root.$refs.app.$refs.map },
+      app: function () { return this.$root.app },
+      env: function () { return this.$root.env },
       utils: function () { return this.$root.utils},
       loading: function () { return this.$root.loading },
     },
@@ -259,7 +259,7 @@ div.ol-previewmap.ol-uncollapsible {
         return true
       },
       // helper to populate the catalogue from a remote service
-      loadRemoteCatalogue: function (url, callback,failedCallback) {
+      loadRemoteCatalogue: function (callback,failedCallback) {
         var vm = this
         var req = new window.XMLHttpRequest()
         req.withCredentials = true
@@ -294,7 +294,7 @@ div.ol-previewmap.ol-uncollapsible {
             layers.push(l)
           })
           if (checkingLayer) { 
-              utils.checkPermission(vm.oimService + "/django-admin/catalogue/record/" + checkingLayer.systemid + "/change/",function(allowed){
+              utils.checkPermission(vm.env.catalogueAdminService + "/django-admin/catalogue/record/" + checkingLayer.systemid + "/change/",function(allowed){
                 vm.whoami.editLayer = allowed
                 vm.catalogue.extend(layers)
                 callback()
@@ -313,7 +313,7 @@ div.ol-previewmap.ol-uncollapsible {
             console.error(msg)
           }
         }
-        req.open('GET', url)
+        req.open('GET', vm.env.cswService + "?format=json&application__name=" + this.app.toLowerCase())
         req.send()
       },
       getLayer: function (id) {
@@ -336,7 +336,7 @@ div.ol-previewmap.ol-uncollapsible {
         l.name = l.name || l.title
         l.type = l.type || 'TileLayer'
         if (l.type === 'TileLayer') {
-          l.legend = (l.legend && (vm.oimService + l.legend))|| ((l.service_type === "WFS")?(vm.defaultLegendSrc + l.id):null)
+          l.legend = (l.legend && (vm.env.catalogueAdminService + l.legend))|| ((l.service_type === "WFS")?(vm.env.legendSrc + l.id):null)
         }
       })
       catalogueStatus.wait(30,"Listen 'gk-init' event")
