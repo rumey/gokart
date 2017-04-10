@@ -242,6 +242,9 @@
           return this.revision && this.allFeatures.getArray()
         }
       },
+      moduleStatus: function(){
+        return this._bfrsStatus || {}
+      },
       isReportMapLayerHidden:function() {
         return this.$root.active.isHidden(this.bfrsMapLayer)
       },
@@ -255,6 +258,7 @@
         return this.extentFeatures.length + '/' + this.allFeatures.getLength()
       },
       bfrsLayer: function() {
+        console.log(this.env.bfrsLayer)
         return this.$root.catalogue.getLayer(this.env.bfrsLayer)
       },
       bfrsMapLayer: function() {
@@ -1660,6 +1664,7 @@
       },
       loadUserProfile:function() {
         var vm = this
+        vm._bfrsStatus.phaseBegin("load_profile",20,"Load profile")
         $.ajax({
             url: vm.env.bfrsService + "/api/v1/profile/?format=json",
             method:"GET",
@@ -1670,12 +1675,15 @@
                 if (vm.whoami["bushfire"]["regions"]) {
                     vm.region = vm.whoami["bushfire"]["profile"]["region_id"] || ""
                     vm.district = vm.whoami["bushfire"]["profile"]["district_id"] || ""
+                    vm._bfrsStatus.phaseBegin("load_bushfires",20,"Load bushfires",true,true)
                     vm.updateCQLFilter('district',0)
                     vm.bfrsLayer.initialLoad = true
                 }
+                vm._bfrsStatus.phaseEnd("load_profile")
             },
             error: function (xhr,status,message) {
                 alert(status + " : " + message)
+                vm._bfrsStatus.phaseFailed("load_profile","Failed to loading user profile data. status = " + status + " , message = " + message)
             },
             xhrFields: {
               withCredentials: true
@@ -1684,6 +1692,7 @@
       },
       loadRegions:function() {
         var vm = this
+        vm._bfrsStatus.phaseBegin("load_regions",20,"Load regions")
         $.ajax({
             url: vm.env.bfrsService + "/api/v1/region/?format=json",
             method:"GET",
@@ -1694,12 +1703,15 @@
                 if (vm.whoami["bushfire"]["profile"]) {
                     vm.region = vm.whoami["bushfire"]["profile"]["region_id"] || ""
                     vm.district = vm.whoami["bushfire"]["profile"]["district_id"] || ""
+                    vm._bfrsStatus.phaseBegin("load_bushfires",20,"Load bushfires",true,true)
                     vm.updateCQLFilter('district',0)
                     vm.bfrsLayer.initialLoad = true
                 }
+                vm._bfrsStatus.phaseEnd("load_regions")
             },
             error: function (xhr,status,message) {
                 alert(status + " : " + message)
+                vm._bfrsStatus.phaseFailed("load_regions","Failed to loading regions data. status = " + status + " , message = " + message)
             },
             xhrFields: {
               withCredentials: true
@@ -1751,7 +1763,8 @@
     },
     ready: function () {
       var vm = this
-      var bfrsStatus = this.loading.register("bfrs","Bush Fire Report Component","Initialize")
+      vm._bfrsStatus = this.loading.register("bfrs","Bush Fire Report Component")
+      vm._bfrsStatus.phaseBegin("initialize",10,"Initialize")
       var map = this.$root.map
 
       vm._reportStatus = {
@@ -2072,6 +2085,9 @@
             })
             return updatedTime
         },
+        onerror:function(status,message) {
+            vm._bfrsStatus.phaseFailed("load_bushfires",status + " : " + message)
+        },
         onload: function(loadType,vectorSource,features,defaultOnload) {
             //combine the two spatial columns into one
             $.each(features,function(index,feature){
@@ -2142,6 +2158,7 @@
                     delete vm.whoami['bushfire']["permission"]["changed"]
                     vm.revision += 1
                 }
+                vm._bfrsStatus.phaseEnd("load_bushfires")
             }
             var permissionConfig = [
                 ["create",null,null],
@@ -2199,11 +2216,14 @@
       })
 
       this.measure.register(vm.env.bfrsLayer,this.allFeatures)
+      vm._bfrsStatus.phaseEnd("initialize")
 
-      bfrsStatus.wait(40,"Listen 'gk-init' event")
+      vm._bfrsStatus.phaseBegin("gk-init",20,"Listen 'gk-init' event",true,true)
       // post init event hookup
       this.$on('gk-init', function () {
-        bfrsStatus.progress(80,"Process 'gk-init' event")
+        vm._bfrsStatus.phaseEnd("gk-init")
+
+        vm._bfrsStatus.phaseBegin("attach_event",10,"Attach events")
         map.olmap.getView().on('propertychange', vm.updateViewport)
 
         vm.selectedFeatures.on('add', function (event) {
@@ -2223,8 +2243,6 @@
           //remove the index of the selected geometry in geometry collection
           //delete event.element['selectedIndex']
         })
-        //load user profile
-        vm.loadUserProfile()
         // enable resource bfrs layer, if disabled
         //vm.annotations.setDefaultTool('bfrs','Pan')
         vm.tools = vm.annotations.tools.filter(function (t) {
@@ -2240,7 +2258,10 @@
             }
         })
 
-        bfrsStatus.end()
+        vm._bfrsStatus.phaseEnd("attach_event")
+        //load user profile
+        vm.loadUserProfile()
+
       })
     }
   }

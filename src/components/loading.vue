@@ -14,10 +14,14 @@
               <a class="name">{{application}} </a>
           </div>
           <div class="small-5">
-              <a v-if="appStatus.completedPercentage >= 0 && appStatus.completedPercentage < 100 && !appStatus.waiting" class="float-right"><i class="fa fa-spinner" aria-hidden="true"></i></a>
-              <a v-if="appStatus.completedPercentage >= 0 && appStatus.completedPercentage < 100 && appStatus.waiting" class="float-right"><i class="fa fa-pause" aria-hidden="true"></i></a>
-              <a class="action">{{appStatus.action}}</a>
-              <a class="error" v-if="appStatus.completedPercentage < 0">({{appStatus.reason}})</a>
+              <div v-for="(index,phase) in phaseStatus(appStatus.phases)"  tracking-by="$index">
+                  <br v-if="index > 0">
+                  <a v-if="!phaseStatus(phase).async" class="float-right"><i class="fa fa-spinner" aria-hidden="true"></i></a>
+                  <a v-if="phaseStatus(phase).async" class="float-right"><i class="fa fa-pause" aria-hidden="true"></i></a>
+                  <a class="action">{{phaseStatus(phase).description}}</a>
+                  <a class="error" v-if="phase.failed">({{phaseStatus(phase).reason}})</a>
+              </div>
+              <a v-if="phaseStatus(appStatus).isSucceed()" class="float-right">OK</a>
           </div>
       </div>
       <div v-for="status in components" class="row component" track-by="id">
@@ -25,10 +29,13 @@
             <a class="name">{{status.name}} </a>
         </div>
         <div class="small-5">
-            <a v-if="componentStatus(status).completedPercentage >= 0 && componentStatus(status).completedPercentage < 100 && !componentStatus(status).waiting" class="float-right"><i class="fa fa-spinner" aria-hidden="true"></i></a>
-            <a v-if="componentStatus(status).completedPercentage >= 0 && componentStatus(status).completedPercentage < 100 && componentStatus(status).waiting" class="float-right"><i class="fa fa-pause" aria-hidden="true"></i></a>
-            <a class="action">{{componentStatus(status).action}}</a>
-            <a class="error" v-if="componentStatus(status).completedPercentage < 0">({{componentStatus(status).reason}})</a>
+          <div v-for="(index,phase) in phaseStatus(status.phases)" tracking-by="$index">
+            <a v-if="!phaseStatus(phase).async" class="float-right"><i class="fa fa-spinner" aria-hidden="true"></i></a>
+            <a v-if="phaseStatus(phase).async" class="float-right"><i class="fa fa-pause" aria-hidden="true"></i></a>
+            <a class="action">{{phaseStatus(phase).description}}</a>
+            <a class="error" v-if="phaseStatus(phase).failed">({{phaseStatus(phase).reason}})</a>
+          </div>
+          <a v-if="phaseStatus(status).isSucceed()" class="float-right">OK</a>
         </div>
       </div>
       <div v-if="hasError">
@@ -91,8 +98,7 @@
       return {
         app:null,
         components:[],
-        appRevision:1,
-        componentRevision:1,
+        revision:1,
         errors:[],
       }
     },
@@ -101,13 +107,13 @@
         return this.errors.length > 0
       },
       show: function() {
-        return this.appRevision && ( !this.app || this.app.completedPercentage < 100 || this.errors.length > 0) || this.components.find(function(component){return component.completedPercentage < 100})
+        return true//this.revision && true && ( !this.app || !this.app.isReady() || this.errors.length > 0) || this.components.find(function(component){return !component.isReady()})
       },
       closable: function() {
-        return this.appRevision && this.app && ( this.app.completedPercentage >= 100 || this.app.completedPercentage < 0 )
+        return this.revision && this.app && ( this.app.isFinished() )
       },
       appStatus:function() {
-        return  this.appRevision && (this.app || {})
+        return  this.revision && (this.app || {})
       },
     },
     props:["application"],
@@ -116,17 +122,22 @@
           $("#loading-status-overlay").remove()
           $("#loading-status").remove()
       },
-      componentStatus:function(status) {
-        return this.componentRevision && status
+      phaseStatus:function(status) {
+        return this.revision && status
       },
-      register: function(componentId,componentName,action) {
+      getStatus:function(componentId) {
+        return this.components.find(function(o){
+            return o.id === componentId
+        })
+      },
+      register: function(componentId,componentName) {
         componentName = componentName || componentId
         var vm = this
         if (!vm.Status) {
-            vm.Status = function(componentId,componentName,action) {
+            vm.Status = function(componentId,componentName) {
                 if (componentId === "app") {
                     vm.app = this
-                    vm.appRevision += 1
+                    vm.revision += 1
                 } else {
                     var index = -1
                     for(var i = 0; i < vm.components.length;i++) {
@@ -142,23 +153,23 @@
                         //not registered, add it
                         vm.components.push(this)
                     }
-                    vm.componentRevision += 1
+                    vm.revision += 1
                     
                 }
                 this.id = componentId
                 this.name = componentName
-                this.completedPercentage = 0
-                this.action = action || "Initialize"
-                this.waiting = false
+                this.completed = 0
+                this.processed = 0
+                this.phases = []
                 return this
             }
-            vm.Status.prototype._change = function(action) {
+            vm.Status.prototype._change = function() {
                 if (vm.app === this) {
                     //app status
-                    vm.appRevision += 1
+                    vm.revision += 1
                 } else {
                     //component status
-                    vm.componentRevision += 1
+                    vm.revision += 1
                     for(var i = 0; i < vm.components.length;i++) {
                         if (this.id === vm.components[i].id) {
                             Vue.set(vm.components,i,vm.components[i])
@@ -167,39 +178,49 @@
                     }
                 }
             }
-            vm.Status.prototype.progress = function(completedPercentage,action) {
-                this.completedPercentage = completedPercentage
-                this.action = action || "Initialize"
-                this.waiting = false
+            vm.Status.prototype.phaseBegin = function(name,weight,description,critical,async) {
+                this.phases.push({name:name,weight:weight,description:description,critical:critical || true,async:async || false})
                 this._change()
             }
-            vm.Status.prototype.wait = function(completedPercentage,action) {
-                this.completedPercentage = completedPercentage
-                this.action = action || "Initialize"
-                this.waiting = true
+            vm.Status.prototype.phaseEnd = function(name) {
+                if (this.completed >= 100) return
+                var index = this.phases.findIndex(function(o) {return o.name === name})
+                if (index < 0) return
+                this.completed += this.phases[index].weight
+                this.processed += this.phases[index].weight
+                this.phases.splice(index,1)
                 this._change()
             }
-            vm.Status.prototype.end = function(action) {
-                action = action || ((this === vm.app)?"OK":"Initialized")
-                this.completedPercentage = 100
-                this.action = action
-                this.waiting = false
+            vm.Status.prototype.phaseFailed = function(name,reason) {
+                if (this.completed >= 100) return
+                var phase = this.phases.find(function(o) {return o.name === name})
+                if (!phase) return
+                this.processed += phase.weight
+                phase["reason"] = reason
+                phase["failed"] = true
                 this._change()
             }
-            vm.Status.prototype.failed = function(reason) {
-                this.completedPercentage = -1
-                this.reason = reason || "Failed"
-                this.waiting = false
-                this._change()
+            vm.Status.prototype.failedPhases = function() {
+                return this.phases.filter(function(o) {return o.failed})
+            }
+            vm.Status.prototype.isSucceed = function() {
+                return this.completed >= 100
+            }
+            vm.Status.prototype.isFinished = function() {
+                return this.processed >= 100
+            }
+            vm.Status.prototype.isReady = function(reason) {
+                return !this.phases.find(function(o) {return o.failed && o.critical})
             }
         }
-        return new vm.Status(componentId,componentName,action)
+        return new vm.Status(componentId,componentName)
       }
     },
     ready: function () {
         var vm = this
-        vm.register("app",this.application,"Initialize")
+        vm.register("app",this.application)
         var loadingStatus = vm.register("LoadingStatus","Loading Status Component")
+        loadingStatus.phaseBegin("initialize",100,"Override console")
         //override console.error
         var getArguments = function(args,startIndex) {
             var result = []
@@ -209,7 +230,6 @@
             }
             return result
         }
-        loadingStatus.progress(10,"Override console.error")
         console.error = (function(){
             var originFunc = console.error
             return function(args) {
@@ -231,7 +251,6 @@
                 originFunc.apply(this,arguments)
             }
         })()
-        loadingStatus.progress(40,"Override console.assert")
         //override console.error
         console.assert = (function(){
             var originFunc = console.assert
@@ -250,7 +269,6 @@
                 originFunc.apply(this,arguments)
             }
         })()
-        loadingStatus.progress(70,"Override vue error handler")
         //customize vue error handler
         Vue.config.errorHandler = (function(){
             var originFunc = Vue.config.errorHandler
@@ -259,7 +277,7 @@
                 return originFunc(err,vm)
             }
         })()
-        loadingStatus.end()
+        loadingStatus.phaseEnd("initialize")
     }
   }
 </script>

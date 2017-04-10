@@ -329,7 +329,7 @@ div.ol-previewmap.ol-uncollapsible {
     },
     ready: function () {
       var vm = this
-      var catalogueStatus = vm.loading.register("catalogue","Catalogue Component","Initialize")
+      var catalogueStatus = vm.loading.register("catalogue","Catalogue Component")
       this.catalogue.on('add', function (event) {
         var l = event.element
         l.id = l.id || l.identifier
@@ -339,14 +339,15 @@ div.ol-previewmap.ol-uncollapsible {
           l.legend = (l.legend && (vm.env.catalogueAdminService + l.legend))|| ((l.service_type === "WFS")?(vm.env.legendSrc + l.id):null)
         }
       })
-      catalogueStatus.wait(30,"Listen 'gk-init' event")
+      catalogueStatus.phaseBegin("gk-init",80,"Listen 'gk-init' event",true,true)
       this.$on('gk-init', function() {
-        catalogueStatus.progress(80,"Process 'gk-init' event")
-        vm.loading.componentRevision += 1
+        catalogueStatus.phaseEnd("gk-init")
+
+        catalogueStatus.phaseBegin("initialize",20,"Initialize",true,false)
         $(this.$root.map.olmap.getTargetElement()).on('mouseleave', '.ol-previewmap', function() {
             vm.preview(false)
         })
-        catalogueStatus.end()
+        catalogueStatus.phaseEnd("initialize")
       })
     }
   }

@@ -1542,7 +1542,9 @@
       var vm = this
       vm._currentTool = {}
       vm.shape = vm.pointShapes[0]
-      var annotationStatus = this.loading.register("annotation","Annotation Component", "Initialize")
+      var annotationStatus = this.loading.register("annotation","Annotation Component")
+
+      annotationStatus.phaseBegin("initialize",20,"Initialize")
       var map = this.map
       // collection to store all annotation features
       this.features.on('add', function (ev) {
@@ -1551,20 +1553,7 @@
           tool.onAdd(ev.element)
         }
       })
-      var savedFeatures = this.$root.geojson.readFeatures(this.$root.store.annotations)
-      this.$on('gk-init', function () {
-        if (savedFeatures) {
-          //set feature style
-          $.each(savedFeatures,function(index,feature){
-            if (!feature.get('id')) {
-                vm.drawingSequence += 1
-                feature.set('id',vm.drawingSequence)
-            }
-            vm.initFeature(feature)
-          })
-          this.features.extend(savedFeatures)
-        }
-      })
+
       // add/remove selected property
       this.selectedFeatures.on('add', function (ev) {
         vm.tintSelectedFeature(ev.element)
@@ -1832,9 +1821,32 @@
 
       this.measure.register("annotations",this.features)
 
-      annotationStatus.wait(30,"Listen 'gk-init' event")
+      annotationStatus.phaseEnd("initialize")
+      
+      annotationStatus.phaseBegin("load_features",10,"Load saved features")
+      var savedFeatures = this.$root.geojson.readFeatures(this.$root.store.annotations)
+      annotationStatus.phaseEnd("load_features")
+
+      annotationStatus.phaseBegin("gk-init",40,"Listen 'gk-init' event",true,true)
       this.$on("gk-init",function() {
-        annotationStatus.progress(80,"Process 'gk-init' event")
+        annotationStatus.phaseEnd("gk-init")
+
+        annotationStatus.phaseBegin("import_features",10,"Import features")
+        if (savedFeatures) {
+          //set feature style
+          $.each(savedFeatures,function(index,feature){
+            if (!feature.get('id')) {
+                vm.drawingSequence += 1
+                feature.set('id',vm.drawingSequence)
+            }
+            vm.initFeature(feature)
+          })
+          this.features.extend(savedFeatures)
+        }
+        annotationStatus.phaseEnd("import_features")
+
+
+        annotationStatus.phaseBegin("init_tools",20,"Initialize tools")
         //initialize tool's interaction
         $.each(vm.tools,function(index, tool){
             $.each(tool.interactions,function(subindex,interact){
@@ -1852,7 +1864,7 @@
           return t.scope && t.scope.indexOf("annotation") >= 0
         })
         vm.setDefaultTool('annotations','Edit')
-        annotationStatus.end()
+        annotationStatus.phaseEnd("init_tools")
       })
     }
 

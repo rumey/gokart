@@ -838,7 +838,9 @@
       var vm = this
       this._degrees2radians = Math.PI / 180
       this._radians2degrees = 180 / Math.PI
-      var measureStatus = vm.loading.register("measure","Measurement Component","Initialize")
+      var measureStatus = vm.loading.register("measure","Measurement Component")
+
+      measureStatus.phaseBegin("initialize",30,"Initialize")
       var map = this.$root.map
       //initialize the overlay and interactions
       this.features = new ol.Collection()
@@ -1009,11 +1011,13 @@
       this.annotations.tools.push(measureArea)
 
       this.wgs84Sphere = new ol.Sphere(6378137);
+      measureStatus.phaseEnd("initialize")
 
-      measureStatus.wait(30,"Listen 'gk-init' event")
+      measureStatus.phaseBegin("gk-init",30,"Listen 'gk-init' event",true,true)
       this.$on("gk-init",function() {
-          measureStatus.progress(50,"Process 'gk-init' event")
+          measureStatus.phaseEnd("gk-init")
         
+          measureStatus.phaseBegin("attach_event_to_olmap",10,"Attach event to olmap")
           //add measure tooltips when adding annotation layer and measureFeature is true
           vm.map.olmap.on("addLayer",function(ev){
               var layer = vm._measureLayers.find(function(l){return l[0] === ev.layer.get('id')})
@@ -1038,9 +1042,13 @@
                   }
               }
           })
-          measureStatus.wait(60,"Listen 'gk-postinit' event")
+          measureStatus.phaseEnd("attach_event_to_olmap")
+
+          measureStatus.phaseBegin("gk-postinit",20,"Listen 'gk-postinit' event",true,true)
           this.$on("gk-postinit",function() {
-              measureStatus.progress(80,"Process 'gk-postinit' event")
+              measureStatus.phaseEnd("gk-postinit")
+
+              measureStatus.phaseBegin("attach_event_to_tool",5,"Attach event to tool")
               var processedInteractions = []
               $.each(vm.annotations.tools,function(index1,tool){
                 //console.log(tool.name)
@@ -1065,6 +1073,9 @@
                 })
               })
 
+              measureStatus.phaseEnd("attach_event_to_tool")
+
+              measureStatus.phaseBegin("init_measurable_layers",5,"Initialize measurable layers")
               //initialize measure layers
               if (vm.measureFeature) {
                   $.each(vm._measureLayers,function(index,layer){
@@ -1074,7 +1085,7 @@
                   })
               }
 
-              measureStatus.end()
+              measureStatus.phaseEnd("init_measurable_layers")
           })
       })
 

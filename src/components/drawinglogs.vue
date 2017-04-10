@@ -416,14 +416,15 @@
       },
       ready:function(){
         var vm = this
-        var logStatus = this.loading.register("drawinglogs","Drawing Logs Component", "Initialize")
+        var logStatus = this.loading.register("drawinglogs","Drawing Logs Component")
+        logStatus.phaseBegin("initialize",20,"Initialize")
+
         vm._undoRedoMode = false
         vm._modifyingFeatures = []
         vm._modifyingFeatureIds = {}
         vm._eventHandlers = {}
         vm._eventListenerIds = {}
 
-        logStatus.wait(10,"Declare event handlers")
         vm._eventHandlers["geometry:change"] = function(feature,featureId) {
             return function(ev) {
                 if (vm._undoRedoMode) { return }
@@ -483,11 +484,15 @@
             }
         }
 
-        logStatus.wait(30,"Listen 'gk-postinit' event")
+        logStatus.phaseEnd("initialize")
+
+        logStatus.phaseBegin("gk-postinit",60,"Listen 'gk-postinit' event",true,true)
         vm.$on('gk-postinit',function(){
-            logStatus.wait(70,"Attach event handlers for recording logs")
+            logStatus.phaseEnd("gk-postinit")
+
+            logStatus.phaseBegin("attach_events",20,"Attach events")
             this.on(vm.settings.undoLimit)
-            logStatus.end()
+            logStatus.phaseEnd("attach_events")
         })
       }
     }

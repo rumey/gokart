@@ -318,17 +318,18 @@
     },
     ready: function () {
       var vm = this
-      var settingStatus = this.loading.register("setting","Setting Component", "Initialize")
+      var settingStatus = this.loading.register("setting","Setting Component")
       this.configuredUndoLimit = this.undoLimit
      
-      settingStatus.wait(30,"Listen 'gk-init' event")
+      settingStatus.phaseBegin("gk-init",80,"Listen 'gk-init' event",true,true)
       this.$on('gk-init', function() {
-        settingStatus.progress(80,"Process 'gk-init' event")
+        settingStatus.phaseEnd(gk-init")
 
+        settingStatus.phaseBegin("initialize",20,"Initialize",true,false)
         vm.showOverviewMap(vm.overviewMap)
         vm.showRightHandTools(vm.rightHandTools)
 
-        settingStatus.end()
+        settingStatus.phaseEnd("initialize")
       })
         
     }

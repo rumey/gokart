@@ -6,23 +6,22 @@
 <body>
     <script language="javascript">
         if (window.top !== window.self) {
-            window.addEventListener("message",receiveMessage,false)
-
-
             var client = null
             var options = null
-            function receiveMessage(event) {
-                var data = JSON.parse(event.data)
-                if (data.action === "setOptions") {
-                    options = data.options
-                    client = new GokartClient(options.app,options.module)
-                    window.top.postMessage(JSON.stringify({"action":"setStatus","status":"ok"}),options.origin)
-                } else if(data.action === "open") {
-                    options = data.options
-                    console.log("open sss, optios = " + data.options)
-                    client.open(options)
+            var debug = false
+            window.addEventListener("message",function (event) {
+                var request = JSON.parse(event.data)
+                if (request.method === "setOptions") {
+                    options = request.options
+                    debug = options.debug
+                    client = new GokartClient(options.app,options.module,options.debug)
+                    window.top.postMessage(JSON.stringify({requestId:"setStatus",data:{status:"OK",message:"Succeed"}}),options.origin)
+                } else if(request.method === "open") {
+                    var data = request.data
+                    if (debug) console.log("open gokart, data = " + JSON.stringify(data))
+                    client.open(data.options,data.module)
                 }
-            }
+            },false)
         }
 
     </script>

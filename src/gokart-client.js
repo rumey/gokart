@@ -1,19 +1,19 @@
 var clientId = new Date().getTime().toString() + Math.random().toString().substring(1)
-var debug = window.location.search?(window.location.search.toLowerCase().indexOf("debug=true") >= 0):false 
 var requestId = 0
 var pendingRequests = {}
 
-function GokartClient(app,module,timeout) {
+function GokartClient(app,module,debug) {
     var vm = this
     this.serverUrl = window.location.origin + "/" + app;
-    this.app = app;
+    this.debug = debug
+    this.app = (app || "sss").toLowerCase();
     this.defaultModule = module;
     this.channelName = "gokart(" + this.serverUrl + ")"
     this.timeoutTask = null
     this.gokartWindow = null
 
     window.addEventListener('storage',function(e){
-        if (!e.key.startsWith(this.channelName)) {
+        if (!e.key.startsWith(vm.channelName)) {
             return
         }
         var response = JSON.parse(e.newValue)
@@ -25,28 +25,28 @@ function GokartClient(app,module,timeout) {
     })
 }
 
-GokartClient.prototype._processResponse = function (respose) {
+GokartClient.prototype._processResponse = function (response) {
     try { 
         this._clearTimeoutTask()
         if (response["clientId"] !== clientId) {
             return
         }
 
-        if (debug) console.log(Date() + " : Receive response with requestId '" + response["requestId"] + "' through " + response["channel"]  + ". response = " + JSON.stringify(response.data))
+        if (this.debug) console.log(Date() + " : Receive response with requestId '" + response["requestId"] + "' through " + response["channel"]  + ". response = " + JSON.stringify(response.data))
 
-        if (response.data["status"] !== "OK") {
-            alert(response.data["status"] + " : " + response.data["message"])
+        if (response.data["status"] === "failed") {
+            alert(response.data["code"] + " : " + response.data["message"])
         }
     } finally{
-        delete pendingRequests[response["requestId"].toString()]
+        if (response.data["status"] !== "processing") {
+           delete pendingRequests[response["requestId"].toString()]
+        }
     }
 }
 
 GokartClient.prototype._clearTimeoutTask = function(){
     if (this.timeoutTask) {
-        if (debug){
-            console.log(Date() + " : Clear timeout task for app '" + this.app + "'")
-        }
+        if (this.debug) console.log(Date() + " : Clear timeout task for app '" + this.app + "'")
         clearTimeout(this.timeoutTask)
         this.timeoutTask = null
     }
@@ -69,42 +69,44 @@ GokartClient.prototype.open = function(options,module){
     var syncMessageFunc = null
     var postMessageFunc = function() {
 
-        if (debug) console.log(Date() + " : " + vm.app + " is opened and send request to " + vm.app + " through postMessage. request = " + request)
+        if (vm.debug) console.log(Date() + " : " + vm.app + " is opened and send request to " + vm.app + " through postMessage. request = " + request)
         vm.gokartWindow.postMessage(request,window.location.origin);
 
         vm._clearTimeoutTask;
-        if (debug) console.log(Date() + " : Create a timeout task to resend the request  if postMessage to " + vm.app + " is timeout. timeout = 10 seconds" )
+        if (vm.debug) console.log(Date() + " : Create a timeout task to resend the request  if postMessage to " + vm.app + " is timeout. timeout = 1 seconds" )
         vm.timeoutTask = setTimeout(function(){
             vm.timeoutTask = null
-            if (debug){
-                console.log(Date() + " : post request to " + vm.app + " timeout")
+            if (vm.debug) console.log(Date() + " : post request to " + vm.app + " timeout")
+            if (vm.gokartWindow && !vm.gokartWindow.closed) {
+                postMessageFunc()
+            } else {
+                syncMessageFunc()
+                vm.gokartWindow = null
             }
-            if (this.gokartWindow && !this.gokartWindow.closed()) {
-                this.gokartWindow.close()
-            }
-            vm.gokartWindow = null
-            syncMessageFunc()
-        },10000)
+        },1000)
     }
 
     var syncMessageFunc = function() {
-        if (debug) console.log(Date() + " : Sent request to " + vm.app + " through localStorage. request = " + request)
+        if (vm.debug) console.log(Date() + " : Sent request to " + vm.app + " through localStorage. request = " + request)
         localStorage.setItem(vm.channelName + ".open",request)
         vm._clearTimeoutTask()
-        if (debug) console.log(Date() + " : Create a timeout task to send request to " + vm.app + " if " + vm.app + " is not opened before. timeout = 5 seconds" )
+        if (vm.debug) console.log(Date() + " : Create a timeout task to send request to " + vm.app + " if " + vm.app + " is not opened before. timeout = 2 seconds" )
         vm.timeoutTask = setTimeout(function() {
             vm.timeoutTask = null
-            if (debug) console.log(Date() + " : Send request to " + vm.app + " through localStorage timeout, try to open " + vm.app)
-            vm.gokartWindow = window.open(vm.serverUrl)
-            vm.gokartWindow.onload = function() {
-                postMessageFunc()
+            if (vm.debug) console.log(Date() + " : Send request to " + vm.app + " through localStorage timeout, try to open " + vm.app)
+            if (vm.debug) {
+                vm.gokartWindow = window.open(vm.serverUrl + "?debug=true")
+            } else {
+                vm.gokartWindow = window.open(vm.serverUrl )
             }
-        },5000)
+            postMessageFunc()
+        },2000)
     }
 
-    if (this.gokartWindow && !this.gokartWindow.closed()) {
+    if (this.gokartWindow && !this.gokartWindow.closed) {
         postMessageFunc()
     } else {
+        this.gokartWindow = null
         syncMessageFunc()
     }
 
@@ -122,7 +124,7 @@ function receiveMessage(event) {
     }
     response["channel"] = "postMessage"
     if ( pendingRequests[response["requestId"].toString()] ) {
-        pendingRequests[response["requestId"].toString()]._processResponse(processResponse)
+        pendingRequests[response["requestId"].toString()]._processResponse(response)
     }
 }
 

@@ -546,9 +546,10 @@
     },
     ready: function () {
       var vm = this
-      var trackingStatus = this.loading.register("tracking","Resource Tracking Component","Initialize")
+      var trackingStatus = this.loading.register("tracking","Resource Tracking Component")
       var map = this.$root.map
 
+      trackingStatus.phaseBegin("initialize",20,"Initialize")
       var resourceTrackingStyleFunc = function(layerId){
         return function (res) {
             var feat = this
@@ -700,6 +701,7 @@
           return return_label
       }
 
+      trackingStatus.phaseBegin("load_resources",30,"Load resources",false,true)
       this.$root.fixedLayers.push({
         type: 'WFSLayer',
         name: 'Resource Tracking',
@@ -712,6 +714,9 @@
                     extra_device_label}
         },
         refresh: 60,
+        onerror: function(status,message) {
+            trackingStatus.phaseFailed("load_resources",status + " : " + message)
+        },
         onload: function(loadType,vectorSource,features,defaultOnload) {
             function processResources() {
                 defaultOnload(loadType,vectorSource,features)
@@ -728,6 +733,7 @@
                     })
                 }
                 vm.updateFeatureFilter(true)
+                trackingStatus.phaseEnd("load_resources")
             }
             if ((vm.whoami.editVehicle === null || vm.whoami.editVehicle === undefined ) && features.length > 0) {
                 var f = features.find(function(f) {return f.get('source_device_type') != "tracplus"})
@@ -803,10 +809,14 @@
 
       })
 
-      trackingStatus.wait(40,"Listen 'gk-init' event")
+      trackingStatus.phaseEnd("initialize")
+
+      trackingStatus.phaseBegin("gk-init",30,"Listen 'gk-init' event")
       // post init event hookup
       this.$on('gk-init', function () {
-        trackingStatus.progress(80,"Process 'gk-init' event")
+        trackingStatus.phaseEnd("gk-init")
+
+        trackingStatus.phaseBegin("attach_events",10,"Attach events")
         map.olmap.getView().on('propertychange', vm.updateViewport)
 
         /*var layersAdded = global.debounce(function () {
@@ -829,10 +839,6 @@
             vm.selectedDevices.$remove(event.element.get('deviceid'))
           }
         })
-        //vm.annotations.setDefaultTool('tracking','Pan')
-        vm.tools = vm.annotations.tools.filter(function (t) {
-          return t.scope && t.scope.indexOf("resourcetracking") >= 0
-        })
 
         vm.map.olmap.on("removeLayer",function(ev){
             if (ev.layer.get('id') === "dpaw:resource_tracking_live") {
@@ -841,8 +847,15 @@
             }
         })
 
+        trackingStatus.phaseEnd("attach_events")
 
-        trackingStatus.end()
+        trackingStatus.phaseBegin("init_tools",10,"Initialize tools")
+        //vm.annotations.setDefaultTool('tracking','Pan')
+        vm.tools = vm.annotations.tools.filter(function (t) {
+          return t.scope && t.scope.indexOf("resourcetracking") >= 0
+        })
+
+        trackingStatus.phaseEnd("init_tools")
       })
     }
   }

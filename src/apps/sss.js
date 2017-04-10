@@ -206,7 +206,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
     },
     ready: function () {
       var self = this
-      self.loading.app.progress(5,"Initialize UI")
+      self.loading.app.phaseBegin("initialize",20,"Initialize")
       // setup foundation, svg url support
       $(document).foundation()
       svg4everybody()
@@ -246,7 +246,6 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         self.map.olmap.updateSize()
       })
 
-      self.loading.app.progress(10,"Initialize Fixed Layers")
       // pack-in catalogue
       self.fixedLayers = self.fixedLayers.concat([{
       /*
@@ -347,7 +346,6 @@ localforage.getItem('sssOfflineStore').then(function (store) {
       }])
 
       // load custom annotation tools
-      self.loading.app.progress(20,"Initialize SSS tools")
 
       var sssTools = [
         {
@@ -447,22 +445,40 @@ localforage.getItem('sssOfflineStore').then(function (store) {
         self.annotations.tools.push(tool)
       })
 
+      self.loading.app.phaseEnd("initialize")
+
       // load map without layers
-      self.loading.app.progress(30,"Initialize ol map")
+      self.loading.app.phaseBegin("init_olmap",10,"Initialize olmap")
       self.map.init()
-      self.loading.app.progress(40,"Load Remote Catalogue")
+      self.loading.app.phaseEnd("init_olmap")
+
+      self.loading.app.phaseBegin("load_catalogue",20,"Load catalogue",true,true)
       try {
           self.catalogue.loadRemoteCatalogue( function () {
             //add default layers
+            var failed_phase = null
             try {
-                self.loading.app.progress(50,"Initialize Active Layers")
+                self.loading.app.phaseEnd("load_catalogue")
+
+                self.loading.app.phaseBegin("init_map_layers",10,"Initialize map layers")
+                failed_phase = "init_map_layers"
                 self.map.initLayers(self.fixedLayers, self.store.activeLayers)
+                self.loading.app.phaseEnd("init_map_layers")
+
                 // tell other components map is ready
-                self.loading.app.progress(60,"Broadcast 'gk-init' event")
+                self.loading.app.phaseBegin("gk-init",15,"Broadcast 'go-init' event")
+                failed_phase = "gk-init"
                 self.$broadcast('gk-init')
+                self.loading.app.phaseEnd("gk-init")
+
                 // after catalogue load trigger a tour
-                self.loading.app.progress(90,"Broadcast 'gk-postinit' event")
+                self.loading.app.phaseBegin("gk-postinit",15,"Broadcast 'go-init' event")
+                failed_phase = "gk-postinit"
                 self.$broadcast('gk-postinit')
+                self.loading.app.phaseEnd("gk-postinit")
+
+                self.loading.app.phaseBegin("post_init",10,"Post initialization")
+                failed_phase = "post-init"
                 self.store.layout.screenHeight = $(window).height()
                 self.store.layout.screenWidth = $(window).width()
                 $(window).resize(debounce(function(){
@@ -483,17 +499,17 @@ localforage.getItem('sssOfflineStore').then(function (store) {
                 //check gokart version
                 utils.checkVersion(self.profile)
 
-                self.loading.app.end()
+                self.loading.app.phaseEnd("post_init")
             } catch(err) {
                 //some exception happens
-                self.loading.app.failed(err)
+                self.loading.app.phaseFailed(failed_phase,err)
                 throw err
             }
             if (self.store.settings.tourVersion !== tour.version) {
               self.takeTour()
             }
           },function(reason){
-            self.loading.app.failed(reason)
+            self.loading.app.phaseEnd("load_catalogue")
           })
       } catch(err) {
           //some exception happens

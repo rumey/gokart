@@ -22,61 +22,87 @@ let GokartListener = function() {
         }
     })
     
+    if (this.debug) console.log(Date() + " : Gokart listener is initialized." )
 }
 
 GokartListener.prototype._processRequest = function(request,sentResponse) {
-    if (this.debug) console.log(Date() + " : Receive a request through localStorage. request = " + JSON.stringify(request))
-    sentResponse(JSON.stringify(this.populateResponse(request,"RECEIVED")))
-    if (!gokart || !gokart["loading"]) {
-        if (this.debug) console.log("gokart is loading")
-        setTimeout(func,1000)
-    } else if (gokart['loading'].completedPercentage < 100) {
-        if (this.debug) console.log("gokart is initializing")
-        setTimeout(func,1000)
-    } else if (gokart['loading'].completedPercentage === -1) {
-        sentResponse(JSON.stringify(this.populateResponse(request,"GOKART_FAILED",gokart['loading'].message)))
-    } else if (request["method"] === "open") {
-        if (!gokart[request["data"]['module']]) {
-            sentResponse(JSON.stringify(this.populateResponse(request,"MODULE_NOT_FOUND")))
-        } else if (!gokart[request["data"]["module"]]["open"]) {
-            sentResponse(JSON.stringify(this.populateResponse(request,'METHOD_NOT_SUPPORT')))
-        } else {
-            try {
-                gokart[data["module"]].open(data['options'])
-                window.focus();
-                sentResponse(JSON.stringify(this.populateResponse(request,'OK')))
-            } catch(ex) {
-                sentResponse(JSON.stringify(this.populateResponse(request,'METHOD_FAILED',ex)))
+    var vm = this
+    var func = function() {
+        if (vm.debug) console.log(Date() + " : Receive a request through " + request["channel"] + ". request = " + JSON.stringify(request))
+        sentResponse(JSON.stringify(vm.populateResponse(request,"RECEIVED")))
+        if (!window.gokart || !window.gokart["loading"]) {
+            if (vm.debug) console.log("gokart is loading")
+            setTimeout(func,1000)
+        } else if (window.gokart['loading'].appStatus.completedPercentage < 100) {
+            if (vm.debug) console.log("gokart is initializing")
+            setTimeout(func,1000)
+        } else if (window.gokart['loading'].appStatus.completedPercentage === -1) {
+            sentResponse(JSON.stringify(vm.populateResponse(request,"GOKART_FAILED",window.gokart['loading'].reason)))
+        } else if (request["method"] === "open") {
+            var moduleStatus = window.gokart['loading'].getStatus(request["data"]["module"])
+            if (moduleStatus.completedPercentage < 100) {
+                if (vm.debug) console.log(request["data"]["module"] + " is initializing")
+                setTimeout(func,1000)
+            } else if (moduleStatus.completedPercentage === -1) {
+                sentResponse(JSON.stringify(vm.populateResponse(request,"GOKART_FAILED",moduleStatus.reason)))
             }
+            if (!window.gokart[request["data"]['module']]) {
+                sentResponse(JSON.stringify(vm.populateResponse(request,"MODULE_NOT_FOUND")))
+            } else if (!window.gokart[request["data"]["module"]]["open"]) {
+                sentResponse(JSON.stringify(vm.populateResponse(request,'METHOD_NOT_SUPPORT')))
+            } else {
+                var moduleStatus = window.gokart[request["data"]["module"]].moduleStatus
+                if (moduleStatus && moduleStatus.completedPercentage < 100) {
+                    if (vm.debug) console.log(request["data"]["module"] + " is initializing")
+                    setTimeout(func,1000)
+                    return
+                } else if (moduleStatus && moduleStatus.completedPercentage === -1) {
+                    sentResponse(JSON.stringify(vm.populateResponse(request,"GOKART_FAILED",moduleStatus.reason)))
+                    return
+                }
+
+                try {
+                    window.gokart[request["data"]["module"]].open(request["data"]['options'])
+                    window.focus();
+                    sentResponse(JSON.stringify(vm.populateResponse(request,'OK')))
+                } catch(ex) {
+                    sentResponse(JSON.stringify(vm.populateResponse(request,'METHOD_FAILED',ex)))
+                    throw ex
+                }
+            }
+        } else {
+            sentResponse(JSON.stringify(vm.populateResponse(request,'UNKNOWN_METHOD')))
         }
-    } else {
-        sentResponse(JSON.stringify(this.populateResponse(request,'UNKNOWN_METHOD')))
     }
+    func()
 }
-GokartListener.prototype.populateResponse = function(request,status,failedReason) {
+GokartListener.prototype.populateResponse = function(request,code,failedReason) {
     var response = {
         clientId:request["clientId"],
         requestId:request["requestId"],
         time:Date(),
         data:{
-            status:status,
-            message:""
+            status:"failed",
+            code:code,
+            message:"",
         }
     }
     var data = response["data"]
-    if (status === "RECEIVED") {
+    if (code === "RECEIVED") {
         data["message"] = "Request is received from " + request["channel"] + ". data = " + JSON.stringify(request["data"])
-    } else if (status === "GOKART_FAILED") {
+        data["status"] = "processing"
+    } else if (code === "GOKART_FAILED") {
         data["message"] = failedReason
-    } else if (status === "MODULE_NOT_FOUND") {
-        data["message"] = "Module(" + gokart[request["data"]['module']] + ") is not found."
-    } else if (status === "METHOD_NOT_SUPPORT") {
-        data["message"] = "Module(" + gokart[request["data"]['module']] + ") does not support method " + request["method"] +"."
-    } else if (status === "OK") {
+    } else if (code === "MODULE_NOT_FOUND") {
+        data["message"] = "Module(" + window.gokart[request["data"]['module']] + ") is not found."
+    } else if (code === "METHOD_NOT_SUPPORT") {
+        data["message"] = "Module(" + window.gokart[request["data"]['module']] + ") does not support method " + request["method"] +"."
+    } else if (code === "OK") {
         data["message"] = "Succeed to execute method '" + request["method"] + "', data = " + JSON.stringify(request["data"])
-    } else if (status === "UNKNOWN_METHOD") {
+        data["status"] = "succeed"
+    } else if (code === "UNKNOWN_METHOD") {
         data["message"] = "Rquest method '" + request["method"] + "' is unknown, data = " + JSON.stringify(request["data"])
-    } else if (status === "METHOD_FAILED") {
+    } else if (code === "METHOD_FAILED") {
         data["message"] = "Failed to execute method '" + request["method"] + "', data = " + JSON.stringify(request["data"]) + ". Reason = " + failedReason
     }
 
@@ -93,7 +119,7 @@ function receiveMessage(event) {
         return
     }
     var request = JSON.parse(event.data)
-    request["channel"] = "localStorage"
+    request["channel"] = "postMessage"
     gokartListener._processRequest(request,function(response){
         event.source.postMessage(response,window.location.origin)
     })

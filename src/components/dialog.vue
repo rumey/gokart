@@ -93,7 +93,8 @@
     },
     ready: function () {
       var vm = this
-      var dialogStatus = this.loading.register("dialog","Dialog Component","Initialize")
+      var dialogStatus = this.loading.register("dialog","Dialog Component")
+      dialogStatus.phaseBegin("initialize",100,"Initialize")
 
       $("#userdialog").on("closed.zf.reveal",function(){
         if (vm.callback) {
@@ -105,7 +106,7 @@
         }
       })
 
-      dialogStatus.end()
+      dialogStatus.phaseEnd("initialize")
     }
   }
 </script>

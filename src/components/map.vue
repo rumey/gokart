@@ -949,9 +949,12 @@
                 onSuccess()
               }
             },
-            error: function () {
+            error: function (jqXHR,status,message) {
               vm.$root.active.refreshRevision += 1
               vector.progress = 'error'
+              if (options.onerror) {
+                options.onerror(status,message)
+              }
             },
             dataType: 'json',
             xhrFields: {
@@ -1576,7 +1579,8 @@
     },
     ready: function () {
       var vm = this
-      var mapStatus = this.loading.register("olmap","Open layer map Component","Initialize")
+      var mapStatus = this.loading.register("olmap","Open layer map Component")
+      mapStatus.phaseBegin("initialize",20,"Initialize")
       this.svgBlobs = {}
       this.svgTemplates = {}
       this.cachedStyles = {}
@@ -1592,11 +1596,13 @@
           matrixSet.matrixIds = matrixIds
         })
       })
+      mapStatus.phaseEnd("initialize")
 
-      mapStatus.wait(30,"Listen 'gk-init' event")
+      mapStatus.phaseBegin("gk-init",20,"Listen 'gk-init' event",true,true)
       this.$on('gk-init', function() {
-        mapStatus.progress(80,"Process 'gk-init' event")
+        mapStatus.phaseEnd("gk-init")
         
+        mapStatus.phaseBegin("post-init",20,"Post initialize")
         if ($("#map .ol-viewport canvas").attr("width")) {
             vm.displayResolution[0] = Math.round(($("#map .ol-viewport canvas").attr("width") /  $("#map .ol-viewport canvas").width()) * 100) / 100
         }
@@ -1606,7 +1612,7 @@
 
         vm.showGraticule(vm.displayGraticule)
 
-        mapStatus.end()
+        mapStatus.phaseEnd("post-init")
         return true
       })
     }

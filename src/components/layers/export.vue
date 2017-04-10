@@ -774,6 +774,9 @@
     },
     ready: function () {
       var vm = this
+      var exportStatus = vm.loading.register("export","Export Component")
+
+      exportStatus.phaseBegin("initialize",10,"Initialize")
       this._filename_re = new RegExp("filename=[\'\"](.+)[\'\"]")
       this._fileformats = [
         ["geojson",".geojson","application/vnd.geo+json"],
@@ -789,14 +792,15 @@
         ["tar.xz",".tar.xz","application/gzip"],
       ]
 
-      var exportStatus = vm.loading.register("export","Export Component","Initialize")
 
       $("#chooseImportLayer").on("closed.zf.reveal",function(){
           if (vm._importData) {delete vm._importData}
       })
-      exportStatus.wait(10,"Listen 'gk-init' event")
+      exportStatus.phaseEnd("initialize")
+      exportStatus.phaseBegin("gk-init",80,"Listen 'gk-init' event",true,true)
       this.$on('gk-init', function () {
-        exportStatus.progress(80,"Process 'gk-init' event")
+        exportStatus.phaseEnd("gk-init")
+        exportStatus.phaseBegin("load_states",10,"Load states from file system",true,false)
         // save state every render
         vm.olmap.on('postrender', global.debounce(function (ev) {vm.saveState()}, 1000, true))
         var stateStore = localforage.getItem('sssStateStore', function (err, value) {
@@ -804,7 +808,7 @@
             vm.states = Object.keys(value)
           }
         })
-        exportStatus.end()
+        exportStatus.phaseEnd("load_states")
       })
     }
   }
