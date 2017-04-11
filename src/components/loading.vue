@@ -14,14 +14,14 @@
               <a class="name">{{application}} </a>
           </div>
           <div class="small-5">
-              <div v-for="(index,phase) in phaseStatus(appStatus.phases)"  tracking-by="$index">
+              <div v-for="(index,phase) in appStatus.phases"  tracking-by="$index">
                   <br v-if="index > 0">
                   <a v-if="!phaseStatus(phase).async" class="float-right"><i class="fa fa-spinner" aria-hidden="true"></i></a>
                   <a v-if="phaseStatus(phase).async" class="float-right"><i class="fa fa-pause" aria-hidden="true"></i></a>
                   <a class="action">{{phaseStatus(phase).description}}</a>
                   <a class="error" v-if="phase.failed">({{phaseStatus(phase).reason}})</a>
               </div>
-              <a v-if="phaseStatus(appStatus).isSucceed()" class="float-right">OK</a>
+              <a v-if="appStatus.isSucceed()" class="float-right">OK</a>
           </div>
       </div>
       <div v-for="status in components" class="row component" track-by="id">
@@ -107,13 +107,17 @@
         return this.errors.length > 0
       },
       show: function() {
-        return true//this.revision && true && ( !this.app || !this.app.isReady() || this.errors.length > 0) || this.components.find(function(component){return !component.isReady()})
+        var isShow = this.revision && (!this.appStatus.isReady() || this.errors.length > 0 || this.components.find(function(component){return !component.isReady()}))
+        return (isShow && true) || false
       },
       closable: function() {
         return this.revision && this.app && ( this.app.isFinished() )
       },
       appStatus:function() {
-        return  this.revision && (this.app || {})
+        if (!this.app) {
+            this.register("app",this.application)
+        }
+        return  this.revision && this.app
       },
     },
     props:["application"],
@@ -210,7 +214,17 @@
                 return this.processed >= 100
             }
             vm.Status.prototype.isReady = function(reason) {
-                return !this.phases.find(function(o) {return o.failed && o.critical})
+                return this.processed >= 100 && this.phases.findIndex(function(o) {return o.failed && o.critical}) < 0
+            }
+            vm.Status.prototype.failedMessage = function() {
+                var messages = ""
+                $.each(this.failedPhases,function(index,p){
+                    if (index > 0) {
+                        messages += "\r\n"
+                    }
+                    messages += p.reason
+                })
+                return messages
             }
         }
         return new vm.Status(componentId,componentName)
@@ -218,7 +232,7 @@
     },
     ready: function () {
         var vm = this
-        vm.register("app",this.application)
+        //vm.register("app",this.application)
         var loadingStatus = vm.register("LoadingStatus","Loading Status Component")
         loadingStatus.phaseBegin("initialize",100,"Override console")
         //override console.error

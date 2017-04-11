@@ -30,34 +30,24 @@ GokartListener.prototype._processRequest = function(request,sentResponse) {
     var func = function() {
         if (vm.debug) console.log(Date() + " : Receive a request through " + request["channel"] + ". request = " + JSON.stringify(request))
         sentResponse(JSON.stringify(vm.populateResponse(request,"RECEIVED")))
-        if (!window.gokart || !window.gokart["loading"]) {
+        if (!window.gokart || !window.gokart["loading"].appStatus.isFinished()) {
             if (vm.debug) console.log("gokart is loading")
             setTimeout(func,1000)
-        } else if (window.gokart['loading'].appStatus.completedPercentage < 100) {
-            if (vm.debug) console.log("gokart is initializing")
-            setTimeout(func,1000)
-        } else if (window.gokart['loading'].appStatus.completedPercentage === -1) {
-            sentResponse(JSON.stringify(vm.populateResponse(request,"GOKART_FAILED",window.gokart['loading'].reason)))
+        } else if (!(window.gokart['loading'].appStatus.isSucceed())) {
+            sentResponse(JSON.stringify(vm.populateResponse(request,"GOKART_FAILED",window.gokart['loading'].appStatus.failedMessages())))
         } else if (request["method"] === "open") {
-            var moduleStatus = window.gokart['loading'].getStatus(request["data"]["module"])
-            if (moduleStatus.completedPercentage < 100) {
-                if (vm.debug) console.log(request["data"]["module"] + " is initializing")
-                setTimeout(func,1000)
-            } else if (moduleStatus.completedPercentage === -1) {
-                sentResponse(JSON.stringify(vm.populateResponse(request,"GOKART_FAILED",moduleStatus.reason)))
-            }
             if (!window.gokart[request["data"]['module']]) {
                 sentResponse(JSON.stringify(vm.populateResponse(request,"MODULE_NOT_FOUND")))
             } else if (!window.gokart[request["data"]["module"]]["open"]) {
                 sentResponse(JSON.stringify(vm.populateResponse(request,'METHOD_NOT_SUPPORT')))
             } else {
-                var moduleStatus = window.gokart[request["data"]["module"]].moduleStatus
-                if (moduleStatus && moduleStatus.completedPercentage < 100) {
+                var moduleStatus = window.gokart['loading'].getStatus(request["data"]["module"])
+                if (!moduleStatus.isFinished()) {
                     if (vm.debug) console.log(request["data"]["module"] + " is initializing")
                     setTimeout(func,1000)
                     return
-                } else if (moduleStatus && moduleStatus.completedPercentage === -1) {
-                    sentResponse(JSON.stringify(vm.populateResponse(request,"GOKART_FAILED",moduleStatus.reason)))
+                } else if (!moduleStatus.isSucceed()) {
+                    sentResponse(JSON.stringify(vm.populateResponse(request,"GOKART_FAILED",moduleStatus.failedMessages())))
                     return
                 }
 

@@ -1598,7 +1598,7 @@
       })
       mapStatus.phaseEnd("initialize")
 
-      mapStatus.phaseBegin("gk-init",20,"Listen 'gk-init' event",true,true)
+      mapStatus.phaseBegin("gk-init",60,"Listen 'gk-init' event",true,true)
       this.$on('gk-init', function() {
         mapStatus.phaseEnd("gk-init")
         

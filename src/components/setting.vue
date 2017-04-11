@@ -323,7 +323,7 @@
      
       settingStatus.phaseBegin("gk-init",80,"Listen 'gk-init' event",true,true)
       this.$on('gk-init', function() {
-        settingStatus.phaseEnd(gk-init")
+        settingStatus.phaseEnd("gk-init")
 
         settingStatus.phaseBegin("initialize",20,"Initialize",true,false)
         vm.showOverviewMap(vm.overviewMap)

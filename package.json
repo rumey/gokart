@@ -19,8 +19,6 @@
     "app_dev": "python ./profile.py dev && cross-env NODE_ENV=dev browserify -vd -d --external src/vendor.js -e src/apps/$npm_package_config_app.js | exorcist dist/dev/$npm_package_config_app.js.map > dist/dev/$npm_package_config_app.js",
     "vendor_release": "cross-env NODE_ENV=production browserify -g browserify-css -r ./src/vendor.js:src/vendor.js -r ./src/ol-extras.js:src/ol-extras.js | uglifyjs -c warnings=false -m > dist/release/vendor.js",
     "vendor_dev": "cross-env NODE_ENV=dev browserify -d -g browserify-css -r ./src/vendor.js:src/vendor.js  -r ./src/ol-extras.js:src/ol-extras.js | exorcist dist/dev/vendor.js.map > dist/dev/vendor.js",
-    "client_dev": "cross-env NODE_ENV=dev browserify -d -e ./src/gokart-client.js | exorcist dist/dev/gokart-client.js.map > dist/dev/gokart-client.js",
-    "client_release": "cross-env NODE_ENV=production browserify -e ./src/gokart-client.js | uglifyjs -c warnings=false -m > dist/release/gokart-client.js",
     "lint": "eslint --ext .js,.vue src; exit 0",
     "test": "karma start karma.conf.js"
   },

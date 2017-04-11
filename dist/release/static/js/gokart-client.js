@@ -4,9 +4,9 @@ var pendingRequests = {}
 
 function GokartClient(app,module,debug) {
     var vm = this
-    this.serverUrl = window.location.origin + "/" + app;
     this.debug = debug
     this.app = (app || "sss").toLowerCase();
+    this.serverUrl = window.location.origin + "/" + this.app;
     this.defaultModule = module;
     this.channelName = "gokart(" + this.serverUrl + ")"
     this.timeoutTask = null
@@ -67,6 +67,19 @@ GokartClient.prototype.open = function(options,module){
 
     var request = JSON.stringify(vm.populateRequest('open',{module:module,options:options}))
     var syncMessageFunc = null
+
+    var gokartWindowIsActive = function() {
+        if (!vm.gokartWindow || vm.gokartWindow.closed) {
+            return false
+        } else {
+            try {
+                return (vm.gokartWindow.location.origin === window.location.origin && vm.gokartWindow.location.pathname === "/" + vm.app)
+            }catch(ex) {
+                return false
+            }
+        }
+    }
+
     var postMessageFunc = function() {
 
         if (vm.debug) console.log(Date() + " : " + vm.app + " is opened and send request to " + vm.app + " through postMessage. request = " + request)
@@ -77,7 +90,7 @@ GokartClient.prototype.open = function(options,module){
         vm.timeoutTask = setTimeout(function(){
             vm.timeoutTask = null
             if (vm.debug) console.log(Date() + " : post request to " + vm.app + " timeout")
-            if (vm.gokartWindow && !vm.gokartWindow.closed) {
+            if (gokartWindowIsActive()) {
                 postMessageFunc()
             } else {
                 syncMessageFunc()
@@ -103,7 +116,7 @@ GokartClient.prototype.open = function(options,module){
         },2000)
     }
 
-    if (this.gokartWindow && !this.gokartWindow.closed) {
+    if (gokartWindowIsActive()) {
         postMessageFunc()
     } else {
         this.gokartWindow = null
@@ -127,5 +140,3 @@ function receiveMessage(event) {
         pendingRequests[response["requestId"].toString()]._processResponse(response)
     }
 }
-
-global.GokartClient = GokartClient

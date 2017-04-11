@@ -1,7 +1,7 @@
 <html>
 <head>
  <meta charset="UTF-8"> 
- <script src="dist/gokart-client.js"></script>
+ <script src="dist/static/js/gokart-client.js"></script>
 </head>
 <body>
     <script language="javascript">
@@ -11,11 +11,11 @@
             var debug = false
             window.addEventListener("message",function (event) {
                 var request = JSON.parse(event.data)
-                if (request.method === "setOptions") {
+                if (request.method === "create") {
                     options = request.options
                     debug = options.debug
                     client = new GokartClient(options.app,options.module,options.debug)
-                    window.top.postMessage(JSON.stringify({requestId:"setStatus",data:{status:"OK",message:"Succeed"}}),options.origin)
+                    window.top.postMessage(JSON.stringify({requestId:request.method,data:{status:"OK",message:"Succeed"}}),options.origin)
                 } else if(request.method === "open") {
                     var data = request.data
                     if (debug) console.log("open gokart, data = " + JSON.stringify(data))
