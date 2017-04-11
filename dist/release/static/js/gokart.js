@@ -9,8 +9,8 @@ var Gokart = (function() {
     
         this.gokartFrame = document.createElement("iframe");
         this.gokartFrame.setAttribute('id','gokartclient');
-        this.gokartFrame.setAttribute('height','100px');
-        this.gokartFrame.setAttribute('width','100px');
+        this.gokartFrame.setAttribute('height','0px');
+        this.gokartFrame.setAttribute('width','0px');
         this.gokartFrame.setAttribute('src',this.url + '/client');
         this.gokartFrame.setAttribute('style',"display:none")
         this.debug = window.location.search?(window.location.search.toLowerCase().indexOf("debug=true") >= 0):false;
