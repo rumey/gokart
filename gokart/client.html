@@ -18,7 +18,7 @@
                     window.top.postMessage(JSON.stringify({requestId:request.method,data:{status:"OK",message:"Succeed"}}),options.origin)
                 } else if(request.method === "open") {
                     var data = request.data
-                    if (debug) console.log("open gokart, data = " + JSON.stringify(data))
+                    if (debug) console.log(Date() + " : open gokart, data = " + JSON.stringify(data))
                     client.open(data.options,data.module)
                 }
             },false)

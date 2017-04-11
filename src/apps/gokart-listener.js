@@ -27,12 +27,22 @@ let GokartListener = function() {
 
 GokartListener.prototype._processRequest = function(request,sentResponse) {
     var vm = this
+    var waitingTime = 0
+    if (vm.debug) console.log(Date() + " : Receive a request through " + request["channel"] + ". request = " + JSON.stringify(request))
+    sentResponse(JSON.stringify(vm.populateResponse(request,"RECEIVED")))
+
+    var setupCalled = false
+
     var func = function() {
-        if (vm.debug) console.log(Date() + " : Receive a request through " + request["channel"] + ". request = " + JSON.stringify(request))
-        sentResponse(JSON.stringify(vm.populateResponse(request,"RECEIVED")))
         if (!window.gokart || !window.gokart["loading"].appStatus.isFinished()) {
-            if (vm.debug) console.log("gokart is loading")
+            if (waitingTime >= 60000) {
+                if (vm.debug) console.log(Date() + " : Initialize gokart timeout")
+                sentResponse(JSON.stringify(vm.populateResponse(request,"GOKART_FAILED","Initialize gokart timeout.")))
+                return
+            }
+            if (vm.debug) console.log(Date() + " : gokart is loading")
             setTimeout(func,1000)
+            waitingTime += 1000
         } else if (!(window.gokart['loading'].appStatus.isSucceed())) {
             sentResponse(JSON.stringify(vm.populateResponse(request,"GOKART_FAILED",window.gokart['loading'].appStatus.failedMessages())))
         } else if (request["method"] === "open") {
@@ -41,10 +51,21 @@ GokartListener.prototype._processRequest = function(request,sentResponse) {
             } else if (!window.gokart[request["data"]["module"]]["open"]) {
                 sentResponse(JSON.stringify(vm.populateResponse(request,'METHOD_NOT_SUPPORT')))
             } else {
+
+                if (!setupCalled && window.gokart[request["data"]["module"]].setup) {
+                    if (vm.debug) console.log(Date() + " : call setup to initialize module " + request["data"]["module"])
+                    window.gokart[request["data"]["module"]].setup()
+                    setupCalled = true
+                }
                 var moduleStatus = window.gokart['loading'].getStatus(request["data"]["module"])
                 if (!moduleStatus.isFinished()) {
-                    if (vm.debug) console.log(request["data"]["module"] + " is initializing")
+                    if (waitingTime >= 60000) {
+                        sentResponse(JSON.stringify(vm.populateResponse(request,"GOKART_FAILED","Initialize " + request["data"]["module"] + " timeout.")))
+                        return
+                    }
+                    if (vm.debug) console.log(Date() + " : " + request["data"]["module"] + " is initializing")
                     setTimeout(func,1000)
+                    waitingTime += 1000
                     return
                 } else if (!moduleStatus.isSucceed()) {
                     sentResponse(JSON.stringify(vm.populateResponse(request,"GOKART_FAILED",moduleStatus.failedMessages())))
