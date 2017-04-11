@@ -164,6 +164,7 @@
                 this.name = componentName
                 this.completed = 0
                 this.processed = 0
+                this.processing = 0
                 this.phases = []
                 return this
             }
@@ -183,7 +184,8 @@
                 }
             }
             vm.Status.prototype.phaseBegin = function(name,weight,description,critical,async) {
-                this.phases.push({name:name,weight:weight,description:description,critical:critical || true,async:async || false})
+                this.phases.push({name:name,weight:weight,description:description,critical:(critical === null || critical === undefined)?true:critical,async:async || false})
+                this.processing += weight
                 this._change()
             }
             vm.Status.prototype.phaseEnd = function(name) {
@@ -214,7 +216,7 @@
                 return this.processed >= 100
             }
             vm.Status.prototype.isReady = function(reason) {
-                return this.processed >= 100 && this.phases.findIndex(function(o) {return o.failed && o.critical}) < 0
+                return this.processing >= 100 && this.phases.findIndex(function(o) {return o.failed && o.critical}) < 0
             }
             vm.Status.prototype.failedMessage = function() {
                 var messages = ""

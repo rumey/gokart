@@ -418,7 +418,6 @@
         return this.revision && bushfire.get('status') !== "new" && this.isModifiable(bushfire) && bushfire.get('tint') === "modified"
       },
       canCreate:function(bushfire) {
-
         return this.revision && bushfire.get('status') === "new" && bushfire.getGeometry().getGeometriesArray().find(function(g) {return g instanceof ol.geom.Point})
       },
       canDelete:function(bushfire) {
@@ -613,7 +612,7 @@
         var bbox = (fireBoundary && fireBoundary.getPolygons().length > 0)?fireBoundary.getExtent():null
         fireBoundary = (fireBoundary && fireBoundary.getPolygons().length > 0)?fireBoundary.getCoordinates():null
 
-        var spatialData = {origin_point:originPoint, fire_boundary: fireBoundary,area:area}
+        var spatialData = {origin_point:originPoint, fire_boundary: fireBoundary,area:area,tenure_area:null,tenure_origin_point:null}
 
         if (!fireBoundary && !originPoint) {
             spatialData["tenure_area"] = null
@@ -629,70 +628,43 @@
         if (originPoint) {
             processingJobs.push("tenure_origin_point") 
             processingJobs.push("fire_position") 
-            processingJobs.push("region") 
-            processingJobs.push("district") 
+            if (feat.get('status') === "initial") {
+                processingJobs.push("region") 
+                processingJobs.push("district") 
+            }
         }
 
         var callbackWrapper = function(spatialData) {
             if (processingJobs.length === 0) {
-                var region = null
-                var district = null
-                var name = spatialData["region"]
-                delete spatialData["region"]
-                spatialData["region_id"] = null
-                spatialData["district_id"] = null
-                if (name) {
-                    name = name.toLowerCase()
-                    region = vm.whoami.bushfire.regions.find(function(o) {return o.region.toLowerCase() === name})
-                    if (region) {
-                        spatialData["region_id"] = region.region_id
+                if ("region" in spatialData && "district" in spatialData) {
+                    var region = null
+                    var district = null
+                    spatialData["region_id"] = null
+                    spatialData["district_id"] = null
+
+                    var name = spatialData["region"]
+                    delete spatialData["region"]
+                    if (name) {
+                        name = name.toLowerCase()
+                        region = vm.whoami.bushfire.regions.find(function(o) {return o.region.toLowerCase() === name})
+                        if (region) {
+                            spatialData["region_id"] = region.region_id
+                        }
+                    }
+
+                    name = spatialData["district"]
+                    delete spatialData["district"]
+                    if (name && region) {
+                        name = name.toLowerCase()
+                        district = region.districts.find(function(o) {return o.district.toLowerCase() === name})
+                        if (district) {
+                            spatialData["district_id"] = district.id
+                        }
                     }
                 }
 
-                name = spatialData["district"]
-                delete spatialData["district"]
-                if (name && region) {
-                    name = name.toLowerCase()
-                    district = region.districts.find(function(o) {return o.district.toLowerCase() === name})
-                    if (district) {
-                        spatialData["district_id"] = district.id
-                    }
-                }
-
-                if (feat.get("id") >= 0) {
-                    //existed feature
-                    var oldRegion = vm.whoami.bushfire.regions.find(function(o) {return o.region_id === feat.get('region_id')})
-                    var oldDistrict = oldRegion.districts.find(function(o) {return o.id === feat.get('district_id')})
-
-                    if (feat.get("district_id") != spatialData["district_id"] || feat.get("region_id") != spatialData["region_id"]) {
-                        var oldPlace = (oldDistrict?oldDistrict.district:"Unknown") + " of " + (oldRegion?oldRegion.region:"Unknown")
-                        var newPlace = (district?district.district:"Unknown") + " of " + (region?region.region:"Unknown")
-                        var messages = ["Bushfire's origin point was moved from " + oldPlace + " to " + newPlace + "."]
-                        messages.push("If move the bushfire to " + newPlace + ", a new bushfire will be created from this bushfire with new assigned fire number in " + newPlace +", this bushfire will be reserverd and link to the new bushfire.")
-                        messages.push("Click 'Move to New District' to move to " + newPlace + ".")
-                        messages.push("Click 'Stay in Current District' to stay in " + oldPlace + ".")
-                        messages.push("Click 'X' or press ESC to cancel this operation.")
-                        vm.dialog.show({
-                            title:"Bushfire's district was changed",
-                            messages:messages,
-                            buttons:[[true,"Move to New District"],[false,"Stay in Current District"]],
-                            callback(option) {
-                                if (!option) {
-                                    delete spatialData["region_id"]
-                                    delete spatialData["district_id"]
-                                }
-                                console.log( JSON.stringify(spatialData ) )
-                                callback(spatialData)
-                            }
-			            })
-                    } else {
-                        console.log( JSON.stringify(spatialData ) )
-                        callback(spatialData)
-                    }
-                } else {
-                    console.log( JSON.stringify(spatialData ) )
-                    callback(spatialData)
-                }
+                console.log( JSON.stringify(spatialData ) )
+                callback(spatialData)
             }
         }
 
@@ -839,46 +811,49 @@
             }
             getFirePosition(0)
 
-            $.ajax({
-                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:dpaw_regions&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
-                dataType:"json",
-                success: function (response, stat, xhr) {
-                    if (response.totalFeatures === 0) {
-                        spatialData["region"] = null
-                    } else {
-                        spatialData["region"] = response.features[0].properties["region"]
+            if (processingJobs.indexOf("region") >= 0) {
+                $.ajax({
+                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:dpaw_regions&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
+                    dataType:"json",
+                    success: function (response, stat, xhr) {
+                        if (response.totalFeatures === 0) {
+                            spatialData["region"] = null
+                        } else {
+                            spatialData["region"] = response.features[0].properties["region"]
+                        }
+                        processingJobs.splice(processingJobs.indexOf("region"),1)
+                        callbackWrapper(spatialData)
+                    },
+                    error: function (xhr,status,message) {
+                        alert(status + " : " + message)
+                    },
+                    xhrFields: {
+                        withCredentials: true
                     }
-                    processingJobs.splice(processingJobs.indexOf("region"),1)
-                    callbackWrapper(spatialData)
-                },
-                error: function (xhr,status,message) {
-                    alert(status + " : " + message)
-                },
-                xhrFields: {
-                    withCredentials: true
-                }
-            })
+                })
+            }
 
-            $.ajax({
-                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=dpaw:pw_districts_fssvers&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
-                dataType:"json",
-                success: function (response, stat, xhr) {
-                    if (response.totalFeatures === 0) {
-                        spatialData["districts"] = null
-                    } else {
-                        spatialData["district"] = response.features[0].properties["district"]
+            if (processingJobs.indexOf("district") >= 0) {
+                $.ajax({
+                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=dpaw:pw_districts_fssvers&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
+                    dataType:"json",
+                    success: function (response, stat, xhr) {
+                        if (response.totalFeatures === 0) {
+                            spatialData["districts"] = null
+                        } else {
+                            spatialData["district"] = response.features[0].properties["district"]
+                        }
+                        processingJobs.splice(processingJobs.indexOf("district"),1)
+                        callbackWrapper(spatialData)
+                    },
+                    error: function (xhr,status,message) {
+                        alert(status + " : " + message)
+                    },
+                    xhrFields: {
+                        withCredentials: true
                     }
-                    processingJobs.splice(processingJobs.indexOf("district"),1)
-                    callbackWrapper(spatialData)
-                },
-                error: function (xhr,status,message) {
-                    alert(status + " : " + message)
-                },
-                xhrFields: {
-                    withCredentials: true
-                }
-            })
-
+                })
+            }
         }
       },
       saveFeature:function(feat) {
@@ -1161,7 +1136,7 @@
 
         feature.set('status',this._reportStatus[feature.get('report_status') || 99999],true)
 
-        feature.set('label',feature.get('name'),true)
+        feature.set('label',feature.get('fire_number'),true)
 
         feature.set('toolName','Bfrs Origin Point',true)
         feature.set('tint',feature.get('status'),true)
@@ -1202,7 +1177,6 @@
 
             feature = vm.map.cloneFeature(feature,false)
             //remove properties injected by sss
-            $.each(['toolName','tint','originalTint','fillColour','colour','status','label','measurement'],function(index,p) {feature.unset(p,true)})
             feature.setGeometry((geometries.length > 1)?geometries[1]:((geometries.length === 1)?((geometries[0] instanceof ol.geom.MultiPolygon)?geometries[0]:new ol.geom.MultiPolygon()):new ol.geom.MultiPolygon()))
             feature.setId(++id)
             downloadFeatures.push(feature)
@@ -1674,7 +1648,7 @@
                 if (vm.whoami["bushfire"]["regions"]) {
                     vm.region = vm.whoami["bushfire"]["profile"]["region_id"] || ""
                     vm.district = vm.whoami["bushfire"]["profile"]["district_id"] || ""
-                    vm._bfrsStatus.phaseBegin("load_bushfires",20,"Load bushfires",true,true)
+                    vm._bfrsStatus.phaseBegin("load_bushfires",20,"Load bushfires",false,true)
                     vm.updateCQLFilter('district',0)
                     vm.bfrsLayer.initialLoad = true
                 }
@@ -1702,7 +1676,7 @@
                 if (vm.whoami["bushfire"]["profile"]) {
                     vm.region = vm.whoami["bushfire"]["profile"]["region_id"] || ""
                     vm.district = vm.whoami["bushfire"]["profile"]["district_id"] || ""
-                    vm._bfrsStatus.phaseBegin("load_bushfires",20,"Load bushfires",true,true)
+                    vm._bfrsStatus.phaseBegin("load_bushfires",20,"Load bushfires",false,true)
                     vm.updateCQLFilter('district',0)
                     vm.bfrsLayer.initialLoad = true
                 }
@@ -2066,7 +2040,7 @@
         name: 'Bush Fire Report',
         id: vm.env.bfrsLayer,
         getFeatureInfo:function (f) {
-            return {name:f.get("name"), img:map.getBlob(f, ['icon', 'tint']), comments:"TBD"}
+            return {name:f.get("fire_number"), img:map.getBlob(f, ['icon', 'tint']), comments:f.get('name')}
         },
         initialLoad:false,
         refresh: 60,
