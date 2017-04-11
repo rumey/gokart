@@ -1513,7 +1513,10 @@
         }
         if (!vm._updateCQLFilterFunc) {
             vm._updateCQLFilterFunc = function(updateType){
-                if (!vm.bfrsMapLayer) {return}
+                if (!vm.bfrsMapLayer) {
+                    vm._updateCQLFilter.call({wait:100},updateType)
+                    return
+                }
                 var bushfireFilter = ''
                 // filter by specific bushfires if "Show selected only" is enabled
                 if ((vm.selectedBushfires.length > 0) && (vm.selectedOnly)) {
