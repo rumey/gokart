@@ -432,14 +432,10 @@
       },
       editUrl:function(feat) {
         var status = feat.get('report_status')
-        if ([1,2].indexOf(status) >= 0) {
+        if (status <= 2) {
             return this.env.bfrsService + "/bfrs/initial/" + feat.get('id') + "/"
-        } else if ([3,4].indexOf(status) >= 0) {
-            return this.env.bfrsService + "/bfrs/final/" + feat.get('id') + "/"
-        } else if ([5,6].indexOf(status) >= 0) {
-            return this.env.bfrsService + "/bfrs/review/" + feat.get('id') + "/"
         } else {
-            return null
+            return this.env.bfrsService + "/bfrs/final/" + feat.get('id') + "/"
         }
       },
       saveUrl:function(feat) {
