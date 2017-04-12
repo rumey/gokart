@@ -258,7 +258,7 @@
         return this.extentFeatures.length + '/' + this.allFeatures.getLength()
       },
       bfrsLayer: function() {
-        console.log(this.env.bfrsLayer)
+        //console.log(this.env.bfrsLayer)
         return this.$root.catalogue.getLayer(this.env.bfrsLayer)
       },
       bfrsMapLayer: function() {
@@ -617,7 +617,7 @@
         if (!fireBoundary && !originPoint) {
             spatialData["tenure_area"] = null
             spatialData["tenure_origin_point"] = null
-            console.log( JSON.stringify(spatialData ) )
+            //console.log( JSON.stringify(spatialData ) )
             callback(spatialData)
             return
         }
@@ -663,7 +663,7 @@
                     }
                 }
 
-                console.log( JSON.stringify(spatialData ) )
+                //console.log( JSON.stringify(spatialData ) )
                 callback(spatialData)
             }
         }
@@ -2044,6 +2044,7 @@
         },
         initialLoad:false,
         refresh: 60,
+        /*
         getUpdatedTime:function(features) {
             var updatedTime = null
             $.each(features,function(index,f){
@@ -2058,6 +2059,7 @@
             })
             return updatedTime
         },
+        */
         onerror:function(status,message) {
             vm._bfrsStatus.phaseFailed("load_bushfires",status + " : " + message)
         },
