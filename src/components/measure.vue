@@ -78,24 +78,26 @@
             var vm = this
             var geom = null
             this.features.forEach(function(feature) {
-                vm.measuring(feature,true,false,false,"changeUnit") 
+                vm.measuring(feature,null,true,false,false,"changeUnit") 
             })
 
             $.each(vm._measureLayers,function(index,layer){
                 layer[1].forEach(function(feature) {
-                    vm.measuring(feature,true,false,false,"changeUnit") 
+                    var tool = vm.annotations.getTool(feature.get('toolName'))
+                    vm.measuring(feature,tool?too.getMeasureGeometry:null,true,false,false,"changeUnit") 
                 })
             })
         },
         areaUnit:function(newValue,oldValue) {
             var vm = this
             this.features.forEach(function(feature) {
-                vm.measuring(feature,false,true,false,"changeUnit") 
+                vm.measuring(feature,null,false,true,false,"changeUnit") 
             })
 
             $.each(vm._measureLayers,function(index,layer){
                 layer[1].forEach(function(feature){
-                    vm.measuring(feature,false,true,false,"changeUnit") 
+                    var tool = vm.annotations.getTool(feature.get('toolName'))
+                    vm.measuring(feature,tool?tool.getMeasureGeometry:null,false,true,false,"changeUnit") 
                 })
             })
         },
@@ -138,7 +140,7 @@
       //layer can be layer id, layer setting
       register:function(layer,features,filter) {
         this._measureLayers = this._measureLayers || []
-        this._measureLayers.push([layer["id"] || layer,features || null, filter||null,false,{}])
+        this._measureLayers.push([layer["id"] || layer,features || null, filter||null,{}])
       },
       //layer can be layerid, layer settings, and memeber of this._measureLayers
       enableLayerMeasurement:function(layer,enable) {
@@ -147,40 +149,36 @@
         if (!layer) return
         if(enable) {
             //enable
-            if (!layer[3]) {
-                //not initialized, 
-                //register the add /remove listener for features
-                layer[4]["features_remove"] = layer[4]["features_remove"] || layer[1].on("remove",function(ev){
-                    var feature = ev.element
-                    if (feature.tooltip) {
-                        vm.removeTooltip(feature)
-                    }
-                })
+            //register the add /remove listener for features
+            layer[3]["features_remove"] = layer[3]["features_remove"] || layer[1].on("remove",function(ev){
+                var feature = ev.element
+                if (feature.tooltip) {
+                    vm.removeTooltip(feature)
+                }
+            })
 
-                layer[4]["features_add"] = layer[4]["features_add"] || layer[1].on("add",function(ev){
-                    if (vm.map.getMapLayer(layer[0])) {
-                        var feature = ev.element
-                        if (!layer[2] || layer[2](feature)) {
-                            var tool = vm.annotations.getTool(feature.get('toolName'))
-                            if (!tool) {return}
-                            if (tool.measureLength || tool.measureArea) {
-                                if (vm.measureFeature) {
-                                    vm.createTooltip(feature,tool.measureLength,tool.measureArea)
-                                    vm.measuring(feature,tool.measureLength,tool.measureArea,false,"show")
-                                }
+            layer[3]["features_add"] = layer[3]["features_add"] || layer[1].on("add",function(ev){
+                if (vm.map.getMapLayer(layer[0])) {
+                    var feature = ev.element
+                    if (!layer[2] || layer[2](feature)) {
+                        var tool = vm.annotations.getTool(feature.get('toolName'))
+                        if (!tool) {return}
+                        if (tool.measureLength || tool.measureArea) {
+                            if (vm.measureFeature) {
+                                vm.createTooltip(feature,tool.getMeasureGeometry,tool.measureLength,tool.measureArea)
+                                vm.measuring(feature,tool.getMeasureGeometry,tool.measureLength,tool.measureArea,false,"show")
                             }
                         }
                     }
-                })
-
-
-                var mapLayer = vm.map.getMapLayer(layer[0])
-                if (mapLayer && !mapLayer._change_opacity) {
-                    mapLayer._change_opacity = mapLayer._change_opacity || mapLayer.on("change:opacity",vm._changeOpacityHandler)
                 }
+            })
 
-                layer[3] = true
+
+            var mapLayer = vm.map.getMapLayer(layer[0])
+            if (mapLayer && !mapLayer._change_opacity) {
+                mapLayer._change_opacity = mapLayer._change_opacity || mapLayer.on("change:opacity",vm._changeOpacityHandler)
             }
+
 
             $.each(layer[1].getArray(),function(index,feature){
                 var tool = vm.annotations.getTool(feature.get('toolName'))
@@ -189,14 +187,24 @@
                 if (feature.tooltip) {
                     vm.showTooltip(feature,true)
                     if (!feature.get("measurement")) {
-                        vm.measuring(feature,tool.measureLength,tool.measureArea,false,"show")
+                        vm.measuring(feature,tool.getMeasureGeometry,tool.measureLength,tool.measureArea,false,"show")
                     }
                 } else {
-                    vm.createTooltip(feature,tool.measureLength,tool.measureArea)
-                    vm.measuring(feature,tool.measureLength,tool.measureArea,false,"show")
+                    vm.createTooltip(feature,tool.getMeasureGeometry,tool.measureLength,tool.measureArea)
+                    vm.measuring(feature,tool.getMeasureGeometry,tool.measureLength,tool.measureArea,false,"show")
                 }
             })
         } else {
+            if (layer[3]["features_remove"]) {
+                layer[1].unByKey(layer[3]["features_remove"])
+                delete layer[3]["features_remove"] 
+            }
+
+            if (layer[3]["features_add"]) {
+                layer[1].unByKey(layer[3]["features_add"])
+                delete layer[3]["features_add"] 
+            }
+
             //disable
             this.showTooltip(layer[1],false)
         }
@@ -217,7 +225,7 @@
                 vm._clearFeatureMeasurement(feat)
             })
         } else {
-            vm._remeasureFeature(feature)
+            vm._clearFeatureMeasurement(feature)
         }
       },
       remeasureFeature:function(feature) {
@@ -229,8 +237,8 @@
 
             var tool = vm.annotations.getTool(feat.get('toolName'))
             if (!tool) {return}
-            vm.createTooltip(feat,tool.measureLength,tool.measureArea)
-            vm.measuring(feat,tool.measureLength,tool.measureArea,false,"show")
+            vm.createTooltip(feat,tool.getMeasureGeometry,tool.measureLength,tool.measureArea)
+            vm.measuring(feat,tool.getMeasureGeometry,tool.measureLength,tool.measureArea,false,"show")
         }
         if (feature instanceof ol.Collection) {
             feature.forEach(function(feat) {
@@ -277,16 +285,16 @@
             // set feature
             vm.drawingFeature = evt.feature
 
-            vm.createTooltip(vm.drawingFeature,measureLength,measureArea,measureBearing)
+            vm.createTooltip(vm.drawingFeature,null,measureLength,measureArea,measureBearing)
 
             vm.geometryChangeHandler = vm.drawingFeature.getGeometry().on('change', function(feature,measureLength,measureArea,measureBearing){
                 return function(evg) {
-                    vm.measuring(feature,measureLength,measureArea,measureBearing,"drawing")
+                    vm.measuring(feature,null,measureLength,measureArea,measureBearing,"drawing")
                 }
             }(vm.drawingFeature,measureLength,measureArea,measureBearing))
         }
       },
-      measuring: function(feature,measureLength,measureArea,measureBearing,mode,indexes) {
+      measuring: function(feature,getMeasureGeometry,measureLength,measureArea,measureBearing,mode,indexes) {
         var vm = this
         this._measure = this._measure || function(feature,geom,tooltipElement,tooltip,measurement,measureLength,measureArea,measureBearing,mode) {
             if (!tooltipElement) {
@@ -405,7 +413,16 @@
             }
         } else {
             if (vm.measureFeature || (feature.get('measurement') !== undefined && feature.get('measurement') !== null)) {
-                var measurement = this._measure(feature,feature.getGeometry(),feature.tooltipElement,feature.tooltip,feature.get('measurement'),measureLength,measureArea,measureBearing,mode)
+                var measurement = this._measure(
+                    feature,
+                    getMeasureGeometry?getMeasureGeometry.call(feature):feature.getGeometry(),
+                    feature.tooltipElement,
+                    feature.tooltip,
+                    feature.get('measurement'),
+                    measureLength,
+                    measureArea,
+                    measureBearing,mode
+                )
                 if (measurement && measurement !== feature.get('measurement')) {
                     feature.set('measurement',measurement,true)
                 }
@@ -512,7 +529,7 @@
             }
         }
       },
-      createTooltip: function (feature,measureLength,measureArea,measureBearing,indexes) {
+      createTooltip: function (feature,getMeasureGeometry,measureLength,measureArea,measureBearing,indexes) {
         var vm = this
 
         this._createTooltipElement = this._createTooltipElement || function(geom,measureLength,measureArea,measureBearing) {
@@ -585,7 +602,7 @@
         if (feature.tooltipElement === undefined || feature.tooltipElement === null) {
             //console.log("Create measure tooltip element")
             if (vm.measureFeature) {
-                tooltipElement = this._createTooltipElement(feature.getGeometry(),measureLength,measureArea,measureBearing)
+                tooltipElement = this._createTooltipElement(getMeasureGeometry?getMeasureGeometry.call(feature):feature.getGeometry(),measureLength,measureArea,measureBearing)
                 if (tooltipElement && (!Array.isArray(tooltipElement) || tooltipElement.length > 0)) {
                     feature['tooltipElement'] = tooltipElement
                 }
@@ -964,7 +981,7 @@
         feature.unset('measurement',true)
         if (feature.tooltip) {
             if (vm.measureFeature) {
-                vm.measuring(feature,tool.measureLength,tool.measureArea,false,"show")
+                vm.measuring(feature,tool.getMeasureGeometry,tool.measureLength,tool.measureArea,false,"show")
                 //console.log("Recalculated")
             } else {
                 feature.unset("measurement",true)
@@ -987,8 +1004,8 @@
         tool = tool?vm.annotations.getTool(tool):null
         if (!tool) {return}
         
-        vm.createTooltip(ev.feature,tool.measureLength,tool.measureArea,false,ev.indexes)
-        vm.measuring(ev.feature,tool.measureLength,tool.measureArea,false,"show",ev.indexes) 
+        vm.createTooltip(ev.feature,tool.getMeasureGeometry,tool.measureLength,tool.measureArea,false,ev.indexes)
+        vm.measuring(ev.feature,tool.getMeasureGeometry,tool.measureLength,tool.measureArea,false,"show",ev.indexes) 
       }
       var deleteFeatureGeometryListener = function(ev) {
         var tool = ev.feature.get('toolName')

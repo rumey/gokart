@@ -1551,18 +1551,18 @@
             }
         })
       },
-      zoomToSelected: function (minScale) {
+      zoomToSelected: function (minScale,getExtent) {
         var selectedFeatures = this.annotations.selectedFeatures
         if (selectedFeatures.getLength() === 0) {
             return
         } else {
             var extent = null
             if (selectedFeatures.getLength() === 1) {
-                extent = selectedFeatures.item(0).getGeometry().getExtent()
+                extent = getExtent?getExtent(selectedFeatures.item(0)):selectedFeatures.item(0).getGeometry().getExtent()
                 extent = ol.extent.isEmpty(extent)?null:extent
             } else {
                 selectedFeatures.forEach(function (f) {
-                    if (!ol.extent.isEmpty(f.getGeometry().getExtent())) {
+                    if (!ol.extent.isEmpty(getExtent?getExtent(f):f.getGeometry().getExtent())) {
                       extent = extent || ol.extent.createEmpty()
                       ol.extent.extend(extent, f.getGeometry().getExtent())
                     }
