@@ -424,7 +424,7 @@
         return this.revision && bushfire.get('status') !== "new" && this.isEditable(bushfire) && bushfire.get('tint') !== "modified"
       },
       canUpload:function(bushfire) {
-        return this.revision && this.isModifiable(bushfire) && bushfire.get('report_status') >= 3
+        return this.revision && this.isModifiable(bushfire) && (bushfire.get('report_status') !== 2 || bushfire.get('status') === 'new')
       },
       canReset:function(bushfire) {
         return this.revision && bushfire.get('status') !== "new" // && this.isEditable(bushfire) && bushfire.get('tint') === "modified"
@@ -463,13 +463,27 @@
       },
       validateBushfire:function(feat,validateType,geom) {
         var geometries = feat.getGeometry().getGeometries()
-        var originPoint = (geometries.length > 0 && geometries[0] instanceof ol.geom.Point)?geometries[0]:null
+        var originPoint = geometries.find(function(g) {return g instanceof ol.geom.Point}) || null
         if (!originPoint) {
             alert("No origin point placed.")
             return true
         }
-        var indexes = (geometries.length > 1)?[1]:((geometries.length ===  1 && geometries[0] instanceof ol.geom.MultiPolygon)?[0]:null)
-        var fireBoundary = (indexes)?geometries[indexes[0]]:null
+        var indexes = null
+        var fireboundary = null
+        if (this.isFireboundaryDrawable(feat)) {
+            indexes = geometries.findIndex(function(g) {return g instanceof ol.geom.MultiPolygon})
+            if (indexes >= 0) {
+                fireboundary = geometries[indexes]
+                indexes = [indexes]
+            } else {
+                fireboundary = null
+                indexes = null
+            }
+        } else {
+            indexes = null
+            fireboundary = feat.get('fire_boundary') || null
+        }
+
         var invalid = false
         var polygon = null
         var polygonIndex = -1
@@ -479,82 +493,82 @@
         if (validateType === "moveOriginPoint" ||
             validateType === "deleteOriginPoint"
         ) {
-            fireBoundary = fireBoundary?fireBoundary.getCoordinates():null
+            fireboundary = fireboundary?fireboundary.getCoordinates():null
             convertedToTurf = false
         } else if (validateType === "deleteFireBoundary") {
-            polygonIndex = (fireBoundary)?fireBoundary.getPolygons().findIndex(function(o) {return o === geom}):-1
-            fireBoundary = fireBoundary?fireBoundary.getCoordinates():null
+            polygonIndex = (fireboundary)?fireboundary.getPolygons().findIndex(function(o) {return o === geom}):-1
+            fireboundary = fireboundary?fireboundary.getCoordinates():null
             convertedToTurf = false
         } else if (validateType === "addOriginPoint") {
             originPoint = geom
-            fireBoundary = fireBoundary?fireBoundary.getCoordinates():null
+            fireboundary = fireboundary?fireboundary.getCoordinates():null
             convertedToTurf = false
         } else if (geom) {
             //validate whether polygon is intersect with current existed polygons
-            polygonIndex = (fireBoundary)?fireBoundary.getPolygons().findIndex(function(o) {return o === geom}):-1
+            polygonIndex = (fireboundary)?fireboundary.getPolygons().findIndex(function(o) {return o === geom}):-1
             polygon = turf.polygon(geom.getCoordinates())
             if (turf.kinks(polygon).features.length > 0) {
                 alert("The polygon is self intersection, please fix it.")
-                if (polygonIndex !== -1) {
+                if (indexes && polygonIndex !== -1) {
                     indexes.push(polygonIndex)
                 } else {
                     indexes = null
                 }
                 invalid = true
-            } else if (fireBoundary) {
-                fireBoundary = fireBoundary.getCoordinates()
-                for(index = 0;index < fireBoundary.length;index++) {
-                    fireBoundary[index] = turf.polygon(fireBoundary[index])
+            } else if (fireboundary) {
+                fireboundary = fireboundary.getCoordinates()
+                for(index = 0;index < fireboundary.length;index++) {
+                    fireboundary[index] = turf.polygon(fireboundary[index])
                     if (index === polygonIndex) {return}
                     try {
-                        if (turf.intersect(polygon,fireBoundary[index])) {
-                            indexes.push(index)
+                        if (turf.intersect(polygon,fireboundary[index])) {
+                            if (indexes) indexes.push(index)
                             alert("Some fire boundaries are intersect, please fix it.")
                             invalid = true
                             return false
                         }
                     } catch(ex) {
-                        if (turf.kinks(fireBoundary[index]).features.length > 0) {
+                        if (turf.kinks(fireboundary[index]).features.length > 0) {
                             alert("Some fire boundary are self intersection, please fix it.")
                         } else {
                             alert("Some fire boundary are invalid, please fix it.")
                         }
-                        indexes.push(index)
+                        if (indexes) indexes.push(index)
                         invalid = true
                     }
                 }
             }
-        } else if (fireBoundary && fireBoundary.getPolygons().length === 1) {
-            fireBoundary = fireBoundary.getCoordinates()
-            fireBoundary[0] = turf.polygon(fireBoundary[0])
-            if (turf.kinks(fireBoundary[0]).features.length > 0) {
+        } else if (fireboundary && fireboundary.getPolygons().length === 1) {
+            fireboundary = fireboundary.getCoordinates()
+            fireboundary[0] = turf.polygon(fireboundary[0])
+            if (turf.kinks(fireboundary[0]).features.length > 0) {
                 alert("The polygon is self intersection, please fix it.")
-                indexes.push(0)
+                if (indexes) indexes.push(0)
                 invalid = true
             }
-        } else if (fireBoundary && fireBoundary.getPolygons().length > 1) {
-            fireBoundary = fireBoundary.getCoordinates()
+        } else if (fireboundary && fireboundary.getPolygons().length > 1) {
+            fireboundary = fireboundary.getCoordinates()
             //validate whether any existed polygons are intersect
-            for(index = 0;index < fireBoundary.length;index++) {
-                if (index === 0) {fireBoundary[index] = turf.polygon(fireBoundary[index])}
-                for(index2 = index + 1;index2 < fireBoundary.length;index2++) {
-                    if (index === 0) {fireBoundary[index2] = turf.polygon(fireBoundary[index2])}
+            for(index = 0;index < fireboundary.length;index++) {
+                if (index === 0) {fireboundary[index] = turf.polygon(fireboundary[index])}
+                for(index2 = index + 1;index2 < fireboundary.length;index2++) {
+                    if (index === 0) {fireboundary[index2] = turf.polygon(fireboundary[index2])}
                     try {
-                        if (turf.intersect(fireBoundary[index],fireBoundary[index2])) {
+                        if (turf.intersect(fireboundary[index],fireboundary[index2])) {
                             alert("Some fire boundaries are intersect, please fix it.")
-                            indexes.push(index)
+                            if (indexes) indexes.push(index)
                             invalid = true
                             break
                         }
                     } catch(ex) {
-                        if (index === 0 && index2 === 1 && turf.kinks(fireBoundary[index]).features.length > 0) {
-                            indexes.push(index)
+                        if (index === 0 && index2 === 1 && turf.kinks(fireboundary[index]).features.length > 0) {
+                            if (indexes) indexes.push(index)
                             alert("Some fire boundary are self intersection, please fix it.")
-                        } else if (index === 0 && turf.kinks(fireBoundary[index2]).features.length > 0) {
-                            indexes.push(index2)
+                        } else if (index === 0 && turf.kinks(fireboundary[index2]).features.length > 0) {
+                            if (indexes) indexes.push(index2)
                             alert("Some fire boundary are self intersection, please fix it.")
                         } else {
-                            indexes.push(index)
+                            if (indexes) indexes.push(index)
                             alert("Some fire boundary are invalid, please fix it.")
                         }
                         invalid = true
@@ -569,25 +583,27 @@
         if (!invalid && originPoint) {
             inFireBoundary = null
             originPoint = turf.point(originPoint.getCoordinates())
-            if (fireBoundary && fireBoundary.length > 0) {
+            //checking whether origin point is in a existing fireboundary
+            if (fireboundary && fireboundary.length > 0) {
                 inFireBoundary = false
-                for(index = 0;index < fireBoundary.length;index++) {
+                for(index = 0;index < fireboundary.length;index++) {
                     if (!convertedToTurf) {
-                        fireBoundary[index] = turf.polygon(fireBoundary[index])
+                        fireboundary[index] = turf.polygon(fireboundary[index])
                     }
-                    if (turf.inside(originPoint,fireBoundary[index])) {
+                    if (turf.inside(originPoint,fireboundary[index])) {
                         inFireBoundary = true
                         break;
                     }
                 }
             }
+            //checking whether origin point is in new fireboundary
             if (inFireBoundary !== true && polygon && validateType !== "deleteFireBoundary" && polygonIndex === -1) {
                 inFireBoundary = false
-                //the checking polygon is not in the fireboudary now, check it too.
                 if (turf.inside(originPoint,polygon)) {
                     inFireBoundary = true
                 }
             }
+
             if (inFireBoundary === false) {
                 invalid = true
                 alert("Original point should be inside a fire boundary.");
@@ -623,44 +639,45 @@
         var originPoint = geometries.find(function(g){return g instanceof ol.geom.Point}) || null
         originPoint = originPoint?originPoint.getCoordinates():null
 
-        var fireBoundary = feat.get('fire_boundary') || geometries.find(function(g) {return g instanceof ol.geom.MultiPolygon}) || null
-        var area = fireBoundary?this.measure.convertArea(this.measure.getTotalArea(fireBoundary),"ha"):null
-        //var length = fireBoundary?this.measure.getTotalLength(fireBoundary):null
-
-        feat.set("area",area,true)
-
-
-        var bbox = (fireBoundary && fireBoundary.getPolygons().length > 0)?fireBoundary.getExtent():null
-        fireBoundary = (fireBoundary && fireBoundary.getPolygons().length > 0)?fireBoundary.getCoordinates():null
+        var fireboundary = null
+        var bbox = null
+        var area = 0
 
         var spatialData = {}
-        if (modifyType & 1 === 1) {
+        if ((modifyType & 1) === 1) {
             spatialData["origin_point"] = originPoint
             spatialData["tenure_origin_point"]  = null
             spatialData["fire_position"]  = null
         }
 
-        if (modifyType & 2 === 2) {
-            spatialData["fire_boundary"] = fireBoundary
+        if ((modifyType & 2) === 2) {
+            fireboundary = feat.get('fire_boundary') || geometries.find(function(g) {return g instanceof ol.geom.MultiPolygon}) || null
+            bbox = (fireboundary && fireboundary.getPolygons().length > 0)?fireboundary.getExtent():null
+            area = fireboundary?this.measure.convertArea(this.measure.getTotalArea(fireboundary),"ha"):null
+            fireboundary = (fireboundary && fireboundary.getPolygons().length > 0)?fireboundary.getCoordinates():null
+
+            feat.set("area",area,true)
+
+            spatialData["fire_boundary"] = fireboundary
             spatialData["area"]  = area
-            spatialData["tenure_area"]  = tenure_area
+            spatialData["tenure_area"]  = null
         }
 
-        var processingJobs = {}
-        if (fireBoundary && modifyType & 2 === 2) {
-            processingJobs["tenure_area"] = false
+        var processingJobs = []
+        if (fireboundary && (modifyType & 2) === 2) {
+            processingJobs.push("tenure_area")
         }
-        if (originPoint && modifyType & 1 === 1) {
-            processingJobs["tenure_origin_point"] = false
-            processingJobs["fire_position"] = false
+        if (originPoint && (modifyType & 1) === 1) {
+            processingJobs.push("tenure_origin_point")
+            processingJobs.push("fire_position")
             if (feat.get('status') === "initial") {
-                processingJobs["region"] = false
-                processingJobs.push["district"] = false
+                processingJobs.push("region")
+                processingJobs.push("district")
             }
         }
 
         var callbackWrapper = function(spatialData) {
-            if (processingJobs.) {
+            if (processingJobs.length === 0) {
                 if ("region" in spatialData && "district" in spatialData) {
                     var region = null
                     var district = null
@@ -674,6 +691,9 @@
                         region = vm.whoami.bushfire.regions.find(function(o) {return o.region.toLowerCase() === name})
                         if (region) {
                             spatialData["region_id"] = region.region_id
+                        } else {
+                            alert("Region '" + name + "' is not found")
+                            return
                         }
                     }
 
@@ -684,16 +704,19 @@
                         district = region.districts.find(function(o) {return o.district.toLowerCase() === name})
                         if (district) {
                             spatialData["district_id"] = district.id
+                        } else {
+                            alert("District '" + name + "' is not found in region '" + region.region + "'.")
+                            return
                         }
                     }
                 }
 
-                //console.log( JSON.stringify(spatialData ) )
+                console.log( JSON.stringify(spatialData ) )
                 callback(spatialData)
             }
         }
 
-        if ("tenure_area" in processingJobs) {
+        if (processingJobs.indexOf("tenure_area") >= 0) {
             $.ajax({
                 url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:dpaw_tenure&outputFormat=json&bbox=" + bbox[1] + "," + bbox[0] + "," + bbox[3] + "," + bbox[2],
                 dataType:"json",
@@ -708,17 +731,17 @@
                         var intersectPolygons = []
                         var failed = false
                         var tenurePolygon = null
-                        var fireBoundaryPolygon = []
+                        var fireboundaryPolygon = []
                         $.each(response.features,function(index,tenure){
                             intersectPolygons.length = 0
                             $.each(tenure.geometry.coordinates,function(index2,p){
                                 tenurePolygon = turf.polygon(p)
-                                $.each(fireBoundary,function(index3,f){
+                                $.each(fireboundary,function(index3,f){
                                     if (index === 0 && index2 === 0) {
-                                        fireBoundaryPolygon.push(turf.polygon(f))
+                                        fireboundaryPolygon.push(turf.polygon(f))
                                     }
                                     try{
-                                        intersect = turf.intersect(fireBoundaryPolygon[index3],tenurePolygon)
+                                        intersect = turf.intersect(fireboundaryPolygon[index3],tenurePolygon)
                                     } catch(ex) {
                                         alert("Calculate the area of the fire boundary in tenure failed." + ex)
                                         failed = true
@@ -752,7 +775,7 @@
 
                         if (failed) {return}
                     }
-                    processingJobs["tenure_area"] = true
+                    processingJobs.splice(processingJobs.indexOf("tenure_area"),1)
                     callbackWrapper(spatialData)
                 },
                 error: function (xhr,status,message) {
@@ -763,7 +786,7 @@
                 }
             })
         }
-        if ("tenure_origin_point" in processingJobs) {
+        if (processingJobs.indexOf("tenure_origin_point") >= 0) {
             $.ajax({
                 url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:dpaw_tenure&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
                 dataType:"json",
@@ -777,7 +800,7 @@
                             category: response.features[0].properties["category"]
                         }
                     }
-                    processingJobs["tenure_origin_point"] = true
+                    processingJobs.splice(processingJobs.indexOf("tenure_origin_point"),1)
                     callbackWrapper(spatialData)
                 },
                 error: function (xhr,status,message) {
@@ -789,7 +812,7 @@
             })
         }
 
-        if ("fire_position" in processingJobs)
+        if (processingJobs.indexOf("fire_position") >= 0) {
             var buffers = [50,100,150,200,300,400,1000,2000,100000]
             var getFirePosition = function(index) {
                 var buffered = turf.bbox(turf.buffer(turf.point(originPoint),buffers[index],"kilometers"))
@@ -824,7 +847,7 @@
                                 spatialData["fire_position"] = nearestDistance + " " + vm.measure.getDirection(bearing,16) + " from " + nearestTown.properties["name"]
                             }
     
-                            processingJobs["fire_position"] = true
+                            processingJobs.splice(processingJobs.indexOf("fire_position"),1)
                             callbackWrapper(spatialData)
     
                         }
@@ -850,7 +873,7 @@
                     } else {
                         spatialData["region"] = response.features[0].properties["region"]
                     }
-                    processingJobs["region"] = true
+                    processingJobs.splice(processingJobs.indexOf("region"),1)
                     callbackWrapper(spatialData)
                 },
                 error: function (xhr,status,message) {
@@ -868,11 +891,11 @@
                 dataType:"json",
                 success: function (response, stat, xhr) {
                     if (response.totalFeatures === 0) {
-                        spatialData["districts"] = null
+                        spatialData["district"] = null
                     } else {
                         spatialData["district"] = response.features[0].properties["district"]
                     }
-                    processingJobs["district"] = true
+                    processingJobs.splice(processingJobs.indexOf("district"),1)
                     callbackWrapper(spatialData)
                 },
                 error: function (xhr,status,message) {
@@ -955,6 +978,7 @@
             })
         }
         feat.setStyle(this.bushfireStyleFunc)
+        feat.set('modifyType',3,true)
 
         this.bfrsMapLayer.getSource().addFeature(feat)
         var insertIndex = null
@@ -1091,14 +1115,27 @@
             $("#bfrs-list").height(this.screenHeight - this.leftPanelHeadHeight - 10 - $("#bfrs-list-controller-container").height())
         }
       },
+      //modifyType(bit value): 
+      //    first bit:  origin point modified; 
+      //    second bit: fire boundary modified.
+      //    -1: feature is drawed ,can't figure out which part of spatial data was modified  
       postModified:function(bushfires,modifyType) {
         var vm = this
         var sortRequired = false
-        this._bushfirePostModified = this._bushfirePostModified || function(bushfire) {
+        this._bushfirePostModified = this._bushfirePostModified || function(bushfire,modifyType) {
             if (bushfire.get('tint') !== "modified" && (bushfire.get('status') !== "new" || bushfire.get("saved"))) {
                 bushfire.set('tint',"modified",true)
                 bushfire.set('fillColour',vm.tints[bushfire.get('tint') + ".fillColour"])
                 bushfire.set('colour',vm.tints[bushfire.get('tint') + ".colour"])
+            }
+            if (modifyType === -1) {
+                if (vm.isFireboundaryDrawable(bushfire)) {
+                    //both fireboundary and point can be changed, don't which part of spatial data was changed,
+                    modifyType = 3
+                } else {
+                    //only point can be changed.
+                    modifyType = 1
+                }
             }
             bushfire.set('modifyType',(bushfire.get('modifyType') || 0) | modifyType,true)
             var index = (vm.extentFeatures)?vm.extentFeatures.findIndex(function(f) { return f === bushfire}):-1
@@ -1120,10 +1157,10 @@
         }
         if (Array.isArray(bushfires)) {
             $.each(bushfires,function(index,bushfire){
-                vm._bushfirePostModified(bushfire)
+                vm._bushfirePostModified(bushfire,modifyType)
             })
         } else {
-            vm._bushfirePostModified(bushfires)
+            vm._bushfirePostModified(bushfires,modifyType)
         }
         if (sortRequired) {
             vm.extentFeatures.sort(vm.featureOrder)
@@ -1823,7 +1860,7 @@
                 return 
               }
           }
-          vm.postModified(ev.features.getArray(),3)
+          vm.postModified(ev.features.getArray(),-1)
       })    
 
       vm.ui.originPointDraw = vm.annotations.pointDrawFactory({
