@@ -1508,7 +1508,6 @@
                     }
                 }) 
                 //add non existing bushfires
-                vm.selectedFeatures.clear()
                 $.each(features,function(index,feature){
                     if (feature.get('fire_number') === undefined) {
                         //non existed bushfire report
@@ -1517,7 +1516,9 @@
                         }
                         vm.newFeature(feature)
                         vm.measure.remeasureFeature(feature)
-                        vm.selectedFeatures.push(feature)
+                        if (vm.selectedFeatures.getLength() < 10) {
+                            vm.selectedFeatures.push(feature)
+                        }
                     }
                 }) 
                 if (vm.selectedFeatures.getLength() > 0) {
