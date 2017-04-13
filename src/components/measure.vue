@@ -713,7 +713,7 @@
         return area
       },
       convertArea:function(area,unit) {
-        unit = unit || "km"
+        unit = unit || "km2"
         if (unit === "ha") {
             return area / 10000
         } else if(unit === "km2") {
@@ -813,27 +813,37 @@
                 output = "m"
             }
         }
-        output = Math.round(this.convertLength(length,unit) * 100) / 100 + output
+        length = this.convertLength(length,unit)
+        if (length < 10) {
+            length = Math.round(length * 100) / 100
+        } else {
+            length = Math.round(length)
+        }
+        output = length + output
         return output
       },
       formatArea : function(area) {
         var output = null
+        var unit = null
         if (this.areaUnit === "ha") {
-            if (area > 1) {
-                
-              // large than 1 hectare
-              output = Math.round(this.convertArea(area,"ha")) + 'ha'
-            } else {
-              //less than 1 hectare
-              output = (Math.round(this.convertArea(area,"ha") * 100) / 100) + 'ha'
-            }
+            unit = "ha"
+            output = "ha"
         } else {
             if (area > 10000) {
-              output = (Math.round(this.convertArea(area,"km2") * 100) / 100) + 'km<sup>2</sup>'
+              unit = "km2"
+              output = 'km<sup>2</sup>'
             } else {
-              output = (Math.round(this.convertArea(area,"m2") * 100) / 100) + 'm<sup>2</sup>'
+              unit = "m2"
+              output = 'm<sup>2</sup>'
             }
         }
+        area = this.convertArea(area,unit)
+        if (area < 10) {
+            area = Math.round(area * 100) / 100
+        } else {
+            area = Math.round(area)
+        }
+        output = area + output
         return output
       },
       featureChanged:function(feature) {
