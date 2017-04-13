@@ -670,7 +670,7 @@
         if (originPoint && (modifyType & 1) === 1) {
             processingJobs.push("tenure_origin_point")
             processingJobs.push("fire_position")
-            if (feat.get('status') === "initial") {
+            if (["new","initial"].indexOf(feat.get('status')) >= 0) {
                 processingJobs.push("region")
                 processingJobs.push("district")
             }
