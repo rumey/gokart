@@ -417,9 +417,6 @@
             return false
         }
       },
-      isAuthorizable:function(bushfire){
-        return this.whoami["bushfire"]["permission"][bushfire.get('status') + ".authorise"] 
-      },
       canEdit:function(bushfire) {
         return this.revision && bushfire.get('status') !== "new" && this.isEditable(bushfire) && bushfire.get('tint') !== "modified"
       },
@@ -438,9 +435,6 @@
       canDelete:function(bushfire) {
         return this.revision && this.isDeletable(bushfire)
       },
-      canAuthorise:function(bushfire) {
-        return this.revision && this.isAuthorizable(bushfire) && bushfire.get('tint') !== "modified"
-      },
       createUrl:function() {
         return this.env.bfrsService + "/bfrs/create/" 
       },
@@ -457,9 +451,6 @@
       },
       deleteUrl:function(feat) {
         return this.env.bfrsService + "/delete/" + feat.get('id')
-      },
-      authoriseUrl:function(feat) {
-        return this.env.bfrsService + "/authorise/" + feat.get('id')
       },
       validateBushfire:function(feat,validateType,geom) {
         var geometries = feat.getGeometry().getGeometries()
@@ -1015,24 +1006,6 @@
                 feat.set("sss_id",feat.getGeometry().getGeometriesArray()[0].getCoordinates(),true)
                 $("#sss_create").val(JSON.stringify(spatialData))
                 $("#bushfire_create").submit()
-            })
-        }
-      },
-      authoriseFeature:function(feat) {
-        if (this.canAuthorise(feat)) {
-            var vm = this
-            $.ajax({
-                url: vm.authoriseUrl(feat),
-                method:"GET",
-                success: function (response, stat, xhr) {
-                    vm.resetFeature(feat)
-                },
-                error: function (xhr,status,message) {
-                    alert(status + " : " + message)
-                },
-                xhrFields: {
-                  withCredentials: true
-                }
             })
         }
       },
@@ -1810,34 +1783,27 @@
           "new.edit":false,
           "new.modify":true,
           "new.delete":true,
-          "new.authorise":false,
           "unknown.edit":false,
+          "unknown.modify":false,
           "unknown.delete":false,
-          "unknown.authorise":false,
           "initial.edit":true,
           "initial.modify":true,
           "initial.delete":false,
-          "initial.authorise":null,
           "submitted.edit":true,
           "submitted.modify":false,
           "submitted.delete":false,
-          "submitted.authorise":false,
           "draft_final.edit":true,
           "draft_final.modify":true,
           "draft_final.delete":false,
-          "draft_final.authorise":null,
           "final_authorised.edit":true,
           "final_authorised.modify":true,
           "final_authorised.delete":false,
-          "final_authorised.authorise":false,
           "draft_review.edit":true,
           "draft_review.modify":true,
           "draft_review.delete":false,
-          "draft_review.authorise":null,
           "reviewed.edit":true,
           "reviewed.modify":true,
           "reviewed.delete":false,
-          "reviewed.authorise":false,
       }
 
       vm.loadRegions()
