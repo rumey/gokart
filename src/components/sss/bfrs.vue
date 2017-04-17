@@ -621,7 +621,8 @@
         if (!this.validateBushfire(feat,"getSpatialData")) {
             return
         }
-        var modifyType = feat.get('modifyType') || 3
+        var modifyType = (feat.get('status') === 'new')?3:(feat.get('modifyType') || 3)
+
 
         var geometries = feat.getGeometry().getGeometriesArray()
         if (feat.get('fire_boundary')) {
