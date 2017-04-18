@@ -8,17 +8,24 @@ function GokartClient(app,module,debug) {
     this.app = (app || "sss").toLowerCase();
     this.serverUrl = window.location.origin + "/" + this.app;
     this.defaultModule = module;
-    this.channelName = "gokart(" + this.serverUrl + ")"
+    this.channelNamePrefix = "gokart(" + this.serverUrl + ")."
     this.timeoutTask = null
     this.gokartWindow = null
 
     window.addEventListener('storage',function(e){
-        if (!e.key.startsWith(vm.channelName)) {
+        if (!e.key.startsWith(vm.channelNamePrefix)) {
             return
         }
+
         var response = JSON.parse(e.newValue)
+        if (e.key !== vm.channelNamePrefix + response["requestMethod"] + "status") {
+            if (vm.debug) console.log(Date() + " : Receive a wrong response from channel " + e.key + ". response = " + e.newValue)
+            return
+        }
+
         response["channel"] = "localStorage"
         if (!response["requestId"]) {
+            if (vm.debug) console.log(Date() + " : RequestId is missing in response. response = " + e.newValue)
             return
         }
         vm._processResponse(response)
@@ -61,11 +68,12 @@ GokartClient.prototype.populateRequest = function(method,data){
         data:data
     }
 }
-GokartClient.prototype.open = function(options,module){
+
+GokartClient.prototype.call = function(method,options,module){
     module = module || this.defaultModule
     var vm = this
 
-    var request = JSON.stringify(vm.populateRequest('open',{module:module,options:options}))
+    var request = JSON.stringify(vm.populateRequest(method,{module:module,options:options}))
     var syncMessageFunc = null
 
     var gokartWindowIsActive = function() {
@@ -101,7 +109,7 @@ GokartClient.prototype.open = function(options,module){
 
     var syncMessageFunc = function() {
         if (vm.debug) console.log(Date() + " : Sent request to " + vm.app + " through localStorage. request = " + request)
-        localStorage.setItem(vm.channelName + ".open",request)
+        localStorage.setItem(vm.channelNamePrefix + method,request)
         vm._clearTimeoutTask()
         if (vm.debug) console.log(Date() + " : Create a timeout task to send request to " + vm.app + " if " + vm.app + " is not opened before. timeout = 2 seconds" )
         vm.timeoutTask = setTimeout(function() {

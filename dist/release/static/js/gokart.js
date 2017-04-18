@@ -37,9 +37,9 @@ var Gokart = (function() {
         document.body.appendChild(this.gokartFrame);
     }
     
-    _Gokart.prototype.open = function(options) {
+    _Gokart.prototype.call = function(method,options) {
         if (this.status === "ready")  {
-            this.gokartWindow.postMessage(JSON.stringify({method:"open",data:{module:this.module,options:options}}),this.url);
+            this.gokartWindow.postMessage(JSON.stringify({method:method,data:{module:this.module,options:options}}),this.url);
         } else {
             alert(this.message);
         }

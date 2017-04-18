@@ -1,23 +1,23 @@
 let GokartListener = function() {
     var vm = this
     this.debug = window.location.search?(window.location.search.toLowerCase().indexOf("debug=true") >= 0):false 
-    this.channelName = "gokart(" + window.location.origin + window.location.pathname + ")"
+    this.channelNamePrefix = "gokart(" + window.location.origin + window.location.pathname + ")."
 
     window.addEventListener('storage',function(e){
-        if (e.key === vm.channelName + ".open") {
+        if (e.key.startsWith(vm.channelNamePrefix)) {
             var request = JSON.parse(e.newValue)
             if (!request["clientId"] || !request["data"]) {
-                if (this.debug) console.log(Date() + " : Request without clientId or request data is received from channel " + vm.channelName + ".open. request = " + e.newValue)
+                if (this.debug) console.log(Date() + " : Request without clientId or request data is received from channel " + e.key + ". request = " + e.newValue)
                 return 
             }
-            if (request["method"] !== "open") {
-                if (this.debug) console.log(Date() + " : Request with invalid method is received from channel " + vm.channelName + ".open. request = " + e.newValue)
+            if (request["method"] !== e.key.substring(vm.channelNamePrefix.length)) {
+                if (this.debug) console.log(Date() + " : Request with invalid method is received from channel " + e.key + ". request = " + e.newValue)
                 return
             }
 
             request["channel"] = "localStorage"
             vm._processRequest(request,function(response){
-                localStorage.setItem(vm.channelName + ".openstatus",response)
+                localStorage.setItem(e.key + "status",response)
             })
         }
     })
@@ -45,10 +45,10 @@ GokartListener.prototype._processRequest = function(request,sentResponse) {
             waitingTime += 1000
         } else if (!(window.gokart['loading'].appStatus.isSucceed())) {
             sentResponse(JSON.stringify(vm.populateResponse(request,"GOKART_FAILED",window.gokart['loading'].appStatus.failedMessages())))
-        } else if (request["method"] === "open") {
+        } else if (request["method"]) {
             if (!window.gokart[request["data"]['module']]) {
                 sentResponse(JSON.stringify(vm.populateResponse(request,"MODULE_NOT_FOUND")))
-            } else if (!window.gokart[request["data"]["module"]]["open"]) {
+            } else if (!window.gokart[request["data"]["module"]][request["method"]]) {
                 sentResponse(JSON.stringify(vm.populateResponse(request,'METHOD_NOT_SUPPORT')))
             } else {
 
@@ -73,7 +73,7 @@ GokartListener.prototype._processRequest = function(request,sentResponse) {
                 }
 
                 try {
-                    window.gokart[request["data"]["module"]].open(request["data"]['options'])
+                    window.gokart[request["data"]["module"]][request["method"]](request["data"]['options'])
                     window.focus();
                     sentResponse(JSON.stringify(vm.populateResponse(request,'OK')))
                 } catch(ex) {
@@ -82,7 +82,7 @@ GokartListener.prototype._processRequest = function(request,sentResponse) {
                 }
             }
         } else {
-            sentResponse(JSON.stringify(vm.populateResponse(request,'UNKNOWN_METHOD')))
+            sentResponse(JSON.stringify(vm.populateResponse(request,'METHOD_IS_MISSING')))
         }
     }
     func()
@@ -91,6 +91,7 @@ GokartListener.prototype.populateResponse = function(request,code,failedReason) 
     var response = {
         clientId:request["clientId"],
         requestId:request["requestId"],
+        requestMethod:request["method"],
         time:Date(),
         data:{
             status:"failed",
@@ -111,8 +112,8 @@ GokartListener.prototype.populateResponse = function(request,code,failedReason) 
     } else if (code === "OK") {
         data["message"] = "Succeed to execute method '" + request["method"] + "', data = " + JSON.stringify(request["data"])
         data["status"] = "succeed"
-    } else if (code === "UNKNOWN_METHOD") {
-        data["message"] = "Rquest method '" + request["method"] + "' is unknown, data = " + JSON.stringify(request["data"])
+    } else if (code === "METHOD_IS_MISSING") {
+        data["message"] = "Rquest method is missing, data = " + JSON.stringify(request["data"])
     } else if (code === "METHOD_FAILED") {
         data["message"] = "Failed to execute method '" + request["method"] + "', data = " + JSON.stringify(request["data"]) + ". Reason = " + failedReason
     }

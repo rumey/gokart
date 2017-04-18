@@ -170,7 +170,7 @@
         region:'',
         district:'',
         tools: [],
-        fields: ['job_code', 'name'],
+        fields: ['fire_number', 'name'],
         drawings:new ol.Collection(),
         allFeatures: new ol.Collection(),
         extentFeatures: [],
@@ -377,21 +377,24 @@
         }
         this.selectedFeatures.clear()
 
+        updateType = updateType?updateType:(options["refresh"]?"query":null)
+
+        if (!updateType && options["bushfireid"] !== null && options["bushfireid"] !== undefined){
+            var bushfire = options["refresh"]?null:this.allFeatures.getArray().find(function(f) {return f.get('id') === options["bushfireid"]})
+            if (bushfire) {
+                this.selectedFeatures.push(bushfire)
+                this.zoomToSelected(10)
+                return
+            } else {
+                updateType = "query"
+            }
+        }
+
         if (updateType) {
             if (options["bushfireid"] !== null && options["bushfireid"] !== undefined){
                 this.selectedBushfires = [options["bushfireid"]]
             }
-            this.updateCQLFilter(updateType,1)
-        } else if (options["bushfireid"] !== null && options["bushfireid"] !== undefined){
-            var bushfire = this.allFeatures.getArray().find(function(f) {return f.get('id') === options["bushfireid"]})
-            if (bushfire) {
-                this.selectedFeatures.push(bushfire)
-                this.zoomToSelected(10)
-            } else {
-                this.selectedBushfires = [options["bushfireid"]]
-                this.updateCQLFilter("query",0)
-            }
-            
+            this.updateCQLFilter(updateType,(updateType === "query")?0:1)
         }
 
       },
