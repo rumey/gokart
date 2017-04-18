@@ -38,11 +38,17 @@ var Gokart = (function() {
     }
     
     _Gokart.prototype.call = function(method,options) {
-        if (this.status === "ready")  {
-            this.gokartWindow.postMessage(JSON.stringify({method:method,data:{module:this.module,options:options}}),this.url);
-        } else {
-            alert(this.message);
+        var vm = this
+        var func = function() {
+            if (vm.status === "ready")  {
+                vm.gokartWindow.postMessage(JSON.stringify({method:method,data:{module:vm.module,options:options}}),vm.url);
+            } else if (vm.status === "loading") {
+                setTimeout(func,100)
+            } else {
+                alert(vm.message);
+            }
         }
+        func()
     }
     _Gokart.prototype.close = function() {
         if  (this.gokartFrame && this.gokartFrame.parentNode) {
