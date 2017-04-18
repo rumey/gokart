@@ -402,7 +402,7 @@
         return this.whoami["bushfire"]["permission"][bushfire.get('status') + ".modify"]
       },
       isFireboundaryDrawable:function(bushfire) {
-        return (bushfire.get('status') === "new" || bushfire.get('report_status') === 1)
+        return bushfire.get('status') === "new" || (bushfire.get('report_status') === 1 && !bushfire.get('area_limit'))
       },
       isEditable:function(bushfire) {
         return this.whoami["bushfire"]["permission"][bushfire.get('status') + ".edit"]
@@ -424,7 +424,7 @@
         return this.revision && bushfire.get('status') !== "new" && this.isEditable(bushfire) && bushfire.get('tint') !== "modified"
       },
       canUpload:function(bushfire) {
-        return this.revision && this.isModifiable(bushfire) && (bushfire.get('report_status') !== 2 || bushfire.get('status') === 'new')
+        return this.revision && this.isModifiable(bushfire) && ((bushfire.get('report_status') !== 2 && !bushfire.get("area_limit")) || bushfire.get('status') === 'new')
       },
       canReset:function(bushfire) {
         return this.revision && bushfire.get('status') !== "new" // && this.isEditable(bushfire) && bushfire.get('tint') === "modified"
@@ -1070,6 +1070,7 @@
             index = vm.selectedFeatures.getArray().findIndex(function(f){return f.get('id') === feat.get('id')})
             if (index >= 0) {
                 vm.selectedFeatures.setAt(index,features[0])
+                vm.zoomToSelected(10)         
             }
               
           } else {
