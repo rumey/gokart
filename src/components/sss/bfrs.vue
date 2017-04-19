@@ -1479,7 +1479,6 @@
                                 }
                                 modifyType = modifyType | 1
                             }
-                            /*
                             if (uploadedFireboundary && !vm.map.isGeometryEqual(uploadedFireboundary,featureFireboundary,0.000000005)) {
                                 if (vm.isModifiable(feat) && !vm.isFireboundaryDrawable(feat)) {
                                     feat.set('fire_boundary',uploadedFireboundary,true)
@@ -1495,7 +1494,6 @@
                                 vm.selectedFeatures.push(feat)
                                 vm.postModified(feat,modifyType)
                             }
-                            */
                         } else if(!feature.get('id') < 0) {
                             //new feature,
                             if (feature.getGeometry() instanceof ol.geom.Point || feature.getGeometry() instanceof ol.geom.MultiPolygon) {
