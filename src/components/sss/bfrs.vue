@@ -97,7 +97,7 @@
                     <a title="Zoom to selected" class="button" @click="zoomToSelected()" ><i class="fa fa-search"></i><br></a>
                     <a v-if="isCreatable()" title="Create bushfire" class="button" @click="newFeature()" ><i class="fa fa-plus"></i><br>create</a>
     
-                    <label class="button" for="uploadBushfires" title="Support GeoJSON(.geojson .json), GPS data(.gpx), GeoPackage(.gpkg), 7zip(.7z), TarFile(.tar.gz,tar.bz,tar.xz),ZipFile(.zip)" style="line-height:1"><i class="fa fa-upload"></i><br>upload</label><input type="file" id="uploadBushfires" class="show-for-sr" name="bushfiresfile" accept=".json,.geojson,.gpx,.gpkg,.7z,.tar,.tar.gz,tar.ba,tar.xz,zip" v-model="bushfiresfile" v-el:bushfiresfile @change="importList()"/>
+                    <label class="button" for="uploadBushfires" title="Support GeoJSON(.geojson .json), GPS data(.gpx), GeoPackage(.gpkg), 7zip(.7z), TarFile(.tar.gz,tar.bz,tar.xz),ZipFile(.zip)" style="line-height:1"><i class="fa fa-upload"></i><br>upload</label><input type="file" id="uploadBushfires" class="show-for-sr" name="bushfiresfile" accept=".json,.geojson,.gpx,.gpkg,.7z,.tar,.tar.gz,.tar.bz,.tar.xz,.zip" v-model="bushfiresfile" v-el:bushfiresfile @change="importList()"/>
                     <a class="button" @click="downloadList('geojson')" title="Export Bushfire as GeoJSON"><i class="fa fa-download" aria-hidden="true"></i><br>geojson </a>
                     <a class="button" @click="downloadList('gpkg')" title="Export Bushfire as GeoPackage"><i class="fa fa-download" aria-hidden="true"></i><br>gpkg</a>
                   </div>
@@ -297,6 +297,28 @@
                     var pointStyle = (geometries.length > 0 || geometries[0] instanceof ol.geom.Point)?pointStyleFunc.call(feat,res):null
                     var boundaryStyle = (feat.get('fire_boundary') || geometries.length > 1 || geometries[0] instanceof ol.geom.MultiPolygon)?boundaryStyleFunc.call(feat,res):null
                     if (boundaryStyle && feat.get('fire_boundary'))  {
+                        if (Array.isArray(boundaryStyle)) {
+                            var tmp = []
+                            $.each(boundaryStyle,function(index,style){
+                                tmp.push(new ol.style.Style({
+                                    fill:style.getFill(),
+                                    image:style.getImage(),
+                                    stroke:style.getStroke(),
+                                    text:style.getText(),
+                                    zIndex:style.getZIndex()
+                                }))
+                            })
+                            boundaryStyle = tmp
+                        } else {
+                            boundaryStyle = new ol.style.Style({
+                                fill:boundaryStyle.getFill(),
+                                image:boundaryStyle.getImage(),
+                                stroke:boundaryStyle.getStroke(),
+                                text:boundaryStyle.getText(),
+                                zIndex:boundaryStyle.getZIndex()
+                            })
+                        }
+
                         if (Array.isArray(boundaryStyle)) {
                             $.each(boundaryStyle,function(index,style){style.setGeometry(feat.get('fire_boundary'))})
                         } else {
@@ -974,6 +996,7 @@
         }
         feat.setStyle(this.bushfireStyleFunc)
         feat.set('modifyType',3,true)
+        feat.set('fire_number',feat.get('id').toString(),true)
 
         this.bfrsMapLayer.getSource().addFeature(feat)
         var insertIndex = null
