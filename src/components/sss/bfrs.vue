@@ -424,7 +424,7 @@
         return this.whoami["bushfire"]["permission"][bushfire.get('status') + ".modify"]
       },
       isFireboundaryDrawable:function(bushfire) {
-        return bushfire.get('status') === "new" || (bushfire.get('report_status') === 1 && !bushfire.get('area_limit'))
+        return bushfire.get('status') === "new" || (bushfire.get('report_status') === 1)
       },
       isEditable:function(bushfire) {
         return this.whoami["bushfire"]["permission"][bushfire.get('status') + ".edit"]
@@ -446,7 +446,7 @@
         return this.revision && bushfire.get('status') !== "new" && this.isEditable(bushfire) && bushfire.get('tint') !== "modified"
       },
       canUpload:function(bushfire) {
-        return this.revision && this.isModifiable(bushfire) && ((bushfire.get('report_status') !== 2 && !bushfire.get("area_limit")) || bushfire.get('status') === 'new')
+        return this.revision && this.isModifiable(bushfire) && ((bushfire.get('report_status') !== 2) || bushfire.get('status') === 'new')
       },
       canReset:function(bushfire) {
         return this.revision && bushfire.get('status') !== "new" // && this.isEditable(bushfire) && bushfire.get('tint') === "modified"
@@ -1479,6 +1479,7 @@
                                 }
                                 modifyType = modifyType | 1
                             }
+                            /*
                             if (uploadedFireboundary && !vm.map.isGeometryEqual(uploadedFireboundary,featureFireboundary,0.000000005)) {
                                 if (vm.isModifiable(feat) && !vm.isFireboundaryDrawable(feat)) {
                                     feat.set('fire_boundary',uploadedFireboundary,true)
@@ -1494,6 +1495,7 @@
                                 vm.selectedFeatures.push(feat)
                                 vm.postModified(feat,modifyType)
                             }
+                            */
                         } else if(!feature.get('id') < 0) {
                             //new feature,
                             if (feature.getGeometry() instanceof ol.geom.Point || feature.getGeometry() instanceof ol.geom.MultiPolygon) {
