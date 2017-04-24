@@ -14,6 +14,13 @@ import json
 import pytesseract
 import hashlib
 import base64
+import pyproj
+import shapely
+import shapely.ops as ops
+from shapely.geometry import shape
+from shapely.geometry.polygon import Polygon
+from shapely.geometry.multipolygon import MultiPolygon
+from functools import partial
 try:
     from PIL import Image
 except:
@@ -39,6 +46,8 @@ BASE_DIST_PATH = os.path.join(os.path.dirname(BASE_PATH),"dist")
 ENV_TYPE = (os.environ.get("ENV_TYPE") or "prod").lower()
 
 gdalinfo = subprocess.check_output(["gdalinfo", "--version"])
+
+bottle.BaseRequest.MEMFILE_MAX = 5 * 1024 * 1024
 
 @bottle.route('/client')
 def server_static():
@@ -711,6 +720,102 @@ def ogr(fmt):
             shutil.rmtree(workdir)
         except:
             pass
+
+def getArea(geometry,unit):
+    geometry_aea = ops.transform(
+        partial(
+            pyproj.transform,
+            pyproj.Proj(init="EPSG:4326"),
+            pyproj.Proj(proj="aea",lat1=geometry.bounds[1],lat2=geometry.bounds[3])
+        ),
+        geometry
+    )
+    data = geometry_aea.area
+    if unit == "ha" :
+        return data / 10000.00 
+    elif unit == "km2":
+        return data / 1000000.00 
+    else:
+        return data
+
+@bottle.route("/area", method="POST")
+def calculateArea():
+    # needs gdal 1.10+
+    features = json.loads(bottle.request.forms.get("features"))
+    layers = bottle.request.forms.get("layers")
+    unit = bottle.request.forms.get("unit") or "ha"
+    overlap = (bottle.request.forms.get("layer_overlap") or "false").lower() == "true"
+    if layers:
+        layers = json.loads(layers)
+
+
+    session_cookie = get_session_cookie()
+    cookies={"oim_dpaw_wa_gov_au_sessionid":session_cookie} if ENV_TYPE == "prod" else {"oim_dpaw_wa_gov_au_sessionid":session_cookie,"oim-uat_dpaw_wa_gov_au_sessionid":session_cookie}
+    result = []
+    total_area = 0
+    total_layer_area = 0
+    for feature in features["features"]:
+        if feature["geometry"]["type"] == "GeometryCollection":
+            for g in feature["geometry"]["geometries"]:
+                geometry = shape(g)
+                if isinstance(geometry,Polygon) or isinstance(geometry,MultiPolygon):
+                    break
+
+        else:
+            geometry = shape(feature["geometry"])
+        if not geometry or (not isinstance(geometry,Polygon) and not isinstance(geometry,MultiPolygon)):
+            result.append({})
+            continue
+
+        area_data = {"total_area":getArea(geometry,unit)}
+        result.append(area_data)
+        if not layers:
+            continue
+
+        for layer in layers:
+            layer_area_data = []
+            total_layer_area = 0
+            area_data[layer["id"]] = {"areas":layer_area_data}
+
+            layer_features = json.loads(requests.get(
+                "{}&outputFormat=json&bbox={},{},{},{}".format(layer["url"],geometry.bounds[1],geometry.bounds[0],geometry.bounds[3],geometry.bounds[2]),
+                verify=False,
+                cookies=cookies
+            ).content)
+
+            for layer_feature in layer_features["features"]:
+                layer_geometry = shape(layer_feature["geometry"])
+                if not isinstance(layer_geometry,Polygon) and not isinstance(layer_geometry,MultiPolygon):
+                    continue
+                intersections = geometry.intersection(layer_geometry)
+                if not isinstance(intersections,Polygon) and not isinstance(intersections,MultiPolygon):
+                    continue
+
+                layer_feature_area_data = {}
+                for key,value in layer["properties"].iteritems():
+                    layer_feature_area_data[key] = layer_feature["properties"][value]
+
+                layer_feature_area_data["area"] = getArea(intersections,unit)
+                total_layer_area  += layer_feature_area_data["area"]
+                layer_area_data.append(layer_feature_area_data)
+
+            area_data[layer["id"]]["total_area"] = total_layer_area
+            total_area += total_layer_area
+            if not overlap and total_area >= area_data["total_area"] :
+                break
+
+        if not overlap and total_area < area_data["total_area"]:
+            area_data["other_area"] = area_data["total_area"] - total_area
+
+    bottle.response.set_header("Content-Type", "application/json")
+    return {"total_features":len(result),"features":result}
+
+
+
+
+
+        
+    
 
 
 

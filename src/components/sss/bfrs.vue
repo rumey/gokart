@@ -94,7 +94,7 @@
     
                 <div class="tool-slice row collapse">
                   <div class="small-12 expanded button-group">
-                    <a title="Zoom to selected" class="button" @click="zoomToSelected()" ><i class="fa fa-search"></i><br></a>
+                    <a title="Zoom to selected" class="button" @click="zoomToSelected()" ><img style="width:29px;height:29px"src="dist/static/images/zoom-to-selected.svg"/><br></a>
                     <a v-if="isCreatable()" title="Create bushfire" class="button" @click="newFeature()" ><i class="fa fa-plus"></i><br>create</a>
     
                     <label class="button" for="uploadBushfires" title="Support GeoJSON(.geojson .json), GPS data(.gpx), GeoPackage(.gpkg), 7zip(.7z), TarFile(.tar.gz,tar.bz,tar.xz),ZipFile(.zip)" style="line-height:1"><i class="fa fa-upload"></i><br>upload</label><input type="file" id="uploadBushfires" class="show-for-sr" name="bushfiresfile" accept=".json,.geojson,.gpx,.gpkg,.7z,.tar,.tar.gz,.tar.bz,.tar.xz,.zip" v-model="bushfiresfile" v-el:bushfiresfile @change="importList()"/>
@@ -200,8 +200,8 @@
           'draft_final.text': '#b7d28d',
           'draft_final.fillColour':[0, 0, 0, 0.25],
           'draft_final.colour': '#b7d28d',
-          'final': [['#b43232', '#7ecca3']],
-          'final.text': '#7ecca3',
+          'final_authorised': [['#b43232', '#7ecca3']],
+          'final_authorised.text': '#7ecca3',
           'final_authorised.fillColour':[0, 0, 0, 0.25],
           'final_authorised.colour': '#7ecca3',
           'draft_review': [['#b43232', '#7ecca3']],
@@ -210,8 +210,8 @@
           'draft_review.colour': '#7ecca3',
           'reviewed': [['#b43232', '#7ecca3']],
           'reviewed.text': '#7ecca3',
-          'reviewed_authorised.fillColour':[0, 0, 0, 0.25],
-          'reviewed_authorised.colour': '#7ecca3',
+          'reviewed.fillColour':[0, 0, 0, 0.25],
+          'reviewed.colour': '#7ecca3',
           'modified':[["#b43232","#f57900"]],
           'modified.text':"#f57900",
           'modified_authorised.fillColour':[0, 0, 0, 0.25],
@@ -263,6 +263,13 @@
       bfrsMapLayer: function() {
         return this.$root.map?this.$root.map.getMapLayer(this.bfrsLayer):undefined
       },
+      bfrsWMSLayer: function() {
+        //console.log(this.env.bfrsLayer)
+        return this.$root.catalogue.getLayer(this.env.bfrsWMSLayer)
+      },
+      bfrsWMSMapLayer: function() {
+        return this.$root.map?this.$root.map.getMapLayer(this.bfrsWMSLayer):undefined
+      },
       regionFilter:function() {
         return this.region?("region_id=" + this.region) : null
       },
@@ -295,36 +302,7 @@
                     var feat = this
                     var geometries = feat.getGeometry().getGeometriesArray()
                     var pointStyle = (geometries.length > 0 || geometries[0] instanceof ol.geom.Point)?pointStyleFunc.call(feat,res):null
-                    var boundaryStyle = (feat.get('fire_boundary') || geometries.length > 1 || geometries[0] instanceof ol.geom.MultiPolygon)?boundaryStyleFunc.call(feat,res):null
-                    if (boundaryStyle && feat.get('fire_boundary'))  {
-                        if (Array.isArray(boundaryStyle)) {
-                            var tmp = []
-                            $.each(boundaryStyle,function(index,style){
-                                tmp.push(new ol.style.Style({
-                                    fill:style.getFill(),
-                                    image:style.getImage(),
-                                    stroke:style.getStroke(),
-                                    text:style.getText(),
-                                    zIndex:style.getZIndex()
-                                }))
-                            })
-                            boundaryStyle = tmp
-                        } else {
-                            boundaryStyle = new ol.style.Style({
-                                fill:boundaryStyle.getFill(),
-                                image:boundaryStyle.getImage(),
-                                stroke:boundaryStyle.getStroke(),
-                                text:boundaryStyle.getText(),
-                                zIndex:boundaryStyle.getZIndex()
-                            })
-                        }
-
-                        if (Array.isArray(boundaryStyle)) {
-                            $.each(boundaryStyle,function(index,style){style.setGeometry(feat.get('fire_boundary'))})
-                        } else {
-                            boundaryStyle.setGeometry(feat.get('fire_boundary'))
-                        }
-                    }
+                    var boundaryStyle = (geometries.length > 1 || geometries[0] instanceof ol.geom.MultiPolygon)?boundaryStyleFunc.call(feat,res):null
 
                     var labelStyle = null
                     if (res < 0.003 && geometries.length > 0 && feat.get('label') && vm.bushfireLabels && !vm.$root.active.isHidden(vm.map.getMapLayer(vm.env.bfrsLayer))) {
@@ -373,9 +351,20 @@
       },
     },
     methods: {
+      refreshWMSLayer: function(wait) {
+        var vm = this
+        wait = wait || 1000
+        this._refreshWMSLayer = this._refreshWMSLayer || debounce(function(){
+            if (vm.bfrsWMSMapLayer) {
+                vm.bfrsWMSMapLayer.refresh()   
+            }
+        },wait)
+
+        this._refreshWMSLayer.call({wait:wait})
+      },
       zoomToSelected:function(minScale) {
         this.map.zoomToSelected(minScale,function(f){
-            return f.get('fire_boundary')?f.get('fire_boundary').getExtent():f.getGeometry().getExtent()
+            return f.get('fire_boundary')?f.get('fire_boundary'):f.getGeometry().getExtent()
         })
       },
       open:function(options) {
@@ -484,23 +473,27 @@
             alert("No origin point placed.")
             return true
         }
-        var indexes = null
-        var fireboundary = null
-        if (this.isFireboundaryDrawable(feat)) {
-            indexes = geometries.findIndex(function(g) {return g instanceof ol.geom.MultiPolygon})
-            if (indexes >= 0) {
-                fireboundary = geometries[indexes]
-                indexes = [indexes]
-            } else {
-                fireboundary = null
-                indexes = null
+        var invalid = false
+        if (!this.isFireboundaryDrawable(feat)) {
+            if (!ol.extent.containsCoordinate(feat.get('fire_boundary'),originPoint.getCoordinates())) {
+                invalid = true
+                alert("Original point should be inside a fire boundary.");
+                indexes = [0]
             }
-        } else {
-            indexes = null
-            fireboundary = feat.get('fire_boundary') || null
+            return !invalid
         }
 
-        var invalid = false
+        var indexes = null
+        var fireboundary = null
+        indexes = geometries.findIndex(function(g) {return g instanceof ol.geom.MultiPolygon})
+        if (indexes >= 0) {
+            fireboundary = geometries[indexes]
+            indexes = [indexes]
+        } else {
+            fireboundary = null
+            indexes = null
+        }
+
         var polygon = null
         var polygonIndex = -1
         var convertedToTurf = true
@@ -648,11 +641,7 @@
         }
         var modifyType = (feat.get('status') === 'new')?3:(feat.get('modifyType') || 3)
 
-
         var geometries = feat.getGeometry().getGeometriesArray()
-        if (feat.get('fire_boundary')) {
-            geometries.push(feat.get('fire_boundary'))
-        }
         var originPoint = geometries.find(function(g){return g instanceof ol.geom.Point}) || null
         originPoint = originPoint?originPoint.getCoordinates():null
 
@@ -668,19 +657,14 @@
         }
 
         if ((modifyType & 2) === 2) {
-            fireboundary = feat.get('fire_boundary') || geometries.find(function(g) {return g instanceof ol.geom.MultiPolygon}) || null
+            fireboundary = geometries.find(function(g) {return g instanceof ol.geom.MultiPolygon}) || null
             bbox = (fireboundary && fireboundary.getPolygons().length > 0)?fireboundary.getExtent():null
-            area = fireboundary?this.measure.convertArea(this.measure.getTotalArea(fireboundary),"ha"):null
             fireboundary = (fireboundary && fireboundary.getPolygons().length > 0)?fireboundary.getCoordinates():null
 
-            feat.set("area",area,true)
-
             spatialData["fire_boundary"] = fireboundary
-            spatialData["area"]  = area
-            spatialData["tenure_area"]  = null
         }
 
-        var processingJobs = []
+        var processingJobs = ["dummy"]
         if (fireboundary && (modifyType & 2) === 2) {
             processingJobs.push("tenure_area")
         }
@@ -735,65 +719,32 @@
 
         if (processingJobs.indexOf("tenure_area") >= 0) {
             $.ajax({
-                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:dpaw_tenure&outputFormat=json&bbox=" + bbox[1] + "," + bbox[0] + "," + bbox[3] + "," + bbox[2],
+                url:vm.env.gokartService + "/area",
                 dataType:"json",
-                success: function (response, stat, xhr) {
-                    spatialData["tenure_area"] = []
-                    if (response.totalFeatures === 0) {
-                        spatialData.tenure_area.push({id:null,name:null,category:null,area:area})
-                    } else {
-                        var tenureArea = 0
-                        var totalTenureArea = 0
-                        var intersect = null
-                        var intersectPolygons = []
-                        var failed = false
-                        var tenurePolygon = null
-                        var fireboundaryPolygon = []
-                        $.each(response.features,function(index,tenure){
-                            intersectPolygons.length = 0
-                            $.each(tenure.geometry.coordinates,function(index2,p){
-                                tenurePolygon = turf.polygon(p)
-                                $.each(fireboundary,function(index3,f){
-                                    if (index === 0 && index2 === 0) {
-                                        fireboundaryPolygon.push(turf.polygon(f))
-                                    }
-                                    try{
-                                        intersect = turf.intersect(fireboundaryPolygon[index3],tenurePolygon)
-                                    } catch(ex) {
-                                        alert("Calculate the area of the fire boundary in tenure failed." + ex)
-                                        failed = true
-                                        return false
-                                    }
-                                    if (intersect) {
-                                        if (intersect.geometry.type === "Polygon") {
-                                            intersectPolygons.push(intersect.geometry.coordinates)
-                                        } else if (intersect.geometry.type === "MultiPolygon"){
-                                            intersectPolygons.push.apply(intersectPolygons,intersect.geometry.coordinates)
-                                        }
-                                    }
-                                })
-                                if (failed) {return false}
-                            })
-                            if (failed) {return false}
-                            if (intersectPolygons.length > 0) {
-                                tenureArea = 0
-                                $.each(intersectPolygons,function(index,p){
-                                    tenureArea += vm.measure.convertArea(vm.measure.getArea(p),"ha")
-                                })
-                                spatialData.tenure_area.push({id:tenure.properties["ogc_fid"],name:tenure.properties["name"],category:tenure.properties["category"],area:tenureArea})
-                                totalTenureArea += tenureArea
+                data:{
+                        features:vm.$root.geojson.writeFeatures([feat]),
+                        layer_overlap:false,
+                        layers:JSON.stringify([
+                            {
+                                id:"tenure_area",
+                                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:dpaw_tenure",
+                                properties:{
+                                    id:"ogc_fid",
+                                    name:"name",
+                                    category:"category"
+                                }
                             }
-                        })
-                        if (totalTenureArea < area) {
-                            spatialData.tenure_area.push({id:null,name:null,category:null,area:area - totalTenureArea})
-                        } else {
-                            spatialData["area"] = totalTenureArea
-                        }
-
-                        if (failed) {return}
+                        ])
+                },
+                method:"POST",
+                success: function (response, stat, xhr) {
+                    if (response["total_features"] > 0) {
+                        spatialData["area"] = response["features"][0]
+                        processingJobs.splice(processingJobs.indexOf("tenure_area"),1)
+                        callbackWrapper(spatialData)
+                    } else {
+                        alert("Calcualte area failed.")
                     }
-                    processingJobs.splice(processingJobs.indexOf("tenure_area"),1)
-                    callbackWrapper(spatialData)
                 },
                 error: function (xhr,status,message) {
                     alert(status + " : " + message)
@@ -923,8 +874,10 @@
                 }
             })
         }
+        processingJobs.splice(processingJobs.indexOf("dummy"),1)
+        callbackWrapper(spatialData)
       },
-      saveFeature:function(feat) {
+      saveFeature:function(feat,callback) {
         if (this.canSave(feat)) {
             var vm = this
             vm.getSpatialData(feat,function(spatialData){
@@ -934,13 +887,17 @@
                     data:JSON.stringify(spatialData),
                     contentType:"application/json",
                     success: function (response, stat, xhr) {
-                        vm.resetFeature(feat)
-                        /*
-                        feat.set('tint',feat.get('originalTint'),true)
-                        feat.set('fillColour',vm.tints[feat.get('tint') + ".fillColour"])
-                        feat.set('colour',vm.tints[feat.get('tint') + ".colour"])
-                        vm.revision += 1
-                        */
+                        if (callback) {
+                            callback(feat)
+                        } else {
+                            vm.resetFeature(feat)
+                            /*
+                            feat.set('tint',feat.get('originalTint'),true)
+                            feat.set('fillColour',vm.tints[feat.get('tint') + ".fillColour"])
+                            feat.set('colour',vm.tints[feat.get('tint') + ".colour"])
+                            vm.revision += 1
+                            */
+                        }
                     },
                     error: function (xhr,status,message) {
                         alert(status + " : " + message)
@@ -1142,14 +1099,14 @@
             var index = (vm.extentFeatures)?vm.extentFeatures.findIndex(function(f) { return f === bushfire}):-1
             if (index >= 0) {
                 if (bushfire.getGeometry().getGeometriesArray().length === 0 && 
-                    (!bushfire.get('fire_boundary') || bushfire.get('fire_boundary').getPolygons().length === 0)
+                    (!bushfire.get('fire_boundary'))
                 ) {
                     //all geometries are deleted
                     vm.extentFeatures.splice(index,1)
                 }
             } else {
                 if (bushfire.getGeometry().getGeometriesArray().length > 0 || 
-                    (bushfire.get('fire_boundary') && bushfire.get('fire_boundary').getPolygons().length > 0)
+                    (bushfire.get('fire_boundary'))
                 ) {
                     vm.extentFeatures.push(bushfire)
                     sortRequired = true
@@ -1200,8 +1157,8 @@
 
         var geometries = feature.getGeometry()?[feature.getGeometry()]:[]
         if (feature.get("fire_boundary") && feature.get("fire_boundary").coordinates) {
-            if (this.isModifiable(feature) && !this.isFireboundaryDrawable(feature)) {
-                feature.set("fire_boundary",new ol.geom.MultiPolygon(feature.get("fire_boundary").coordinates),true)
+            if (!this.isFireboundaryDrawable(feature)) {
+                feature.set("fire_boundary",new ol.geom.Polygon(feature.get("fire_boundary").coordinates).getExtent(),true)
             } else {
                 geometries.push(new ol.geom.MultiPolygon(feature.get("fire_boundary").coordinates))
                 feature.unset("fire_boundary",true)
@@ -1248,9 +1205,6 @@
         var id = 0
         $.each(this.features,function(index,f){
             geometries = f.getGeometry().getGeometriesArray()
-            if (f.get('fire_boundary')) {
-                geometries.push(f.get('fire_boundary'))
-            }
 
             feature = vm.map.cloneFeature(f,false,['toolName','tint','originalTint','fillColour','colour','status','label','measurement','fire_boundary','modifyType'])
             feature.setGeometry( geometries.find(function(g) {return g instanceof ol.geom.Point}) || null)
@@ -1455,10 +1409,10 @@
                             changed = false
                             geometries = feat.getGeometry().getGeometriesArray()
                             featurePoint = geometries.find(function(g){return g instanceof ol.geom.Point}) || null
-                            if (vm.isModifiable(feat) && !vm.isFireboundaryDrawable(feat)) {
-                                featureFireboundary = feat.get('fire_boundary')
-                            } else {
+                            if (vm.isFireboundaryDrawable(feat)) {
                                 featureFireboundary = geometries.find(function(g){return g instanceof ol.geom.MultiPolygon}) || null
+                            } else {
+                                featureFireboundary = feat.get('fire_boundary')
                             }
                             uploadedPoint = null
                             uploadedFireboundary = null
@@ -1472,27 +1426,53 @@
                             } 
                             var modifyType = 0
                             if (uploadedPoint && !vm.map.isGeometryEqual(uploadedPoint,featurePoint,0.000000005)) {
-                                if (featurePoint) {
-                                    geometries[0] = uploadedPoint
-                                } else {
-                                    geometries.splice(0,0,uploadedPoint)
-                                }
                                 modifyType = modifyType | 1
                             }
-                            if (uploadedFireboundary && !vm.map.isGeometryEqual(uploadedFireboundary,featureFireboundary,0.000000005)) {
-                                if (vm.isModifiable(feat) && !vm.isFireboundaryDrawable(feat)) {
-                                    feat.set('fire_boundary',uploadedFireboundary,true)
-                                } else if (featureFireboundary){
-                                    geometries[1] = uploadedFireboundary
-                                } else {
-                                    geometries.push(uploadedFireboundary)
-                                }
+                            if (uploadedFireboundary && (!vm.isFireboundaryDrawable(feat) || !vm.map.isGeometryEqual(uploadedFireboundary,featureFireboundary,0.000000005))) {
                                 modifyType = modifyType | 2
                             }
-                            if (modifyType > 0) {
-                                feat.getGeometry().setGeometriesArray(geometries)
-                                vm.selectedFeatures.push(feat)
-                                vm.postModified(feat,modifyType)
+
+                            if (!vm.isFireboundaryDrawable(feat) && (modifyType & 2) === 2) {
+                                //save to the database directly
+                                feature.set('id',feat.get('id'),true)
+                                feature.set('status',feat.get('status'),true)
+                                feature.set('report_status',feat.get('report_status'),true)
+                                feature.set('fire_number',feat.get('fire_number'),true)
+                                feature.set('modifyType',modifyType | (feat.get('modifyType') || 0),true)
+                                feature.set('tint','modified',true)
+                                feature.set('fire_boundary',uploadedFireboundary.getExtent(),true)
+                                newGeometries = []
+                                if ((modifyType & 1) === 1) {
+                                    feature.setGeometry(new ol.geom.GeometryCollection([uploadedPoint,uploadedFireboundary]))
+                                } else if (featurePoint) {
+                                    feature.setGeometry(new ol.geom.GeometryCollection([featurePoint,uploadedFireboundary]))
+                                } else {
+                                    feature.setGeometry(new ol.geom.GeometryCollection([uploadedFireboundary]))
+                                }
+                                vm.saveFeature(feature,function(f){
+                                    vm.resetFeature(feat)
+                                    vm.refreshWMSLayer()
+                                })
+                            } else {
+                                if ((modifyType & 1) === 1) {
+                                    if (featurePoint) {
+                                        geometries[0] = uploadedPoint
+                                    } else {
+                                        geometries.splice(0,0,uploadedPoint)
+                                    }
+                                }
+                                if ((modifyType & 2) === 2) {
+                                    if (featureFireboundary){
+                                        geometries[1] = uploadedFireboundary
+                                    } else {
+                                        geometries.push(uploadedFireboundary)
+                                    }
+                                }
+                                if (modifyType > 0) {
+                                    feat.getGeometry().setGeometriesArray(geometries)
+                                    vm.selectedFeatures.push(feat)
+                                    vm.postModified(feat,modifyType)
+                                }
                             }
                         } else if(!feature.get('id') < 0) {
                             //new feature,
@@ -1752,6 +1732,11 @@
             this.active.toggleHidden(this.bfrsMapLayer)
         }
 
+        if (!this.bfrsWMSMapLayer) {
+          this.catalogue.onLayerChange(this.bfrsWMSLayer, true)
+        } else if (this.active.isHidden(this.bfrsWMSMapLayer)) {
+            this.active.toggleHidden(this.bfrsWMSMapLayer)
+        }
         this.$root.annotations.selectable = [this.bfrsMapLayer]
         this.annotations.setTool()
 
@@ -1851,9 +1836,7 @@
       vm.ui.modifyInter = vm.annotations.modifyInterFactory()({features:vm.selectedFeatures,mapLayers:function(layer){return layer.get("id") === vm.env.bfrsLayer }})
       vm.ui.modifyInter.on("featuresmodified",function(ev){
           if (ev.features.getLength() === 1 ) {
-              if (!vm.validateBushfire(ev.features.item(0),"modifyBushfire")) {
-                return 
-              }
+              vm.validateBushfire(ev.features.item(0),"modifyBushfire")
           }
           vm.postModified(ev.features.getArray(),-1)
       })    
@@ -2045,10 +2028,10 @@
               keepSelection:true,
               showName: true,
               getMeasureGeometry:function() {
-                if (vm.isModifiable(this) && !vm.isFireboundaryDrawable(this)) {
-                    return this.get('fire_boundary') || null
-                } else {
+                if (vm.isFireboundaryDrawable(this)) {
                     return this.getGeometry()
+                } else {
+                    return null
                 }
               },
               onSet: function() {
@@ -2163,9 +2146,6 @@
                         if (loadedFeature) {
                             //replace the loadedFeature's geometry with the modified version
                             loadedFeature.setGeometry(f.getGeometry())
-                            if (vm.isModifiable(f) && !vm.isFireboundaryDrawable(f)) {
-                                loadedFeature.set('fire_boundary',f.get('fire_boundary'),true)
-                            }
                             loadedFeature.set('tint','modified',true)
                             loadedFeature.set('fillColour',vm.tints[loadedFeature.get('tint') + ".fillColour"],true)
                             loadedFeature.set('colour',vm.tints[loadedFeature.get('tint') + ".colour"],true)
@@ -2186,8 +2166,8 @@
                     }).forEach(function (el) {
                       vm.selectedFeatures.push(el)
                     })
-                    var currentScale = vm.map.getScale()
-                    vm.zoomToSelected(currentScale > 10?10:currentScale)
+                    //var currentScale = vm.map.getScale()
+                    //vm.zoomToSelected(currentScale > 10?10:currentScale)
                 }
                 vm.updateFeatureFilter(true)
 
@@ -2250,6 +2230,13 @@
             }
             checkPermission(0)
         }
+      })
+
+      this.$root.fixedLayers.push({
+        type: 'TileLayer',
+        name: 'Bush Fire Final Report Fire Boundary',
+        id: vm.env.bfrsWMSLayer,
+        //refresh: 60
       })
 
       this.measure.register(vm.env.bfrsLayer,this.allFeatures)

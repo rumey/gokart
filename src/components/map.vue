@@ -1089,6 +1089,10 @@
           
         }   
 
+        tileLayer.refresh = function() {
+            vm.refreshLayerTile(this)
+        }
+
         // set properties for use in layer selector
         tileLayer.set('name', layer.name,false)
         tileLayer.set('id', layer.id,false)
@@ -1115,7 +1119,7 @@
                 return
             }
             this.autoRefresh = setInterval(function () {
-                vm.refreshLayerTile(tileLayer)
+                tileLayer.refresh()
             }, options.refresh * 1000)
             //console.log(tileLayer.getSource().getLayer() + " : Start auto refresh for layer (" + layer.id + ") with interval " + layer.refresh)
         }
@@ -1183,7 +1187,7 @@
                     timeIndex = (timeIndex == null)?(options.timeline.length - 1):timeIndex
                     return timeIndex
                 }
-                _func = function(layer,tileLayer,auto,taskId) {
+                _func = function(layer,tileLayer,auto) {
                     //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Begin to refresh the timeline of " + layer.name)
                     var currentRefreshTime = layer.getCurrentRefreshTime()
                     if (layer.lastTimelineRefreshTime && currentRefreshTime - layer.lastTimelineRefreshTime === 0) {
@@ -1306,7 +1310,7 @@
           tileLayer.set('updated', moment().toLocaleString())
           vm.$root.active.refreshRevision += 1
           tileLayer.autoRefresh = setInterval(function () {
-            vm.refreshLayerTile(tileLayer)
+            tileLayer.refresh()
           }, options.refresh * 1000)
         }
 

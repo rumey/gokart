@@ -392,7 +392,7 @@
             this._importData.formData.append('datasourcefile', datasource)
             var req = new window.XMLHttpRequest()
             req.open('POST', this.env.gokartService + '/ogr/geojson')
-            req.responseType = 'blob'
+            req.responseType = 'text'
             req.withCredentials = true
             var importData = vm._importData
             req.onload = function (event) {
@@ -403,14 +403,10 @@
                         alert(e.target.result)
                     })
                 } else {
-                    var responseReader = new window.FileReader()
-                    responseReader.onload = function (e) {
-                        var features = new ol.format.GeoJSON().readFeatures(e.target.result,{dataProjection:"EPSG:4326"})
-                        if (features && features.length) {
-                            importData.callback(features,fileFormat[0])
-                        }
+                    var features = new ol.format.GeoJSON().readFeatures(req.response,{dataProjection:"EPSG:4326"})
+                    if (features && features.length) {
+                        importData.callback(features,fileFormat[0])
                     }
-                    responseReader.readAsText(req.response)
                 }
             }
             req.send(this._importData.formData)
