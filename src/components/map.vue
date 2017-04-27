@@ -85,6 +85,7 @@
     // parts of the template to be computed live
     computed: {
       loading: function () { return this.$root.loading },
+      catalogue: function () { return this.$root.catalogue },
       env: function () { return this.$root.env },
       annotations: function () { return this.$root.annotations    },
       active: function () { return this.$root.active    },
@@ -799,6 +800,7 @@
       },
       // loader for layers with a "time" axis, e.g. live satellite imagery
       createTimelineLayer: function (options) {
+        if (options.mapLayer) return options.mapLayer
         var vm = this
         options.params = $.extend({
           FORMAT: 'image/jpeg',
@@ -821,6 +823,11 @@
           opacity: options.opacity || 1,
           source: tileSource
         })
+
+        tileLayer.postRemove = function () {
+            delete this.layer["mapLayer"]
+            delete this["layer"]
+        }
 
         // hook the tile loading function to update progress indicator
         tileLayer.progress = ''
@@ -858,11 +865,14 @@
 
         // set properties for use in layer selector
         tileLayer.set('name', options.name)
-        tileLayer.set('id', options.id)
+        tileLayer.set('id', options.mapLayerId)
+        tileLayer.layer = options
+        options.mapLayer = tileLayer
         return tileLayer
       },
       // loader for vector layers with hover querying
       createWFSLayer: function (options) {
+        if (options.mapLayer) return options.mapLayer
         var vm = this
         var url = this.env.wfsService
 
@@ -975,6 +985,8 @@
             clearInterval(this.autoRefresh)
             delete this.autoRefresh
           }
+          delete this.layer["mapLayer"]
+          delete this["layer"]
         }
 
         // if the "refresh" option is set, set a timer
@@ -990,7 +1002,9 @@
         }
 
         vector.set('name', options.name)
-        vector.set('id', options.id)
+        vector.set('id', options.mapLayerId)
+        vector.layer = options
+        options.mapLayer = vector
 
         vector.stopAutoRefresh = function() {
             if (this.autoRefresh) {
@@ -1022,6 +1036,7 @@
       },
       // loader to create a WMTS layer from a kmi datasource
       createTileLayer: function (options) {
+        if (options.mapLayer) return options.mapLayer
         var vm = this
         if (options.base) {
           options.format = 'image/jpeg'
@@ -1087,6 +1102,8 @@
             this.autoTimelineRefresh = null
           }
           
+          delete this.layer["mapLayer"]
+          delete this["layer"]
         }   
 
         tileLayer.refresh = function() {
@@ -1095,7 +1112,9 @@
 
         // set properties for use in layer selector
         tileLayer.set('name', layer.name,false)
-        tileLayer.set('id', layer.id,false)
+        tileLayer.set('id', layer.mapLayerId,false)
+        tileLayer.layer = options
+        options.mapLayer = tileLayer
 
         if (options.lastUpdatetime) {
             tileLayer.set('updated',layer.lastUpdatetime)
@@ -1317,9 +1336,150 @@
         return tileLayer
       },
 
+      // loader to create a WMTS layer from a kmi datasource
+      createImageLayer: function (options) {
+        if (options.mapLayer) return options.mapLayer
+        var vm = this
+        if (options.base) {
+          options.format = 'image/jpeg'
+        }
+        var layer = $.extend({
+          opacity: 1,
+          name: 'Mapbox Outdoors',
+          id: 'dpaw:mapbox_outdoors',
+          format: 'image/png',
+          tileSize: 1024,
+          style: '',
+          projection: 'EPSG:4326',
+          wms_url: this.env.wmsService
+        }, options)
+
+        // create a tile source
+        var imgSource = new ol.source.ImageWMS({
+          url: layer.wms_url,
+          crossOrigin :'use-credentials',
+          serverType:"geoserver",
+          params:{
+            LAYERS:layer.id,
+            styles:layer.style
+          },
+          projection: layer.projection,
+        })
+
+        var imgLayer = new ol.layer.Image({
+          opacity: layer.opacity || 1,
+          source: imgSource
+        })
+
+        // hook the tile loading function to update progress indicator
+        imgLayer.progress = ''
+
+        imgLayer.postRemove = function () {
+          if (this.autoRefresh) {
+            clearInterval(this.autoRefresh)
+            delete this.autoRefresh
+          }
+          delete this.layer["mapLayer"]
+          delete this["layer"]
+        }  
+
+        imgLayer.setParams = function(options) {
+            var params = imgSource.getParams()
+            $.extend(params,options)
+            params["timestamp"] = moment.utc().unix()
+            imgSource.updateParams(params)
+        }
+
+        imgLayer.refresh = function() {
+            var params = imgSource.getParams()
+            params["timestamp"] = moment.utc().unix()
+            imgSource.updateParams(params)
+        }
+
+        // set properties for use in layer selector
+        imgLayer.set('name', layer.name,false)
+        imgLayer.set('id', layer.mapLayerId,false)
+        imgLayer.layer = options
+        options.mapLayer = imgLayer
+
+        if (options.lastUpdatetime) {
+            imgLayer.set('updated',layer.lastUpdatetime)
+        }
+
+        imgLayer.stopAutoRefresh = function() {
+            if (this.autoRefresh) {
+                clearInterval(this.autoRefresh)
+                //console.log(" : Stop auto refresh for layer (" + layer.id + ")")
+                delete this.autoRefresh
+            }
+        }
+
+        imgLayer.startAutoRefresh = function() {
+            if (!options.refresh) {
+                //not refreshable
+                return
+            } 
+            if(this.autoRefresh) {
+                //already started
+                return
+            }
+            this.autoRefresh = setInterval(function () {
+                imgLayer.refresh()
+            }, options.refresh * 1000)
+            //console.log(" : Start auto refresh for layer (" + layer.id + ") with interval " + layer.refresh)
+        }
+
+        // if the "refresh" option is set, set a timer
+        // to force a reload of the tile content
+        if (options.refresh) {
+          imgLayer.set('updated', moment().toLocaleString())
+          vm.$root.active.refreshRevision += 1
+          imgLayer.autoRefresh = setInterval(function () {
+            imgLayer.refresh()
+          }, options.refresh * 1000)
+        }
+
+        return imgLayer
+      },
+      enableDependentLayer:function(olLayer,dependentLayerId,enabled) {
+        if (!olLayer.layer || !olLayer.layer.dependentLayers) return
+
+        var dependentLayer = olLayer.layer.dependentLayers.find(function(l) {return l.mapLayerId === dependentLayerId})
+        
+        if (!enabled) {
+            //disable dependent layer
+            if (dependentLayer && dependentLayer.mapLayer) {
+                if (this.olmap.getLayers().getArray().find(function(l) {return l === dependentLayer.mapLayer})) {
+                    this.olmap.removeLayer(dependentLayer.mapLayer)
+                }
+                dependentLayer.mapLayer.show = false
+            }
+            return
+        }
+        //enable dependent layer
+        if (dependentLayer && dependentLayer.mapLayer && this.olmap.getLayers().getArray().find(function(l) {return l === dependentLayer.mapLayer})) {
+            //already enabled
+            dependentLayer.mapLayer.show = true
+            return 
+        }
+        var index = this.olmap.getLayers().getArray().findIndex(function(l) {return l === olLayer})
+        if (index < 0) return
+        var vm = this
+        var pos = index
+        $.each(olLayer.layer.dependentLayers,function(index,l){
+            if (l.mapLayerId === dependentLayerId) {
+                vm.olmap.getLayers().insertAt(pos,l.mapLayer)
+                l.mapLayer.show = true
+                return false
+            } else {
+                index = vm.olmap.getLayers().getArray().findIndex(function(l1) {return l1 === l})
+                if (index >= 0) pos = index
+            }
+        })
+      },
       getMapLayer: function (id) {
         if (!this.olmap) { return undefined}
-        if (id && id.id) { id = id.id } // if passed a catalogue layer, get actual id
+        if (id && id.mapLayerId) { id = id.mapLayerId} // if passed a catalogue layer, get actual id
         return this.olmap.getLayers().getArray().find(function (layer) {
           return layer.get('id') === id
         })
@@ -1383,12 +1543,62 @@
           vm.scale = vm.getScale()
         })
 
+        this.olmap.getLayers().on("add",function(ev){
+          var mapLayer = ev.element
+          if (mapLayer.layer && mapLayer.layer.dependentLayers) {
+              mapLayer.show = true
+              var position = vm.olmap.getLayers().getArray().findIndex(function(l){return l === mapLayer})
+              if (position >= 0) {
+                  $.each(mapLayer.layer.dependentLayers,function(index,l){
+                      if (!l.mapLayer) {
+                          l.mapLayer = vm['create' + l.type](l)
+                          l.mapLayer.setOpacity(l.opacity || 1)
+                          l.mapLayer.set('dependentLayer',true,true)
+                      }
+                      if (l.autoAdd === false) return
+                      vm.olmap.getLayers().insertAt(position++, l.mapLayer)
+                      l.mapLayer.show = true
+                  })
+              }
+          }
+        })
+  
+        this.olmap.getLayers().on("remove",function(ev){
+          var mapLayer = ev.element
+          mapLayer.show = false
+          if (mapLayer.layer && mapLayer.layer.dependentLayers) {
+              $.each(mapLayer.layer.dependentLayers,function(index,l1){
+                  if (l1.mapLayer) {
+                      if (vm.olmap.getLayers().getArray().find(function(l2){ return l2 === l1.mapLayer})) {
+                          vm.olmap.removeLayer(l1.mapLayer)
+                      }
+                      l1.mapLayer.show = false
+                  }
+              })
+          }
+        })
+
+        this.olmap.on("removeLayer",function(ev){
+          var layer = ev.layer
+          if (layer && layer.dependentLayers) {
+              $.each(layer.dependentLayers,function(index,l1){
+                  var mapLayer = l1.mapLayer
+                  if (mapLayer) {
+                      if (mapLayer.postRemove) mapLayer.postRemove()
+                      if (vm.olmap.getLayers().getArray().find(function(l2){ return l2 === mapLayer})) {
+                          vm.olmap.removeLayer(mapLayer)
+                      }
+                  }
+              })
+          }
+        })
       },
+
       initLayers: function (fixedLayers, activeLayers) {
         var vm = this
         //add fixed layers to category
         $.each(fixedLayers,function(index,fixedLayer) {
-            var catLayer = vm.$root.catalogue.getLayer(fixedLayer.id)
+            var catLayer = vm.$root.catalogue.getLayer(fixedLayer.mapLayerId || fixedLayer.id)
             if (catLayer) {
                 //fixed layer already exist, update the properties 
                 $.extend(catLayer,fixedLayer,{
@@ -1407,12 +1617,11 @@
         })
         //create active open layers 
         var initialLayers = activeLayers.reverse().map(function (activeLayer) {
-          var layer = $.extend(vm.$root.catalogue.getLayer(activeLayer[0]), activeLayer[1])
-          return vm['create' + layer.type](layer)
+          return $.extend(vm.$root.catalogue.getLayer(activeLayer[0]), activeLayer[1])
         })
         //add active layers into map
-        $.each(initialLayers,function(index,layer){
-            vm.olmap.addLayer(layer)
+        $.each(initialLayers,function(index,layer) {
+            vm.catalogue.onLayerChange(layer,true)
         })
         //enable controls
         var overviewLayer = vm.$root.catalogue.getLayer("dpaw:mapbox_outdoors")
@@ -1600,6 +1809,7 @@
           matrixSet.matrixIds = matrixIds
         })
       })
+
       mapStatus.phaseEnd("initialize")
 
       mapStatus.phaseBegin("gk-init",60,"Listen 'gk-init' event",true,true)

@@ -263,12 +263,11 @@
       bfrsMapLayer: function() {
         return this.$root.map?this.$root.map.getMapLayer(this.bfrsLayer):undefined
       },
-      bfrsWMSLayer: function() {
-        //console.log(this.env.bfrsLayer)
-        return this.$root.catalogue.getLayer(this.env.bfrsWMSLayer)
-      },
       bfrsWMSMapLayer: function() {
-        return this.$root.map?this.$root.map.getMapLayer(this.bfrsWMSLayer):undefined
+        return this.$root.map?this.$root.map.getMapLayer(this.env.bfrsWMSLayer):undefined
+      },
+      bfrsSelectedWMSMapLayer: function() {
+        return this.bfrsMapLayer?this.bfrsLayer.dependentLayers[1].mapLayer:null
       },
       regionFilter:function() {
         return this.region?("region_id=" + this.region) : null
@@ -362,6 +361,28 @@
 
         this._refreshWMSLayer.call({wait:wait})
       },
+      refreshSelectedWMSLayer: function(wait) {
+        var vm = this
+        wait = wait || 1000
+        this._refreshSelectedWMSLayer = this._refreshSelectedWMSLayer || debounce(function(){
+          if (!vm.bfrsSelectedWMSMapLayer) return
+
+          if (vm.selectedFeatures.getLength() === 0) {
+            if (vm.bfrsSelectedWMSMapLayer.show) {
+                vm.map.enableDependentLayer(vm.bfrsMapLayer,vm.env.bfrsWMSLayer + "_selected",false)
+            }
+          } else {
+            vm.bfrsSelectedWMSMapLayer.setParams({
+                cql_filter:"fire_number in ('" + vm.selectedBushfires.join("','") +  "')"
+            })
+            if (!vm.bfrsSelectedWMSMapLayer.show) {
+                vm.map.enableDependentLayer(vm.bfrsMapLayer,vm.env.bfrsWMSLayer + "_selected",true)
+            }
+          }
+        },wait)
+
+        this._refreshSelectedWMSLayer.call({wait:wait})
+      },
       zoomToSelected:function(minScale) {
         this.map.zoomToSelected(minScale,function(f){
             return f.get('fire_boundary')?f.get('fire_boundary'):f.getGeometry().getExtent()
@@ -391,7 +412,7 @@
         updateType = updateType?updateType:(options["refresh"]?"query":null)
 
         if (!updateType && options["bushfireid"] !== null && options["bushfireid"] !== undefined){
-            var bushfire = options["refresh"]?null:this.allFeatures.getArray().find(function(f) {return f.get('id') === options["bushfireid"]})
+            var bushfire = options["refresh"]?null:this.allFeatures.getArray().find(function(f) {return f.get('fire_number') === options["bushfireid"]})
             if (bushfire) {
                 this.selectedFeatures.push(bushfire)
                 this.zoomToSelected(10)
@@ -1195,7 +1216,7 @@
         })
       },
       selected: function (f) {
-        return f.get('id') && (this.selectedBushfires.indexOf(f.get('id')) > -1)
+        return f.get('fire_number') && (this.selectedBushfires.indexOf(f.get('fire_number')) > -1)
       },
       downloadList: function (fmt) {
         var downloadFeatures = []
@@ -1452,6 +1473,9 @@
                                 vm.saveFeature(feature,function(f){
                                     vm.resetFeature(feat)
                                     vm.refreshWMSLayer()
+                                    if (vm.selectedBushfires.indexOf(f.get('fire_number')) >= 0) { 
+                                        vm.refreshSelectedWMSLayer()
+                                    }
                                 })
                             } else {
                                 if ((modifyType & 1) === 1) {
@@ -1531,7 +1555,7 @@
                 var bushfireFilter = ''
                 // filter by specific bushfires if "Show selected only" is enabled
                 if ((vm.selectedBushfires.length > 0) && (vm.selectedOnly)) {
-                  bushfireFilter = 'id in (' + vm.selectedBushfires.join(',') + ')'
+                  bushfireFilter = 'fire_number in (\'' + vm.selectedBushfires.join('\',\'') + '\')'
                 }
                 // CQL statement assembling logic
                 var filters = [vm.statusFilter, bushfireFilter, vm.regionFilter, vm.districtFilter].filter(function(f){return (f || false) && true})
@@ -1548,7 +1572,7 @@
                 if (updateType === "selectedBushfire" && bushfireFilter) {
                     //chosed some bushfires
                     var filteredFeatures = vm.bfrsMapLayer.getSource().getFeatures().filter(function(f){
-                        return vm.selectedBushfires.indexOf(f.get('id')) >= 0
+                        return vm.selectedBushfires.indexOf(f.get('fire_number')) >= 0
                     })
                     vm.bfrsMapLayer.getSource().clear()
                     vm.bfrsMapLayer.getSource().addFeatures(filteredFeatures)
@@ -1732,11 +1756,6 @@
             this.active.toggleHidden(this.bfrsMapLayer)
         }
 
-        if (!this.bfrsWMSMapLayer) {
-          this.catalogue.onLayerChange(this.bfrsWMSLayer, true)
-        } else if (this.active.isHidden(this.bfrsWMSMapLayer)) {
-            this.active.toggleHidden(this.bfrsWMSMapLayer)
-        }
         this.$root.annotations.selectable = [this.bfrsMapLayer]
         this.annotations.setTool()
 
@@ -2083,6 +2102,23 @@
         },
         initialLoad:false,
         refresh: 60,
+        dependentLayers:[
+            {
+                type: 'TileLayer',
+                name: 'Fire Boundary of Bush Fire Final Report',
+                id: vm.env.bfrsWMSLayer,
+                refresh: 60
+            },
+            {
+                type: 'ImageLayer',
+                name: 'Fire Boundary of Selected Bush Fire Final Report',
+                id: vm.env.bfrsWMSLayer,
+                style:"dpaw:bushfire_final_dev.selected",
+                mapLayerId:vm.env.bfrsWMSLayer + "_selected",
+                autoAdd:false
+                //refresh: 60
+            }
+        ],
         /*
         getUpdatedTime:function(features) {
             var updatedTime = null
@@ -2159,9 +2195,9 @@
                     vm.selectedFeatures.clear()
                     vm.selectedBushfires.length = 0
                     features.filter(function(el, index, arr) {
-                      var id = el.get('id')
-                      if (!id) return false
-                      if (bushfireIds.indexOf(id) < 0) return false
+                      var fire_number = el.get('fire_number')
+                      if (!fire_number) return false
+                      if (bushfireIds.indexOf(fire_number) < 0) return false
                       return true
                     }).forEach(function (el) {
                       vm.selectedFeatures.push(el)
@@ -2232,13 +2268,6 @@
         }
       })
 
-      this.$root.fixedLayers.push({
-        type: 'TileLayer',
-        name: 'Bush Fire Final Report Fire Boundary',
-        id: vm.env.bfrsWMSLayer,
-        //refresh: 60
-      })
-
       this.measure.register(vm.env.bfrsLayer,this.allFeatures)
       vm._bfrsStatus.phaseEnd("initialize")
 
@@ -2252,18 +2281,20 @@
 
         vm.selectedFeatures.on('add', function (event) {
           if (event.element.get('toolName') === "Bfrs Origin Point") {
-            vm.selectedBushfires.push(event.element.get('id'))
+            vm.selectedBushfires.push(event.element.get('fire_number'))
             if (vm.annotations.tool.selectMode === "geometry") {
                 if (event.element["selectedIndex"] === undefined) {
                     vm.selectDefaultGeometry(event.element)
                 }
             }
           }
+          vm.refreshSelectedWMSLayer()
         })
         vm.selectedFeatures.on('remove', function (event) {
           if (event.element.get('toolName') === "Bfrs Origin Point") {
-            vm.selectedBushfires.$remove(event.element.get('id'))
+            vm.selectedBushfires.$remove(event.element.get('fire_number'))
           }
+          vm.refreshSelectedWMSLayer()
           //remove the index of the selected geometry in geometry collection
           //delete event.element['selectedIndex']
         })
@@ -2275,7 +2306,7 @@
 
 
         vm.map.olmap.on("removeLayer",function(ev){
-            if (ev.layer.get('id') === vm.env.bfrsLayer) {
+            if (ev.mapLayer.get('id') === vm.env.bfrsLayer) {
                 vm.allFeatures.clear()
                 vm.extentFeatures = []
             }

@@ -41,7 +41,7 @@
     <div class="layers-flexibleframe scroller row collapse" id="catalogue-list-container">
       <div class="columns">
         <div id="layers-catalogue-list">
-          <div v-for="l in catalogue.getArray() | filterBy search in searchAttrs | orderBy 'name'" class="row layer-row" @mouseover="preview(l)" track-by="id" @mouseleave="preview(false)" style="margin-left:0px;margin-right:0px">
+          <div v-for="l in catalogue.getArray() | filterBy search in searchAttrs | orderBy 'name'" class="row layer-row" @mouseover="preview(l)" track-by="mapLayerId" @mouseleave="preview(false)" style="margin-left:0px;margin-right:0px">
             <div class="small-10">
               <a v-if="editable(l)" @click.stop.prevent="utils.editResource($event)" title="Edit catalogue entry" href="{{env.catalogueAdminService}}/django-admin/catalogue/record/{{l.systemid}}/change/" target="_blank" class="button tiny secondary float-right short"><i class="fa fa-pencil"></i></a>
               <div class="layer-title">{{ l.name || l.id }}</div>
@@ -242,6 +242,7 @@ div.ol-previewmap.ol-uncollapsible {
             // all other layers with the "base" option set.
             if (this.swapBaseLayers) {
               active.olLayers.forEach(function (mapLayer) {
+                if (mapLayer.get('dependentLayer')) return
                 if (vm.getLayer(mapLayer).base) {
                   active.removeLayer(mapLayer)
                 }
@@ -252,7 +253,7 @@ div.ol-previewmap.ol-uncollapsible {
           } else {
             map.olmap.addLayer(olLayer)
           }
-          this.map.olmap.dispatchEvent(this.map.createEvent(this.map,"addLayer",{layer:olLayer}))
+          this.map.olmap.dispatchEvent(this.map.createEvent(this.map,"addLayer",{mapLayer:olLayer}))
         } else {
           active.removeLayer(map.getMapLayer(layer))
         }
@@ -320,7 +321,7 @@ div.ol-previewmap.ol-uncollapsible {
         // handle openlayers layers as well as raw ids
         if (id && id.get) { id = id.get('id') }
         return this.catalogue.getArray().find(function (layer) {
-          return layer.id === id
+          return layer.mapLayerId === id
         })
       },
       getMapLayer: function (id) {
@@ -337,6 +338,12 @@ div.ol-previewmap.ol-uncollapsible {
         l.type = l.type || 'TileLayer'
         if (l.type === 'TileLayer') {
           l.legend = (l.legend && (vm.env.catalogueAdminService + l.legend))|| ((l.service_type === "WFS")?(vm.env.legendSrc + l.id):null)
+        }
+        l.mapLayerId = l.mapLayerId || l.id
+        if (l.dependentLayers) {
+            $.each(l.dependentLayers,function(index,layer){
+                layer.mapLayerId = layer.mapLayerId || layer.id
+            })
         }
       })
       catalogueStatus.phaseBegin("gk-init",80,"Listen 'gk-init' event",true,true)

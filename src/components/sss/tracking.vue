@@ -841,7 +841,7 @@
         })
 
         vm.map.olmap.on("removeLayer",function(ev){
-            if (ev.layer.get('id') === "dpaw:resource_tracking_live") {
+            if (ev.mapLayer.get('id') === "dpaw:resource_tracking_live") {
                 vm.allFeatures = []
                 vm.extentFeatures = []
             }

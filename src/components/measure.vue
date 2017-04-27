@@ -1047,22 +1047,22 @@
           measureStatus.phaseBegin("attach_event_to_olmap",10,"Attach event to olmap")
           //add measure tooltips when adding annotation layer and measureFeature is true
           vm.map.olmap.on("addLayer",function(ev){
-              var layer = vm._measureLayers.find(function(l){return l[0] === ev.layer.get('id')})
+              var layer = vm._measureLayers.find(function(l){return l[0] === ev.mapLayer.get('id')})
               if (layer) {
                   if (vm.measureFeature) {
                       vm.enableLayerMeasurement(layer,true)
                   }
-                  ev.layer._change_opacity = ev.layer._change_opacity || ev.layer.on("change:opacity",vm._changeOpacityHandler)
+                  ev.mapLayer._change_opacity = ev.mapLayer._change_opacity || ev.mapLayer.on("change:opacity",vm._changeOpacityHandler)
               }
           })
 
           //remove measure tooltips when removing annotation layer
           vm.map.olmap.on("removeLayer",function(ev){
-              var layer = vm._measureLayers.find(function(l){return l[0] === ev.layer.get('id')})
+              var layer = vm._measureLayers.find(function(l){return l[0] === ev.mapLayer.get('id')})
               if (layer) {
-                  if (ev.layer._change_opacity) {
-                    ev.layer.unByKey(ev.layer._change_opacity)
-                    delete ev.layer._change_opacity
+                  if (ev.mapLayer._change_opacity) {
+                    ev.mapLayer.unByKey(ev.mapLayer._change_opacity)
+                    delete ev.mapLayer._change_opacity
                   }
                   if (vm.measureFeature) {
                       vm.enableLayerMeasurement(layer,false)
