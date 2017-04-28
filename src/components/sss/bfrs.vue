@@ -94,8 +94,6 @@
                 <div class="tool-slice row collapse">
                   <div class="small-12 expanded button-group">
                     <a title="Zoom to selected" class="button" @click="zoomToSelected()" ><img style="width:29px;height:29px"src="dist/static/images/zoom-to-selected.svg"/><br></a>
-                    <a v-if="isCreatable()" title="Create bushfire" class="button" @click="newFeature()" ><i class="fa fa-plus"></i><br>create</a>
-    
                     <label class="button" for="uploadBushfires" title="Support GeoJSON(.geojson .json), GPS data(.gpx), GeoPackage(.gpkg), 7zip(.7z), TarFile(.tar.gz,tar.bz,tar.xz),ZipFile(.zip)" style="line-height:1"><i class="fa fa-upload"></i><br>upload</label><input type="file" id="uploadBushfires" class="show-for-sr" name="bushfiresfile" accept=".json,.geojson,.gpx,.gpkg,.7z,.tar,.tar.gz,.tar.bz,.tar.xz,.zip" v-model="bushfiresfile" v-el:bushfiresfile @change="importList()"/>
                     <a class="button" @click="downloadList('geojson')" title="Export Bushfire as GeoJSON"><i class="fa fa-download" aria-hidden="true"></i><br>geojson </a>
                     <a class="button" @click="downloadList('gpkg')" title="Export Bushfire as GeoPackage"><i class="fa fa-download" aria-hidden="true"></i><br>gpkg</a>
@@ -983,12 +981,8 @@
       },
       newFeature:function(feat) {
         var vm = this
-        var autoSelect = true
         this._bushfireSequence = (this._bushfireSequence || 0) 
         var featId = 0
-        if (feat) {
-            autoSelect = false
-        }
         if (feat && feat.get('id')) {
             if (Math.abs(feat.get('id')) > this._bushfireSequence) {
                 this._bushfireSequence = Math.abs(feat.get('id'))
@@ -1047,11 +1041,7 @@
         }
 
         this.revision += 1
-        if (autoSelect) {
-            this.selectedFeatures.clear()
-            this.selectedFeatures.push(feat)
-            this.annotations.setTool(this.ui.originPointTool)
-        }
+        return feat
       },
       createFeature:function(feat) {
         if (this.canCreate(feat)) {
@@ -1109,9 +1099,16 @@
         this.bfrsMapLayer.getSource().retrieveFeatures(filter,function(features){
           if (features && features.length) {
             vm.initBushfire(features[0])
-            var f = vm.bfrsMapLayer.getSource().getFeatures().find(function(f) {f.get('fire_number') === feat.get('fire_number')})
+            var f = vm.bfrsMapLayer.getSource().getFeatures().find(function(f) {return f.get('fire_number') === feat.get('fire_number')})
             if (f) {
                 vm.bfrsMapLayer.getSource().removeFeature(f)
+            }
+            if (feat.selectedIndex !== undefined) {
+                if (vm.annotations.getSelectedGeometry(features[0],feat.selectedIndex)) {
+                    features[0].selectedIndex = f.selectedIndex
+                } else {
+                    vm.selectDefaultGeometry(features[0])
+                }
             }
 
             vm.bfrsMapLayer.getSource().addFeature(features[0])
@@ -1868,18 +1865,19 @@
 
         //add feature to place an point based on coordinate
         this.$root.search.setSearchPointFunc(function(searchMethod,coords,name){
-            var feat = vm.selectedFeatures.getLength() === 1?vm.selectedFeatures.item(0):null
-            if (!feat) {return false}
-            if (!vm.isModifiable(feat)) {
-                alert("Can't modify " + feat.get('status') + " report")
-                return true
+            if (["DMS","MGA"].indexOf(searchMethod) < 0) {
+                return false
             }
+            if (vm.annotations.tool && vm.annotations.tool.name === "Bfrs Edit Geometry") {
+                var feat = vm.selectedFeatures.getLength() === 1?vm.selectedFeatures.item(0):null
+                if (!feat) {return false}
+                if (!vm.isModifiable(feat)) {
+                    alert("Can't modify " + feat.get('status') + " report")
+                    return true
+                }
 
-            var hasPoint = feat.getGeometry().getGeometriesArray().length > 0 && feat.getGeometry().getGeometriesArray()[0] instanceof ol.geom.Point
-            if (vm.annotations.tool && 
-                ["DMS","MGA"].indexOf(searchMethod) >= 0 && 
-                (vm.annotations.tool.name === "Bfrs Edit Geometry" || (vm.annotations.tool.name === "Bfrs Origin Point" && !hasPoint) )
-            ) {
+                var hasPoint = feat.getGeometry().getGeometriesArray().length > 0 && feat.getGeometry().getGeometriesArray()[0] instanceof ol.geom.Point
+
                 if (hasPoint) {
                     feat.getGeometry().getGeometriesArray()[0] = new ol.geom.Point(coords)
                 } else {
@@ -1890,6 +1888,13 @@
                 
                 feat.getGeometry().changed()
 
+                return true
+            } else if (vm.annotations.tool && vm.annotations.tool.name === "Bfrs Origin Point") {
+                var feat = vm.newFeature()
+                feat.getGeometry().getGeometriesArray().splice(0,0,new ol.geom.Point(coords))
+                feat.getGeometry().setGeometriesArray(feat.getGeometry().getGeometriesArray())
+                feat.getGeometry().changed()
+                vm.postModified(feat,1)
                 return true
             }
         })
@@ -1973,20 +1978,6 @@
             addfeaturegeometry:true
         },
         drawOptions:{
-            condition:function(ev) {
-                var feat = (vm.selectedFeatures.getLength() == 1)?vm.selectedFeatures.item(0):null
-                if (feat) {
-                    var featGeometry = feat.getGeometry()
-                    if (vm.isModifiable(feat) && (feat.getGeometry().getGeometriesArray().length == 0 || !(feat.getGeometry().getGeometriesArray()[0] instanceof ol.geom.Point))) {
-                        return ol.events.condition.noModifierKeys(ev)
-                    } else {
-                        return false
-                    }
-                } else {
-                    alert("Plase choose a bushfire to place a origin point.")
-                    return false
-                }
-            }
         }
       })({
         features:vm.drawings
@@ -2016,9 +2007,9 @@
         features:vm.drawings
       })
       vm.drawings.on("add",function(ev){
-        if (vm.selectedFeatures.getLength() === 1){
-            var f = vm.selectedFeatures.item(0)
-            if (vm.annotations.tool.name === "Bfrs Fire Boundary") {
+        if (vm.annotations.tool.name === "Bfrs Fire Boundary") {
+            if (vm.selectedFeatures.getLength() === 1){
+                var f = vm.selectedFeatures.item(0)
                 var indexes = null
                 vm.validateBushfire(f,"addFireBoundary",ev.element.getGeometry())
 
@@ -2035,25 +2026,18 @@
                 vm.postModified(f,2)
 
                 vm.ui.fireboundaryDraw.dispatchEvent(vm.map.createEvent(vm.ui.fireboundaryDraw,"addfeaturegeometry",{feature:f,indexes:indexes}))
-            } else if (f.getGeometry().getGeometriesArray().length > 0 && f.getGeometry().getGeometriesArray()[0] instanceof ol.geom.Point){
-                f.getGeometry().getGeometriesArray()[0] = ev.element.getGeometry()
-                f.getGeometry().setGeometriesArray(f.getGeometry().getGeometriesArray())
-                f.getGeometry().changed()
-                vm.postModified(f,1)
-                vm.validateBushfire(f,"moveFireBoundary",ev.element.getGeometry())
-
-                vm.ui.originPointDraw.dispatchEvent(vm.map.createEvent(vm.ui.originPointDraw,"addfeaturegeometry",{feature:f,indexes:[0]}))
-            } else {
-                f.getGeometry().getGeometriesArray().splice(0,0,ev.element.getGeometry())
-                f.getGeometry().setGeometriesArray(f.getGeometry().getGeometriesArray())
-                f.getGeometry().changed()
-                vm.postModified(f,1)
-                vm.validateBushfire(f,"addOriginPoint",ev.element.getGeometry())
-
-                vm.ui.originPointDraw.dispatchEvent(vm.map.createEvent(vm.ui.originPointDraw,"addfeaturegeometry",{feature:f,indexes:[0]}))
             }
-            vm.drawings.clear()
+        } else {
+            f = vm.newFeature()
+            f.getGeometry().getGeometriesArray().splice(0,0,ev.element.getGeometry())
+            f.getGeometry().setGeometriesArray(f.getGeometry().getGeometriesArray())
+            f.getGeometry().changed()
+            vm.postModified(f,1)
+            //vm.validateBushfire(f,"addOriginPoint",ev.element.getGeometry())
+
+            vm.ui.originPointDraw.dispatchEvent(vm.map.createEvent(vm.ui.originPointDraw,"addfeaturegeometry",{feature:f,indexes:[0]}))
         }
+        vm.drawings.clear()
       })
 
       //add tools
@@ -2107,7 +2091,11 @@
                             if (vm.isModifiable(feature) && feature["selectedIndex"] !== undefined) {
                                 var geom = vm.annotations.getSelectedGeometry(feature)
                                 if (geom instanceof ol.geom.Point) {
-                                    alert("Oring point can't be deleted.")
+                                    if (feature.get('status') === "new") {
+                                        vm.deleteFeature(feature)
+                                    } else {
+                                        alert("Can't delete existing bushfire's orgin point.")
+                                    }
                                     return
                                 }
                                 vm.annotations.deleteSelectedGeometry(feature,this)
@@ -2138,7 +2126,7 @@
               }
           }, {
               name: 'Bfrs Origin Point',
-              label: 'Origin Point',
+              label: 'Create Bushfire',
               icon: 'dist/static/symbols/fire/origin.svg',
               tints: vm.tints,
               selectedFillColour:[0, 0, 0, 0.25],
@@ -2254,6 +2242,7 @@
             function processResources() {
                 //merge the current changes with the new features
                 var insertPosition = 0
+                var loadedFeature = null
                 $.each(vm.allFeatures.getArray().filter(function(f) {return ['new','modified'].indexOf(f.get('tint')) >= 0 }),function(index,f){
                     if (f.get('status') === 'new') {
                         //new features always are the begining and sorted.
@@ -2300,22 +2289,24 @@
                         } 
                     }
                 })
-                defaultOnload(loadType,vectorSource,features)
-                if (vm.selectedBushfires.length > 0) {
-                    var bushfireIds = vm.selectedBushfires.slice()
-                    vm.selectedFeatures.clear()
-                    vm.selectedBushfires.length = 0
-                    features.filter(function(el, index, arr) {
-                      var fire_number = el.get('fire_number')
-                      if (!fire_number) return false
-                      if (bushfireIds.indexOf(fire_number) < 0) return false
-                      return true
-                    }).forEach(function (el) {
-                      vm.selectedFeatures.push(el)
+                if (vm.selectedFeatures.length > 0) {
+                    $.each(vm.selectedFeatures,function(index,f){   
+                        loadedFeature = features.find(function(f1){return f1.get('fire_number') === f.get('fire_number')})
+                        if (loadedFeature) {
+                            if (f.selectedIndex !== undefined) {
+                                if (vm.annotations.getSelectedGeometry(loadedFeature,f.selectedIndex)) {
+                                    loadedFeature.selectedIndex = f.selectedIndex
+                                } else {
+                                    vm.selectDefaultGeometry(loadedFeature)
+                                }
+                            }
+                            vm.selectedFeatures[index] = loadedFeature
+                        }
+
                     })
-                    //var currentScale = vm.map.getScale()
-                    //vm.zoomToSelected(currentScale > 10?10:currentScale)
                 }
+                defaultOnload(loadType,vectorSource,features)
+
                 vm.updateFeatureFilter(true)
 
                 if (vm.whoami['bushfire']["permission"]["changed"]) {

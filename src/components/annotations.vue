@@ -634,7 +634,7 @@
         if (geom instanceof ol.geom.Point) {
             var geomPosition  = this.map.olmap.getPixelFromCoordinate(geom.getCoordinates())
             var position = mapBrowserEvent.pixel
-            return (Math.abs(position[0] - geomPosition[0]) <= 5  && Math.abs(position[1] - geomPosition[1]) <= 5)
+            return (Math.abs(position[0] - geomPosition[0]) <= 12  && Math.abs(position[1] - geomPosition[1]) <= 12)
         } else {
             return geom.intersectsCoordinate(mapBrowserEvent.coordinate) 
         }

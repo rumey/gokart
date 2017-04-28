@@ -1777,7 +1777,7 @@
                 selectedFeatures.forEach(function (f) {
                     if (!ol.extent.isEmpty(getExtent?getExtent(f):f.getGeometry().getExtent())) {
                       extent = extent || ol.extent.createEmpty()
-                      ol.extent.extend(extent, f.getGeometry().getExtent())
+                      ol.extent.extend(extent, getExtent?getExtent(f):f.getGeometry().getExtent())
                     }
                 })
             }
