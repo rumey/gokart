@@ -1109,27 +1109,27 @@
         this.bfrsMapLayer.getSource().retrieveFeatures(filter,function(features){
           if (features && features.length) {
             vm.initBushfire(features[0])
-            try{
-                vm.bfrsMapLayer.getSource().removeFeature(feat)
-            } catch(ex) {
-                //ignore, maybe the feature is already replaced by backend refresh process
+            var f = vm.bfrsMapLayer.getSource().getFeatures().find(function(f) {f.get('fire_number') === feat.get('fire_number')})
+            if (f) {
+                vm.bfrsMapLayer.getSource().removeFeature(f)
             }
+
             vm.bfrsMapLayer.getSource().addFeature(features[0])
 
-            var index = vm.allFeatures.getArray().findIndex(function(f){return f.get('id') === feat.get('id')})
+            var index = vm.allFeatures.getArray().findIndex(function(f){return f.get('fire_number') === feat.get('fire_number')})
             if (index >= 0) {
                 vm.allFeatures.setAt(index,features[0])
                 vm.revision += 1
             }
 
             if (vm.extentFeatures) {
-                index = vm.extentFeatures.findIndex(function(f){return f.get('id') === feat.get('id')})
+                index = vm.extentFeatures.findIndex(function(f){return f.get('fire_number') === feat.get('fire_number')})
                 if (index >= 0) {
                     vm.extentFeatures[index] = features[0]
                 }
             }
 
-            index = vm.selectedFeatures.getArray().findIndex(function(f){return f.get('id') === feat.get('id')})
+            index = vm.selectedFeatures.getArray().findIndex(function(f){return f.get('fire_number') === feat.get('fire_number')})
             if (index >= 0) {
                 vm.selectedFeatures.setAt(index,features[0])
                 vm.zoomToSelected(10)         
