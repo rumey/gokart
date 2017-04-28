@@ -1,7 +1,112 @@
 import { $ } from 'src/vendor.js'
 
 
+let FeatureTask = function(manager,scope,taskId,description,status,message) {
+    this.manager = manager
+    this.scope = scope
+    this.taskId = taskId
+    this.description = description
+    this.icon = ""
+    this.statusText = ""
+    this.message = ""
+    this.setStatus(status,message)
+}
+
+FeatureTask.FAILED = -1
+FeatureTask.WAITING = 1
+FeatureTask.RUNNING = 2
+FeatureTask.SUCCEED = 3
+
+FeatureTask.prototype._getIcon = function() {
+    if (this.status === FeatureTask.FAILED) {
+        return "fa-close"
+    } else if (this.status === FeatureTask.WAITING) {
+        return "fa-pause"
+    } else if (this.status === FeatureTask.RUNNING) {
+        return "fa-spinner"
+    } else if (this.status === FeatureTask.SUCCEED) {
+        return "fa-check"
+    }  else {
+        return "fa-spinner"
+    }
+}
+
+FeatureTask.prototype._getStatusText = function() {
+    if (this.status === FeatureTask.FAILED) {
+        return "Failed"
+    } else if (this.status === FeatureTask.WAITING) {
+        return "Waiting"
+    } else if (this.status === FeatureTask.RUNNING) {
+        return "Running"
+    } else if (this.status === FeatureTask.SUCCEED) {
+        return "OK"
+    }  else {
+        return "Running"
+    }
+}
+
+FeatureTask.prototype.setStatus = function(status,message) {
+    this.status = status
+    this.message = message || ""
+    this.statusText = this._getStatusText()
+    this.icon = this._getIcon()
+    if (this.manager && this.manager.changeCallback) this.manager.changeCallback()
+}
+
+let FeatureTaskManager = function(changeCallback) {
+    this.changeCallback = changeCallback
+}
+
+//return true if init succeed;otherwise return false
+FeatureTaskManager.prototype.initTasks = function(feat) {
+    if (this.changeCallback) this.changeCallback()
+    feat.tasks = feat.tasks || []
+    if (feat.tasks.length > 0) {
+        if (feat.tasks.find(function(t){return t.status === FeatureTask.WAITING || t.status === FeatureTask.RUNNING})) {
+            alert("Feature still has running jobs.")
+            return false
+        }
+        feat.tasks.length = 0
+    } 
+    return true
+}
+FeatureTaskManager.prototype.clearTasks = function(feat) {
+    setTimeout(function(){
+        if (this.changeCallback) this.changeCallback()
+        if (feat.tasks) {
+            feat.tasks.length = 0
+        }
+    },1000)
+}
+FeatureTaskManager.prototype.getTasks = function(feat) {
+    return feat.tasks
+}
+FeatureTaskManager.prototype.getTask = function(feat,scope,taskId) {
+    return feat.tasks.find(function(t) {return t.id === taskId && t.scope === scope})
+}
+//status should be "waiting","running","succeed","failed"
+FeatureTaskManager.prototype.addTask = function(feat,scope,taskId,description,status) {
+    if (this.changeCallback) this.changeCallback()
+    var task = new FeatureTask(this,scope,taskId,description,status)
+        
+    feat.tasks.push(task)
+    return task
+}
+
+FeatureTaskManager.prototype.allTasksSucceed = function(feat,scope) {
+    return !((feat.tasks.find(function(t) {return t.scope === scope && t.status !== FeatureTask.SUCCEED}) && true)||false)
+}
+
 let Utils = function() {
+}
+
+Utils.prototype.SUCCEED = FeatureTask.SUCCEED
+Utils.prototype.FAILED = FeatureTask.FAILED
+Utils.prototype.WAITING = FeatureTask.WAITING
+Utils.prototype.RUNNING = FeatureTask.RUNNING
+
+Utils.prototype.getFeatureTaskManager = function(changeCallback) {
+    return new FeatureTaskManager(changeCallback)
 }
 
 Utils.prototype.checkPermission = function(url,callback) {

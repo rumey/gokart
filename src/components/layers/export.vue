@@ -309,112 +309,170 @@
       getFileFormat:function(filename) {
         return this._fileformats.find(function(f){return filename.substring(filename.length - f[1].length).toLowerCase() === f[1]})
       },
-      importVector: function(file,callback) {
+      importVector: function(file,callback,failedCallback) {
         // upload vector  
         var vm = this
         var fileFormat = this.getFileFormat(file.name)
         if (!fileFormat) {
-            alert("Not support file format(" + filename + ")")
+            var msg = "Not support file format(" + filename + ")"
+            if (failedCallback) {
+                faieldCallback(msg)
+            } else {
+                alert(msg)
+            }
             return
         }
 
-        if ((fileFormat[0] === "geojson") || (fileFormat[0] === "json")) {
-            var reader = new window.FileReader()
-            reader.onload = function (e) {
-                var features = new ol.format.GeoJSON().readFeatures(e.target.result,{dataProjection:"EPSG:4326"})
-                if (features && features.length) {
-                   callback(features,fileFormat[0])
-                }
-            }
-            reader.readAsText(file)
-        } else {
-            var reader = new window.FileReader()
-            reader.onload = function (e) {
-                vm._importData = {formData:new window.FormData(),callback:callback}
-                vm._importData.formData.append('datasource', new window.Blob([e.target.result],{type:fileFormat[2]}), file.name)
-                var req = new window.XMLHttpRequest()
-                req.open('POST', vm.env.gokartService + '/ogrinfo')
-                req.responseType = 'blob'
-                req.withCredentials = true
-                req.onload = function (event) {
-                    if (req.status >= 400) {
-                        var reader = new FileReader()
-                        reader.readAsText(req.response)
-                        reader.addEventListener("loadend",function(e){
-                            alert(e.target.result)
-                        })
-                        delete vm._importData
-                    } else {
-                        var reader = new FileReader()
-                        reader.readAsText(req.response)
-                        reader.addEventListener("loadend",function(e){
-                            if (!e.target.result) {
-                                return
-                            }
-                            var layers = JSON.parse(e.target.result)
-                            if (!layers || !layers["layerCount"]) {
-                                alert("No spatial data are found.")
-                                return
-                            } else if(layers["layerCount"] === 1) {
-                                vm.importLayer(layers["datasources"][0]["datasource"],layers["datasources"][0]["layers"][0],true)
-                            } else {
-                                vm.layers = layers
-                                $("#chooseImportLayer").foundation('open')
-                            }
-                        })
+        try {
+            if ((fileFormat[0] === "geojson") || (fileFormat[0] === "json")) {
+                var reader = new window.FileReader()
+                reader.onload = function (e) {
+                    try {
+                        var features = new ol.format.GeoJSON().readFeatures(e.target.result,{dataProjection:"EPSG:4326"})
+                        if (features && features.length) {
+                           callback(features,fileFormat[0])
+                        }
+                    } catch(ex) {
+                        if (failedCallback) failedCallback(ex.message || ex)
                     }
                 }
-                req.send(vm._importData.formData)
+                reader.readAsText(file)
+            } else {
+                var reader = new window.FileReader()
+                reader.onload = function (e) {
+                    try{
+                        vm._importData = {formData:new window.FormData(),callback:callback,failedCallback:failedCallback}
+                        vm._importData.formData.append('datasource', new window.Blob([e.target.result],{type:fileFormat[2]}), file.name)
+                        var req = new window.XMLHttpRequest()
+                        req.open('POST', vm.env.gokartService + '/ogrinfo')
+                        req.responseType = 'blob'
+                        req.withCredentials = true
+                        req.onload = function (event) {
+                            try{
+                                if (req.status >= 400) {
+                                    var reader = new FileReader()
+                                    reader.readAsText(req.response)
+                                    reader.addEventListener("loadend",function(e){
+                                        if (failedCallback) {
+                                            failedCallback(e.target.result)
+                                        } else {
+                                            alert(e.target.result)
+                                        }
+                                    })
+                                    delete vm._importData
+                                } else {
+                                    var reader = new FileReader()
+                                    reader.readAsText(req.response)
+                                    reader.addEventListener("loadend",function(e){
+                                        if (!e.target.result) {
+                                            if (failedCallback) failedCallback("No spatial data")
+                                            return
+                                        }
+                                        var layers = JSON.parse(e.target.result)
+                                        if (!layers || !layers["layerCount"]) {
+                                            callback([],"geojson")
+                                            return
+                                        } else if(layers["layerCount"] === 1) {
+                                            vm.importLayer(layers["datasources"][0]["datasource"],layers["datasources"][0]["layers"][0],true)
+                                        } else {
+                                            vm.layers = layers
+                                            $("#chooseImportLayer").foundation('open')
+                                        }
+                                    })
+                                }
+                            } catch(ex) {
+                                if (failedCallback) {
+                                    failedCallback(ex.message || ex)
+                                } else {
+                                   alert(ex.message || ex)
+                                }
+                            }
+                        }
+                        req.send(vm._importData.formData)
+                    }catch(ex) {
+                        if (failedCallback) failedCallback(ex.message || ex)
+                    }
+                }
+                reader.readAsArrayBuffer(file)
             }
-            reader.readAsArrayBuffer(file)
+        } catch (ex) {
+            if (failedCallback) failedCallback(ex.message || ex)
         }
       },
       importLayer:function(datasource,selectedLayer,autoChoose){
-        fileFormat = this.getFileFormat(datasource)
-        if (!fileFormat) {
-            alert("Not support file format(" + datasource + ")")
-            return
-        }
         try {
             if (!this._importData) {
                 alert("Import data is missing.")
                 return
             }
+            fileFormat = this.getFileFormat(datasource)
+            if (!fileFormat) {
+                var msg = "Not support file format(" + datasource + ")"
+                if (this._importData.failedCallback) {
+                    this._importData.failedCallback(msg)
+                } else {
+                    alert(msg)
+                }
+                return
+            }
             if (!selectedLayer) {
-                alert("Please choose import layer.")
+                var msg = "Please choose import layer."
+                if (this._importData.failedCallback) {
+                    this._importData.failedCallback(msg)
+                } else {
+                    alert(msg)
+                }
                 return
             }
             if (selectedLayer.featureCount <= 0) {
+                this._importData.callback([],"geojson")
                 return
             }
             var vm = this
+            var importData = vm._importData
             this._importData.formData.append('layer', selectedLayer.layer)
             this._importData.formData.append('datasourcefile', datasource)
             var req = new window.XMLHttpRequest()
             req.open('POST', this.env.gokartService + '/ogr/geojson')
             req.responseType = 'text'
             req.withCredentials = true
-            var importData = vm._importData
             req.onload = function (event) {
-                if (req.status >= 400) {
-                    var reader = new FileReader()
-                    reader.readAsText(req.response)
-                    reader.addEventListener("loadend",function(e){
-                        alert(e.target.result)
-                    })
-                } else {
-                    var features = new ol.format.GeoJSON().readFeatures(req.response,{dataProjection:"EPSG:4326"})
-                    if (features && features.length) {
-                        importData.callback(features,fileFormat[0])
+                try{
+                    if (req.status >= 400) {
+                        var reader = new FileReader()
+                        reader.readAsText(req.response)
+                        reader.addEventListener("loadend",function(e){
+                            if (importData.failedCallback) {
+                                importData.failedCallback(e.target.result)
+                            } else {
+                                alert(e.target.result)
+                            }
+                        })
+                    } else {
+                        var features = new ol.format.GeoJSON().readFeatures(req.response,{dataProjection:"EPSG:4326"})
+                        if (features && features.length) {
+                            importData.callback(features,fileFormat[0])
+                        }
+                    }
+                } catch(ex) {
+                    if (importData.failedCallback) {
+                        importData.failedCallback(ex.message || ex)
+                    } else {
+                        alert(ex.message || ex)
                     }
                 }
             }
             req.send(this._importData.formData)
+        } catch(ex) {
+            if (importData.failedCallback) {
+                importData.failedCallback(ex.message || ex)
+            } else {
+                alert(ex.message || ex)
+            }
         } finally {
+            if (this._importData) {delete this._importData}
             if (!autoChoose) {
                 $("#chooseImportLayer").foundation('close')
-            } else {
-                if (this._importData) {delete this._importData}
             }
         }
       },
@@ -790,7 +848,10 @@
 
 
       $("#chooseImportLayer").on("closed.zf.reveal",function(){
-          if (vm._importData) {delete vm._importData}
+          if (vm._importData) {
+            if (vm._importData.failedCallback) vm._importData.failedCallback("Cancelled")
+            delete vm._importData
+          }
       })
       exportStatus.phaseEnd("initialize")
       exportStatus.phaseBegin("gk-init",80,"Listen 'gk-init' event",true,true)
