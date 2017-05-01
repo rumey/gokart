@@ -722,7 +722,7 @@
                 }
             }
 
-            var validate_task = vm._taskManager.addTask(feat,"getSpatialData","validate","Validate Bushfire",utils.RUNNING)
+            var validate_task = vm._taskManager.addTask(feat,"getSpatialData","validate","Validate bushfire",utils.RUNNING)
             try {
                 this.validateBushfire(feat,"getSpatialData",true)
                 validate_task.setStatus(utils.SUCCEED)
@@ -743,7 +743,7 @@
             var spatialData = {}
             if ((modifyType & 1) === 1) {
                 spatialData["origin_point"] = originPoint
-                spatialData["tenure_origin_point"]  = null
+                spatialData["tenure_ignition_point"]  = null
                 spatialData["fire_position"]  = null
             }
     
@@ -757,7 +757,7 @@
     
             var tenure_area_task = null
             if (fireboundary && (modifyType & 2) === 2) {
-                tenure_area_task = vm._taskManager.addTask(feat,"getSpatialData","tenure_area","Calculate fire boundary area in dpaw tenure",utils.WAITING)
+                tenure_area_task = vm._taskManager.addTask(feat,"getSpatialData","tenure_area","Calculate fire boundary areas",utils.WAITING)
             }
             var tenure_origin_point_task = null
             var fire_position_task = null
@@ -1341,7 +1341,7 @@
             if (!this._taskManager.initTasks(targetFeature)) {
                 return
             }
-            import_task = this._taskManager.addTask(targetFeature,"import","import","Import to SSS",utils.RUNNING)
+            import_task = this._taskManager.addTask(targetFeature,"import","import","Import bushfire fire boundary",utils.RUNNING)
         }
         var vm = this
         this.export.importVector(files[0],function(features,fileFormat){
