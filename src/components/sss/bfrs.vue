@@ -420,13 +420,14 @@
             self.map.olmap.updateSize()
         }
 
+        var vm = this
         var updateType = null
         if (!options) {return}
-        if (options["region"] !== this.region) {
+        if ("region" in options && options["region"] !== this.region) {
             this.region = options["region"] || ""
             updateType = "region"
         }
-        if (options["district"] != this.district) {
+        if ("district" in options && options["district"] != this.district) {
             this.district = options["district"] || ""
             updateType = "district"
         }
@@ -446,10 +447,16 @@
         }
 
         if (updateType) {
-            if (options["bushfireid"] !== null && options["bushfireid"] !== undefined){
-                this.selectedBushfires = [options["bushfireid"]]
-            }
-            this.updateCQLFilter(updateType,(updateType === "query")?0:1)
+            this.updateCQLFilter(updateType,(updateType === "query")?0:1,function(){
+                if (options["bushfireid"] !== null && options["bushfireid"] !== undefined){
+                    var feat = vm.allFeatures.getArray().find(function(o) {return o.get('fire_number') == options["bushfireid"]})
+                    if (feat) {
+                        vm.selectedFeatures.push(feat)
+                        vm.zoomToSelected(100)         
+                    }
+                }
+
+            })
         }
 
       },
@@ -1667,7 +1674,7 @@
             }
         })
       },
-      updateCQLFilter: function (updateType,wait) {
+      updateCQLFilter: function (updateType,wait,callback) {
         var vm = this
         if (updateType === "region") {
             this.district = ""
@@ -1677,7 +1684,7 @@
             return
         }
         if (!vm._updateCQLFilterFunc) {
-            vm._updateCQLFilterFunc = function(updateType){
+            vm._updateCQLFilterFunc = function(updateType,callback){
                 if (!vm.bfrsMapLayer) {
                     vm._updateCQLFilter.call({wait:100},updateType)
                     return
@@ -1712,22 +1719,22 @@
                     vm.updateFeatureFilter(true)
                 } else {
                     //clear bushfire filter or change other filter
-                    vm.bfrsMapLayer.getSource().loadSource("query")
+                    vm.bfrsMapLayer.getSource().loadSource("query",callback)
                 }
             }
         }
 
         if (!vm._updateCQLFilter) {
-            vm._updateCQLFilter = debounce(function(updateType){
-                vm._updateCQLFilterFunc(updateType)
+            vm._updateCQLFilter = debounce(function(updateType,callback){
+                vm._updateCQLFilterFunc(updateType,callback)
             },2000)
         }
         if (wait === 0) {
-            vm._updateCQLFilterFunc(updateType)
+            vm._updateCQLFilterFunc(updateType,callback)
         } else if (wait === undefined || wait === null) {
-            vm._updateCQLFilter(updateType)
+            vm._updateCQLFilter(updateType,callback)
         } else {
-            vm._updateCQLFilter.call({wait:wait},updateType)
+            vm._updateCQLFilter.call({wait:wait},updateType,callback)
         }
       },
       featureFilter: function (f) {
@@ -2340,8 +2347,9 @@
                         }
                     }
                 }
-                if (vm.selectedFeatures.length > 0) {
-                    $.each(vm.selectedFeatures,function(index,f){   
+                if (vm.selectedFeatures.getLength() > 0) {
+                    for(var index = vm.selectedFeatures.getLength() - 1;index >= 0;index--) {
+                        var f = vm.selectedFeatures.item(index)
                         loadedFeature = features.find(function(f1){return f1.get('fire_number') === f.get('fire_number')})
                         if (loadedFeature) {
                             if (f.selectedIndex !== undefined) {
@@ -2351,10 +2359,11 @@
                                     vm.selectDefaultGeometry(loadedFeature)
                                 }
                             }
-                            vm.selectedFeatures[index] = loadedFeature
+                            vm.selectedFeatures.setAt(index,loadedFeature)
+                        } else {
+                            vm.selectedFeatures.removeAt(index)
                         }
-
-                    })
+                    }
                 }
                 defaultOnload(loadType,vectorSource,features)
 
