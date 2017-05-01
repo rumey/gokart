@@ -71,8 +71,9 @@ FeatureTaskManager.prototype.initTasks = function(feat) {
     return true
 }
 FeatureTaskManager.prototype.clearTasks = function(feat) {
+    var vm = this
     setTimeout(function(){
-        if (this.changeCallback) this.changeCallback()
+        if (vm.changeCallback) vm.changeCallback()
         if (feat.tasks) {
             feat.tasks.length = 0
         }
@@ -95,6 +96,10 @@ FeatureTaskManager.prototype.addTask = function(feat,scope,taskId,description,st
 
 FeatureTaskManager.prototype.allTasksSucceed = function(feat,scope) {
     return !((feat.tasks.find(function(t) {return t.scope === scope && t.status !== FeatureTask.SUCCEED}) && true)||false)
+}
+
+FeatureTaskManager.prototype.allTasksFinished = function(feat,scope) {
+    return !((feat.tasks.find(function(t) {return t.scope === scope && t.status !== FeatureTask.SUCCEED && t.status !== FeatureTask.FAILED}) && true)||false)
 }
 
 let Utils = function() {

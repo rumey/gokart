@@ -438,7 +438,7 @@
             var bushfire = options["refresh"]?null:this.allFeatures.getArray().find(function(f) {return f.get('fire_number') === options["bushfireid"]})
             if (bushfire) {
                 this.selectedFeatures.push(bushfire)
-                this.zoomToSelected(10)
+                this.zoomToSelected(100)
                 return
             } else {
                 updateType = "query"
@@ -498,7 +498,7 @@
       },
       editUrl:function(feat) {
         var status = feat.get('report_status')
-        if (status <= 2) {
+        if (status === 1) {
             return this.env.bfrsService + "/bfrs/initial/" + feat.get('id') + "/"
         } else {
             return this.env.bfrsService + "/bfrs/final/" + feat.get('id') + "/"
@@ -510,163 +510,151 @@
       deleteUrl:function(feat) {
         return this.env.bfrsService + "/delete/" + feat.get('id')
       },
-      validateBushfire:function(feat,validateType,geom) {
-        var geometries = feat.getGeometry().getGeometries()
-        var originPoint = geometries.find(function(g) {return g instanceof ol.geom.Point}) || null
-        if (!originPoint) {
-            alert("No origin point placed.")
-            return true
-        }
-        var invalid = false
-        if (!this.isFireboundaryDrawable(feat)) {
-            if (!ol.extent.containsCoordinate(feat.get('fire_boundary'),originPoint.getCoordinates())) {
-                invalid = true
-                alert("Original point should be inside a fire boundary.");
-                indexes = [0]
-            }
-            return !invalid
-        }
-
+      validateBushfire:function(feat,validateType,throwExceptionIfFailed,geom) {
         var indexes = null
-        var fireboundary = null
-        indexes = geometries.findIndex(function(g) {return g instanceof ol.geom.MultiPolygon})
-        if (indexes >= 0) {
-            fireboundary = geometries[indexes]
-            indexes = [indexes]
-        } else {
-            fireboundary = null
-            indexes = null
-        }
-
-        var polygon = null
-        var polygonIndex = -1
-        var convertedToTurf = true
-        //check self-intersect and polygon intersect.
-        //during checking, polygons are converted into turf polygon and cached in the local variable
-        if (validateType === "moveOriginPoint" ||
-            validateType === "deleteOriginPoint"
-        ) {
-            fireboundary = fireboundary?fireboundary.getCoordinates():null
-            convertedToTurf = false
-        } else if (validateType === "deleteFireBoundary") {
-            polygonIndex = (fireboundary)?fireboundary.getPolygons().findIndex(function(o) {return o === geom}):-1
-            fireboundary = fireboundary?fireboundary.getCoordinates():null
-            convertedToTurf = false
-        } else if (validateType === "addOriginPoint") {
-            originPoint = geom
-            fireboundary = fireboundary?fireboundary.getCoordinates():null
-            convertedToTurf = false
-        } else if (geom) {
-            //validate whether polygon is intersect with current existed polygons
-            polygonIndex = (fireboundary)?fireboundary.getPolygons().findIndex(function(o) {return o === geom}):-1
-            polygon = turf.polygon(geom.getCoordinates())
-            if (turf.kinks(polygon).features.length > 0) {
-                alert("The polygon is self intersection, please fix it.")
-                if (indexes && polygonIndex !== -1) {
-                    indexes.push(polygonIndex)
-                } else {
-                    indexes = null
+        try {
+            var geometries = feat.getGeometry().getGeometries()
+            var originPoint = geometries.find(function(g) {return g instanceof ol.geom.Point}) || null
+    
+            if (!originPoint) {
+                throw "No origin point placed"
+            }
+            if (!this.isFireboundaryDrawable(feat)) {
+                if (!ol.extent.containsCoordinate(feat.get('fire_boundary'),originPoint.getCoordinates())) {
+                    indexes = [0]
+                    throw "Original point should be inside a fire boundary."
                 }
-                invalid = true
-            } else if (fireboundary) {
-                fireboundary = fireboundary.getCoordinates()
-                for(index = 0;index < fireboundary.length;index++) {
-                    fireboundary[index] = turf.polygon(fireboundary[index])
-                    if (index === polygonIndex) {return}
-                    try {
-                        if (turf.intersect(polygon,fireboundary[index])) {
-                            if (indexes) indexes.push(index)
-                            alert("Some fire boundaries are intersect, please fix it.")
-                            invalid = true
-                            return false
-                        }
-                    } catch(ex) {
-                        if (turf.kinks(fireboundary[index]).features.length > 0) {
-                            alert("Some fire boundary are self intersection, please fix it.")
-                        } else {
-                            alert("Some fire boundary are invalid, please fix it.")
-                        }
-                        if (indexes) indexes.push(index)
-                        invalid = true
+                return true
+            }
+    
+            var fireboundary = null
+            indexes = geometries.findIndex(function(g) {return g instanceof ol.geom.MultiPolygon})
+            if (indexes >= 0) {
+                fireboundary = geometries[indexes]
+                indexes = [indexes]
+            } else {
+                fireboundary = null
+                indexes = null
+            }
+    
+            var polygon = null
+            var polygonIndex = -1
+            var convertedToTurf = true
+            //check self-intersect and polygon intersect.
+            //during checking, polygons are converted into turf polygon and cached in the local variable
+            if (validateType === "moveOriginPoint" ||
+                validateType === "deleteOriginPoint"
+            ) {
+                fireboundary = fireboundary?fireboundary.getCoordinates():null
+                convertedToTurf = false
+            } else if (validateType === "deleteFireBoundary") {
+                polygonIndex = (fireboundary)?fireboundary.getPolygons().findIndex(function(o) {return o === geom}):-1
+                fireboundary = fireboundary?fireboundary.getCoordinates():null
+                convertedToTurf = false
+            } else if (validateType === "addOriginPoint") {
+                originPoint = geom
+                fireboundary = fireboundary?fireboundary.getCoordinates():null
+                convertedToTurf = false
+            } else if (geom) {
+                //validate whether polygon is intersect with current existed polygons
+                polygonIndex = (fireboundary)?fireboundary.getPolygons().findIndex(function(o) {return o === geom}):-1
+                polygon = turf.polygon(geom.getCoordinates())
+                if (turf.kinks(polygon).features.length > 0) {
+                    if (indexes && polygonIndex !== -1) {
+                        indexes.push(polygonIndex)
+                    } else {
+                        indexes = null
                     }
-                }
-            }
-        } else if (fireboundary && fireboundary.getPolygons().length === 1) {
-            fireboundary = fireboundary.getCoordinates()
-            fireboundary[0] = turf.polygon(fireboundary[0])
-            if (turf.kinks(fireboundary[0]).features.length > 0) {
-                alert("The polygon is self intersection, please fix it.")
-                if (indexes) indexes.push(0)
-                invalid = true
-            }
-        } else if (fireboundary && fireboundary.getPolygons().length > 1) {
-            fireboundary = fireboundary.getCoordinates()
-            //validate whether any existed polygons are intersect
-            for(index = 0;index < fireboundary.length;index++) {
-                if (index === 0) {fireboundary[index] = turf.polygon(fireboundary[index])}
-                for(index2 = index + 1;index2 < fireboundary.length;index2++) {
-                    if (index === 0) {fireboundary[index2] = turf.polygon(fireboundary[index2])}
-                    try {
-                        if (turf.intersect(fireboundary[index],fireboundary[index2])) {
-                            alert("Some fire boundaries are intersect, please fix it.")
-                            if (indexes) indexes.push(index)
-                            invalid = true
-                            break
-                        }
-                    } catch(ex) {
-                        if (index === 0 && index2 === 1 && turf.kinks(fireboundary[index]).features.length > 0) {
-                            if (indexes) indexes.push(index)
-                            alert("Some fire boundary are self intersection, please fix it.")
-                        } else if (index === 0 && turf.kinks(fireboundary[index2]).features.length > 0) {
-                            if (indexes) indexes.push(index2)
-                            alert("Some fire boundary are self intersection, please fix it.")
-                        } else {
-                            if (indexes) indexes.push(index)
-                            alert("Some fire boundary are invalid, please fix it.")
-                        }
-                        invalid = true
-                    }
-                }
-                if (invalid) {
-                    break
-                }
-            }
-        }
-
-        if (!invalid && originPoint) {
-            inFireBoundary = null
-            originPoint = turf.point(originPoint.getCoordinates())
-            //checking whether origin point is in a existing fireboundary
-            if (fireboundary && fireboundary.length > 0) {
-                inFireBoundary = false
-                for(index = 0;index < fireboundary.length;index++) {
-                    if (!convertedToTurf) {
+                    throw "The polygon is self intersection, please fix it."
+                } else if (fireboundary) {
+                    fireboundary = fireboundary.getCoordinates()
+                    for(index = 0;index < fireboundary.length;index++) {
                         fireboundary[index] = turf.polygon(fireboundary[index])
+                        if (index === polygonIndex) {return}
+                        try {
+                            if (turf.intersect(polygon,fireboundary[index])) {
+                                if (indexes) indexes.push(index)
+                                throw "Some fire boundaries are intersect, please fix it."
+                            }
+                        } catch(ex) {
+                            if (indexes) indexes.push(index)
+                            if (turf.kinks(fireboundary[index]).features.length > 0) {
+                                throw "Some fire boundary are self intersection, please fix it."
+                            } else {
+                                throw "Some fire boundary are invalid, please fix it."
+                            }
+                        }
                     }
-                    if (turf.inside(originPoint,fireboundary[index])) {
+                }
+            } else if (fireboundary && fireboundary.getPolygons().length === 1) {
+                fireboundary = fireboundary.getCoordinates()
+                fireboundary[0] = turf.polygon(fireboundary[0])
+                if (turf.kinks(fireboundary[0]).features.length > 0) {
+                    if (indexes) indexes.push(0)
+                    throw "The polygon is self intersection, please fix it."
+                }
+            } else if (fireboundary && fireboundary.getPolygons().length > 1) {
+                fireboundary = fireboundary.getCoordinates()
+                //validate whether any existed polygons are intersect
+                for(index = 0;index < fireboundary.length;index++) {
+                    if (index === 0) {fireboundary[index] = turf.polygon(fireboundary[index])}
+                    for(index2 = index + 1;index2 < fireboundary.length;index2++) {
+                        if (index === 0) {fireboundary[index2] = turf.polygon(fireboundary[index2])}
+                        try {
+                            if (turf.intersect(fireboundary[index],fireboundary[index2])) {
+                                if (indexes) indexes.push(index)
+                                throw "Some fire boundaries are intersect, please fix it."
+                            }
+                        } catch(ex) {
+                            if (index === 0 && index2 === 1 && turf.kinks(fireboundary[index]).features.length > 0) {
+                                if (indexes) indexes.push(index)
+                                throw "Some fire boundary are self intersection, please fix it."
+                            } else if (index === 0 && turf.kinks(fireboundary[index2]).features.length > 0) {
+                                if (indexes) indexes.push(index2)
+                                throw "Some fire boundary are self intersection, please fix it."
+                            } else {
+                                if (indexes) indexes.push(index)
+                                throw "Some fire boundary are invalid, please fix it."
+                            }
+                        }
+                    }
+                }
+            }
+    
+            if (originPoint) {
+                inFireBoundary = null
+                originPoint = turf.point(originPoint.getCoordinates())
+                //checking whether origin point is in a existing fireboundary
+                if (fireboundary && fireboundary.length > 0) {
+                    inFireBoundary = false
+                    for(index = 0;index < fireboundary.length;index++) {
+                        if (!convertedToTurf) {
+                            fireboundary[index] = turf.polygon(fireboundary[index])
+                        }
+                        if (turf.inside(originPoint,fireboundary[index])) {
+                            inFireBoundary = true
+                            break;
+                        }
+                    }
+                }
+                //checking whether origin point is in new fireboundary
+                if (inFireBoundary !== true && polygon && validateType !== "deleteFireBoundary" && polygonIndex === -1) {
+                    inFireBoundary = false
+                    if (turf.inside(originPoint,polygon)) {
                         inFireBoundary = true
-                        break;
                     }
                 }
-            }
-            //checking whether origin point is in new fireboundary
-            if (inFireBoundary !== true && polygon && validateType !== "deleteFireBoundary" && polygonIndex === -1) {
-                inFireBoundary = false
-                if (turf.inside(originPoint,polygon)) {
-                    inFireBoundary = true
+    
+                if (inFireBoundary === false) {
+                    indexes = [0]
+                    throw "Original point should be inside a fire boundary."
                 }
+                convertedToTurf = true
             }
-
-            if (inFireBoundary === false) {
-                invalid = true
-                alert("Original point should be inside a fire boundary.");
-                indexes = [0]
+            if (!throwExceptionIfFailed) {
+                return true
             }
-            convertedToTurf = true
-        }
-        
-
-        if (invalid) {
+        }catch(ex) {
             if (indexes) {feat['selectedIndex'] = indexes}
             if (this.annotations.tool !== this.ui.modifyTool) {
                 this.annotations.setTool(this.ui.modifyTool)
@@ -675,270 +663,294 @@
                 this.annotations.selectedFeatures.clear()
                 this.annotations.selectedFeatures.push(feat)
             }
+
+            alert(ex.message || ex)
+            if (throwExceptionIfFailed) {
+                throw ex.message || ex
+            } else {
+                return false
+            }
+            throw valid_task.message
         }
-        return !invalid
       },
-      getSpatialData:function(feat,callback) {
+      getSpatialData:function(feat,callback,failedCallback) {
         var vm = this
-        if (!this.validateBushfire(feat,"getSpatialData")) {
-            return
-        }
-        var modifyType = (feat.get('status') === 'new')?3:(feat.get('modifyType') || 3)
-
-        var geometries = feat.getGeometry().getGeometriesArray()
-        var originPoint = geometries.find(function(g){return g instanceof ol.geom.Point}) || null
-        originPoint = originPoint?originPoint.getCoordinates():null
-
-        var fireboundary = null
-        var bbox = null
-        var area = 0
-
-        var spatialData = {}
-        if ((modifyType & 1) === 1) {
-            spatialData["origin_point"] = originPoint
-            spatialData["tenure_origin_point"]  = null
-            spatialData["fire_position"]  = null
-        }
-
-        if ((modifyType & 2) === 2) {
-            fireboundary = geometries.find(function(g) {return g instanceof ol.geom.MultiPolygon}) || null
-            bbox = (fireboundary && fireboundary.getPolygons().length > 0)?fireboundary.getExtent():null
-            fireboundary = (fireboundary && fireboundary.getPolygons().length > 0)?fireboundary.getCoordinates():null
-
-            spatialData["fire_boundary"] = fireboundary
-        }
-
-        var tenure_area_task = null
-        if (fireboundary && (modifyType & 2) === 2) {
-            tenure_area_task = vm._taskManager.addTask(feat,"getSpatialData","tenure_area","Calculate fire boundary area in dpaw tenure","waiting")
-        }
-        var tenure_origin_point_task = null
-        var fire_position_task = null
-        var region_task = null
-        var district_task = null
-        if (originPoint && (modifyType & 1) === 1) {
-            tenure_origin_point_task = vm._taskManager.addTask(feat,"getSpatialData","tenure_origin_point","Locate bushfire's dpaw tenure","waiting")
-            fire_position_task = vm._taskManager.addTask(feat,"getSpatialData","fire_position","Get the fire position","waiting")
-            if (["new","initial"].indexOf(feat.get('status')) >= 0) {
-                region_task = vm._taskManager.addTask(feat,"getSpatialData","region","Locate bushfire's region","waiting")
-                district_task = vm._taskManager.addTask(feat,"getSpatialData","district","Locate bushfire's district","waiting")
-            }
-        }
-        var processed = false
-        var callbackWrapper = function(spatialData) {
-            if (processed) {
-                return
-            } else if (vm._taskManager.allTasksSucceed(feat,"getSpatialData")) {
-                processed = true
-                if ("region" in spatialData && "district" in spatialData) {
-                    var region = null
-                    var district = null
-                    spatialData["region_id"] = null
-                    spatialData["district_id"] = null
-
-                    var name = spatialData["region"]
-                    delete spatialData["region"]
-                    if (name) {
-                        name = name.toLowerCase()
-                        region = vm.whoami.bushfire.regions.find(function(o) {return o.region.toLowerCase() === name})
-                        if (region) {
-                            spatialData["region_id"] = region.region_id
-                        } else {
-                            alert("Region '" + name + "' is not found")
-                            return
-                        }
-                    }
-
-                    name = spatialData["district"]
-                    delete spatialData["district"]
-                    if (name && region) {
-                        name = name.toLowerCase()
-                        district = region.districts.find(function(o) {return o.district.toLowerCase() === name})
-                        if (district) {
-                            spatialData["district_id"] = district.id
-                        } else {
-                            alert("District '" + name + "' is not found in region '" + region.region + "'.")
-                            return
-                        }
-                    }
-                }
-
-                console.log( JSON.stringify(spatialData ) )
-                callback(spatialData)
-            }
-        }
-        
-        if (tenure_area_task) {
-            tenure_area_task.setStatus(utils.RUNNING)
-            $.ajax({
-                url:vm.env.gokartService + "/area",
-                dataType:"json",
-
-                data:{
-                        features:vm.$root.geojson.writeFeatures([feat]),
-                        layer_overlap:false,
-                        layers:JSON.stringify([
-                            {
-                                id:"tenure_area",
-                                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:dpaw_tenure",
-                                properties:{
-                                    id:"ogc_fid",
-                                    name:"name",
-                                    category:"category"
-                                }
+        try {
+            var processed = false
+            var callbackWrapper = function(spatialData) {
+                if (processed) {
+                    return
+                } else if (vm._taskManager.allTasksSucceed(feat,"getSpatialData")) {
+                    processed = true
+                    if ("region" in spatialData && "district" in spatialData) {
+                        var region = null
+                        var district = null
+                        spatialData["region_id"] = null
+                        spatialData["district_id"] = null
+    
+                        var name = spatialData["region"]
+                        delete spatialData["region"]
+                        if (name) {
+                            name = name.toLowerCase()
+                            region = vm.whoami.bushfire.regions.find(function(o) {return o.region.toLowerCase() === name})
+                            if (region) {
+                                spatialData["region_id"] = region.region_id
+                            } else {
+                                alert("Region '" + name + "' is not found")
+                                return
                             }
-                        ])
-                },
-                method:"POST",
-                success: function (response, stat, xhr) {
-                    if (response["total_features"] > 0) {
-                        spatialData["area"] = response["features"][0]
-                        tenure_area_task.setStatus(utils.SUCCEED)
-                        callbackWrapper(spatialData)
-                    } else {
-                        tenure_area_task.setStatus(utils.FAILED,"Calculate area failed.")
-                        alert(tenure_area_task.message)
-                    }
-                },
-                error: function (xhr,status,message) {
-                    tenure_area_task.setStatus(utils.FAILED,status + " : " + message)
-                    alert(tenure_area_task.message)
-                },
-                xhrFields: {
-                    withCredentials: true
-                }
-            })
-        }
-
-        if (tenure_origin_point_task) {
-            tenure_origin_point_task.setStatus(utils.RUNNING)
-            $.ajax({
-                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:dpaw_tenure&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
-                dataType:"json",
-                success: function (response, stat, xhr) {
-                    if (response.totalFeatures === 0) {
-                        spatialData["tenure_ignition_point"] = null
-                    } else {
-                        spatialData["tenure_ignition_point"] = {
-                            id: response.features[0].properties["ogc_fid"],
-                            name: response.features[0].properties["name"],
-                            category: response.features[0].properties["category"]
+                        }
+    
+                        name = spatialData["district"]
+                        delete spatialData["district"]
+                        if (name && region) {
+                            name = name.toLowerCase()
+                            district = region.districts.find(function(o) {return o.district.toLowerCase() === name})
+                            if (district) {
+                                spatialData["district_id"] = district.id
+                            } else {
+                                alert("District '" + name + "' is not found in region '" + region.region + "'.")
+                                return
+                            }
                         }
                     }
-                    tenure_origin_point_task.setStatus(utils.SUCCEED)
-                    callbackWrapper(spatialData)
-                },
-                error: function (xhr,status,message) {
-                    tenure_origin_point_task.setStatus(utils.FAILED,status + " : " + message)
-                    alert(tenure_origin_point_task.message)
-                },
-                xhrFields: {
-                    withCredentials: true
+    
+                    console.log( JSON.stringify(spatialData ) )
+                    callback(spatialData)
+                } else if (vm._taskManager.allTasksFinished(feat,"getSpatialData")) {
+                    if (failedCallback) failedCallback("")
                 }
-            })
-        }
+            }
 
-        if (fire_position_task) {
-            fire_position_task.setStatus(utils.RUNNING)
-            var buffers = [50,100,150,200,300,400,1000,2000,100000]
-            var getFirePosition = function(index) {
-                var buffered = turf.bbox(turf.buffer(turf.point(originPoint),buffers[index],"kilometers"))
+            var validate_task = vm._taskManager.addTask(feat,"getSpatialData","validate","Validate Bushfire",utils.RUNNING)
+            try {
+                this.validateBushfire(feat,"getSpatialData",true)
+                validate_task.setStatus(utils.SUCCEED)
+            } catch(ex) {
+                validate_task.setStatus(utils.FAILED,ex.message || ex)
+                throw ex
+            }
+            var modifyType = (feat.get('status') === 'new')?3:(feat.get('modifyType') || 3)
+    
+            var geometries = feat.getGeometry().getGeometriesArray()
+            var originPoint = geometries.find(function(g){return g instanceof ol.geom.Point}) || null
+            originPoint = originPoint?originPoint.getCoordinates():null
+    
+            var fireboundary = null
+            var bbox = null
+            var area = 0
+    
+            var spatialData = {}
+            if ((modifyType & 1) === 1) {
+                spatialData["origin_point"] = originPoint
+                spatialData["tenure_origin_point"]  = null
+                spatialData["fire_position"]  = null
+            }
+    
+            if ((modifyType & 2) === 2) {
+                fireboundary = geometries.find(function(g) {return g instanceof ol.geom.MultiPolygon}) || null
+                bbox = (fireboundary && fireboundary.getPolygons().length > 0)?fireboundary.getExtent():null
+                fireboundary = (fireboundary && fireboundary.getPolygons().length > 0)?fireboundary.getCoordinates():null
+    
+                spatialData["fire_boundary"] = fireboundary
+            }
+    
+            var tenure_area_task = null
+            if (fireboundary && (modifyType & 2) === 2) {
+                tenure_area_task = vm._taskManager.addTask(feat,"getSpatialData","tenure_area","Calculate fire boundary area in dpaw tenure",utils.WAITING)
+            }
+            var tenure_origin_point_task = null
+            var fire_position_task = null
+            var region_task = null
+            var district_task = null
+            if (originPoint && (modifyType & 1) === 1) {
+                tenure_origin_point_task = vm._taskManager.addTask(feat,"getSpatialData","tenure_origin_point","Locate bushfire's dpaw tenure",utils.WAITING)
+                fire_position_task = vm._taskManager.addTask(feat,"getSpatialData","fire_position","Get the fire position",utils.WAITING)
+                if (["new","initial"].indexOf(feat.get('status')) >= 0) {
+                    region_task = vm._taskManager.addTask(feat,"getSpatialData","region","Locate bushfire's region",utils.WAITING)
+                    district_task = vm._taskManager.addTask(feat,"getSpatialData","district","Locate bushfire's district",utils.WAITING)
+                }
+            }
+            
+            if (tenure_area_task) {
+                tenure_area_task.setStatus(utils.RUNNING)
                 $.ajax({
-                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:townsite_points&outputFormat=json&bbox=" + buffered[1] + "," + buffered[0] + "," + buffered[3] + "," + buffered[2],
+                    url:vm.env.gokartService + "/area",
                     dataType:"json",
-                    success: function (response, stat, xhr) {
-                        if (response.totalFeatures === 0) {
-                            getFirePosition(index + 1)
-                        } else {
-                            var nearestTown = null
-                            var nearestDistance = null
-                            var distance = null
-                            $.each(response.features,function(index,feature){
-                                if (nearestTown === null) {
-                                    nearestTown = feature
-                                    nearestDistance = vm.measure.getLength([feature.geometry.coordinates,originPoint])
-                                } else {
-                                    distance = vm.measure.getLength([feature.geometry.coordinates,originPoint])
-                                    if (distance < nearestDistance) {
-                                        nearestTown = feature
-                                        nearestDistance = distance
+    
+                    data:{
+                            features:vm.$root.geojson.writeFeatures([feat]),
+                            layer_overlap:false,
+                            layers:JSON.stringify([
+                                {
+                                    id:"tenure_area",
+                                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:dpaw_tenure",
+                                    properties:{
+                                        id:"ogc_fid",
+                                        name:"name",
+                                        category:"category"
                                     }
                                 }
-                            })
-                            nearestDistance = vm.measure.formatLength(nearestDistance,"km")
-                            var bearing = null
-                            if (nearestDistance === 0) {
-                                spatialData["fire_position"] = "0m from " + nearestTown.properties["name"]
-                            } else {
-                                bearing = vm.measure.getBearing(nearestTown.geometry.coordinates,originPoint)
-                                spatialData["fire_position"] = nearestDistance + " " + vm.measure.getDirection(bearing,16) + " from " + nearestTown.properties["name"]
-                            }
-    
-                            fire_position_task.setStatus(utils.SUCCEED)
-                            callbackWrapper(spatialData)
-    
+                            ])
+                    },
+                    method:"POST",
+                    success: function (response, stat, xhr) {
+                        if (response["total_features"] > 0) {
+                            spatialData["area"] = response["features"][0]
+                            tenure_area_task.setStatus(utils.SUCCEED)
+                        } else {
+                            tenure_area_task.setStatus(utils.FAILED,"Calculate area failed.")
+                            alert(tenure_area_task.message)
                         }
+                        callbackWrapper(spatialData)
                     },
                     error: function (xhr,status,message) {
-                        fire_position_task.setStatus(utils.FAILED,status + " : " + message)
-                        alert(fire_position_task.message)
+                        tenure_area_task.setStatus(utils.FAILED,status + " : " + message)
+                        alert(tenure_area_task.message)
+                        callbackWrapper(spatialData)
                     },
                     xhrFields: {
                         withCredentials: true
                     }
                 })
             }
-            getFirePosition(0)
-        }
-
-        if (region_task) {
-            region_task.setStatus(utils.RUNNING)
-            $.ajax({
-                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:dpaw_regions&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
-                dataType:"json",
-                success: function (response, stat, xhr) {
-                    if (response.totalFeatures === 0) {
-                        spatialData["region"] = null
-                    } else {
-                        spatialData["region"] = response.features[0].properties["region"]
+    
+            if (tenure_origin_point_task) {
+                tenure_origin_point_task.setStatus(utils.RUNNING)
+                $.ajax({
+                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:dpaw_tenure&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
+                    dataType:"json",
+                    success: function (response, stat, xhr) {
+                        if (response.totalFeatures === 0) {
+                            spatialData["tenure_ignition_point"] = null
+                        } else {
+                            spatialData["tenure_ignition_point"] = {
+                                id: response.features[0].properties["ogc_fid"],
+                                name: response.features[0].properties["name"],
+                                category: response.features[0].properties["category"]
+                            }
+                        }
+                        tenure_origin_point_task.setStatus(utils.SUCCEED)
+                        callbackWrapper(spatialData)
+                    },
+                    error: function (xhr,status,message) {
+                        tenure_origin_point_task.setStatus(utils.FAILED,status + " : " + message)
+                        alert(tenure_origin_point_task.message)
+                        callbackWrapper(spatialData)
+                    },
+                    xhrFields: {
+                        withCredentials: true
                     }
-                    region_task.setStatus(utils.SUCCEED)
-                    callbackWrapper(spatialData)
-                },
-                error: function (xhr,status,message) {
-                    region_task.setStatus(utils.FAILED,status + " : " + message)
-                    alert(region_task.message)
-                },
-                xhrFields: {
-                    withCredentials: true
+                })
+            }
+    
+            if (fire_position_task) {
+                fire_position_task.setStatus(utils.RUNNING)
+                var buffers = [50,100,150,200,300,400,1000,2000,100000]
+                var getFirePosition = function(index) {
+                    var buffered = turf.bbox(turf.buffer(turf.point(originPoint),buffers[index],"kilometers"))
+                    $.ajax({
+                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:townsite_points&outputFormat=json&bbox=" + buffered[1] + "," + buffered[0] + "," + buffered[3] + "," + buffered[2],
+                        dataType:"json",
+                        success: function (response, stat, xhr) {
+                            if (response.totalFeatures === 0) {
+                                getFirePosition(index + 1)
+                            } else {
+                                var nearestTown = null
+                                var nearestDistance = null
+                                var distance = null
+                                $.each(response.features,function(index,feature){
+                                    if (nearestTown === null) {
+                                        nearestTown = feature
+                                        nearestDistance = vm.measure.getLength([feature.geometry.coordinates,originPoint])
+                                    } else {
+                                        distance = vm.measure.getLength([feature.geometry.coordinates,originPoint])
+                                        if (distance < nearestDistance) {
+                                            nearestTown = feature
+                                            nearestDistance = distance
+                                        }
+                                    }
+                                })
+                                nearestDistance = vm.measure.formatLength(nearestDistance,"km")
+                                var bearing = null
+                                if (nearestDistance === 0) {
+                                    spatialData["fire_position"] = "0m from " + nearestTown.properties["name"]
+                                } else {
+                                    bearing = vm.measure.getBearing(nearestTown.geometry.coordinates,originPoint)
+                                    spatialData["fire_position"] = nearestDistance + " " + vm.measure.getDirection(bearing,16) + " from " + nearestTown.properties["name"]
+                                }
+        
+                                fire_position_task.setStatus(utils.SUCCEED)
+                                callbackWrapper(spatialData)
+        
+                            }
+                        },
+                        error: function (xhr,status,message) {
+                            fire_position_task.setStatus(utils.FAILED,status + " : " + message)
+                            alert(fire_position_task.message)
+                            callbackWrapper(spatialData)
+                        },
+                        xhrFields: {
+                            withCredentials: true
+                        }
+                    })
                 }
-            })
-        }
-
-        if (district_task) {
-            district_task.setStatus(utils.RUNNING)
-            $.ajax({
-                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=dpaw:pw_districts_fssvers&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
-                dataType:"json",
-                success: function (response, stat, xhr) {
-                    if (response.totalFeatures === 0) {
-                        spatialData["district"] = null
-                    } else {
-                        spatialData["district"] = response.features[0].properties["district"]
+                getFirePosition(0)
+            }
+    
+            if (region_task) {
+                region_task.setStatus(utils.RUNNING)
+                $.ajax({
+                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:dpaw_regions&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
+                    dataType:"json",
+                    success: function (response, stat, xhr) {
+                        if (response.totalFeatures === 0) {
+                            spatialData["region"] = null
+                        } else {
+                            spatialData["region"] = response.features[0].properties["region"]
+                        }
+                        region_task.setStatus(utils.SUCCEED)
+                        callbackWrapper(spatialData)
+                    },
+                    error: function (xhr,status,message) {
+                        region_task.setStatus(utils.FAILED,status + " : " + message)
+                        alert(region_task.message)
+                        callbackWrapper(spatialData)
+                    },
+                    xhrFields: {
+                        withCredentials: true
                     }
-                    district_task.setStatus(utils.SUCCEED)
-                    callbackWrapper(spatialData)
-                },
-                error: function (xhr,status,message) {
-                    district_task.setStatus(utils.FAILED,status + " : " + message)
-                    alert(district_task.message)
-                },
-                xhrFields: {
-                    withCredentials: true
-                }
-            })
+                })
+            }
+    
+            if (district_task) {
+                district_task.setStatus(utils.RUNNING)
+                $.ajax({
+                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=dpaw:pw_districts_fssvers&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
+                    dataType:"json",
+                    success: function (response, stat, xhr) {
+                        if (response.totalFeatures === 0) {
+                            spatialData["district"] = null
+                        } else {
+                            spatialData["district"] = response.features[0].properties["district"]
+                        }
+                        district_task.setStatus(utils.SUCCEED)
+                        callbackWrapper(spatialData)
+                    },
+                    error: function (xhr,status,message) {
+                        district_task.setStatus(utils.FAILED,status + " : " + message)
+                        alert(district_task.message)
+                        callbackWrapper(spatialData)
+                    },
+                    xhrFields: {
+                        withCredentials: true
+                    }
+                })
+            }
+            callbackWrapper(spatialData)
+        } catch(ex) {
+            callbackWrapper(spatialData)
         }
-        callbackWrapper(spatialData)
       },
       saveFeature:function(feat,callback) {
         if (this.canSave(feat)) {
@@ -976,6 +988,9 @@
                         withCredentials: true
                     }
                 })
+            },
+            function(ex) {
+                task.setStatus(utils.FAILED,ex.message || ex)
             })
         }
       },
@@ -1058,6 +1073,9 @@
                 $("#bushfire_create").submit()
                 task.setStatus(utils.SUCCEED)
                 vm._taskManager.clearTasks(feat)
+            },
+            function(ex){
+                task.setStatus(utils.FAILED,ex.message || ex)
             })
         }
       },
@@ -1129,7 +1147,7 @@
             index = vm.selectedFeatures.getArray().findIndex(function(f){return f.get('fire_number') === feat.get('fire_number')})
             if (index >= 0) {
                 vm.selectedFeatures.setAt(index,features[0])
-                vm.zoomToSelected(10)         
+                //vm.zoomToSelected(100)         
             }
               
           } else {
@@ -1218,7 +1236,7 @@
           this.selectedFeatures.push(f)
           if (["Bfrs Fire Boundary","Bfrs Origin Point","Bfrs Edit Geometry"].indexOf(this.annotations.tool.name) >= 0) {
               var currentScale = this.map.getScale()
-              this.zoomToSelected(currentScale > 10?10:currentScale)
+              this.zoomToSelected(currentScale > 100?100:currentScale)
           }
         }
       },
@@ -1618,12 +1636,12 @@
                 }) 
                 if (vm.selectedFeatures.getLength() > 0) {
                     vm.annotations.setTool("Bfrs Select")
-                    vm.zoomToSelected(10)
+                    vm.zoomToSelected(100)
                 }
 
                 if (import_task && vm._taskManager.getTasks(targetFeature).length === 1) {
                     import_task.setStatus(utils.SUCCEED)
-                    //vm._taskManager.clearTasks(feat)
+                    vm._taskManager.clearTasks(feat)
                 }
 
                 if (notFoundBushfires) {
@@ -1634,11 +1652,19 @@
             if (import_task) {
                 import_task.setStatus(utils.FAILED,ex.message || ex)
             }
+            if (targetFeature) {
+                vm._taskManager.clearTasks(targetFeature)
+            }
             alert(ex.message || ex)
           }
         },
         function(ex) {
-            if (targetFeature) vm._taskManager.clearTasks(targetFeature)
+            if (import_task) {
+                import_task.setStatus(utils.FAILED,ex.message || ex)
+            }
+            if (targetFeature) {
+                vm._taskManager.clearTasks(targetFeature)
+            }
         })
       },
       updateCQLFilter: function (updateType,wait) {
@@ -1894,6 +1920,11 @@
                 feat.getGeometry().getGeometriesArray().splice(0,0,new ol.geom.Point(coords))
                 feat.getGeometry().setGeometriesArray(feat.getGeometry().getGeometriesArray())
                 feat.getGeometry().changed()
+                /*
+                vm.selectedFeatures.clear()
+                vm.selectedFeatures.push(feat)
+                vm.annotations.setTool("Bfrs Fire Boundary")
+                */
                 vm.postModified(feat,1)
                 return true
             }
@@ -1968,7 +1999,7 @@
       vm.ui.modifyInter = vm.annotations.modifyInterFactory()({features:vm.selectedFeatures,mapLayers:function(layer){return layer.get("id") === vm.env.bfrsLayer }})
       vm.ui.modifyInter.on("featuresmodified",function(ev){
           if (ev.features.getLength() === 1 ) {
-              vm.validateBushfire(ev.features.item(0),"modifyBushfire")
+            vm.validateBushfire(ev.features.item(0),"modifyBushfire",false)
           }
           vm.postModified(ev.features.getArray(),-1)
       })    
@@ -2011,7 +2042,7 @@
             if (vm.selectedFeatures.getLength() === 1){
                 var f = vm.selectedFeatures.item(0)
                 var indexes = null
-                vm.validateBushfire(f,"addFireBoundary",ev.element.getGeometry())
+                vm.validateBushfire(f,"addFireBoundary",false,ev.element.getGeometry())
 
                 var index = f.getGeometry().getGeometriesArray().findIndex(function(g){return g instanceof ol.geom.MultiPolygon})
                 if (index >= 0) {
@@ -2033,7 +2064,12 @@
             f.getGeometry().setGeometriesArray(f.getGeometry().getGeometriesArray())
             f.getGeometry().changed()
             vm.postModified(f,1)
-            //vm.validateBushfire(f,"addOriginPoint",ev.element.getGeometry())
+            /*
+            vm.selectedFeatures.clear()
+            vm.selectedFeatures.push(f)
+            vm.annotations.setTool("Bfrs Fire Boundary")
+            */
+            //vm.validateBushfire(f,"addOriginPoint",false,ev.element.getGeometry())
 
             vm.ui.originPointDraw.dispatchEvent(vm.map.createEvent(vm.ui.originPointDraw,"addfeaturegeometry",{feature:f,indexes:[0]}))
         }
@@ -2101,7 +2137,7 @@
                                 vm.annotations.deleteSelectedGeometry(feature,this)
                                 vm.selectDefaultGeometry(feature)
                                 vm.postModified(feature,2)
-                                vm.validateBushfire(feature,"deleteFireBoundary",geom)
+                                vm.validateBushfire(feature,"deleteFireBoundary",false,geom)
                             }
                         },this)
                     }
@@ -2121,7 +2157,7 @@
                         vm.selectDefaultGeometry(selectedFeature)
                     } 
                     var currentScale = vm.map.getScale()
-                    vm.zoomToSelected(currentScale > 10?10:currentScale)
+                    vm.zoomToSelected(currentScale > 100?100:currentScale)
                  }
               }
           }, {
@@ -2150,12 +2186,14 @@
                 }
               },
               onSet: function() {
+                  /*
                   if (vm.selectedFeatures.getLength() > 1) {
                       vm.selectedFeatures.clear()
                   } else {
                       var currentScale = vm.map.getScale()
-                      vm.zoomToSelected(currentScale > 10?10:currentScale)
+                      vm.zoomToSelected(currentScale > 100?100:currentScale)
                   }
+                  */
               }
           },{
               name: 'Bfrs Fire Boundary',
@@ -2176,7 +2214,7 @@
                       vm.selectedFeatures.clear()
                   } else {
                       var currentScale = vm.map.getScale()
-                      vm.zoomToSelected(currentScale > 10?10:currentScale)
+                      vm.zoomToSelected(currentScale > 100?100:currentScale)
                   }
               }
           }
@@ -2243,7 +2281,8 @@
                 //merge the current changes with the new features
                 var insertPosition = 0
                 var loadedFeature = null
-                $.each(vm.allFeatures.getArray().filter(function(f) {return ['new','modified'].indexOf(f.get('tint')) >= 0 }),function(index,f){
+                for(var index = vm.allFeatures.getLength() - 1;index >= 0;index--) {
+                    f = vm.allFeatures.item(index)
                     if (f.get('status') === 'new') {
                         //new features always are the begining and sorted.
                         if (f.get('saved')) {
@@ -2258,37 +2297,49 @@
                                 //still not save, keep the current new bushfire
                                 features.splice(insertPosition,0,f)
                                 insertPosition += 1
-                            } else if (f.get('tint') === 'modified'){
-                                //feature was changed after saving
-                                //replace the loadedFeature's geometry with the modified version
-                                loadedFeature.setGeometry(f.getGeometry())
-                                loadedFeature.set('tint','modified',true)
-                                loadedFeature.set('fillColour',vm.tints[loadedFeature.get('tint') + ".fillColour"],true)
-                                loadedFeature.set('colour',vm.tints[loadedFeature.get('tint') + ".colour"],true)
-                                loadedFeature.set('modifyType',f.get('modifyType'),true)
-                            } else {
-                                //already saved into the database, and not change after saving, ignore it
+                            } else{
+                                if (f.get('tint') === 'modified'){
+                                    //feature was changed after saving
+                                    //replace the loadedFeature's geometry with the modified version
+                                    loadedFeature.setGeometry(f.getGeometry())
+                                    loadedFeature.set('tint','modified',true)
+                                    loadedFeature.set('fillColour',vm.tints[loadedFeature.get('tint') + ".fillColour"],true)
+                                    loadedFeature.set('colour',vm.tints[loadedFeature.get('tint') + ".colour"],true)
+                                    loadedFeature.set('modifyType',f.get('modifyType'),true)
+                                } else {
+                                    //already saved into the database, and not change after saving, ignore it
+                                }
+                                if (f.tasks) {
+                                    loadedFeature.tasks = f.tasks
+                                }
+                                var i = vm.selectedFeatures.getArray().findIndex(function(o) {return o.get('fire_number') === f.get('fire_number')})
+                                if (i >= 0) {
+                                    vm.selectedFeatures.removeAt(i)
+                                    vm.selectedFeatures.push(loadedFeature)
+                                }
                             }
                         } else {
                             //not save before
                             features.splice(insertPosition,0,f)
                             insertPosition += 1
                         }
-                    } else {
+                    } else if (f.get('tint') === 'modified' || f.tasks) {
                         loadedFeature = features.find(function(f2){return f.get('id') === f2.get('id')})
                         if (loadedFeature) {
-                            //replace the loadedFeature's geometry with the modified version
-                            loadedFeature.setGeometry(f.getGeometry())
-                            loadedFeature.set('tint','modified',true)
-                            loadedFeature.set('fillColour',vm.tints[loadedFeature.get('tint') + ".fillColour"],true)
-                            loadedFeature.set('colour',vm.tints[loadedFeature.get('tint') + ".colour"],true)
-                            loadedFeature.set('modifyType',f.get('modifyType'),true)
+                            if (f.get('tint') === 'modified') {
+                                //replace the loadedFeature's geometry with the modified version
+                                loadedFeature.setGeometry(f.getGeometry())
+                                loadedFeature.set('tint','modified',true)
+                                loadedFeature.set('fillColour',vm.tints[loadedFeature.get('tint') + ".fillColour"],true)
+                                loadedFeature.set('colour',vm.tints[loadedFeature.get('tint') + ".colour"],true)
+                                loadedFeature.set('modifyType',f.get('modifyType'),true)
+                            } 
                             if (f.tasks) {
                                 loadedFeature.tasks = f.tasks
                             }
-                        } 
+                        }
                     }
-                })
+                }
                 if (vm.selectedFeatures.length > 0) {
                     $.each(vm.selectedFeatures,function(index,f){   
                         loadedFeature = features.find(function(f1){return f1.get('fire_number') === f.get('fire_number')})
