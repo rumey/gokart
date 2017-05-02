@@ -1,4 +1,4 @@
-var env = {
+VAR ENV = {
     envType:"uat",
     appType: (window.location.protocol == "file:")?"cordova":"webapp",
 
@@ -7,8 +7,9 @@ var env = {
     ssoService:"https://oim.dpaw.wa.gov.au",
 
     wmtsService:"https://kmi.dpaw.wa.gov.au/geoserver/gwc/service/wmts",
+    wmsService:"https://kmi.dpaw.wa.gov.au/geoserver/wms",
     wfsService:"https://kmi.dpaw.wa.gov.au/geoserver/wfs",
-    legendSrc:"https://kmi.dpaw.wa.gov.au/geoserver/gwc/service/wms?REQUEST=GetLegendGraphic&VERSION=1.0.0&FORMAT=image/png&LAYER=",
+    legENDsRC:"https://kmi.dpaw.wa.gov.au/geoserver/gwc/service/wms?REQUEST=GetLegendGraphic&VERSION=1.0.0&FORMAT=image/png&LAYER=",
 
     gokartService:"https://sss-uat.dpaw.wa.gov.au",
     resourceTrackingService:"https://resourcetracking-uat.dpaw.wa.gov.au",
@@ -17,7 +18,8 @@ var env = {
 
     s3Service:"http://gokart.dpaw.io/",
 
-    bfrsLayer:"dpaw:bushfire_uat"
+    bfrsLayer:"dpaw:bushfire_uat",
+    bfrsWMSLayer:"dpaw:bushfire_final_fireboundary_uat"
 };
 
 
