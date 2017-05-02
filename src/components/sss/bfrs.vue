@@ -2254,7 +2254,7 @@
                 type: 'ImageLayer',
                 name: 'Fire Boundary of Selected Bush Fire Final Report',
                 id: vm.env.bfrsWMSLayer,
-                style:"dpaw:bushfire_final_dev.selected",
+                style: vm.env.bfrsWMSLayer + ".selected",
                 mapLayerId:vm.env.bfrsWMSLayer + "_selected",
                 autoAdd:false
                 //refresh: 60
