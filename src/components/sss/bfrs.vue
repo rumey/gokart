@@ -789,28 +789,34 @@
             if (tenure_area_task) {
                 tenure_area_task.setStatus(utils.RUNNING)
                 $.ajax({
-                    url:vm.env.gokartService + "/area",
+                    url:vm.env.gokartService + "/spatial",
                     dataType:"json",
     
                     data:{
                             features:vm.$root.geojson.writeFeatures([feat]),
-                            layer_overlap:false,
-                            layers:JSON.stringify([
-                                {
-                                    id:"tenure_area",
-                                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:dpaw_tenure",
-                                    properties:{
-                                        id:"ogc_fid",
-                                        name:"name",
-                                        category:"category"
-                                    }
+                            options:JSON.stringify({
+                                area: {
+                                    name:"area",
+                                    layer_overlap:false,
+                                    unit:"ha",
+                                    layers:[
+                                        {
+                                            id:"tenure_area",
+                                            url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:dpaw_tenure",
+                                            properties:{
+                                                id:"ogc_fid",
+                                                name:"name",
+                                                category:"category"
+                                            }
+                                        }
+                                    ],
                                 }
-                            ])
+                            })
                     },
                     method:"POST",
                     success: function (response, stat, xhr) {
                         if (response["total_features"] > 0) {
-                            spatialData["area"] = response["features"][0]
+                            $.extend(spatialData,response["features"][0])
                             tenure_area_task.setStatus(utils.SUCCEED)
                         } else {
                             tenure_area_task.setStatus(utils.FAILED,"Calculate area failed.")
