@@ -406,10 +406,19 @@
 
         this._refreshSelectedWMSLayer.call({wait:wait})
       },
-      zoomToSelected:function(minScale) {
-        this.map.zoomToSelected(minScale,function(f){
-            return f.get('fire_boundary')?f.get('fire_boundary'):f.getGeometry().getExtent()
-        })
+      zoomToSelected:function(minScale,wait) {
+        var vm = this
+        wait = wait || 0
+        vm._zoomToSelected = vm._zoomToSelectedFunc || debounce(function(minScale) {
+            vm.map.zoomToSelected(minScale,function(f){
+                return f.get('fire_boundary')?f.get('fire_boundary'):f.getGeometry().getExtent()
+            })
+        },wait)
+        if (wait === 0) {
+            vm._zoomToSelected.call({wait:1},minScale)
+        } else {
+            vm._zoomToSelected.call({wait:wait},minScale)
+        }
       },
       open:function(options) {
         //active bfrs module
@@ -439,7 +448,6 @@
             var bushfire = options["refresh"]?null:this.allFeatures.getArray().find(function(f) {return f.get('fire_number') === options["bushfireid"]})
             if (bushfire) {
                 this.selectedFeatures.push(bushfire)
-                this.zoomToSelected(100)
                 return
             } else {
                 updateType = "query"
@@ -452,7 +460,6 @@
                     var feat = vm.allFeatures.getArray().find(function(o) {return o.get('fire_number') == options["bushfireid"]})
                     if (feat) {
                         vm.selectedFeatures.push(feat)
-                        vm.zoomToSelected(100)         
                     }
                 }
 
@@ -1154,7 +1161,6 @@
             index = vm.selectedFeatures.getArray().findIndex(function(f){return f.get('fire_number') === feat.get('fire_number')})
             if (index >= 0) {
                 vm.selectedFeatures.setAt(index,features[0])
-                //vm.zoomToSelected(100)         
             }
               
           } else {
@@ -1241,10 +1247,6 @@
               this.selectedFeatures.clear()
           }
           this.selectedFeatures.push(f)
-          if (["Bfrs Fire Boundary","Bfrs Origin Point","Bfrs Edit Geometry"].indexOf(this.annotations.tool.name) >= 0) {
-              var currentScale = this.map.getScale()
-              this.zoomToSelected(currentScale > 100?100:currentScale)
-          }
         }
       },
       toggleViewportOnly: function () {
@@ -2164,7 +2166,6 @@
                         vm.selectDefaultGeometry(selectedFeature)
                     } 
                     var currentScale = vm.map.getScale()
-                    vm.zoomToSelected(currentScale > 100?100:currentScale)
                  }
               }
           }, {
@@ -2198,7 +2199,6 @@
                       vm.selectedFeatures.clear()
                   } else {
                       var currentScale = vm.map.getScale()
-                      vm.zoomToSelected(currentScale > 100?100:currentScale)
                   }
                   */
               }
@@ -2219,9 +2219,6 @@
               onSet: function() {
                   if (vm.selectedFeatures.getLength() > 1) {
                       vm.selectedFeatures.clear()
-                  } else {
-                      var currentScale = vm.map.getScale()
-                      vm.zoomToSelected(currentScale > 100?100:currentScale)
                   }
               }
           }
@@ -2449,14 +2446,16 @@
                     vm.selectDefaultGeometry(event.element)
                 }
             }
+            vm.refreshSelectedWMSLayer()
+            vm.zoomToSelected(100,200)
           }
-          vm.refreshSelectedWMSLayer()
         })
         vm.selectedFeatures.on('remove', function (event) {
           if (event.element.get('toolName') === "Bfrs Origin Point") {
             vm.selectedBushfires.$remove(event.element.get('fire_number'))
+            vm.refreshSelectedWMSLayer()
+            vm.zoomToSelected(100,200)
           }
-          vm.refreshSelectedWMSLayer()
           //remove the index of the selected geometry in geometry collection
           //delete event.element['selectedIndex']
         })
