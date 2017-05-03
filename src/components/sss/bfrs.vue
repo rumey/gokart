@@ -94,9 +94,9 @@
                 <div class="tool-slice row collapse">
                   <div class="small-12 expanded button-group">
                     <a title="Zoom to selected" class="button" @click="zoomToSelected()" ><img style="width:29px;height:29px"src="dist/static/images/zoom-to-selected.svg"/><br></a>
-                    <label class="button" for="uploadBushfires" title="Support GeoJSON(.geojson .json), GPS data(.gpx), GeoPackage(.gpkg), 7zip(.7z), TarFile(.tar.gz,tar.bz,tar.xz),ZipFile(.zip)" style="line-height:1"><i class="fa fa-upload"></i><br>upload</label><input type="file" id="uploadBushfires" class="show-for-sr" name="bushfiresfile" accept=".json,.geojson,.gpx,.gpkg,.7z,.tar,.tar.gz,.tar.bz,.tar.xz,.zip" v-model="bushfiresfile" v-el:bushfiresfile @change="importList()"/>
-                    <a class="button" @click="downloadList('geojson')" title="Export Bushfire as GeoJSON"><i class="fa fa-download" aria-hidden="true"></i><br>geojson </a>
-                    <a class="button" @click="downloadList('gpkg')" title="Export Bushfire as GeoPackage"><i class="fa fa-download" aria-hidden="true"></i><br>gpkg</a>
+                    <label class="button" for="uploadBushfires" title="Support GeoJSON(.geojson .json), GPS data(.gpx), GeoPackage(.gpkg), 7zip(.7z), TarFile(.tar.gz,tar.bz,tar.xz),ZipFile(.zip)" style="line-height:1"><i class="fa fa-upload"></i><br>Upload</label><input type="file" id="uploadBushfires" class="show-for-sr" name="bushfiresfile" accept=".json,.geojson,.gpx,.gpkg,.7z,.tar,.tar.gz,.tar.bz,.tar.xz,.zip" v-model="bushfiresfile" v-el:bushfiresfile @change="importList()"/>
+                    <a class="button" @click="downloadList('geojson')" title="Export Bushfire as GeoJSON"><i class="fa fa-download" aria-hidden="true"></i><br>Download<br>(geojson) </a>
+                    <a class="button" @click="downloadList('gpkg')" title="Export Bushfire as GeoPackage"><i class="fa fa-download" aria-hidden="true"></i><br>Download<br>(gpkg)</a>
                   </div>
                 </div>
     
