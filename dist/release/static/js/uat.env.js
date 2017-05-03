@@ -1,4 +1,4 @@
-VAR ENV = {
+var env = {
     envType:"uat",
     appType: (window.location.protocol == "file:")?"cordova":"webapp",
 
@@ -20,7 +20,7 @@ VAR ENV = {
 
     bfrsLayer:"dpaw:bushfire_uat",
     bfrsWMSLayer:"dpaw:bushfire_final_fireboundary_uat"
-};
+}
 
 
 document.body.onload = function() {
