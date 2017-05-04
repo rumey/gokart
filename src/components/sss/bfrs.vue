@@ -852,7 +852,7 @@
                         callbackWrapper(spatialData)
                     },
                     error: function (xhr,status,message) {
-                        tenure_area_task.setStatus(utils.FAILED,status + " : " + message)
+                        tenure_area_task.setStatus(utils.FAILED,status + " : " + (xhr.responseText || message))
                         alert(tenure_area_task.message)
                         callbackWrapper(spatialData)
                     },
@@ -881,7 +881,7 @@
                         callbackWrapper(spatialData)
                     },
                     error: function (xhr,status,message) {
-                        tenure_origin_point_task.setStatus(utils.FAILED,status + " : " + message)
+                        tenure_origin_point_task.setStatus(utils.FAILED,status + " : " + (xhr.responseText || message))
                         alert(tenure_origin_point_task.message)
                         callbackWrapper(spatialData)
                     },
@@ -933,7 +933,7 @@
                             }
                         },
                         error: function (xhr,status,message) {
-                            fire_position_task.setStatus(utils.FAILED,status + " : " + message)
+                            fire_position_task.setStatus(utils.FAILED,status + " : " + (xhr.responseText || message))
                             alert(fire_position_task.message)
                             callbackWrapper(spatialData)
                         },
@@ -960,7 +960,7 @@
                         callbackWrapper(spatialData)
                     },
                     error: function (xhr,status,message) {
-                        region_task.setStatus(utils.FAILED,status + " : " + message)
+                        region_task.setStatus(utils.FAILED,status + " : " + (xhr.responseText || message))
                         alert(region_task.message)
                         callbackWrapper(spatialData)
                     },
@@ -985,7 +985,7 @@
                         callbackWrapper(spatialData)
                     },
                     error: function (xhr,status,message) {
-                        district_task.setStatus(utils.FAILED,status + " : " + message)
+                        district_task.setStatus(utils.FAILED,status + " : " + (xhr.responseText || message))
                         alert(district_task.message)
                         callbackWrapper(spatialData)
                     },
@@ -999,7 +999,7 @@
             callbackWrapper(spatialData)
         }
       },
-      saveFeature:function(feat,callback) {
+      saveFeature:function(feat,callback,failedCallback) {
         if (this.canSave(feat)) {
             var vm = this
             if (!callback && !vm._taskManager.initTasks(feat)) {
@@ -1028,8 +1028,9 @@
                         }
                     },
                     error: function (xhr,status,message) {
-                        task.setStatus(utils.FAILED,status + " : " + message)
+                        task.setStatus(utils.FAILED,status + " : " + (xhr.responseText || message))
                         alert(task.message)
+                        if (failedCallback) failedCallback(task.message)
                     },
                     xhrFields: {
                         withCredentials: true
@@ -1038,6 +1039,7 @@
             },
             function(ex) {
                 task.setStatus(utils.FAILED,ex.message || ex)
+                if (failedCallback) failedCallback(task.message)
             })
         }
       },
@@ -1149,7 +1151,7 @@
                         vm._deleteFeature(feat)
                     },
                     error: function (xhr,status,message) {
-                        alert(status + " : " + message)
+                        alert(status + " : " + (xhr.responseText || message))
                     },
                     xhrFields: {
                       withCredentials: true
@@ -1623,6 +1625,10 @@
                                         import_task.setStatus(utils.SUCCEED)
                                         vm._taskManager.clearTasks(feat)
                                     }
+                                },function(){
+                                    if (import_task) {
+                                        import_task.setStatus(utils.FAILED)
+                                    }
                                 })
                             } else {
                                 if ((modifyType & 1) === 1) {
@@ -1891,8 +1897,8 @@
                 vm._bfrsStatus.phaseEnd("load_profile")
             },
             error: function (xhr,status,message) {
-                alert(status + " : " + message)
-                vm._bfrsStatus.phaseFailed("load_profile","Failed to loading user profile data. status = " + status + " , message = " + message)
+                alert(status + " : " + (xhr.responseText || message))
+                vm._bfrsStatus.phaseFailed("load_profile","Failed to loading user profile data. status = " + status + " , message = " + (xhr.responseText || message))
             },
             xhrFields: {
               withCredentials: true
@@ -1919,8 +1925,8 @@
                 vm._bfrsStatus.phaseEnd("load_regions")
             },
             error: function (xhr,status,message) {
-                alert(status + " : " + message)
-                vm._bfrsStatus.phaseFailed("load_regions","Failed to loading regions data. status = " + status + " , message = " + message)
+                alert(status + " : " + (xhr.responseText || message))
+                vm._bfrsStatus.phaseFailed("load_regions","Failed to loading regions data. status = " + status + " , message = " + (xhr.responseText || message))
             },
             xhrFields: {
               withCredentials: true

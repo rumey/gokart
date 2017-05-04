@@ -1,5 +1,6 @@
 import bottle
 import dotenv
+import sys
 import os
 import pytz
 import shutil
@@ -16,6 +17,7 @@ import hashlib
 import base64
 import pyproj
 import shapely
+import traceback
 import shapely.ops as ops
 from shapely.geometry import shape
 from shapely.geometry.polygon import Polygon
@@ -584,7 +586,7 @@ def ogr(fmt):
             layers = {"layerCount":1,"datasources":[{"datasource":datasourcefile["datasource"],"layers":[layer]}]}
 
         unsupported_layers = []
-        print "{}".format(layers)
+        #print "{}".format(layers)
         for dslayers in layers["datasources"]:
             unsupported_layers += ["{}({})".format(l["layer"],l["geometry"]) for l in dslayers["layers"] if l["geometry"] not in SUPPORTED_GEOMETRY_TYPES and l["geometry"].find("UNKNOWN") < 0]
 
@@ -722,6 +724,55 @@ def ogr(fmt):
         except:
             pass
 
+#merge layers into geojson format
+typename_re = re.compile("typenames?=\s*(?P<name>[a-zA-Z0-9_\-\:\%]+)\s*",re.DOTALL)
+def typename(url):
+    m = typename_re.search(url.lower())
+    return m.group('name').replace("%3a",":") if m else None
+
+def mergeLayers(session_cookie,workdir,layers):
+    mergedir = os.path.join(workdir,"merge")
+    os.mkdir(mergedir)
+    for layer in layers:
+        layerdir = os.path.join(mergedir,layer["name"])
+        os.mkdir(layerdir)
+        for sublayer in layer.sublayers:
+            source = sublayer.get("source","WFS")
+            if source == "WFS":
+                #load layer from wfs server
+                sublayername = sublayer["name"] or typename(url)
+                r = requests.get("{}&outputFormat=json&bbox={},{},{},{}".format(sublayer["url"],geometry.bounds[1],geometry.bounds[0],geometry.bounds[3],geometry.bounds[2]),
+                    verify=False,
+                    cookies=session_cookies
+                )
+            elif source == "REQUEST":
+                #load layer from http request
+                pass
+
+
+@bottle.route("/download/<fmt>", method="POST")
+def downloaod(fmt):
+    # needs gdal 1.10+
+    layers = bottle.request.files.get("layers")
+
+    if layers:
+        layers = json.loads(layers)
+
+    workdir = tempfile.mkdtemp()
+    try:
+        if layers:
+            datasourcefiles = mergeLayers(workdir,layers)
+
+        output = open(dst_datasource)
+        bottle.response.set_header("Content-Type", ct)
+        bottle.response.set_header("Content-Disposition", "attachment;filename='{}'".format(os.path.basename(dst_datasource)))
+        return output
+    finally:
+        try:
+            shutil.rmtree(workdir)
+        except:
+            pass
+
 def getGeometryArea(geometry,unit):
     geometry_aea = ops.transform(
         partial(
@@ -819,30 +870,36 @@ def calculateArea(session_cookies,results,features,options):
 @bottle.route("/spatial", method="POST")
 def spatial():
     # needs gdal 1.10+
-    features = json.loads(bottle.request.forms.get("features"))
-    options = bottle.request.forms.get("options")
-    if options:
-        options = json.loads(options)
-    else:
-        options = {}
-
-    session_cookie = get_session_cookie()
-    cookies={"oim_dpaw_wa_gov_au_sessionid":session_cookie} if ENV_TYPE == "prod" else {"oim_dpaw_wa_gov_au_sessionid":session_cookie,"oim-uat_dpaw_wa_gov_au_sessionid":session_cookie}
-    results = []
-
-    features = features["features"] or []
-    for feature in features:
-        if feature["geometry"]["type"] == "GeometryCollection":
-            feature["geometry"] = GeometryCollection([shape(g) for g in feature["geometry"]["geometries"]])
+    try:
+        features = json.loads(bottle.request.forms.get("features"))
+        options = bottle.request.forms.get("options")
+        if options:
+            options = json.loads(options)
         else:
-            feature["geometry"] = shape(feature["geometry"])
-        results.append({})
-    
-    if "area" in options:
-        calculateArea(cookies,results,features,options["area"])
+            options = {}
 
-    bottle.response.set_header("Content-Type", "application/json")
-    return {"total_features":len(results),"features":results}
+        session_cookie = get_session_cookie()
+        cookies={"oim_dpaw_wa_gov_au_sessionid":session_cookie} if ENV_TYPE == "prod" else {"oim_dpaw_wa_gov_au_sessionid":session_cookie,"oim-uat_dpaw_wa_gov_au_sessionid":session_cookie}
+        results = []
+
+        features = features["features"] or []
+        for feature in features:
+            if feature["geometry"]["type"] == "GeometryCollection":
+                feature["geometry"] = GeometryCollection([shape(g) for g in feature["geometry"]["geometries"]])
+            else:
+                feature["geometry"] = shape(feature["geometry"])
+            results.append({})
+    
+        if "area" in options:
+            calculateArea(cookies,results,features,options["area"])
+
+        bottle.response.set_header("Content-Type", "application/json")
+        return {"total_features":len(results),"features":results}
+    except:
+        bottle.response.status = 400
+        bottle.response.set_header("Content-Type","text/plain")
+        traceback.print_exc()
+        return traceback.format_exception_only(sys.exc_type,sys.exc_value)
     
 
 
