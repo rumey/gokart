@@ -128,7 +128,7 @@
                     <svg class="editicon"><use xlink:href="dist/static/images/iD-sprite.svg#icon-area"></use></svg>
                   </a>
                   <a v-if="canCreate(f)" @click.stop.prevent="createFeature(f)" title="Create" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-save actionicon"></i></a>
-                  <a v-if="canEdit(f) " @click.stop.prevent="utils.editResource($event)" title="Edit" href="{{editUrl(f)}}" target="_blank" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-pencil-square-o actionicon"></i></a>
+                  <a v-if="canEdit(f) " @click.stop.prevent="utils.editResource($event)" title="Open bushfire form" href="{{editUrl(f)}}" target="_blank" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-pencil-square-o actionicon"></i></a>
                   <a v-if="canSave(f)" @click.stop.prevent="saveFeature(f)" title="Save" class="button tiny secondary float-right action" style="margin-left:2px">
                     <i class="fa fa-save actionicon"></i>
                   </a>
