@@ -82,8 +82,8 @@
                     <select name="select" v-model="statusFilter" @change="updateCQLFilter('bushfireStatus',500)">
                       <option value="" selected>All bushfires</option> 
                       <option value="report_status = 1">Initial Bushfires</option>
-                      <option value="report_status = 2">Initial Authroised Bushfires</option>
-                      <option value="report_status >= 3">Final Authroised Bushfires</option>
+                      <option value="report_status = 2">Initial Authorised Bushfires</option>
+                      <option value="report_status >= 3">Final Authorised Bushfires</option>
                     </select>
                   </div>
                   <div class="small-6 columns">
@@ -94,7 +94,7 @@
                 <div class="tool-slice row collapse">
                   <div class="small-12 expanded button-group">
                     <a title="Zoom to selected" class="button" @click="zoomToSelected()" ><img style="width:29px;height:29px"src="dist/static/images/zoom-to-selected.svg"/><br></a>
-                    <label class="button" for="uploadBushfires" title="Support GeoJSON(.geojson .json), GPS data(.gpx), GeoPackage(.gpkg), 7zip(.7z), TarFile(.tar.gz,tar.bz,tar.xz),ZipFile(.zip)" style="line-height:1"><i class="fa fa-upload"></i><br>Upload</label><input type="file" id="uploadBushfires" class="show-for-sr" name="bushfiresfile" accept=".json,.geojson,.gpx,.gpkg,.7z,.tar,.tar.gz,.tar.bz,.tar.xz,.zip" v-model="bushfiresfile" v-el:bushfiresfile @change="importList()"/>
+                    <a title="Refresh bushfire list" class="button" @click="updateCQLFilter('refresh',200)" ><i class="fa fa-refresh" aria-hidden="true"></i><br>Refresh<br>Bushfires </a>
                     <a class="button" @click="downloadList('geojson')" title="Export Bushfire as GeoJSON"><i class="fa fa-download" aria-hidden="true"></i><br>Download<br>(geojson) </a>
                     <a class="button" @click="downloadList('gpkg')" title="Export Bushfire as GeoPackage"><i class="fa fa-download" aria-hidden="true"></i><br>Download<br>(gpkg)</a>
                   </div>
@@ -124,9 +124,14 @@
                   <a v-if="canReset(f)"  @click.stop.prevent="resetFeature(f)" title="Reset" class="button tiny secondary float-right acion" style="margin-left:2px"><i class="fa fa-undo actionicon"></i></a>
                   <a v-if="canDelete(f)" @click.stop.prevent="deleteFeature(f)" title="Delete" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-trash actionicon"></i></a>
                   <a v-if="canUpload(f)"  @click.stop.prevent="uploadBushfire(f)" title="Upload" class="button tiny secondary float-right acion" style="margin-left:2px"><i class="fa fa-upload actionicon"></i></a>
+                  <a @click.stop.prevent="startEditFeature(f)" title="Edit Bushfire" class="button tiny secondary float-right action">
+                    <svg class="editicon"><use xlink:href="dist/static/images/iD-sprite.svg#icon-area"></use></svg>
+                  </a>
                   <a v-if="canCreate(f)" @click.stop.prevent="createFeature(f)" title="Create" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-save actionicon"></i></a>
-                  <a v-if="canEdit(f) " @click.stop.prevent="utils.editResource($event)" title="Edit" href="{{editUrl(f)}}" target="_blank" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-pencil actionicon"></i></a>
-                  <a v-if="canSave(f)" @click.stop.prevent="saveFeature(f)" title="Save" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-save actionicon"></i></a>
+                  <a v-if="canEdit(f) " @click.stop.prevent="utils.editResource($event)" title="Edit" href="{{editUrl(f)}}" target="_blank" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-pencil-square-o actionicon"></i></a>
+                  <a v-if="canSave(f)" @click.stop.prevent="saveFeature(f)" title="Save" class="button tiny secondary float-right action" style="margin-left:2px">
+                    <i class="fa fa-save actionicon"></i>
+                  </a>
                   <div class="feature-title"><img class="feature-icon" id="bushfire-icon-{{f.get('id')}}" v-bind:src="featureIconSrc(f)" /> {{ f.get('label') }} <i><small></small></i></div>
                 </div>
                 <template v-for="task in featureTasks(f)" track-by="$index">
@@ -154,6 +159,15 @@
 <style>
 .actionicon {
     width:9px;
+    height:9px;
+}
+.editicon {
+    width:16px;
+    height:16px;
+    margin-top: -3px;
+    margin-bottom: -4px;
+    margin-left: -2px;
+    margin-right: -2px;
 }
 .task_status {
 }
@@ -200,38 +214,38 @@
         revision:1,
         profileRevision:1,
         tints: {
-          'new':[["#b43232","#1c6928"]],
-          'new.text':"#1c6928",
+          'new':[["#b43232","#c8c032e6"]],
+          'new.text':"#c8c032e6",
           'new.fillColour':[0, 0, 0, 0.25],
-          'new.colour':"#1c6928",
+          'new.colour':"#c8c032e6",
           'unknown': [['#b43232','#f90c25']],
           'unknown.text': '#f90c25',
           'unknown.fillColour':[0, 0, 0, 0.25],
           'unknown.colour': '#f90c25',
-          'initial': [['#b43232','#b08c9d']],
-          'initial.text': '#b08c9d',
+          'initial': [['#b43232','#808080']],
+          'initial.text': '#808080',
           'initial.fillColour':[0, 0, 0, 0.25],
-          'initial.colour': '#b08c9d',
+          'initial.colour': '#808080',
           'submitted': [['#b43232','#3f1919']],
           'submitted.text': '#3f1919',
           'submitted.fillColour':[0, 0, 0, 0.25],
           'submitted.colour': '#3f1919',
-          'draft_final': [['#b43232', '#b7d28d']],
-          'draft_final.text': '#b7d28d',
+          'draft_final': [['#b43232', '#ff0000']],
+          'draft_final.text': '#ff0000',
           'draft_final.fillColour':[0, 0, 0, 0.25],
-          'draft_final.colour': '#b7d28d',
-          'final_authorised': [['#b43232', '#7ecca3']],
-          'final_authorised.text': '#7ecca3',
+          'draft_final.colour': '#ff0000',
+          'final_authorised': [['#b43232', '#008000']],
+          'final_authorised.text': '#008000',
           'final_authorised.fillColour':[0, 0, 0, 0.25],
-          'final_authorised.colour': '#7ecca3',
-          'draft_review': [['#b43232', '#7ecca3']],
-          'draft_review.text': '#7ecca3',
+          'final_authorised.colour': '#008000',
+          'draft_review': [['#b43232', '#008000']],
+          'draft_review.text': '#008000',
           'draft_review.fillColour':[0, 0, 0, 0.25],
-          'draft_review.colour': '#7ecca3',
-          'reviewed': [['#b43232', '#7ecca3']],
-          'reviewed.text': '#7ecca3',
+          'draft_review.colour': '#008000',
+          'reviewed': [['#b43232', '#008000']],
+          'reviewed.text': '#008000',
           'reviewed.fillColour':[0, 0, 0, 0.25],
-          'reviewed.colour': '#7ecca3',
+          'reviewed.colour': '#008000',
           'modified':[["#b43232","#f57900"]],
           'modified.text':"#f57900",
           'modified_authorised.fillColour':[0, 0, 0, 0.25],
@@ -523,6 +537,15 @@
       },
       deleteUrl:function(feat) {
         return this.env.bfrsService + "/delete/" + feat.get('id')
+      },
+      startEditFeature:function(feat) {
+        if (this.annotations.tool !== this.ui.modifyTool) {
+            this.annotations.setTool(this.ui.modifyTool)
+        }
+        if (this.selectedFeatures.getLength() === 1 || this.selectedFeatures.item(0) !== feat) {
+            if (this.selectedFeatures.getLength() > 0) this.selectedFeatures.clear()
+            this.selectedFeatures.push(feat)
+        }
       },
       validateBushfire:function(feat,validateType,throwExceptionIfFailed,geom) {
         var indexes = null
@@ -894,10 +917,10 @@
                                 nearestDistance = vm.measure.formatLength(nearestDistance,"km")
                                 var bearing = null
                                 if (nearestDistance === 0) {
-                                    spatialData["fire_position"] = "0m from " + nearestTown.properties["name"]
+                                    spatialData["fire_position"] = "0m of " + nearestTown.properties["name"]
                                 } else {
                                     bearing = vm.measure.getBearing(nearestTown.geometry.coordinates,originPoint)
-                                    spatialData["fire_position"] = nearestDistance + " " + vm.measure.getDirection(bearing,16) + " from " + nearestTown.properties["name"]
+                                    spatialData["fire_position"] = nearestDistance + " " + vm.measure.getDirection(bearing,16) + " of " + nearestTown.properties["name"]
                                 }
         
                                 fire_position_task.setStatus(utils.SUCCEED)
@@ -1254,6 +1277,7 @@
           }
           this.selectedFeatures.push(f)
         }
+        this.zoomToSelected(100,200)
       },
       toggleViewportOnly: function () {
         this.viewportOnly = !this.viewportOnly
@@ -1697,37 +1721,45 @@
                     vm._updateCQLFilter.call({wait:100},updateType)
                     return
                 }
-                var bushfireFilter = ''
-                // filter by specific bushfires if "Show selected only" is enabled
-                if ((vm.selectedBushfires.length > 0) && (vm.selectedOnly)) {
-                  bushfireFilter = 'fire_number in (\'' + vm.selectedBushfires.join('\',\'') + '\')'
+                if (updateType !== "refresh") {
+                    var bushfireFilter = ''
+                    // filter by specific bushfires if "Show selected only" is enabled
+                    if ((vm.selectedBushfires.length > 0) && (vm.selectedOnly)) {
+                      bushfireFilter = 'fire_number in (\'' + vm.selectedBushfires.join('\',\'') + '\')'
+                    }
+                    // CQL statement assembling logic
+                    var filters = [vm.statusFilter, bushfireFilter, vm.regionFilter, vm.districtFilter].filter(function(f){return (f || false) && true})
+                    if (filters.length === 0) {
+                      vm.bfrsLayer.cql_filter = ''
+                    } else if (filters.length === 1) {
+                      vm.bfrsLayer.cql_filter = filters[0]
+                    } else {
+                      vm.bfrsLayer.cql_filter = "(" + filters.join(") and (") + ")"
+                    }
+                    if (!bushfireFilter && vm.selectedOnly) {
+                        vm.selectedOnly = false
+                    }
+                    if (updateType === "selectedBushfire" && bushfireFilter) {
+                        //chosed some bushfires
+                        var filteredFeatures = vm.bfrsMapLayer.getSource().getFeatures().filter(function(f){
+                            return vm.selectedBushfires.indexOf(f.get('fire_number')) >= 0
+                        })
+                        vm.bfrsMapLayer.getSource().clear()
+                        vm.bfrsMapLayer.getSource().addFeatures(filteredFeatures)
+                        $.each(filteredFeatures,function(index,feature){
+                            vm.annotations.tintSelectedFeature(feature)
+                        })
+                        vm.updateFeatureFilter(true)
+                        return
+                    }
                 }
-                // CQL statement assembling logic
-                var filters = [vm.statusFilter, bushfireFilter, vm.regionFilter, vm.districtFilter].filter(function(f){return (f || false) && true})
-                if (filters.length === 0) {
-                  vm.bfrsLayer.cql_filter = ''
-                } else if (filters.length === 1) {
-                  vm.bfrsLayer.cql_filter = filters[0]
-                } else {
-                  vm.bfrsLayer.cql_filter = "(" + filters.join(") and (") + ")"
-                }
-                if (!bushfireFilter && vm.selectedOnly) {
-                    vm.selectedOnly = false
-                }
-                if (updateType === "selectedBushfire" && bushfireFilter) {
-                    //chosed some bushfires
-                    var filteredFeatures = vm.bfrsMapLayer.getSource().getFeatures().filter(function(f){
-                        return vm.selectedBushfires.indexOf(f.get('fire_number')) >= 0
-                    })
-                    vm.bfrsMapLayer.getSource().clear()
-                    vm.bfrsMapLayer.getSource().addFeatures(filteredFeatures)
-                    $.each(filteredFeatures,function(index,feature){
-                        vm.annotations.tintSelectedFeature(feature)
-                    })
-                    vm.updateFeatureFilter(true)
-                } else {
-                    //clear bushfire filter or change other filter
-                    vm.bfrsMapLayer.getSource().loadSource("query",callback)
+                //clear bushfire filter or change other filter
+                vm.bfrsMapLayer.getSource().loadSource("query",callback)
+                if (updateType === "refresh") {
+                    vm.refreshWMSLayer()
+                    if (vm.selectedBushfires.length >= 0) { 
+                        vm.refreshSelectedWMSLayer()
+                    }
                 }
             }
         }
@@ -1935,11 +1967,9 @@
                 feat.getGeometry().getGeometriesArray().splice(0,0,new ol.geom.Point(coords))
                 feat.getGeometry().setGeometriesArray(feat.getGeometry().getGeometriesArray())
                 feat.getGeometry().changed()
-                /*
                 vm.selectedFeatures.clear()
                 vm.selectedFeatures.push(feat)
-                vm.annotations.setTool("Bfrs Fire Boundary")
-                */
+                vm.annotations.setTool("Bfrs Edit Geometry")
                 vm.postModified(feat,1)
                 return true
             }
@@ -2009,7 +2039,19 @@
       */
       vm.ui.dragSelectInter = vm.annotations.dragSelectInterFactory()(toolConfig)
       vm.ui.selectInter = vm.annotations.selectInterFactory()(toolConfig)
-      vm.ui.geometrySelectInter = vm.annotations.selectInterFactory()($.extend({selectMode:"geometry"},toolConfig))
+      vm.ui.geometrySelectInter = vm.annotations.selectInterFactory({
+        condition: function(event) {
+            var result = ol.events.condition.singleClick(event)
+            if (result) {
+                if (vm.bfrsMapLayer && vm.selectedFeatures.getLength() === 1) {
+                    result = vm.bfrsMapLayer.getSource().getFeaturesAtCoordinate(event.coordinate).findIndex(function(o) {return o === vm.selectedFeatures.item(0)}) >= 0
+                } else {
+                    result = false
+                }
+            }
+            return result
+        }
+      })($.extend({selectMode:"geometry"},toolConfig))
 
       vm.ui.modifyInter = vm.annotations.modifyInterFactory()({features:vm.selectedFeatures,mapLayers:function(layer){return layer.get("id") === vm.env.bfrsLayer }})
       vm.ui.modifyInter.on("featuresmodified",function(ev){
@@ -2035,25 +2077,33 @@
         },
         drawOptions:{
             condition:function(ev) {
-                var feat = (vm.selectedFeatures.getLength() == 1)?vm.selectedFeatures.item(0):null
-                if (feat) {
-                    var featGeometry = feat.getGeometry()
-                    if (vm.isModifiable(feat) && vm.isFireboundaryDrawable(feat)) {
-                        return ol.events.condition.noModifierKeys(ev)
+                var result = ol.events.condition.noModifierKeys(ev)
+                if (result) {
+                    var feat = (vm.selectedFeatures.getLength() == 1)?vm.selectedFeatures.item(0):null
+                    if (feat) {
+                        var featGeometry = feat.getGeometry()
+                        if (vm.isModifiable(feat) && vm.isFireboundaryDrawable(feat)) {
+                            if (vm.bfrsMapLayer) {
+                                result = vm.bfrsMapLayer.getSource().getFeaturesAtCoordinate(ev.coordinate).findIndex(function(o) {return o === feat}) < 0
+                            } else {
+                                result = false
+                            }
+                        } else {
+                            result = false
+                        }
                     } else {
-                        return false
+                        alert("Plase choose a bushfire to draw a fire boundary.")
+                        result = false
                     }
-                } else {
-                    alert("Plase choose a bushfire to place a fire boundary.")
-                    return false
                 }
+                return result
             }
         }
       })({
         features:vm.drawings
       })
       vm.drawings.on("add",function(ev){
-        if (vm.annotations.tool.name === "Bfrs Fire Boundary") {
+        if (vm.annotations.tool.name === "Bfrs Edit Geometry") {
             if (vm.selectedFeatures.getLength() === 1){
                 var f = vm.selectedFeatures.item(0)
                 var indexes = null
@@ -2079,11 +2129,9 @@
             f.getGeometry().setGeometriesArray(f.getGeometry().getGeometriesArray())
             f.getGeometry().changed()
             vm.postModified(f,1)
-            /*
             vm.selectedFeatures.clear()
             vm.selectedFeatures.push(f)
-            vm.annotations.setTool("Bfrs Fire Boundary")
-            */
+            vm.annotations.setTool("Bfrs Edit Geometry")
             //vm.validateBushfire(f,"addOriginPoint",false,ev.element.getGeometry())
 
             vm.ui.originPointDraw.dispatchEvent(vm.map.createEvent(vm.ui.originPointDraw,"addfeaturegeometry",{feature:f,indexes:[0]}))
@@ -2129,7 +2177,7 @@
               name: 'Bfrs Edit Geometry',
               label: 'Edit Geometry',
               icon: 'fa-pencil',
-              scope:["bfrs"],
+              scope:[],
               interactions: [
                   vm.ui.geometrySelectInter,
                   vm.annotations.keyboardInterFactory({
@@ -2157,12 +2205,12 @@
                         },this)
                     }
                   }),
-                  vm.ui.modifyInter
+                  vm.ui.modifyInter,
+                  this.ui.fireboundaryDraw
               ],
               selectMode:"geometry",
               keepSelection:true,
               onSet: function() {
-                  vm.ui.dragSelectInter.setMulti(false)
                   vm.ui.geometrySelectInter.setMulti(false)
                   if (vm.selectedFeatures.getLength() > 1) {
                       vm.selectedFeatures.clear()
@@ -2176,7 +2224,7 @@
               }
           }, {
               name: 'Bfrs Origin Point',
-              label: 'Create Bushfire',
+              label: 'Add Bushfire',
               icon: 'dist/static/symbols/fire/origin.svg',
               tints: vm.tints,
               selectedFillColour:[0, 0, 0, 0.25],
@@ -2219,7 +2267,7 @@
               interactions: [
                   this.ui.fireboundaryDraw
               ],
-              scope:["bfrs"],
+              scope:[],
               showName: true,
               keepSelection:true,
               onSet: function() {
@@ -2453,14 +2501,14 @@
                 }
             }
             vm.refreshSelectedWMSLayer()
-            vm.zoomToSelected(100,200)
+            //vm.zoomToSelected(100,200)
           }
         })
         vm.selectedFeatures.on('remove', function (event) {
           if (event.element.get('toolName') === "Bfrs Origin Point") {
             vm.selectedBushfires.$remove(event.element.get('fire_number'))
             vm.refreshSelectedWMSLayer()
-            vm.zoomToSelected(100,200)
+            //vm.zoomToSelected(100,200)
           }
           //remove the index of the selected geometry in geometry collection
           //delete event.element['selectedIndex']

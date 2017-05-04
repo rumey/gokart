@@ -772,10 +772,19 @@
             if (this.condition_(event)) {
                 try {
                     vm.selecting = true
+                    var result = this.defaultHandleEvent(event)
                     if (tool && tool.selectMode === "geometry") {
-                        vm.selectedFeatures.clear()
+                        vm.selectedFeatures.forEach(function(f){
+                            var indexes = vm.getSelectedGeometryIndex(f.getGeometry(),event)
+                            if (indexes) {
+                                f['selectedIndex'] = indexes
+                            } else {
+                                delete f['selectedIndex']
+                            }
+                            f.changed()
+                        })
                     }
-                    return this.defaultHandleEvent(event)
+                    return result
                 } finally {
                     vm.selecting = false
                 }
@@ -787,22 +796,17 @@
           selectInter.setMulti = function(multi) {
             this.multi_ = multi
           }
-          if (tool && tool.selectMode === "geometry") {
-              selectInter.on('select',function(ev) {
-                if (!ev.mapBrowserEvent) {return}
-                $.each(ev.selected,function(index,f){
-                    var indexes = vm.getSelectedGeometryIndex(f.getGeometry(),ev.mapBrowserEvent)
-                    if (indexes) {
-                        f['selectedIndex'] = indexes
-                    } else {
-                        delete f['selectedIndex']
-                    }
-                })
-            })
-          }
           return selectInter
         }
       },
+      /*
+      options:{
+        selectEnabled: boolean  enable select or not
+        events: events fired by this interaction
+            deletefeaturegeometry: delete feature geometry event
+        deleteSelected: the function to delete selected feature or feature geometry
+      }
+      */
       keyboardInterFactory:function(options) { 
         var vm = this
         // OpenLayers3 hook for keyboard input
