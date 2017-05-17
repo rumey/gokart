@@ -123,6 +123,58 @@
         </div>
       </div>
 
+      <hr class="row"/>
+      <div class="tool-slice row collapse">
+        <div class="small-3">
+          <label class="tool-label">Info:</label>
+        </div>
+        <div class="small-9 columns">
+          <div class="expanded button-group">
+            <label class="button expanded" for="spatialInfo" title="Support GeoJSON(.geojson .json), GPS data(.gpx), GeoPackage(.gpkg), 7zip(.7z), TarFile(.tar.gz,tar.bz,tar.xz),ZipFile(.zip)">
+                <i class="fa fa-info"></i> Spatial Info
+            </label>
+            <input type="file" id="spatialInfo" class="show-for-sr" name="spatialinfofile" v-el:spatialinfofile @change="getSpatialInfo()" accept=".json,.geojson,.gpx,.gpkg,.7z,.tar,.tar.gz,.tar.bz,.tar.xz,.zip"/>
+          </div>
+        </div>
+
+        <div class="small-3">
+          <label class="tool-label">Transform:</label>
+        </div>
+        <div class="small-9 columns">
+          <div class="expanded button-group">
+            <label class="button expanded convertbutton" for="togeojson" 
+                title="Support GeoJSON(.geojson .json), GPS data(.gpx), GeoPackage(.gpkg), 7zip(.7z), TarFile(.tar.gz,tar.bz,tar.xz),ZipFile(.zip)">
+                <i class="fa fa-exchange"></i><br>Transform<br>(geojson)
+            </label>
+            <input type="file" id="togeojson" class="show-for-sr" name="convertfile" v-el:togeojson @change="convertFormat('geojson',$event)" 
+                accept=".json,.geojson,.gpx,.gpkg,.7z,.tar,.tar.gz,.tar.bz,.tar.xz,.zip"/>
+
+            <label class="button expanded convertbutton" for="togpkg" 
+                title="Support GeoJSON(.geojson .json), GPS data(.gpx), GeoPackage(.gpkg), 7zip(.7z), TarFile(.tar.gz,tar.bz,tar.xz),ZipFile(.zip)">
+                <i class="fa fa-exchange"></i><br>Transform<br>(gpkg)
+            </label>
+            <input type="file" id="togpkg" class="show-for-sr" name="convertfile" v-el:togpkg @change="convertFormat('gpkg',$event)" 
+                accept=".json,.geojson,.gpx,.gpkg,.7z,.tar,.tar.gz,.tar.bz,.tar.xz,.zip"/>
+
+            <label class="button expanded convertbutton" for="toshp" 
+                title="Support GeoJSON(.geojson .json), GPS data(.gpx), GeoPackage(.gpkg), 7zip(.7z), TarFile(.tar.gz,tar.bz,tar.xz),ZipFile(.zip)">
+            <i class="fa fa-exchange"></i><br>Transform<br>(shp)
+            </label>
+            <input type="file" id="toshp" class="show-for-sr" name="convertfile" v-el:toshp @change="convertFormat('shp',$event)" 
+                accept=".json,.geojson,.gpx,.gpkg,.7z,.tar,.tar.gz,.tar.bz,.tar.xz,.zip"/>
+
+            <label class="button expanded convertbutton" for="tocsv" 
+                title="Support GeoJSON(.geojson .json), GPS data(.gpx), GeoPackage(.gpkg), 7zip(.7z), TarFile(.tar.gz,tar.bz,tar.xz),ZipFile(.zip)">
+            <i class="fa fa-exchange"></i><br>Transform<br>(csv)
+            </label>
+            <input type="file" id="tocsv" class="show-for-sr" name="convertfile" v-el:tocsv @change="convertFormat('csv',$event)" 
+                accept=".json,.geojson,.gpx,.gpkg,.7z,.tar,.tar.gz,.tar.bz,.tar.xz,.zip"/>
+
+          </div>
+        </div>
+      </div>
+
+
       <div class="hide" v-el:legendsvg>
         <gk-legend></gk-legend>
       </div>
@@ -132,8 +184,8 @@
       <gk-layerlegends v-ref:layerlegends></gk-layerlegends>
     </div>
 
-    <div class="small reveal" id="chooseImportLayer" data-reveal data-close-on-click='false'> 
-        <h3>Please choose the layer to import</h3>
+    <div class="small reveal" id="spatialInfoDialog" data-reveal data-close-on-click='false'> 
+        <h3 >{{spatialInfo.title}}</h3>
         <div class="row feature-row" >
             <div class="small-5 columns">Layer</div>
             <div class="small-2 columns">SRS</div>
@@ -141,17 +193,17 @@
             <div class="small-2 columns">Features</div>
             <div class="small-1 columns"></div>
         </div>
-        <template v-for="dslayers in layers['datasources']" class="row feature-row"  track-by="$index">
-            <div class="row" v-if="layers['datasourceCount'] > 1">
+        <template v-for="dslayers in spatialInfo['datasources']" class="row feature-row"  track-by="$index">
+            <div class="row" v-if="spatialInfo['datasourceCount'] > 1">
                 <div class="small-12 columns datasource"><a>{{dslayers["datasource"]}}</a></div>
             </div>
             <div v-for="l in dslayers['layers']" class="row feature-row"  track-by="$index">
                 <div class="small-5 columns">{{l.layer}}</div>
                 <div class="small-2 columns">{{l.srs}}</div>
                 <div class="small-2 columns">{{l.geometry}}</div>
-                <div class="small-2 columns">{{l.featureCount}}</div>
+                <div class="small-2 columns">{{l.features}}</div>
                 <div class="small-1 columns">
-                    <a class="button tiny secondary float-right" @click="importLayer(dslayers['datasource'],l)"><i class="fa fa-upload"></i></a>
+                    <a class="button tiny secondary float-right" v-if="spatialInfo.upload" @click="importLayer(dslayers['datasource'],l)"><i class="fa fa-upload"></i></a>
                 </div>
             </div>
         </template>
@@ -170,6 +222,10 @@
     font-style: italic;
     background-color: #266f78;
 }
+.convertbutton {
+    padding-left:2px;
+    padding-right:2px;
+}
 </style>
 <script>
   import { kjua, saveAs, moment, $, localforage,hash} from 'src/vendor.js'
@@ -180,7 +236,7 @@
     components: { gkLegend,gkLayerlegends },
     data: function () {
       return {
-        layers:{},
+        spatialInfo:{},
         minDPI: 150,
         paperSizes: {
           A0: [1189, 841],
@@ -287,10 +343,10 @@
           req.onload = function (event) {
             if (req.status >= 400) {
                 var reader = new FileReader()
-                reader.readAsText(req.response)
                 reader.addEventListener("loadend",function(e){
                     alert(e.target.result)
                 })
+                reader.readAsText(req.response)
             } else {
                 var filename = null
                 if (req.getResponseHeader("Content-Disposition")) {
@@ -308,6 +364,179 @@
       },
       getFileFormat:function(filename) {
         return this._fileformats.find(function(f){return filename.substring(filename.length - f[1].length).toLowerCase() === f[1]})
+      },
+      convertFormat:function(format,ev) {
+        var files = ev.currentTarget.files
+        if (files.length === 0) {
+            return
+        }
+        
+        var fileFormat = this.getFileFormat(files[0].name)
+        if (!fileFormat) {
+            alert("Not support file format(" + files[0].name + ")")
+            return
+        }
+        if (fileFormat[0] === format) {
+            alert("Target format is the same as source format.")
+            return
+        }
+
+        this.downloadVector(format,{
+            datasources : {
+                parameter:"datafile",
+                default_geometry_type:"auto",
+                defaultSrs:"EPSG:4326"
+            },
+            files: {
+                datafile:files[0]
+            }
+        })
+      },
+      downloadVector:function(format,options) {
+        var vm = this
+        var formData = new window.FormData()
+        var tasks = 1
+        var defaultFileName = null
+        var callback = function() {
+            if (tasks > 0) {
+                return
+            }
+            try{
+                var req = new window.XMLHttpRequest()
+                req.open('POST', vm.env.gokartService + '/download/' + format)
+                req.responseType = 'blob'
+                req.withCredentials = true
+                req.onload = function (event) {
+                    try{
+                        if (req.status >= 400) {
+                            var reader = new FileReader()
+                            reader.addEventListener("loadend",function(e){
+                                alert(e.target.result)
+                            })
+                            reader.readAsText(req.response)
+                        } else {
+                            var filename = null
+                            if (req.getResponseHeader("Content-Disposition")) {
+                                var matches = vm._filename_re.exec(req.getResponseHeader("Content-Disposition"))
+                                filename = (matches && matches[1])? matches[1]: null
+                            }
+                            if (!filename) {
+                                filename = files[0].name.substring(0,files[0].name.length - fileFormat[1].length) + "." + format
+                            }
+                            if (!filename) {
+                                filename = "download." + format
+                            }
+                            saveAs(req.response, filename)
+                        }
+                    } catch(ex) {
+                        alert(ex.message || ex)
+                    }
+                }
+                req.send(formData)
+            }catch(ex) {
+                alert(ex.message || ex)
+            }
+        }
+        try {
+            $.each(options,function(key,value){
+                if (key === "layers") {
+                    formData.append('layers', JSON.stringify(options["layers"]))
+                } else if (key === "datasources") {
+                    formData.append('datasources', JSON.stringify(options["datasources"]))
+                } else if (key === "files") {
+                    $.each(value,function(name,file){
+                        tasks += 1
+                        var fileFormat = vm.getFileFormat(file.name)
+                        if (!fileFormat) {
+                            throw ("Not support file format(" + file.name + ")")
+                        }
+                        if (!defaultFileName) {
+                            defaultFileName = file.name.substring(0,file.name.length - fileFormat[1].length) + "." + format
+                        }
+    
+                        var reader = new window.FileReader()
+                        reader.onload = function(){
+                            var parameter = name
+                            var fmt = fileFormat[2]
+                            var filename = file.name
+                            return function(e) {
+                                formData.append(parameter, new window.Blob([e.target.result],{type:fmt}), filename)
+                                tasks -= 1
+                                callback()
+                            }
+                        }()
+                        reader.readAsArrayBuffer(file)
+                    })
+                } else {
+                    formData.append(key, value)
+                }
+            })
+    
+            tasks -= 1
+            callback()
+        }catch(ex) {
+            alert(ex.message || ex)
+        }
+      },
+      getSpatialInfo: function(){
+        var files = this.$els.spatialinfofile.files
+        if (files.length === 0) {
+            return
+        }
+        var fileFormat = this.getFileFormat(files[0].name)
+        if (!fileFormat) {
+            alert("Not support file format(" + filename + ")")
+            return
+        }
+        var vm = this
+        var reader = new window.FileReader()
+        reader.onload = function (e) {
+            try{
+                var formData = new window.FormData()
+                formData.append('datasource', new window.Blob([e.target.result],{type:fileFormat[2]}), files[0].name)
+                var req = new window.XMLHttpRequest()
+                req.open('POST', vm.env.gokartService + '/ogrinfo')
+                req.responseType = 'blob'
+                req.withCredentials = true
+                req.onload = function (event) {
+                    try{
+                        if (req.status >= 400) {
+                            var reader = new FileReader()
+                            reader.readAsText(req.response)
+                            reader.addEventListener("loadend",function(e){
+                                alert(e.target.result)
+                            })
+                            delete vm._importData
+                        } else {
+                            var reader = new FileReader()
+                            reader.readAsText(req.response)
+                            reader.addEventListener("loadend",function(e){
+                                if (!e.target.result) {
+                                    alert("No spatial data")
+                                    return
+                                }
+                                var spatialInfo = JSON.parse(e.target.result)
+                                if (!spatialInfo || !spatialInfo["layerCount"]) {
+                                    alert("No spatial data")
+                                    return
+                                } else {
+                                    vm.spatialInfo = spatialInfo
+                                    vm.spatialInfo.title = files[0].name
+                                    vm.spatialInfo.upload = false
+                                    $("#spatialInfoDialog").foundation('open')
+                                }
+                            })
+                        }
+                    } catch(ex) {
+                        alert(ex.message || ex)
+                    }
+                }
+                req.send(formData)
+            }catch(ex) {
+                alert(ex.message || ex)
+            }
+        }
+        reader.readAsArrayBuffer(files[0])
       },
       importVector: function(file,callback,failedCallback) {
         // upload vector  
@@ -368,15 +597,17 @@
                                             if (failedCallback) failedCallback("No spatial data")
                                             return
                                         }
-                                        var layers = JSON.parse(e.target.result)
-                                        if (!layers || !layers["layerCount"]) {
+                                        var spatialInfo = JSON.parse(e.target.result)
+                                        if (!spatialInfo || !spatialInfo["layerCount"]) {
                                             callback([],"geojson")
                                             return
-                                        } else if(layers["layerCount"] === 1) {
-                                            vm.importLayer(layers["datasources"][0]["datasource"],layers["datasources"][0]["layers"][0],true)
+                                        } else if(spatialInfo["layerCount"] === 1) {
+                                            vm.importLayer(spatialInfo["datasources"][0]["datasource"],spatialInfo["datasources"][0]["layers"][0],true)
                                         } else {
-                                            vm.layers = layers
-                                            $("#chooseImportLayer").foundation('open')
+                                            vm.spatialInfo = spatialInfo
+                                            vm.spatialInfo.title = "Please choose the layer to import"
+                                            vm.spatialInfo.upload = true
+                                            $("#spatialInfoDialog").foundation('open')
                                         }
                                     })
                                 }
@@ -430,24 +661,29 @@
             }
             var vm = this
             var importData = vm._importData
-            this._importData.formData.append('layer', selectedLayer.layer)
-            this._importData.formData.append('datasourcefile', datasource)
+            var layers = {
+                default_geometry_type:"POINT",
+                layer:selectedLayer.layer,
+                sourcelayers:{
+                    parameter:"datasource",
+                    datasource:datasource,
+                    layer:selectedLayer.layer,
+                    defaultSrs:"EPSG:4326"
+                }
+            }
+            this._importData.formData.append('layers', JSON.stringify(layers))
             var req = new window.XMLHttpRequest()
-            req.open('POST', this.env.gokartService + '/ogr/geojson')
+            req.open('POST', this.env.gokartService + '/download/geojson')
             req.responseType = 'text'
             req.withCredentials = true
             req.onload = function (event) {
                 try{
                     if (req.status >= 400) {
-                        var reader = new FileReader()
-                        reader.readAsText(req.response)
-                        reader.addEventListener("loadend",function(e){
-                            if (importData.failedCallback) {
-                                importData.failedCallback(e.target.result)
-                            } else {
-                                alert(e.target.result)
-                            }
-                        })
+                        if (importData.failedCallback) {
+                            importData.failedCallback(req.response)
+                        } else {
+                            alert(req.response)
+                        }
                     } else {
                         var features = new ol.format.GeoJSON().readFeatures(req.response,{dataProjection:"EPSG:4326"})
                         if (features && features.length) {
@@ -472,7 +708,7 @@
         } finally {
             if (this._importData) {delete this._importData}
             if (!autoChoose) {
-                $("#chooseImportLayer").foundation('close')
+                $("#spatialInfoDialog").foundation('close')
             }
         }
       },
@@ -847,7 +1083,7 @@
       ]
 
 
-      $("#chooseImportLayer").on("closed.zf.reveal",function(){
+      $("#spatialInfoDialog").on("closed.zf.reveal",function(){
           if (vm._importData) {
             if (vm._importData.failedCallback) vm._importData.failedCallback("Cancelled")
             delete vm._importData
