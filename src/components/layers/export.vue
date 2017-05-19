@@ -321,45 +321,25 @@
         }
         return result
       },
-      exportVector: function(features, name,format,configure) {
+      exportVector: function(features, name,format) {
         var vm = this
         //add applicaiton name and timestamp
         var name = (name || '') + "." + this.$root.profile.name + "_export_" + moment().format("YYYYMMDD_HHmm")
         var result = this.$root.geojson.writeFeatures(features)
-        var blob = new window.Blob([result], {type: 'application/json;charset=utf-8'})
         format = format || this.vectorFormat
         if (format === 'geojson') {
           saveAs(blob, name + '.geojson')
         } else {
-          var formData = new window.FormData()
-          formData.append('datasource', blob, name + '.json')
-          if (configure) {
-              formData.append('configure', JSON.stringify(configure))
-          }
-          var req = new window.XMLHttpRequest()
-          req.open('POST', this.env.gokartService + '/ogr/' + format)
-          req.responseType = 'blob'
-          req.withCredentials = true
-          req.onload = function (event) {
-            if (req.status >= 400) {
-                var reader = new FileReader()
-                reader.addEventListener("loadend",function(e){
-                    alert(e.target.result)
-                })
-                reader.readAsText(req.response)
-            } else {
-                var filename = null
-                if (req.getResponseHeader("Content-Disposition")) {
-                    var matches = vm._filename_re.exec(req.getResponseHeader("Content-Disposition"))
-                    filename = (matches && matches[1])? matches[1]: null
-                }
-                if (!filename) {
-                    filename = name + "." + format
-                }
-                saveAs(req.response, filename)
-            }
-          }
-          req.send(formData)
+          this.downloadVector(format,{
+            filename:name,
+            datasources : {
+                parameter:"features",
+                default_geometry_type:"auto",
+                datafile:result,
+                defaultSrs:"EPSG:4326"
+            },
+            features:result,
+          })
         }
       },
       getFileFormat:function(filename) {

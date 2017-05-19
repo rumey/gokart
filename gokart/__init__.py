@@ -622,6 +622,7 @@ def getOutputDatasource(workdir,fmt,layer,geometryType=None):
     return path
 
 geojson_re = re.compile("^\s*\{\s*[\"\']type[\"\']\s*:\s*[\"\']FeatureCollection[\"\']\s*\,")
+service_exception_re = re.compile("^.*(\<ServiceExceptionReport)",re.DOTALL)
 def loadDatasource(session_cookie,workdir,loadedDatasources,options):
     """
     options:{
@@ -652,10 +653,10 @@ def loadDatasource(session_cookie,workdir,loadedDatasources,options):
     if sourcetype == "WFS":
         #load layer from wfs server
         if options["url"] not in loadedDatasources:
-            datasource = os.path.join(workdir,"{}.geojson".format(options["sourcename"]))
+            datasource = os.path.join(workdir,"{}.gpkg".format(options["sourcename"]))
             if not os.path.exists(os.path.dirname(datasource)):
                 os.makedirs(os.path.dirname(datasource))
-            url = "{}&outputFormat=json&srsName=EPSG:4326".format(options["url"])
+            url = "{}&outputFormat=gpkg&srsName=EPSG:4326".format(options["url"])
             r = requests.get(url,
                 verify=False,
                 cookies=session_cookie
@@ -665,7 +666,7 @@ def loadDatasource(session_cookie,workdir,loadedDatasources,options):
                     f.write(chunk)
             failed = False
             with open(datasource,"r") as f:
-                if not geojson_re.search(f.read(1024)):
+                if service_exception_re.search(f.read(1024)):
                     failed = True
             if failed:
                 with open(datasource,"r") as f:
@@ -748,7 +749,8 @@ def loadDatasource(session_cookie,workdir,loadedDatasources,options):
         cmd = ["ogr2ogr","-overwrite","-preserve_fid" ,"-skipfailures",
             "-t_srs",options["srs"],
             "-s_srs",options["srs"],
-            "-where","\"{}\"".format(options["where"]),
+            #"-where","\"{}\"".format(options["where"]),
+            "-where",options["where"],
             "-f", options["format"]["format"],
             datasource, 
             options["datasource"][0],
@@ -831,7 +833,15 @@ def typename(url):
 def getMd5(data):
     m = hashlib.md5()
     m.update(data)
-    return m.digest()
+    data = base64.urlsafe_b64encode(m.digest())
+    if data[-3:] == "===":
+        return data[0:-3]
+    elif data[-2:] == "==":
+        return data[0:-2]
+    elif data[-1:] == "=":
+        return data[0:-1]
+    else:
+        return data
 
 
 @bottle.route("/download/<fmt>", method="POST")
@@ -943,11 +953,13 @@ def downloaod(fmt):
         def getDatasourceName(ds,unique=False):
             if "sourcename" in ds:
                 name = ds["sourcename"]
+                if unique and "where" in ds:
+                    name = "{}-{}".format(name,getMd5(ds["where"]))
             elif ds["type"] == "WFS":
                 name = typename(ds["url"])
                 if not name:
                     name = getMd5(ds["url"])
-                    if unqiue and "where" in ds:
+                    if unique and "where" in ds:
                         name = "{}-{}".format(name,getMd5(ds["where"]))
                 else:
                     name = name.replace(":","_")
@@ -958,7 +970,7 @@ def downloaod(fmt):
                             name = "{}-{}".format(name,getMd5(ds["url"]))
             elif ds["type"] == "FORM":
                 name = ds["parameter"]
-                if unqiue and "where" in ds:
+                if unique and "where" in ds:
                     name = "{}-{}".format(name,getMd5(ds["where"]))
             elif ds["type"] == "UPLOAD":
                 filename = bottle.request.files.get(ds["parameter"]).filename
@@ -1012,6 +1024,7 @@ def downloaod(fmt):
                     ds["sourcename"] = getDatasourceName(ds,True)
         del names
 
+        #import ipdb;ipdb.set_trace()
         #load data sources
         workdir = tempfile.mkdtemp()
 
@@ -1082,7 +1095,7 @@ def downloaod(fmt):
         #determine the output layer name
         if fmt["multilayer"]:
             names = {}
-            #first get the shortest name and check whether it is unqiue
+            #first get the shortest name and check whether it is unique
             for layer in layers:
                 if layer.get("layer"):
                     name = layer["layer"]
@@ -1135,7 +1148,7 @@ def downloaod(fmt):
                     layer["sourcename"] = getBaseDatafileName(layer["sourcelayers"][0]["file"])
         else:
             names = {}
-            #first get the prefered file name and check whether it is unqiue
+            #first get the prefered file name and check whether it is unique
             for layer in layers:
                 if not layer.get("sourcename"):
                     layer["sourcename"] = getBaseDatafileName(layer["sourcelayers"][0]["datasource"][1],True)
@@ -1165,7 +1178,7 @@ def downloaod(fmt):
                 srss[layer["sourcename"]] = layer["srs"]
         del srss
 
-        #convert ane union the layers
+        #convert and union the layers
         outputdir = os.path.join(workdir,"output")
         os.mkdir(outputdir)
 
@@ -1187,7 +1200,7 @@ def downloaod(fmt):
         #import ipdb;ipdb.set_trace()
         for layer in layers:
             #populate the vrt file
-            vrtFile = os.path.join(vrtdir,"{}.vrt".format(layer["sourcename"]))
+            vrtFile = os.path.join(vrtdir,layer["sourcename"],"{}.vrt".format(layer["layer"]))
             if not os.path.exists(os.path.dirname(vrtFile)):
                 os.makedirs(os.path.dirname(vrtFile))
             vrt = UNIONLAYERS_TEMPLATE.render(layer)

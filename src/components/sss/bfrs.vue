@@ -1301,11 +1301,16 @@
         feature.set('status',this._reportStatus[feature.get('report_status') || 99999],true)
 
         var geometries = feature.getGeometry()?[feature.getGeometry()]:[]
-        if (feature.get("fire_boundary") && feature.get("fire_boundary").coordinates) {
-            if (!this.isFireboundaryDrawable(feature)) {
-                feature.set("fire_boundary",new ol.geom.Polygon(feature.get("fire_boundary").coordinates).getExtent(),true)
+        if (feature.get("fire_boundary")) {
+            var fire_boundary = JSON.parse(feature.get("fire_boundary"))
+            if (fire_boundary.coordinates) {
+                if (!this.isFireboundaryDrawable(feature)) {
+                    feature.set("fire_boundary",new ol.geom.Polygon(fire_boundary.coordinates).getExtent(),true)
+                } else {
+                    geometries.push(new ol.geom.MultiPolygon(fire_boundary.coordinates))
+                    feature.unset("fire_boundary",true)
+                }
             } else {
-                geometries.push(new ol.geom.MultiPolygon(feature.get("fire_boundary").coordinates))
                 feature.unset("fire_boundary",true)
             }
         } else {
@@ -2172,30 +2177,41 @@
         features:vm.drawings
       })
 
+      var canDrawFireboundary = function(ev) {
+        var feat = (vm.selectedFeatures.getLength() == 1)?vm.selectedFeatures.item(0):null
+        if (feat) {
+            var featGeometry = feat.getGeometry()
+            if (vm.isModifiable(feat) && vm.isFireboundaryDrawable(feat)) {
+                if (vm.bfrsMapLayer) {
+                    return vm.bfrsMapLayer.getSource().getFeaturesAtCoordinate(ev.coordinate).findIndex(function(o) {return o === feat}) < 0
+                } else {
+                    return false
+                }
+            } else {
+                return false
+            }
+        } else {
+            alert("Plase choose a bushfire to draw a fire boundary.")
+            return false
+        }
+      }
+
       vm.ui.fireboundaryDraw = vm.annotations.polygonDrawFactory({
         events: {
             addfeaturegeometry:true
         },
         drawOptions:{
+            freehandCondition:function(ev) {
+                var result = ol.events.condition.shiftKeyOnly(ev)
+                if (result) {
+                    return canDrawFireboundary(ev)
+                }
+                return result
+            },
             condition:function(ev) {
                 var result = ol.events.condition.noModifierKeys(ev)
                 if (result) {
-                    var feat = (vm.selectedFeatures.getLength() == 1)?vm.selectedFeatures.item(0):null
-                    if (feat) {
-                        var featGeometry = feat.getGeometry()
-                        if (vm.isModifiable(feat) && vm.isFireboundaryDrawable(feat)) {
-                            if (vm.bfrsMapLayer) {
-                                result = vm.bfrsMapLayer.getSource().getFeaturesAtCoordinate(ev.coordinate).findIndex(function(o) {return o === feat}) < 0
-                            } else {
-                                result = false
-                            }
-                        } else {
-                            result = false
-                        }
-                    } else {
-                        alert("Plase choose a bushfire to draw a fire boundary.")
-                        result = false
-                    }
+                    return canDrawFireboundary(ev)
                 }
                 return result
             }

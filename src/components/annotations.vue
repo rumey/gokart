@@ -506,12 +506,60 @@
       polygonDrawFactory : function (options) {
         var vm = this
         return function(tool) {
+            if (options && options.drawOptions && options.drawOptions.freehandCondition) {
+                options.drawOptions.freehandCondition = function() {
+                    var func = options.drawOptions.freehandCondition
+                    return function(ev) {
+                        var result = func.call(this,ev)
+                        if (result) {
+                            this.freehandFeature = true
+                        }
+                        return result
+                    }
+                }()
+            } else {
+                options = options || {}
+                options.drawOptions = options.drawOptions || {}
+                options.drawOptions.freehandCondition = function(ev) {
+                    var result = ol.events.condition.shiftKeyOnly(ev)
+                    if (result) {
+                        this.freehandFeature = true
+                    }
+                    return result
+                }
+
+            }
             var draw =  new ol.interaction.Draw($.extend({
               type: 'Polygon',
               features: (tool && tool.features) || vm.features,
             },(options && options.drawOptions)||{}))
+
+            draw.setMap = function() {
+                var func = draw.setMap
+                return function(map) {
+                    func.call(this,map)
+                    this.freehandFeature = false
+                }
+            }()
             draw.on('drawend', function (ev) {
               // set parameters
+              if (this.freehandFeature) {
+                //remove duplicate vertex points
+                coordinates = ev.feature.getGeometry().getCoordinates()[0]
+                hasDuplicatePoints = false
+                for (var index = coordinates.length - 2;index >= 0;index--) {
+                    if (coordinates[index][0] === coordinates[index + 1][0] && coordinates[index][1] === coordinates[index + 1][1]) {
+                        //duplicate vertex point , remove it
+                        coordinates.splice(index,1)
+                        hasDuplicatePoints = true
+                    }
+                    
+                }
+                if (hasDuplicatePoints) {
+                    ev.feature.getGeometry().setCoordinates([coordinates])
+                }
+              }
+              this.freehandFeature = false
               vm.drawingSequence += 1
               ev.feature.set('id',vm.drawingSequence)
               ev.feature.set('toolName',tool.name)
