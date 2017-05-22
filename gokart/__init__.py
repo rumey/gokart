@@ -1329,7 +1329,7 @@ def downloaod(fmt):
         return traceback.format_exception_only(sys.exc_type,sys.exc_value)
     finally:
         try:
-            #shutil.rmtree(workdir)
+            shutil.rmtree(workdir)
             pass
         except:
             pass
