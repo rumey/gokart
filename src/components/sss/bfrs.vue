@@ -232,10 +232,6 @@
           'initial.text': '#808080',
           'initial.fillColour':[0, 0, 0, 0.25],
           'initial.colour': '#808080',
-          'submitted': [['#b43232','#3f1919']],
-          'submitted.text': '#3f1919',
-          'submitted.fillColour':[0, 0, 0, 0.25],
-          'submitted.colour': '#3f1919',
           'draft_final': [['#b43232', '#ff0000']],
           'draft_final.text': '#ff0000',
           'draft_final.fillColour':[0, 0, 0, 0.25],
@@ -244,10 +240,6 @@
           'final_authorised.text': '#008000',
           'final_authorised.fillColour':[0, 0, 0, 0.25],
           'final_authorised.colour': '#008000',
-          'draft_review': [['#b43232', '#008000']],
-          'draft_review.text': '#008000',
-          'draft_review.fillColour':[0, 0, 0, 0.25],
-          'draft_review.colour': '#008000',
           'reviewed': [['#b43232', '#008000']],
           'reviewed.text': '#008000',
           'reviewed.fillColour':[0, 0, 0, 0.25],
@@ -2116,18 +2108,12 @@
           "initial.edit":true,
           "initial.modify":true,
           "initial.delete":false,
-          "submitted.edit":true,
-          "submitted.modify":false,
-          "submitted.delete":false,
           "draft_final.edit":true,
           "draft_final.modify":true,
           "draft_final.delete":false,
           "final_authorised.edit":true,
           "final_authorised.modify":true,
           "final_authorised.delete":false,
-          "draft_review.edit":true,
-          "draft_review.modify":true,
-          "draft_review.delete":false,
           "reviewed.edit":true,
           "reviewed.modify":true,
           "reviewed.delete":false,
@@ -2339,7 +2325,7 @@
                     var currentScale = vm.map.getScale()
                  }
               }
-          }, {
+          },{
               name: 'Bfrs Origin Point',
               label: 'Add Bushfire',
               icon: 'dist/static/symbols/fire/origin.svg',
@@ -2352,7 +2338,7 @@
               ],
               sketchStyle: vm.annotations.getIconStyleFunction(vm.tints),
               features:vm.allFeatures,
-              scope:["bfrs"],
+              scope:[],
               measureLength:true,
               measureArea:true,
               keepSelection:true,
@@ -2372,25 +2358,6 @@
                       var currentScale = vm.map.getScale()
                   }
                   */
-              }
-          },{
-              name: 'Bfrs Fire Boundary',
-              label: 'Fire Boundary',
-              icon: 'dist/static/images/iD-sprite.svg#icon-area',
-              style: vm.annotations.getVectorStyleFunc(vm.tints),
-              selectedFillColour:[0, 0, 0, 0.25],
-              fillColour:[0, 0, 0, 0.25],
-              size:2,
-              interactions: [
-                  this.ui.fireboundaryDraw
-              ],
-              scope:[],
-              showName: true,
-              keepSelection:true,
-              onSet: function() {
-                  if (vm.selectedFeatures.getLength() > 1) {
-                      vm.selectedFeatures.clear()
-                  }
               }
           }
       ]
@@ -2544,10 +2511,16 @@
                 vm._bfrsStatus.phaseEnd("load_bushfires")
             }
             var permissionConfig = [
-                ["create",null,null],
-                ["initial.edit",null,function(f){return f.get('status') === "initial"}],
-                ["draft_final.edit",null,function(f) {return f.get('status') === "final"}],
-                ["final_authorised.edit",null,function(f) {return f.get('status') === "final_authorised"}],
+                ["create",vm.env.bfrsService + "/bfrs/create/",null,function(hasPermission){
+                   if (hasPermission) {
+                       if (vm.tools) {
+                        vm.tools.push(vm.ui.originPointTool)
+                       }
+                   }
+                }],
+                ["initial.edit",null,function(f){return f.get('status') === "initial"},null],
+                ["draft_final.edit",null,function(f) {return f.get('status') === "final"},null],
+                ["final_authorised.edit",null,function(f) {return f.get('status') === "final_authorised"},null],
             ]
             var checkPermission = function(index){
                 var p = permissionConfig[index]
@@ -2577,9 +2550,12 @@
                     }
                 }
                 if (url) {
-                    vm.utils.checkPermission(url,function(allowed){
-                        vm.whoami['bushfire']["permission"][p[0]] = allowed
+                    vm.utils.checkPermission(url,function(hasPermission){
+                        vm.whoami['bushfire']["permission"][p[0]] = hasPermission
                         vm.whoami['bushfire']["permission"]["changed"] = true
+                        if (p[3]) {
+                            p[3](hasPermission)
+                        }
                         if (index < permissionConfig.length - 1) {
                             checkPermission(index + 1)
                         } else {
