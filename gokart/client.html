@@ -19,7 +19,7 @@
                 } else if(request.method) {
                     var data = request.data
                     if (debug) console.log(Date() + " : call gokart method = " + request.method + ", data = " + JSON.stringify(data))
-                    client.call(request.method,data.options,data.module)
+                    client.call(request.method,data.options,data.module,request.ignoreIfNotOpen)
                 }
             },false)
         }

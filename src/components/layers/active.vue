@@ -89,7 +89,7 @@
       olLayers:function() {
         var layers = []
         for (var index = this.allMapLayers.length - 1;index >= 0;index--) {
-            if (this.allMapLayers[index].get('dependentLayer') === true) continue
+            if (this.allMapLayers[index].dependentLayer === true) continue
             layers.push(this.allMapLayers[index])
         }
         return layers
@@ -248,7 +248,6 @@
       },
       removeLayer: function (olLayer) {
         var layer = olLayer.layer
-        if (olLayer.postRemove) olLayer.postRemove()
 
         this.map.olmap.removeLayer(olLayer)
         this.map.olmap.dispatchEvent(this.map.createEvent(this.map,"removeLayer",{mapLayer:olLayer,layer:layer}))
@@ -260,6 +259,8 @@
           var mapLayer = map.getMapLayer(row.dataset.id)
           map.olmap.removeLayer(mapLayer)
           map.olmap.addLayer(mapLayer)
+
+          map.olmap.dispatchEvent(map.createEvent(map,"changeLayerOrder",{mapLayer:mapLayer}))
         })
       }
     },

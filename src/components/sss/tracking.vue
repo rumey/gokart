@@ -720,17 +720,16 @@
         onload: function(loadType,vectorSource,features,defaultOnload) {
             function processResources() {
                 defaultOnload(loadType,vectorSource,features)
-                if (vm.selectedDevices.length > 0) {
-                    var deviceIds = vm.selectedDevices.slice()
-                    vm.selectedFeatures.clear()
-                    features.filter(function(el, index, arr) {
-                      var id = el.get('deviceid')
-                      if (!id) return false
-                      if (deviceIds.indexOf(id) < 0) return false
-                      return true
-                    }).forEach(function (el) {
-                      vm.selectedFeatures.push(el)
-                    })
+                if (vm.selectedFeatures.getLength() > 0) {
+                    for(var index = vm.selectedFeatures.getLength() - 1;index >= 0;index--) {
+                        var f = vm.selectedFeatures.item(index)
+                        loadedFeature = features.find(function(f1){return f1.get('deviceid') === f.get('deviceid')})
+                        if (loadedFeature) {
+                            vm.selectedFeatures.setAt(index,loadedFeature)
+                        } else {
+                            vm.selectedFeatures.removeAt(index)
+                        }
+                    }
                 }
                 vm.updateFeatureFilter(true)
                 trackingStatus.phaseEnd("load_resources")

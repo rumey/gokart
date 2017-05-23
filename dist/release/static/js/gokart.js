@@ -37,11 +37,12 @@ var Gokart = (function() {
         document.body.appendChild(this.gokartFrame);
     }
     
-    _Gokart.prototype.call = function(method,options) {
+    _Gokart.prototype.call = function(method,options,ignoreIfNotOpen) {
         var vm = this
         var func = function() {
             if (vm.status === "ready")  {
-                vm.gokartWindow.postMessage(JSON.stringify({method:method,data:{module:vm.module,options:options}}),vm.url);
+                ignoreIfNotOpen = ignoreIfNotOpen?true:false
+                vm.gokartWindow.postMessage(JSON.stringify({method:method,data:{module:vm.module,options:options},ignoreIfNotOpen:ignoreIfNotOpen}),vm.url);
             } else if (vm.status === "loading") {
                 setTimeout(func,100)
             } else {

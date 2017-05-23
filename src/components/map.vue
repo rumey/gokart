@@ -825,8 +825,7 @@
         })
 
         tileLayer.postRemove = function () {
-            delete this.layer["mapLayer"]
-            delete this["layer"]
+            vm._postRemove(this)
         }
 
         // hook the tile loading function to update progress indicator
@@ -855,19 +854,38 @@
         }
 
         options.updateTimeline(options,tileLayer)
-        // if the "refresh" option is set, set a timer
-        // to update the source
-        if (options.refresh) {
-          tileLayer.refresh = setInterval(function () {
-            options.updateTimeline(options,tileLayer)
-          }, options.refresh * 1000)
-        }
 
         // set properties for use in layer selector
         tileLayer.set('name', options.name)
         tileLayer.set('id', options.mapLayerId)
         tileLayer.layer = options
         options.mapLayer = tileLayer
+
+        tileLayer.refresh = function () {
+          if (options.refresh) {
+              this.set('updated', moment().toLocaleString())
+              vm.$root.active.refreshRevision += 1
+          }
+          options.updateTimeline(options,tileLayer)
+        }
+
+        tileLayer.stopAutoRefresh = function() {
+            vm._stopAutoRefresh(this)
+        }
+
+        tileLayer.startAutoRefresh = function() {
+            vm._startAutoRefresh(this)
+        }
+
+        // if the "refresh" option is set, set a timer
+        // to update the source
+        tileLayer.postAdd = function() {
+            if (options.refresh) {
+              this.set('updated', moment().toLocaleString())
+              vm.$root.active.refreshRevision += 1
+            }
+            this.startAutoRefresh()
+        }
         return tileLayer
       },
       // loader for vector layers with hover querying
@@ -979,59 +997,44 @@
           })
         }
         
-        vector.postRemove = function () {
-          // disable autoupdates
-          if (this.autoRefresh) {
-            clearInterval(this.autoRefresh)
-            delete this.autoRefresh
-          }
-          delete this.layer["mapLayer"]
-          delete this["layer"]
-        }
-
-        // if the "refresh" option is set, set a timer
-        // to update the source
-        if (options.refresh && !vector.autoRefresh) {
-          vector.autoRefresh = setInterval(function () {
-            vectorSource.loadSource("auto")
-          }, options.refresh * 1000)
-        }
-        // populate the source with data
-        if (options.initialLoad === undefined || options.initialLoad === true) {
-            vectorSource.loadSource("initial")
-        }
-
         vector.set('name', options.name)
         vector.set('id', options.mapLayerId)
         vector.layer = options
         options.mapLayer = vector
 
         vector.stopAutoRefresh = function() {
-            if (this.autoRefresh) {
-                clearInterval(this.autoRefresh)
-                //console.log("Stop auto refresh for layer (" + options.id + ")")
-                delete this.autoRefresh
-            }
+            vm._stopAutoRefresh(this)
+        }
+
+        vector.refresh = function(type) {
+            vectorSource.loadSource(type || "auto")
         }
 
         vector.startAutoRefresh = function() {
-            if (!options.refresh) {
-                //not refreshable
-                return
-            } 
-            if(this.autoRefresh) {
-                //already started
-                return
+            vm._startAutoRefresh(this)
+        }
+
+        vector.postRemove = function () {
+          vm._postRemove(this)
+        }
+
+        vector.postAdd = function() {
+            // if the "refresh" option is set, set a timer
+            // to update the source
+            this.startAutoRefresh()
+            // populate the source with data
+            if (options.initialLoad === undefined || options.initialLoad === true) {
+                vectorSource.loadSource("initial")
             }
-            this.autoRefresh = setInterval(function () {
-                vectorSource.loadSource("auto")
-            }, options.refresh * 1000)
-            //console.log("Start auto refresh for layer (" + options.id + ") with interval " + options.refresh)
         }
 
         return vector
       },
       createAnnotations: function (layer) {
+        if (!(this.annotations.featureOverlay["layer"])) {
+            this.annotations.featureOverlay.layer = layer
+            layer.mapLayer = this.annotations.featureOverlay
+        }
         return this.annotations.featureOverlay
       },
       // loader to create a WMTS layer from a kmi datasource
@@ -1092,21 +1095,18 @@
         tileLayer.progress = ''
 
         tileLayer.postRemove = function () {
-          if (this.autoRefresh) {
-            clearInterval(this.autoRefresh)
-            delete this.autoRefresh
-          }
+          vm._postRemove(this)
           if (this.autoTimelineRefresh) {
-            clearTimeout(this.autoTimelineRefresh)
-            //console.log(moment().toLocaleString() + " : " + this.autoTimelineRefresh + " - Clear auto timeline refresh task for " + options.name )
-            this.autoTimelineRefresh = null
+              clearInterval(this.autoTimelineRefresh)
+              this.autoTimelineRefresh = null
           }
-          
-          delete this.layer["mapLayer"]
-          delete this["layer"]
         }   
 
         tileLayer.refresh = function() {
+            if (!this.refreshTimeline) {
+                this.set('updated', moment().toLocaleString())
+                vm.$root.active.refreshRevision += 1
+            }
             vm.refreshLayerTile(this)
         }
 
@@ -1121,26 +1121,11 @@
         }
 
         tileLayer.stopAutoRefresh = function() {
-            if (this.autoRefresh) {
-                clearInterval(this.autoRefresh)
-                //console.log(tileLayer.getSource().getLayer() + " : Stop auto refresh for layer (" + layer.id + ")")
-                delete this.autoRefresh
-            }
+            vm._stopAutoRefresh(this)
         }
 
         tileLayer.startAutoRefresh = function() {
-            if (!options.refresh) {
-                //not refreshable
-                return
-            } 
-            if(this.autoRefresh) {
-                //already started
-                return
-            }
-            this.autoRefresh = setInterval(function () {
-                tileLayer.refresh()
-            }, options.refresh * 1000)
-            //console.log(tileLayer.getSource().getLayer() + " : Start auto refresh for layer (" + layer.id + ") with interval " + layer.refresh)
+            vm._startAutoRefresh(this)
         }
 
         // hook to swap the tile layer when timeIndex changes
@@ -1316,21 +1301,24 @@
            }()
         }
 
-        if (options.refreshTimeline) {
-            tileLayer.autoTimelineRefresh = null
-            options.refreshTimeline(options,tileLayer,true)
-        } else {
-            tileSource.setTileLoadFunction(this.tileLoaderHook(tileSource, tileLayer))
-        }
+        tileLayer.postAdd = function() {
+            if (options.refreshTimeline) {
+                if (tileLayer.autoTimelineRefresh) {
+                    clearInterval(tileLayer.autoTimelineRefresh)
+                    tileLayer.autoTimelineRefresh = null
+                }
+                options.refreshTimeline(options,tileLayer,true)
+            } else {
+                tileSource.setTileLoadFunction(vm.tileLoaderHook(tileSource, tileLayer))
+            }
 
-        // if the "refresh" option is set, set a timer
-        // to force a reload of the tile content
-        if (options.refresh) {
-          tileLayer.set('updated', moment().toLocaleString())
-          vm.$root.active.refreshRevision += 1
-          tileLayer.autoRefresh = setInterval(function () {
-            tileLayer.refresh()
-          }, options.refresh * 1000)
+            // if the "refresh" option is set, set a timer
+            // to force a reload of the tile content
+            this.startAutoRefresh()
+            if (options.refresh) {
+              tileLayer.set('updated', moment().toLocaleString())
+              vm.$root.active.refreshRevision += 1
+            }
         }
 
         return tileLayer
@@ -1375,12 +1363,7 @@
         imgLayer.progress = ''
 
         imgLayer.postRemove = function () {
-          if (this.autoRefresh) {
-            clearInterval(this.autoRefresh)
-            delete this.autoRefresh
-          }
-          delete this.layer["mapLayer"]
-          delete this["layer"]
+          vm._postRemove(this)
         }  
 
         imgLayer.setParams = function(options) {
@@ -1391,6 +1374,10 @@
         }
 
         imgLayer.refresh = function() {
+            if (options.refresh) {
+                imgLayer.set('updated', moment().toLocaleString())
+                vm.$root.active.refreshRevision += 1
+            }
             var params = imgSource.getParams()
             params["timestamp"] = moment.utc().unix()
             imgSource.updateParams(params)
@@ -1407,36 +1394,21 @@
         }
 
         imgLayer.stopAutoRefresh = function() {
-            if (this.autoRefresh) {
-                clearInterval(this.autoRefresh)
-                //console.log(" : Stop auto refresh for layer (" + layer.id + ")")
-                delete this.autoRefresh
-            }
+            vm._stopAutoRefresh(this)
         }
 
         imgLayer.startAutoRefresh = function() {
-            if (!options.refresh) {
-                //not refreshable
-                return
-            } 
-            if(this.autoRefresh) {
-                //already started
-                return
-            }
-            this.autoRefresh = setInterval(function () {
-                imgLayer.refresh()
-            }, options.refresh * 1000)
-            //console.log(" : Start auto refresh for layer (" + layer.id + ") with interval " + layer.refresh)
+            vm._startAutoRefresh(this)
         }
 
-        // if the "refresh" option is set, set a timer
-        // to force a reload of the tile content
-        if (options.refresh) {
-          imgLayer.set('updated', moment().toLocaleString())
-          vm.$root.active.refreshRevision += 1
-          imgLayer.autoRefresh = setInterval(function () {
-            imgLayer.refresh()
-          }, options.refresh * 1000)
+        imgLayer.postAdd = function() {
+            // if the "refresh" option is set, set a timer
+            // to force a reload of the tile content
+            this.startAutoRefresh()
+            if (options.refresh) {
+              imgLayer.set('updated', moment().toLocaleString())
+              vm.$root.active.refreshRevision += 1
+            }
         }
 
         return imgLayer
@@ -1449,10 +1421,10 @@
         if (!enabled) {
             //disable dependent layer
             if (dependentLayer && dependentLayer.mapLayer) {
-                if (this.olmap.getLayers().getArray().find(function(l) {return l === dependentLayer.mapLayer})) {
-                    this.olmap.removeLayer(dependentLayer.mapLayer)
-                }
                 dependentLayer.mapLayer.show = false
+                if (this.olmap.getLayers().getArray().find(function(l) {return l === dependentLayer.mapLayer})) {
+                    this.active.removeLayer(dependentLayer.mapLayer)
+                }
             }
             return
         }
@@ -1470,6 +1442,7 @@
             if (l.mapLayerId === dependentLayerId) {
                 vm.olmap.getLayers().insertAt(pos,l.mapLayer)
                 l.mapLayer.show = true
+                vm.olmap.dispatchEvent(vm.createEvent(vm,"addLayer",{mapLayer:l.mapLayer}))
                 return false
             } else {
                 index = vm.olmap.getLayers().getArray().findIndex(function(l1) {return l1 === l})
@@ -1543,55 +1516,73 @@
           vm.scale = vm.getScale()
         })
 
-        this.olmap.getLayers().on("add",function(ev){
-          var mapLayer = ev.element
-          if (mapLayer.layer && mapLayer.layer.dependentLayers) {
-              mapLayer.show = true
-              var position = vm.olmap.getLayers().getArray().findIndex(function(l){return l === mapLayer})
+        vm.olmap.on("removeLayer",function(ev){
+            if (ev.mapLayer.postRemove) ev.mapLayer.postRemove()
+            if (ev.layer.dependentLayers) {
+              $.each(ev.layer.dependentLayers,function(index,dependentLayer){
+                  if (!dependentLayer["mapLayer"]) {
+                    return
+                  }
+                  if (dependentLayer["mapLayer"].show) {
+                    delete dependentLayer["mapLayer"]["show"]
+                    vm.active.removeLayer(dependentLayer["mapLayer"])
+                  } else if (dependentLayer["mapLayer"].postRemove) {
+                    dependentLayer["mapLayer"].postRemove()
+                  }
+              })
+            }
+        })
+
+        vm.olmap.on("addLayer",function(ev){
+            if (ev.mapLayer.postAdd) ev.mapLayer.postAdd()
+            if (ev.mapLayer.layer && ev.mapLayer.layer.dependentLayers) {
+              var position = vm.olmap.getLayers().getArray().findIndex(function(l){return l === ev.mapLayer})
               if (position >= 0) {
-                  $.each(mapLayer.layer.dependentLayers,function(index,l){
+                  $.each(ev.mapLayer.layer.dependentLayers,function(index,l){
                       if (!l.mapLayer) {
                           l.mapLayer = vm['create' + l.type](l)
                           l.mapLayer.setOpacity(l.opacity || 1)
-                          l.mapLayer.set('dependentLayer',true,true)
+                          l.mapLayer.dependentLayer = true
                       }
                       if (l.autoAdd === false) return
-                      vm.olmap.getLayers().insertAt(position++, l.mapLayer)
+                      vm.olmap.getLayers().insertAt(position++,l.mapLayer)
                       l.mapLayer.show = true
+                      vm.olmap.dispatchEvent(vm.createEvent(vm,"addLayer",{mapLayer:l.mapLayer}))
+
                   })
               }
-          }
-        })
-  
-        this.olmap.getLayers().on("remove",function(ev){
-          var mapLayer = ev.element
-          mapLayer.show = false
-          if (mapLayer.layer && mapLayer.layer.dependentLayers) {
-              $.each(mapLayer.layer.dependentLayers,function(index,l1){
-                  if (l1.mapLayer) {
-                      if (vm.olmap.getLayers().getArray().find(function(l2){ return l2 === l1.mapLayer})) {
-                          vm.olmap.removeLayer(l1.mapLayer)
-                      }
-                      l1.mapLayer.show = false
-                  }
-              })
-          }
+            }
         })
 
-        this.olmap.on("removeLayer",function(ev){
-          var layer = ev.layer
-          if (layer && layer.dependentLayers) {
-              $.each(layer.dependentLayers,function(index,l1){
-                  var mapLayer = l1.mapLayer
-                  if (mapLayer) {
-                      if (mapLayer.postRemove) mapLayer.postRemove()
-                      if (vm.olmap.getLayers().getArray().find(function(l2){ return l2 === mapLayer})) {
-                          vm.olmap.removeLayer(mapLayer)
-                      }
+        vm.olmap.on("changeLayerOrder",function(ev){
+            if (ev.mapLayer.layer.dependentLayers) {
+              //remove dependentlayer first
+              $.each(ev.mapLayer.layer.dependentLayers,function(index,dependentLayer){
+                  if (!dependentLayer["mapLayer"] || !dependentLayer["mapLayer"].show) {
+                    return
                   }
+                  vm.olmap.removeLayer(dependentLayer["mapLayer"])
               })
-          }
+              //add dependentlayer at the correct position
+              var position = vm.olmap.getLayers().getArray().findIndex(function(l){return l === ev.mapLayer})
+              if (position >= 0) {
+                  $.each(ev.mapLayer.layer.dependentLayers,function(index,dependentLayer){
+                      if (dependentLayer.mapLayer && dependentLayer.mapLayer.show) {
+                          vm.olmap.getLayers().insertAt(position++, dependentLayer.mapLayer)
+                      }
+                  })
+              }
+              //send changLayerOrder for dependent layers
+              $.each(ev.mapLayer.layer.dependentLayers,function(index,dependentLayer){
+                  if (!dependentLayer["mapLayer"] || !dependentLayer["mapLayer"].show || !dependentLayer.dependentLayers) {
+                    return
+                  }
+                  vm.olmap.dispatchEvent(vm.createEvent(vm,"changeLayerOrder",{mapLayer:dependentLayer.mapLayer}))
+              })
+
+            }
         })
+
       },
 
       initLayers: function (fixedLayers, activeLayers) {
@@ -1798,6 +1789,47 @@
       this.svgTemplates = {}
       this.cachedStyles = {}
       this.jobs = {}
+
+      this._stopAutoRefresh = function(olLayer) {
+          if (olLayer.autoRefresh) {
+              clearInterval(olLayer.autoRefresh)
+              delete olLayer.autoRefresh
+          }
+          if (olLayer.layer.dependentLayers) {
+            $.each(olLayer.layer.dependentLayers,function(index,dependentLayer){
+                if (dependentLayer["mapLayer"]) {
+                    dependentLayer["mapLayer"].stopAutoRefresh()
+                }
+            })
+          }
+      }
+
+      this._startAutoRefresh = function(olLayer) {
+          if (olLayer.layer.refresh && !olLayer.autoRefresh ) {
+              olLayer.autoRefresh = setInterval(function () {
+                  olLayer.refresh()
+              }, olLayer.layer.refresh * 1000)
+          }
+          if (olLayer.layer.dependentLayers) {
+            $.each(olLayer.layer.dependentLayers,function(index,dependentLayer){
+                if (dependentLayer["mapLayer"] && dependentLayer["mapLayer"].show) {
+                    dependentLayer["mapLayer"].startAutoRefresh()
+                }
+            })
+          }
+      }
+
+      this._postRemove = function(olLayer) {
+          this._stopAutoRefresh(olLayer)
+          if (olLayer.autoTimelineRefresh) {
+            clearTimeout(olLayer.autoTimelineRefresh)
+            olLayer.autoTimelineRefresh = null
+          }
+          if (!olLayer.dependentLayer) {
+            delete olLayer.layer["mapLayer"]
+            delete olLayer["layer"]
+          }
+      }
 
       // generate matrix IDs from name and level number
       $.each(this.matrixSets, function (projection, innerMatrixSets) {

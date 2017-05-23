@@ -69,8 +69,9 @@ GokartClient.prototype.populateRequest = function(method,data){
     }
 }
 
-GokartClient.prototype.call = function(method,options,module){
+GokartClient.prototype.call = function(method,options,module,ignoreIfNotOpen){
     module = module || this.defaultModule
+    ignoreIfNotOpen = ignoreIfNotOpen?true:false
     var vm = this
 
     var request = JSON.stringify(vm.populateRequest(method,{module:module,options:options}))
@@ -111,7 +112,10 @@ GokartClient.prototype.call = function(method,options,module){
         if (vm.debug) console.log(Date() + " : Sent request to " + vm.app + " through localStorage. request = " + request)
         localStorage.setItem(vm.channelNamePrefix + method,request)
         vm._clearTimeoutTask()
-        if (vm.debug) console.log(Date() + " : Create a timeout task to send request to " + vm.app + " if " + vm.app + " is not opened before. timeout = 2 seconds" )
+        if (ignoreIfNotOpen) {
+            return
+        }
+        if (vm.debug) console.log(Date() + " : Create a timeout task to open " + vm.app + ", and send request to " + vm.app + " if timeout. timeout = 2 seconds" )
         vm.timeoutTask = setTimeout(function() {
             vm.timeoutTask = null
             if (vm.debug) console.log(Date() + " : Send request to " + vm.app + " through localStorage timeout, try to open " + vm.app)

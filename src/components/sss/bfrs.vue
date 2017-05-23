@@ -24,7 +24,7 @@
                     </div>
                     <div class="row resetmargin">
                       <div v-for="t in tools | filterIf 'showName' true" class="small-6" v-bind:class="{'rightmargin': $index % 2 === 0}" >
-                        <a class="expanded secondary button" v-bind:class="{'selected': t.name == annotations.tool.name}" @click="annotations.setTool(t)"
+                        <a class="expanded button" v-bind:class="{'selected': t.name == annotations.tool.name}" @click="annotations.setTool(t)"
                           v-bind:title="t.label">{{{ annotations.icon(t) }}} {{ t.label }}</a>
                       </div>
                     </div>
@@ -400,17 +400,19 @@
         var vm = this
         wait = wait || 1000
         this._refreshSelectedWMSLayer = this._refreshSelectedWMSLayer || debounce(function(){
-          if (!vm.selectedFinalFireBoundaryMapLayer) return
+          var selectedFinalFireBoundaryMapLayer = vm.bushfireMapLayer?vm.bushfireLayer.dependentLayers[1].mapLayer:null
+          if (!selectedFinalFireBoundaryMapLayer) return
 
-          if (vm.selectedFeatures.getLength() === 0) {
-            if (vm.selectedFinalFireBoundaryMapLayer.show) {
+          var selectedWMSFeatures = selectedFeatures.getArray().filter(function(f) {return !vm.isFireboundaryDrawable(f)})
+          if (selectedWMSFeatures.length === 0) {
+            if (selectedFinalFireBoundaryMapLayer.show) {
                 vm.map.enableDependentLayer(vm.bushfireMapLayer,vm.env.finalFireBoundaryLayer + "_selected",false)
             }
           } else {
-            vm.selectedFinalFireBoundaryMapLayer.setParams({
-                cql_filter:"fire_number in ('" + vm.selectedBushfires.join("','") +  "')"
+            selectedFinalFireBoundaryMapLayer.setParams({
+                cql_filter:"fire_number in ('" + selectedWMSFeatures.map(function(f){return f.get('fire_number')}).join("','") +  "')"
             })
-            if (!vm.selectedFinalFireBoundaryMapLayer.show) {
+            if (!selectedFinalFireBoundaryMapLayer.show) {
                 vm.map.enableDependentLayer(vm.bushfireMapLayer,vm.env.finalFireBoundaryLayer + "_selected",true)
             }
           }
@@ -460,6 +462,7 @@
             var bushfire = options["refresh"]?null:this.allFeatures.getArray().find(function(f) {return f.get('fire_number') === options["bushfireid"]})
             if (bushfire) {
                 this.selectedFeatures.push(bushfire)
+                this.zoomToSelected()
                 return
             } else {
                 updateType = "query"
@@ -472,6 +475,7 @@
                     var feat = vm.allFeatures.getArray().find(function(o) {return o.get('fire_number') == options["bushfireid"]})
                     if (feat) {
                         vm.selectedFeatures.push(feat)
+                        this.zoomToSelected()
                     }
                 }
 
@@ -1278,7 +1282,7 @@
           }
           this.selectedFeatures.push(f)
         }
-        this.zoomToSelected(100,200)
+        //this.zoomToSelected(100,200)
       },
       toggleViewportOnly: function () {
         this.viewportOnly = !this.viewportOnly
@@ -1770,7 +1774,7 @@
                 }) 
                 if (vm.selectedFeatures.getLength() > 0) {
                     vm.annotations.setTool("Bfrs Select")
-                    vm.zoomToSelected(100)
+                    //vm.zoomToSelected(100)
                 }
 
                 if (import_task && vm._taskManager.getTasks(targetFeature).length === 1) {
@@ -2391,8 +2395,9 @@
                 id: vm.env.finalFireBoundaryLayer,
                 style: vm.env.finalFireBoundaryLayer + ".selected",
                 mapLayerId:vm.env.finalFireBoundaryLayer + "_selected",
+                autoAdd:false,
+                refresh: 60,
                 autoAdd:false
-                //refresh: 60
             }
         ],
         /*
