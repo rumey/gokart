@@ -461,12 +461,15 @@
         }
         this.selectedFeatures.clear()
 
+        updateType = updateType || ((action === "create")?"query":null)
         if (!updateType && options["bushfireid"] !== null && options["bushfireid"] !== undefined){
             var bushfire = this.allFeatures.getArray().find(function(f) {return f.get('fire_number') === options["bushfireid"]})
             if (bushfire) {
                 this.selectedFeatures.push(bushfire)
                 if (options["refresh"] || action === "update") {
-                    this.resetFeature(bushfire)
+                    this.resetFeature(bushfire,function() {
+                        vm.zoomToSelected()
+                    })
                 } else {
                     this.zoomToSelected()
                 }
@@ -476,13 +479,13 @@
             }
         }
 
-        if (updateType) {
+        if (updateType || options["refresh"]) {
             this.updateCQLFilter(updateType,(updateType === "query")?0:1,function(){
                 if (options["bushfireid"] !== null && options["bushfireid"] !== undefined){
                     var feat = vm.allFeatures.getArray().find(function(o) {return o.get('fire_number') == options["bushfireid"]})
                     if (feat) {
                         vm.selectedFeatures.push(feat)
-                        this.zoomToSelected()
+                        vm.zoomToSelected()
                     }
                 }
 
@@ -1166,7 +1169,7 @@
             }
         }
       },
-      resetFeature:function(feat) {
+      resetFeature:function(feat,callback) {
         var vm = this
         var filter = 'fire_number=\'' + feat.get('fire_number') + '\''
         this.bushfireMapLayer.getSource().retrieveFeatures(filter,function(features){
@@ -1204,6 +1207,9 @@
                 vm.selectedFeatures.setAt(index,features[0])
             }
               
+              if (callback) {
+                  callback(features[0])
+              }
           } else {
             //feature does not exist or is invalid, remove it from bushfire list
             vm.bushfireMapLayer.getSource().removeFeature(feat)
@@ -1215,6 +1221,9 @@
                 vm.extentFeatures.splice(index,1)
             }
             vm.revision += 1
+            if (callback) {
+                callback(null)
+            }
           }
           vm.refreshWMSLayer()
         })
