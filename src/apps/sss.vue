@@ -64,30 +64,46 @@
 
     export default { 
       store:{
-        activeMenu:'activeMenu'
+        activeMenu:'activeMenu',
+        activeSubmenu:'activeSubmenu'
       },
       data: function() {
         return {
         }
       },
+      computed: {
+          layers: function () { return this.$root.layers },
+      },
       components: { gkMap, gkLayers, gkAnnotations, gkTracking, gkLoading,gkSetting , gkBfrs ,gkDialog},
+      methods:{
+        switchMenu:function(menu) {
+            if ((this.activeMenu === menu) || (!this.activeMenu && !menu)) {
+                //new active menu is equal to current active menu, do nothing
+                return
+            }
+            if (this.activeMenu && this.$root[this.activeMenu].teardown) {
+                this.$root[this.activeMenu].teardown()
+            }
+            if (this.activeMenu === "layers" && menu !== "layers") {
+                this._activeSubmenu = this.activeSubmenu
+                this.layers.switchMenu(null)
+            }
+            this.activeMenu = menu || null
+
+            if (this.activeMenu && this.$root[this.activeMenu].setup) {
+                this.$root[this.activeMenu].setup()
+            }
+            if (menu === "layers") {
+                this.layers.switchMenu(this._activeSubmenu)
+                this._activeSubmenu = null
+            }
+        }
+      },
       ready: function () {
         var vm = this
         $("#menu-tabs").on("change.zf.tabs",function(target,selectedTab){
             var menu = selectedTab.attr('menu')
-            if (vm.activeMenu && vm.activeMenu == menu) {
-                //click on the active menu, do nothing
-                return
-            } else {
-                if (vm.activeMenu && vm.$root[vm.activeMenu].teardown) {
-                  vm.$root[vm.activeMenu].teardown()
-                }
-                vm.activeMenu = menu
-                if (vm.activeMenu && vm.$root[vm.activeMenu].setup) {
-                  vm.$root[vm.activeMenu].setup()
-                }
-            }
-            
+            vm.switchMenu(menu)
         })
       }
     }

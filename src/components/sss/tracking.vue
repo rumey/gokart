@@ -528,6 +528,9 @@
         }
       },
       setup: function() {
+        //restore the selected features
+        this.annotations.restoreSelectedFeatures()
+
         // enable resource tracking layer, if disabled
         if (!this.trackingMapLayer) {
             this.catalogue.onLayerChange(this.trackingLayer, true)
@@ -535,7 +538,7 @@
             this.active.toggleHidden(this.trackingMapLayer)
         }
 
-        this.$root.annotations.selectable = [this.trackingMapLayer]
+        this.annotations.selectable = [this.trackingMapLayer]
         this.annotations.setTool()
 
         this.$nextTick(this.adjustHeight)
@@ -720,7 +723,7 @@
         onload: function(loadType,vectorSource,features,defaultOnload) {
             function processResources() {
                 defaultOnload(loadType,vectorSource,features)
-                if (vm.selectedFeatures.getLength() > 0) {
+                if (vm.annotations.isSelectedFeaturesOfModule("tracking") && vm.selectedFeatures.getLength() > 0) {
                     for(var index = vm.selectedFeatures.getLength() - 1;index >= 0;index--) {
                         var f = vm.selectedFeatures.item(index)
                         loadedFeature = features.find(function(f1){return f1.get('deviceid') === f.get('deviceid')})

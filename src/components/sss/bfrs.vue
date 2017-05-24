@@ -280,7 +280,11 @@
         return this.$root.active.isHidden(this.bushfireMapLayer)
       },
       selectedOnlyDisabled:function() {
-        return this.selectedBushfires.length === 0 && !this.selectedOnly
+        try {
+            return (this.annotations.tool !== this.ui.panTool && this.annotations.tool !== this.ui.selectTool) || (this.selectedBushfires.length === 0 && !this.selectedOnly)
+        } catch (ex) {
+            return true
+        }
       },
       selectedFeatures: function () {
         return this.annotations.selectedFeatures
@@ -445,6 +449,7 @@
 
         var vm = this
         var updateType = null
+        var action = options["action"] || "select"
         if (!options) {return}
         if ("region" in options && options["region"] !== this.region) {
             this.region = options["region"] || ""
@@ -459,10 +464,14 @@
         updateType = updateType?updateType:(options["refresh"]?"query":null)
 
         if (!updateType && options["bushfireid"] !== null && options["bushfireid"] !== undefined){
-            var bushfire = options["refresh"]?null:this.allFeatures.getArray().find(function(f) {return f.get('fire_number') === options["bushfireid"]})
+            var bushfire = this.allFeatures.getArray().find(function(f) {return f.get('fire_number') === options["bushfireid"]})
             if (bushfire) {
                 this.selectedFeatures.push(bushfire)
-                this.zoomToSelected()
+                if (options["refresh"] || action === "update") {
+                    this.resetFeature(bushfire)
+                } else {
+                    this.zoomToSelected()
+                }
                 return
             } else {
                 updateType = "query"
@@ -1161,7 +1170,7 @@
       },
       resetFeature:function(feat) {
         var vm = this
-        var filter = 'id=' + feat.get('id')
+        var filter = 'fire_number=\'' + feat.get('fire_number') + '\''
         this.bushfireMapLayer.getSource().retrieveFeatures(filter,function(features){
           if (features && features.length) {
             vm.initBushfire(features[0])
@@ -1335,7 +1344,6 @@
       featureIconSrc:function(f) {
         var vm = this
         //trigger dynamic binding
-        var tmp = vm.selectedBushfires
         return this.map.getBlob(f, ['icon', 'originalTint'],this.tints,function(){
             $("#bushfire-icon-" + f.get('id')).attr("src", vm.featureIconSrc(f))
         })
@@ -1813,47 +1821,46 @@
         if (updateType === "region") {
             this.district = ""
         }
-        if (updateType === "selectedBushfire" && this.selectedBushfires.length === 0 && vm.selectedOnly === true) {
-            vm.selectedOnly = false
-            return
-        }
         if (!vm._updateCQLFilterFunc) {
             vm._updateCQLFilterFunc = function(updateType,callback){
                 if (!vm.bushfireMapLayer) {
                     vm._updateCQLFilter.call({wait:100},updateType)
                     return
                 }
-                if (updateType !== "refresh") {
-                    var bushfireFilter = ''
-                    // filter by specific bushfires if "Show selected only" is enabled
-                    if ((vm.selectedBushfires.length > 0) && (vm.selectedOnly)) {
-                      bushfireFilter = 'fire_number in (\'' + vm.selectedBushfires.join('\',\'') + '\')'
-                    }
-                    // CQL statement assembling logic
-                    var filters = [vm.statusFilter, bushfireFilter, vm.regionFilter, vm.districtFilter].filter(function(f){return (f || false) && true})
-                    if (filters.length === 0) {
-                      vm.bushfireLayer.cql_filter = ''
-                    } else if (filters.length === 1) {
-                      vm.bushfireLayer.cql_filter = filters[0]
-                    } else {
-                      vm.bushfireLayer.cql_filter = "(" + filters.join(") and (") + ")"
-                    }
-                    if (!bushfireFilter && vm.selectedOnly) {
-                        vm.selectedOnly = false
-                    }
-                    if (updateType === "selectedBushfire" && bushfireFilter) {
-                        //chosed some bushfires
-                        var filteredFeatures = vm.bushfireMapLayer.getSource().getFeatures().filter(function(f){
-                            return vm.selectedBushfires.indexOf(f.get('fire_number')) >= 0
-                        })
-                        vm.bushfireMapLayer.getSource().clear()
-                        vm.bushfireMapLayer.getSource().addFeatures(filteredFeatures)
-                        $.each(filteredFeatures,function(index,feature){
+                if (vm.selectedOnly && !vm.selectedOnlyDisabled && vm.selectedBushfires.length === 0) {
+                    vm.selectedOnly = false
+                }
+                // filter by specific bushfires if "Show selected only" is enabled
+                if (vm.selectedOnly && !vm.selectedOnlyDisabled) {
+                    vm.bushfireFilter = 'fire_number in (\'' + vm.selectedBushfires.join('\',\'') + '\')'
+                } else if (vm.selectedOnly) {
+                    vm.bushfireFilter = vm.bushfireFilter || ''
+                } else {
+                    vm.bushfireFilter = ''
+                }
+                // CQL statement assembling logic
+                var filters = [vm.statusFilter, vm.bushfireFilter, vm.regionFilter, vm.districtFilter].filter(function(f){return (f || false) && true})
+                if (filters.length === 0) {
+                  vm.bushfireLayer.cql_filter = ''
+                } else if (filters.length === 1) {
+                  vm.bushfireLayer.cql_filter = filters[0]
+                } else {
+                  vm.bushfireLayer.cql_filter = "(" + filters.join(") and (") + ")"
+                }
+                if (updateType === "selectedBushfire" && vm.bushfireFilter) {
+                    //chosed some bushfires
+                    var filteredFeatures = vm.bushfireMapLayer.getSource().getFeatures().filter(function(f){
+                        return f.get('status') === "new" || vm.selectedBushfires.indexOf(f.get('fire_number')) >= 0
+                    })
+                    vm.bushfireMapLayer.getSource().clear()
+                    vm.bushfireMapLayer.getSource().addFeatures(filteredFeatures)
+                    $.each(filteredFeatures,function(index,feature){
+                        if (vm.selectedBushfires.indexOf(feature.get('fire_number')) >= 0) {
                             vm.annotations.tintSelectedFeature(feature)
-                        })
-                        vm.updateFeatureFilter(true)
-                        return
-                    }
+                        }
+                    })
+                    vm.updateFeatureFilter(true)
+                    return
                 }
                 //clear bushfire filter or change other filter
                 vm.bushfireMapLayer.getSource().loadSource("query",callback)
@@ -2028,6 +2035,9 @@
 
       setup: function() {
         var vm = this
+        //restore the selected features
+        this.annotations.restoreSelectedFeatures()
+
         // enable resource bfrs layer, if disabled
         if (!this.bushfireMapLayer) {
           this.catalogue.onLayerChange(this.bushfireLayer, true)
@@ -2372,6 +2382,8 @@
 
       vm.ui.modifyTool = vm.annotations.tools.find(function(tool){return tool.name === "Bfrs Edit Geometry"})
       vm.ui.originPointTool = vm.annotations.tools.find(function(tool){return tool.name === "Bfrs Origin Point"})
+      vm.ui.panTool = vm.annotations.tools.find(function(tool){return tool.name === "Pan"})
+      vm.ui.selectTool = vm.annotations.tools.find(function(tool){return tool.name === "Bfrs Select"})
 
       this.$root.fixedLayers.push({
         type: 'WFSLayer',
@@ -2487,7 +2499,7 @@
                         }
                     }
                 }
-                if (vm.selectedFeatures.getLength() > 0) {
+                if (vm.annotations.isSelectedFeaturesOfModule("bfrs") && vm.selectedFeatures.getLength() > 0) {
                     for(var index = vm.selectedFeatures.getLength() - 1;index >= 0;index--) {
                         var f = vm.selectedFeatures.item(index)
                         loadedFeature = features.find(function(f1){return f1.get('fire_number') === f.get('fire_number')})
@@ -2599,6 +2611,9 @@
                 }
             }
             vm.refreshSelectedWMSLayer()
+            if (vm.selectedOnly && !vm.selectedOnlyDisabled) {  
+                vm.updateCQLFilter('selectedBushfire',1000)
+            }
             //vm.zoomToSelected(100,200)
           }
         })
@@ -2607,6 +2622,9 @@
             vm.selectedBushfires.$remove(event.element.get('fire_number'))
             vm.refreshSelectedWMSLayer()
             //vm.zoomToSelected(100,200)
+            if (vm.selectedOnly && !vm.selectedOnlyDisabled) {  
+                vm.updateCQLFilter('selectedBushfire',1000)
+            }
           }
           //remove the index of the selected geometry in geometry collection
           //delete event.element['selectedIndex']

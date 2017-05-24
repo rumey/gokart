@@ -185,7 +185,7 @@
   }
 
   export default {
-    store: ['dpmm','drawingSequence','whoami','activeMenu'],
+    store: ['dpmm','drawingSequence','whoami','activeMenu','activeSubmenu'],
     components: { gkDrawinglogs },
     data: function () {
       return {
@@ -324,6 +324,31 @@
       }
     },
     methods: {
+      restoreSelectedFeatures:function() {
+        //cache the existing selected features
+        if (this._selectedFeaturesKey) {
+            if (this._selectedFeaturesKey in this._cachedSelectedFeatures) {
+                this._cachedSelectedFeatures[this._selectedFeaturesKey].length = 0
+            } else {
+                this._cachedSelectedFeatures[this._selectedFeaturesKey] = []
+            }
+            if (this.selectedFeatures.getLength() > 0) {
+                this._cachedSelectedFeatures[this._selectedFeaturesKey].push.apply(this._cachedSelectedFeatures[this._selectedFeaturesKey],this.selectedFeatures.getArray())
+            }
+        }
+        if (this.selectedFeatures.getLength() > 0) {
+            this.selectedFeatures.clear()
+        }
+        //restore the cached selected features
+        this._selectedFeaturesKey = this.activeSubmenu?(this.activeMenu + "." + this.activeSubmenu):this.activeMenu
+        if (this._selectedFeaturesKey in this._cachedSelectedFeatures) {
+            this.selectedFeatures.extend(this._cachedSelectedFeatures[this._selectedFeaturesKey])
+        }
+      },
+      isSelectedFeaturesOfModule:function(menu,submenu) {
+        var key = submenu?(menu + "." + submenu):menu
+        return this._selectedFeaturesKey === key
+      },
       importAnnotations:function() {
         if (this.$els.annotationsfile.files.length === 0) {
             return
@@ -1047,14 +1072,13 @@
         }
         
 
-        if (t.onSet) { t.onSet(this.tool) }
-
+        this.tool = t
+        this.currentTool = t
         if (t.selectMode !== this.tool.selectMode){
             this.selectedFeatures.forEach(function(f){f.changed()})
         }
 
-        this.tool = t
-        this.currentTool = t
+        if (t.onSet) { t.onSet(this.tool) }
       },
       selectAll: function (features,selectedFeatures) {
         features = features || this.features
@@ -1137,6 +1161,9 @@
       },
       setup: function() {
         var vm = this
+        //restore the selected features
+        this.restoreSelectedFeatures()
+
         // enable annotations layer, if disabled
         var catalogue = this.$root.catalogue
         if (!this.map.getMapLayer('annotations')) {
@@ -1592,6 +1619,7 @@
     },
     ready: function () {
       var vm = this
+      this._cachedSelectedFeatures = {}
       vm._currentTool = {}
       vm.shape = vm.pointShapes[0]
       var annotationStatus = this.loading.register("annotation","Annotation Component")
