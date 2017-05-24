@@ -461,8 +461,6 @@
         }
         this.selectedFeatures.clear()
 
-        updateType = updateType?updateType:(options["refresh"]?"query":null)
-
         if (!updateType && options["bushfireid"] !== null && options["bushfireid"] !== undefined){
             var bushfire = this.allFeatures.getArray().find(function(f) {return f.get('fire_number') === options["bushfireid"]})
             if (bushfire) {
@@ -1218,7 +1216,7 @@
             }
             vm.revision += 1
           }
-          
+          vm.refreshWMSLayer()
         })
       },  
       adjustHeight:function() {
