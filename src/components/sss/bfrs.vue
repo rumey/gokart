@@ -570,8 +570,13 @@
             }
             if (!this.isFireboundaryDrawable(feat)) {
                 if (feat.get('fire_boundary') && !ol.extent.containsCoordinate(feat.get('fire_boundary'),originPoint.getCoordinates())) {
-                    indexes = [0]
-                    throw "Original point should be inside a fire boundary."
+                    if ((feat.get('modifyType') & 2) === 2) {
+                        //upload a fire boundary
+                        alert("Original point is not inside a fire boundary, please fix it after the fire boundary is saved")
+                    } else {
+                        indexes = [0]
+                        throw "Original point should be inside a fire boundary."
+                    }
                 }
                 return true
             }
