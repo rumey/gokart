@@ -40,9 +40,9 @@
       </div>
       <div v-if="hasError">
           <hr class="row" style="border-width:4px;">
-          <div v-for="error in errors" class="row"  track_by="id">
+          <div v-for="error in errors" class="row"  track_by="$index">
             <div class="small-12">
-                <a class="error">{{error.id}} : {{error.message}} </a>
+                <a class="error">{{error}} </a>
             </div>
           </div>
       </div>
@@ -237,6 +237,12 @@
         //vm.register("app",this.application)
         var loadingStatus = vm.register("LoadingStatus","Loading Status Component")
         loadingStatus.phaseBegin("initialize",100,"Override console")
+        vm._sequence = 0
+        var addMessage = function(message) {
+            if (message && message.length > 0) {
+                vm.errors.push((++vm._sequence) + " : " + message)
+            }
+        }
         //override console.error
         var getArguments = function(args,startIndex) {
             var result = []
@@ -259,11 +265,7 @@
                 } else {
                     message = JSON.stringify(getArguments(arguments))
                 }
-                if (vm.errors.findIndex(function(e){return e.message === message}) >= 0) {
-                    //already exist, return to prevent dead loop
-                    return
-                }
-                vm.errors.push({"id": vm.errors.length + 1 ,"message":message})
+                addMessage(message)
                 originFunc.apply(this,arguments)
             }
         })()
@@ -272,15 +274,17 @@
             var originFunc = console.assert
             return function(args) {
                 if (!arguments[0]) {
+                    var message = null
                     if (arguments.length == 2) {
                         if (typeof arguments[1] === "string") {
-                            vm.errors.push(arguments[1])
+                            message = arguments[1]
                         } else {
-                            vm.errors.push(JSON.stringify(arguments[1]))
+                            message = JSON.stringify(arguments[1])
                         }
                     } else {
-                        vm.errors.push(JSON.stringify(getArguments(arguments,1)))
+                        message = JSON.stringify(getArguments(arguments,1))
                     }
+                    addMessage(message)
                 }
                 originFunc.apply(this,arguments)
             }
@@ -289,7 +293,7 @@
         Vue.config.errorHandler = (function(){
             var originFunc = Vue.config.errorHandler
             return function(err,vm) {
-                vm.errors.push(err)
+                addMessage(err)
                 return originFunc(err,vm)
             }
         })()
