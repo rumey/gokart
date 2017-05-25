@@ -429,7 +429,15 @@
         wait = wait || 0
         vm._zoomToSelected = vm._zoomToSelectedFunc || debounce(function(minScale) {
             vm.map.zoomToSelected(minScale,function(f){
-                return f.get('fire_boundary')?f.get('fire_boundary'):f.getGeometry().getExtent()
+                if (f.get('fire_boundary')) {
+                    if (f.getGeometry()) {
+                        return ol.extent.extend(f.get('fire_boundary'),f.getGeometry().getExtent())
+                    } else {
+                        return f.get('fire_boundary')
+                    }
+                } else {
+                    return f.getGeometry().getExtent()
+                }
             })
         },wait)
         if (wait === 0) {
