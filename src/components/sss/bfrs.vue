@@ -1511,6 +1511,32 @@
                 }
             } else {
                 //geo json file
+                //try to figure out the property name of 'fire_number' in imported files
+                var fire_number_property = null
+                for(var i = "fire_number".length;i >= 8;i--) {
+                    var name = "fire_number".substring(0,i)
+                    for (var j = 0;j < features.length;j++) {
+                        if (features[j].get(name) !== undefined) {
+                            fire_number_property = name
+                            break
+                        }
+                    }
+                    if (fire_number_property) {
+                        break
+                    }
+                }
+                fire_number_property = fire_number_property || "fire_number"
+                if (fire_number_property !== "fire_number") {
+                    //for some reason, the name of fire_number property is not 'fire_number', change the name of fire_number property to 'fire_number'
+                    //for example, in shape file, the name of fire_number property is 'fire_numbe' because of the property length limit
+                    for (var j = 0;j < features.length;j++) {
+                        if (features[j].get(fire_number_property) !== undefined) {
+                            features[j].set('fire_number',features[j].get(fire_number_property),true)
+                            features[j].unset(fire_number_property)
+                        }
+                    }
+                }
+
                 for(var i = features.length - 1;i >= 0;i--) {
                     feature = features[i]
                     if (targetFeature && (feature.get('fire_number') === undefined || feature.get('fire_number') === null)) {
@@ -1713,10 +1739,13 @@
                                 feature.set('external_feature',true)
                                 newGeometries = []
                                 if ((modifyType & 1) === 1) {
+                                    //both fireboundary and origin point are changed
                                     feature.setGeometry(new ol.geom.GeometryCollection([uploadedPoint,uploadedFireboundary]))
                                 } else if (featurePoint) {
+                                    //only fire boundary is changed, feature already has a valid origin point
                                     feature.setGeometry(new ol.geom.GeometryCollection([featurePoint,uploadedFireboundary]))
                                 } else {
+                                    //only fire boundary is changed, feature does not have a valid origin point
                                     feature.setGeometry(new ol.geom.GeometryCollection([uploadedFireboundary]))
                                 }
                                 if (!targetFeature && !vm._taskManager.initTasks(feat)) {
