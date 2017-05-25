@@ -1792,7 +1792,7 @@
                                     vm._taskManager.clearTasks(feat)
                                 }
                             }
-                        } else if(!feature.get('id') < 0) {
+                        } else if(feature.get('id') < 0 && feature.get('id').toString() === feature.get('fire_number') && vm.isCreatable()) {
                             //new feature,
                             if (feature.getGeometry() instanceof ol.geom.Point || feature.getGeometry() instanceof ol.geom.MultiPolygon) {
                                 feature.setGeometry(new ol.geom.GeometryCollection([feature.getGeometry()]))
@@ -1809,15 +1809,17 @@
                 //add non existing bushfires
                 $.each(features,function(index,feature){
                     if (feature.get('fire_number') === undefined) {
-                        //non existed bushfire report
-                        canUpload(feature,null)
-                        if (feature.getGeometry() instanceof ol.geom.Point || feature.getGeometry() instanceof ol.geom.MultiPolygon) {
-                            feature.setGeometry(new ol.geom.GeometryCollection([feature.getGeometry()]))
-                        }
-                        vm.newFeature(feature)
-                        vm.measure.remeasureFeature(feature)
-                        if (vm.selectedFeatures.getLength() < 10) {
-                            vm.selectedFeatures.push(feature)
+                        if (vm.isCreatable()) {
+                            //non existed bushfire report
+                            canUpload(feature,null)
+                            if (feature.getGeometry() instanceof ol.geom.Point || feature.getGeometry() instanceof ol.geom.MultiPolygon) {
+                                feature.setGeometry(new ol.geom.GeometryCollection([feature.getGeometry()]))
+                            }
+                            vm.newFeature(feature)
+                            vm.measure.remeasureFeature(feature)
+                            if (vm.selectedFeatures.getLength() < 10) {
+                                vm.selectedFeatures.push(feature)
+                            }
                         }
                     }
                 }) 
@@ -2571,7 +2573,7 @@
             var permissionConfig = [
                 ["create",vm.env.bfrsService + "/bfrs/create/",null,function(hasPermission){
                    if (hasPermission) {
-                       if (vm.tools) {
+                       if (vm.tools && !vm.tools.find(function(t){return t === vm.ui.originPointTool})) {
                         vm.tools.push(vm.ui.originPointTool)
                        }
                    }
@@ -2672,9 +2674,9 @@
         })
         // enable resource bfrs layer, if disabled
         //vm.annotations.setDefaultTool('bfrs','Pan')
-        vm.tools = vm.annotations.tools.filter(function (t) {
+        vm.tools.push.apply(vm.tools,vm.annotations.tools.filter(function (t) {
           return t.scope && t.scope.indexOf("bfrs") >= 0
-        })
+        }))
 
 
         vm.map.olmap.on("removeLayer",function(ev){
