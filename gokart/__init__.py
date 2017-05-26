@@ -1029,7 +1029,7 @@ def downloaod(fmt):
         workdir = tempfile.mkdtemp()
 
         session_cookie = get_session_cookie()
-        cookies={"oim_dpaw_wa_gov_au_sessionid":session_cookie} if ENV_TYPE == "prod" else {"oim_dpaw_wa_gov_au_sessionid":session_cookie,"oim-uat_dpaw_wa_gov_au_sessionid":session_cookie}
+        cookies={"oim_dpaw_wa_gov_au_sessionid":session_cookie} if ENV_TYPE == "prod" else {"oim_dpaw_wa_gov_au_sessionid":session_cookie,"oim_uat_dpaw_wa_gov_au_sessionid":session_cookie}
 
         loaddir = os.path.join(workdir,"load")
         os.mkdir(loaddir)
@@ -1440,7 +1440,7 @@ def spatial():
             options = {}
 
         session_cookie = get_session_cookie()
-        cookies={"oim_dpaw_wa_gov_au_sessionid":session_cookie} if ENV_TYPE == "prod" else {"oim_dpaw_wa_gov_au_sessionid":session_cookie,"oim-uat_dpaw_wa_gov_au_sessionid":session_cookie}
+        cookies={"oim_dpaw_wa_gov_au_sessionid":session_cookie} if ENV_TYPE == "prod" else {"oim_dpaw_wa_gov_au_sessionid":session_cookie,"oim_uat_dpaw_wa_gov_au_sessionid":session_cookie}
         results = []
 
         features = features["features"] or []
