@@ -41,7 +41,7 @@
                 </div>
                 <div class="row">
                   <div class="switch tiny">
-                    <input class="switch-input" id="toggleBushfireLabels" type="checkbox" v-bind:checked="bushfireLabels" @change="toggleBushfireLabels" />
+                    <input class="switch-input" id="toggleBushfireLabels" type="checkbox" v-bind:checked="bushfireLabels" @change="toggleBushfireLabels" v-bind:disabled="bushfireLabelsDisabled" />
                     <label class="switch-paddle" for="toggleBushfireLabels">
                       <span class="show-for-sr">Display bushfire labels</span>
                     </label>
@@ -93,7 +93,7 @@
     
                 <div class="tool-slice row collapse">
                   <div class="small-12 expanded button-group">
-                    <a title="Zoom to selected" class="button bfrsbutton" @click="zoomToSelected()" ><img style="width:29px;height:29px"src="dist/static/images/zoom-to-selected.svg"/><br></a>
+                    <a title="Zoom to selected" class="button bfrsbutton" @click="zoomToSelected()" ><img style="width:14px;height:14px"src="dist/static/images/zoom-to-selected.svg"/><br>Zoom To<br>Selected</a>
                     <a title="Refresh bushfire list" class="button bfrsbutton" @click="updateCQLFilter('refresh',200)" ><i class="fa fa-refresh" aria-hidden="true"></i><br>Refresh<br>Bushfires </a>
                     <label class="button bfrsbutton" for="uploadBushfires" title="Support GeoJSON(.geojson .json), GPS data(.gpx), GeoPackage(.gpkg), 7zip(.7z), TarFile(.tar.gz,tar.bz,tar.xz),ZipFile(.zip)" style="line-height:1;">
                         <i class="fa fa-upload"></i><br>Batch<br>Upload
@@ -161,9 +161,10 @@
   </div>
 </template>
 <style>
-.bfrsbutton {
+.button-group .bfrsbutton {
     padding-left:10px;
     padding-right:10px;
+    font-size:0.8rem;
 }
 .actionicon {
     width:9px;
@@ -211,6 +212,7 @@
         statusFilter: '',
         region:'',
         district:'',
+        bushfireLabelsDisabled:false,
         tools: [],
         fields: ['fire_number', 'name'],
         drawings:new ol.Collection(),
@@ -2692,6 +2694,16 @@
                 vm.allFeatures.clear()
                 vm.extentFeatures = []
             }
+        })
+
+        vm._resolutionChanged = debounce(function(ev){
+            vm.bushfireLabelsDisabled = (vm.map.olmap.getView().getResolution() > 0.003)
+        },200)
+
+        vm._resolutionChanged()
+
+        vm.map.olmap.getView().on("change:resolution",function(){
+            vm._resolutionChanged()
         })
 
         vm._bfrsStatus.phaseEnd("attach_event")

@@ -96,7 +96,7 @@ var systemSettings = {
   rightHandTools: true,
   graticule:true,
   bfrs:{
-      reportLabels:true,
+      bushfireLabels:true,
       viewportOnly: false,
   }
 }
