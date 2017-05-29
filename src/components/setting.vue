@@ -143,6 +143,14 @@
                   </div>
                </div>
 
+               <div class="small-3">
+                   <label class="tool-label">Logout:</label>
+               </div>
+               <div class="small-9">
+                  <div class="expanded button-group">
+                    <a id="take-tour" class="button" title="Logout" @click="logout()"><i class="fa fa-sign-out"></i> {{whoami.email}}</a>
+                  </div>
+               </div>
             </div>
             
 
@@ -210,7 +218,8 @@
         rightHandTools: 'settings.rightHandTools',
         graticule:'settings.graticule',
         showHints:'settings.showHints',
-        tourVersion:'settings.tourVersion'
+        tourVersion:'settings.tourVersion',
+        whoami:'whoami'
     },
     data: function () {
       return {
@@ -264,6 +273,9 @@
       }
     },
     methods: {
+      logout:function() {
+        document.location = '/logout'
+      },
       setup: function() {
         this.annotations.setTool()
       },
