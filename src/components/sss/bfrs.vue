@@ -11,6 +11,7 @@
         </ul>
       </div>
     </div>
+
     <div class="row collapse" id="bfrs-tab-panels">
       <div class="columns">
         <div class="tabs-content vertical" data-tabs-content="bfrs-tabs">
@@ -57,7 +58,22 @@
                   </div>
                   <label for="toggleReportInfo" class="side-label">Display hovering bushfire info</label>
                 </div>
-    
+                <div class="row">
+                  <div class="small-12">
+                    <div class="columns">
+                      <div class="row">
+                        <div class="switch tiny">
+                          <input class="switch-input" id="selectedBushfiresOnly" type="checkbox" v-bind:disabled="selectedOnlyDisabled" v-model="selectedOnly" @change="updateCQLFilter('selectedBushfire',500)" />
+                          <label class="switch-paddle" for="selectedBushfiresOnly">
+                            <span class="show-for-sr">Show selected only</span>
+                         </label>
+                        </div>
+                        <label for="selectedBushfiresOnly" style="margin-left:3px" class="side-label">Show selected only</label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div class="row collapse">
                   <div class="small-6 columns">
                     <select name="select" v-model="region" @change="updateCQLFilter('region',2000)">
@@ -104,21 +120,6 @@
                   </div>
                 </div>
     
-                <div class="row">
-                  <div class="small-12">
-                    <div class="columns">
-                      <div class="row">
-                        <div class="switch tiny">
-                          <input class="switch-input" id="selectedBushfiresOnly" type="checkbox" v-bind:disabled="selectedOnlyDisabled" v-model="selectedOnly" @change="updateCQLFilter('selectedBushfire',500)" />
-                          <label class="switch-paddle" for="selectedBushfiresOnly">
-                            <span class="show-for-sr">Show selected only</span>
-                         </label>
-                        </div>
-                        <label for="selectedBushfiresOnly" style="margin-left:3px" class="side-label">Show selected only</label>
-                      </div>
-                    </div>
-                  </div>
-                </div>
             </div>
 
             <div id="bfrs-list" class="layers-flexibleframe scroller" style="margin-left:-15px; margin-right:-15px;">
@@ -151,10 +152,27 @@
               </div>
             </div>
 
+            <div v-show="$root.isShowHints('bfrs')" class="tool-slice row collapse" id="bfrs-hints">
+              <hr class="small-12"/>
+              <template v-for="hint in hints">
+                  <div class="small-12">{{hint.name}}:</div>
+                  <div class="small-12">
+                    <ul>
+                    <template v-for="description in hint.description">
+                        <li>{{description}}</li>
+                    </template>
+                    </ul>
+                  </div>
+              </template>
+            </div>
+
+
           </div>
+
         </div>
       </div>
     </div>
+
     <form id="bushfire_create" name="bushfire_create" action="{{createUrl()}}" method="post" target="{{utils.getAddressTarget("_blank")}}">
         <input type="hidden" name="sss_create" id="sss_create">
     </form>
@@ -199,8 +217,10 @@
         bushfireLabels:'settings.bfrs.bushfireLabels',
         viewportOnly:'settings.bfrs.viewportOnly',
         screenHeight:'layout.screenHeight',
+        hintsHeight:'layout.hintsHeight',
         leftPanelHeadHeight:'layout.leftPanelHeadHeight',
         activeMenu:'activeMenu',
+        hints:'hints',
         whoami:'whoami'
     },
     data: function () {
@@ -383,9 +403,6 @@
       bushfireLabels:function(newValue,oldValue) {
         this.showBushfireLabels()
       },
-      "screenHeight":function(newValue,oldvalue) {
-        this.adjustHeight()
-      },
     },
     methods: {
       featureTasks:function(feat) {
@@ -426,11 +443,11 @@
 
         this._refreshSelectedWMSLayer.call({wait:wait})
       },
-      zoomToSelected:function(minScale,wait) {
+      zoomToSelected:function(wait) {
         var vm = this
         wait = wait || 0
-        vm._zoomToSelected = vm._zoomToSelectedFunc || debounce(function(minScale) {
-            vm.map.zoomToSelected(minScale,function(f){
+        vm._zoomToSelected = vm._zoomToSelectedFunc || debounce(function() {
+            vm.map.zoomToSelected(125,function(f){
                 if (f.get('fire_boundary')) {
                     if (f.getGeometry()) {
                         return ol.extent.extend(f.get('fire_boundary'),f.getGeometry().getExtent())
@@ -443,9 +460,9 @@
             })
         },wait)
         if (wait === 0) {
-            vm._zoomToSelected.call({wait:1},minScale)
+            vm._zoomToSelected.call({wait:1})
         } else {
-            vm._zoomToSelected.call({wait:wait},minScale)
+            vm._zoomToSelected.call({wait:wait})
         }
       },
       open:function(options) {
@@ -1245,7 +1262,8 @@
       },  
       adjustHeight:function() {
         if (this.activeMenu === "bfrs") {
-            $("#bfrs-list").height(this.screenHeight - this.leftPanelHeadHeight - 10 - $("#bfrs-list-controller-container").height())
+            //$("#bfrs-list").height(this.screenHeight - this.leftPanelHeadHeight - 16 - 16 - 16 - 2 - $("#bfrs-list-controller-container").height() - this.hintsHeight)
+            $("#bfrs-list").height(this.screenHeight - this.leftPanelHeadHeight - 50 - $("#bfrs-list-controller-container").height() - this.hintsHeight)
         }
       },
       //modifyType(bit value): 
@@ -1313,7 +1331,7 @@
           }
           this.selectedFeatures.push(f)
         }
-        //this.zoomToSelected(100,200)
+        //this.zoomToSelected(200)
       },
       toggleViewportOnly: function () {
         this.viewportOnly = !this.viewportOnly
@@ -1835,7 +1853,7 @@
                 }) 
                 if (vm.selectedFeatures.getLength() > 0) {
                     vm.annotations.setTool("Bfrs Select")
-                    //vm.zoomToSelected(100)
+                    //vm.zoomToSelected()
                 }
 
                 if (import_task && vm._taskManager.getTasks(targetFeature).length === 1) {
@@ -2342,7 +2360,15 @@
               onSet: function() {
                   vm.ui.dragSelectInter.setMulti(true)
                   vm.ui.selectInter.setMulti(true)
-              }
+              },
+              comments:[
+                {
+                    name:"Tips",
+                    description:[
+                        "Select bushfires using keyboard or mouse",
+                    ]
+                }
+              ]
           },{
               name: 'Bfrs Edit Geometry',
               label: 'Edit Geometry',
@@ -2391,7 +2417,18 @@
                     } 
                     var currentScale = vm.map.getScale()
                  }
-              }
+              },
+              comments:[
+                {
+                    name:"Tips",
+                    description:[
+                        "Click in a fire boundary of the selected initial bushfire to select a fire boundary.",
+                        "Press 'Del' to delete a selected fire boundary of the selected initial bushfire.",
+                        "Click outside of the selected initial bushfire's fire boundary to draw a new fire boundary.",
+                        "Hold down the 'SHIFT' key during drawing to enable freehand mode."
+                    ]
+                }
+              ]
           },{
               name: 'Bfrs Origin Point',
               label: 'Add Bushfire',
@@ -2425,7 +2462,15 @@
                       var currentScale = vm.map.getScale()
                   }
                   */
-              }
+              },
+              comments:[
+                {
+                    name:"Tips",
+                    description:[
+                        "Click on the map or search a point to create a new bushfire in SSS."
+                    ]
+                }
+              ]
           }
       ]
 
@@ -2667,14 +2712,14 @@
             if (vm.selectedOnly && !vm.selectedOnlyDisabled) {  
                 vm.updateCQLFilter('selectedBushfire',1000)
             }
-            //vm.zoomToSelected(100,200)
+            //vm.zoomToSelected(200)
           }
         })
         vm.selectedFeatures.on('remove', function (event) {
           if (event.element.get('toolName') === "Bfrs Origin Point") {
             vm.selectedBushfires.$remove(event.element.get('fire_number'))
             vm.refreshSelectedWMSLayer()
-            //vm.zoomToSelected(100,200)
+            //vm.zoomToSelected(200)
             if (vm.selectedOnly && !vm.selectedOnlyDisabled) {  
                 vm.updateCQLFilter('selectedBushfire',1000)
             }

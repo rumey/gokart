@@ -54,6 +54,16 @@
 
             <div class="tool-slice row collapse">
               <div class="switch tiny">
+                <input class="switch-input" id="toggleShowHints" type="checkbox"  v-bind:checked="showHints" @change="toggleShowHints"/>
+                <label class="switch-paddle" for="toggleShowHints">
+                    <span class="show-for-sr">Show hints</span>
+                </label>
+              </div>
+              <label for="toggleShowHints" class="side-label">Show hints</label>
+            </div>
+
+            <div class="tool-slice row collapse">
+              <div class="switch tiny">
                 <input class="switch-input" id="toggleMeasureFeature" type="checkbox" v-bind:checked="measureFeature" @change="toggleMeasureFeature"/>
                 <label class="switch-paddle" for="toggleMeasureFeature">
                   <span class="show-for-sr">Measure feature</span>
@@ -199,6 +209,7 @@
         areaUnit:'settings.areaUnit',
         rightHandTools: 'settings.rightHandTools',
         graticule:'settings.graticule',
+        showHints:'settings.showHints',
         tourVersion:'settings.tourVersion'
     },
     data: function () {
@@ -281,6 +292,10 @@
       },
       toggleGraticule: function (ev) {
         this.graticule = ev.target.checked
+        this.saveState()
+      },
+      toggleShowHints: function (ev) {
+        this.showHints = ev.target.checked
         this.saveState()
       },
       toggleHoverInfo: function (ev) {

@@ -49,11 +49,13 @@ var volatileData = {
   whoami: { email: null },
   layout:{
       screenHeight:0,
+      hintsHeight:0,
       screenWidth:0,
       leftPanelHeadHeight:90,
   },
   activeMenu:null,
   activeSubmenu:null,
+  hints:null,
   // filters for finding layers
   catalogueFilters: [
     ['basemap', 'Base Imagery'],
@@ -95,6 +97,7 @@ var systemSettings = {
   viewportOnly: false,
   rightHandTools: true,
   graticule:true,
+  showHints:true,
   bfrs:{
       bushfireLabels:true,
       viewportOnly: false,
@@ -187,6 +190,15 @@ localforage.getItem('sssOfflineStore').then(function (store) {
       },
       defaultSettings:function() {
           return systemSettings
+      },
+      screenHeight:function() {
+          return this.store.layout.screenHeight
+      },
+      hints:function() {
+          return this.store.hints
+      },
+      activeModule:function() {
+         return this.store.activeSubmenu || this.store.activeMenu
       }
     },
     watch: {
@@ -194,14 +206,60 @@ localforage.getItem('sssOfflineStore').then(function (store) {
             if (newValue !== tour.version) {
               this.takeTour()
             }
+        },
+        hints:function(newValue,oldValue) {
+            var vm = this
+            this.$nextTick(function(){
+                vm.setHintsHeight()
+            })
+        },
+        activeModule:function(newValue,oldValue) {
+            var vm = this
+            this.$nextTick(function(){
+                vm.store.layout.leftPanelHeadHeight = $("#" + newValue + "-tabs").height() || 90
+                vm.setHintsHeight()
+            })
+        },
+        screenHeight:function(newValue,oldValue) {
+            var module = this.store.activeSubmenu || this.store.activeMenu
+            if (this[module]["adjustHeight"]) {
+                this[module]["adjustHeight"]()
+            }
         }
     },
     methods: {
+      setHintsHeight:function() {
+        if (this[this.activeModule]["adjustHeight"]) {
+            if (this.isShowHints(this.activeModule)) {
+                this.store.layout.hintsHeight = $("#" + this.activeModule + "-hints").height() + 5
+            } else {
+                this.store.layout.hintsHeight = 0
+            }
+            this[this.activeModule]["adjustHeight"]()
+        }
+      },
       takeTour: function() {
           this.store.settings.tourVersion = tour.version
           this.export.saveState()
           this.touring = true
           tour.start()
+      },
+      isShowHints:function(module) {
+          return this.store.settings.showHints && this.store.hints && (this.store.activeSubmenu || this.store.activeMenu) === module;
+      },
+      showHints:function() {
+          this.store.hints = null
+          if (!this.store.settings.showHints) return
+          var module = this.store.activeSubmenu || this.store.activeMenu
+          if (module && this[module]) {
+            if (arguments.length === 0 ) {
+                this.store.hints = null
+            } else if (arguments.length === 1) {
+                this.store.hints = arguments[0]
+            } else {
+                this.store.hints = arguments
+            }
+          }
       }
     },
     ready: function () {
@@ -361,7 +419,13 @@ localforage.getItem('sssOfflineStore').then(function (store) {
           measureLength:true,
           measureArea:true,
           comments:[
-            {name:"Tips",description:["Hold down the 'SHIFT' key during drawing to enable freehand mode. "]}
+            {
+                name:"Tips",
+                description:[
+                    "Draw a fire boundary on map ",
+                    "Hold down the 'SHIFT' key during drawing to enable freehand mode. "
+                ]
+            }
           ]
         },
         self.annotations.ui.defaultText,
@@ -375,7 +439,15 @@ localforage.getItem('sssOfflineStore').then(function (store) {
           sketchStyle: self.annotations.getIconStyleFunction(self.tints),
           selectedTint: 'selectedDivision',
           scope:["annotation"],
-          showName: true
+          showName: true,
+          comments:[
+            {
+                name:"Tips",
+                description:[
+                    "Place a 'Division' in map."
+                ]
+            }
+          ]
         }, {
           name: 'Sector',
           icon: 'dist/static/symbols/fire/sector.svg',
@@ -386,7 +458,15 @@ localforage.getItem('sssOfflineStore').then(function (store) {
           sketchStyle: self.annotations.getIconStyleFunction(self.tints),
           selectedTint: 'selectedDivision',
           scope:["annotation"],
-          showName: true
+          showName: true,
+          comments:[
+            {
+                name:"Tips",
+                description:[
+                    "Place a 'Sector' in map."
+                ]
+            }
+          ]
         },{
         /*  name: 'Hot Spot',
           icon: 'fa-circle red',
@@ -403,6 +483,14 @@ localforage.getItem('sssOfflineStore').then(function (store) {
           selectedTint: 'selectedPoint',
           scope:["annotation"],
           showName: true,
+          comments:[
+            {
+                name:"Tips",
+                description:[
+                    "Place a 'Origin Point' in map."
+                ]
+            }
+          ]
         }, {
           name: 'Spot Fire',
           icon: 'dist/static/symbols/fire/spotfire.svg',
@@ -413,6 +501,14 @@ localforage.getItem('sssOfflineStore').then(function (store) {
           selectedTint: 'selectedPoint',
           scope:["annotation"],
           showName: true,
+          comments:[
+            {
+                name:"Tips",
+                description:[
+                    "Place a 'Spot Fire' in map."
+                ]
+            }
+          ]
         }, {
           name: 'Road Closure',
           icon: 'dist/static/symbols/fire/road_closure_point.svg',
@@ -423,6 +519,15 @@ localforage.getItem('sssOfflineStore').then(function (store) {
           showName: true,
           selectedTint: 'selectedRoadClosurePoint',
           scope:["annotation"],
+          comments:[
+            {
+                name:"Tips",
+                description:[
+                    "Draw a 'Road Closure' on map ",
+                    "Hold down the 'SHIFT' key during drawing to enable freehand mode. "
+                ]
+            }
+          ]
         }, {
           name: 'Control Line',
           icon: 'dist/static/symbols/fire/controlline.svg',
@@ -434,7 +539,16 @@ localforage.getItem('sssOfflineStore').then(function (store) {
           colour: 'rgba(0, 0, 0, 0.1)',
           showName: true,
           scope:["annotation"],
-          style: self.annotations.getVectorStyleFunc(this.tints)
+          style: self.annotations.getVectorStyleFunc(this.tints),
+          comments:[
+            {
+                name:"Tips",
+                description:[
+                    "Draw a 'Control Line' on map ",
+                    "Hold down the 'SHIFT' key during drawing to enable freehand mode. "
+                ]
+            }
+          ]
         },
         self.annotations.ui.defaultLine,
         self.annotations.ui.defaultPolygon,

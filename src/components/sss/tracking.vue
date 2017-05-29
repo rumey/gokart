@@ -303,9 +303,6 @@
       resourceDirections:function(newValue,oldValue) {
         this.showResourceLabelsOrDirections()
       },
-      "screenHeight":function(newValue,oldvalue) {
-        this.adjustHeight()
-      },
       "toggleHistory":function() {
         this.adjustHeight()
       }
@@ -313,7 +310,7 @@
     methods: {
       adjustHeight:function() {
         if (this.activeMenu === "tracking") {
-            $("#tracking-list").height(this.screenHeight - this.leftPanelHeadHeight - $("#tracking-list-controller-container").height())
+            $("#tracking-list").height(this.screenHeight - this.leftPanelHeadHeight - 50 - $("#tracking-list-controller-container").height())
         }
       },
       verifyDate: function(event,inputPattern,pattern) {

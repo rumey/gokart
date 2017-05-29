@@ -7,11 +7,13 @@
         </ul>
       </div>
     </div>
+
     <div class="row collapse" id="annotations-tab-panels">
       <div class="columns">
         <div class="tabs-content vertical" data-tabs-content="annotations-tabs">
-
           <div class="tabs-panel is-active" id="annotations-edit" v-cloak>
+
+            <div id="annotations-fixed-part">
             <div class="tool-slice row collapse">
               <div class="small-12">
                 <div class="expanded button-group">
@@ -89,26 +91,30 @@
                 <textarea @blur="updateNote(true)" class="notecontent" v-el:notecontent @keyup="updateNote(false)" @click="updateNote(true)" @mouseup="updateNote(false)">{{ note.text }}</textarea>
               </div>
             </div>
+            </div>
 
-            <div v-show="shouldShowComments" class="tool-slice row collapse">
+            <div class="tool-slice row collapse scroller" id="annotations-flexible-part">
+              <div class="small-12 canvaspane" v-show="shouldShowNoteEditor">
+                <canvas v-el:textpreview></canvas>
+              </div>
+            </div>
+
+            <div v-show="$root.isShowHints('annotations')" class="tool-slice row collapse" id="annotations-hints">
               <hr class="small-12"/>
-              <template v-for="comment in tool.comments">
-                  <div class="small-2">{{comment.name}}:</div>
-                  <div class="small-10">
-                    <template v-for="description in comment.description">
-                        {{description}}
-                        <br>
+              <template v-for="hint in hints">
+                  <div class="small-12">{{hint.name}}:</div>
+                  <div class="small-12">
+                    <ul>
+                    <template v-for="description in hint.description">
+                        <li>{{description}}</li>
                     </template>
+                    </ul>
                   </div>
               </template>
             </div>
 
-            <div class="tool-slice row collapse">
-              <div class="small-12 canvaspane">
-                <canvas v-show="shouldShowNoteEditor" v-el:textpreview></canvas>
-              </div>
-            </div>
           </div>
+        </div>
 
         </div>
       </div>
@@ -129,7 +135,7 @@
   .canvaspane {
     overflow: hidden;
     width: 100px;
-    height: 30vh;
+    height: 40vh;
   }
   .row.resetmargin {
     margin: 0px;
@@ -185,7 +191,17 @@
   }
 
   export default {
-    store: ['dpmm','drawingSequence','whoami','activeMenu','activeSubmenu'],
+    store: {
+        dpmm:'dpmm',
+        drawingSequence:'drawingSequence',
+        whoami:'whoami',
+        activeMenu:'activeMenu',
+        activeSubmenu:'activeSubmenu',
+        hints:'hints',
+        screenHeight:'layout.screenHeight',
+        hintsHeight:'layout.hintsHeight',
+        leftPanelHeadHeight:'layout.leftPanelHeadHeight'
+    },
     components: { gkDrawinglogs },
     data: function () {
       return {
@@ -285,12 +301,6 @@
                this.tool == this.ui.defaultPoint || 
                (this.tool === this.ui.editStyle && this.featureEditing && ([this.ui.defaultLine,this.ui.defaultPolygon,this.ui.defaultPoint,this.ui.defaultText].indexOf(this.getTool(this.featureEditing.get('toolName'))) >= 0))
       },
-      shouldShowComments: function () {
-        if (!this.tool || !this.tool.name) {
-          return false
-        }
-        return this.tool.comments && true
-      },
       currentTool:{
         get:function() {
             var t = this._currentTool[this.activeMenu]
@@ -321,9 +331,18 @@
                 this.colour = val.get('colour') || this.colour
             }
         }
+      },
+      tool:function(newValue,oldValue) {
+        this.adjustHeight()
       }
     },
     methods: {
+      adjustHeight:function() {
+        if (this.activeMenu === "annotations") {
+            //$("#annotations-flexible-part").height(this.screenHeight - this.leftPanelHeadHeight - 16 - 16 - 16 - 2 - $("#annotations-fixed-part").height() - this.hintsHeight)
+            $("#annotations-flexible-part").height(this.screenHeight - this.leftPanelHeadHeight - 50 - $("#annotations-fixed-part").height() - this.hintsHeight)
+        }
+      },
       restoreSelectedFeatures:function() {
         //cache the existing selected features
         if (this._selectedFeaturesKey) {
@@ -1079,6 +1098,7 @@
         }
 
         if (t.onSet) { t.onSet(this.tool) }
+        this.$root.showHints(t.comments)
       },
       selectAll: function (features,selectedFeatures) {
         features = features || this.features
@@ -1672,6 +1692,15 @@
           map.doubleClickZoomInter,
           map.keyboardPanInter,
           map.keyboardZoomInter
+        ],
+        comments:[
+          {
+              name:"Tips",
+              description:[
+                  "Pan on the map using keyboard or mouse",
+                  "Zoom the map using keyboard or mouse"
+              ]
+          }
         ]
       }
       this.ui.editStyle = {
@@ -1685,7 +1714,15 @@
         onSet: function() {
             vm.ui.dragSelectInter.setMulti(false)
             vm.ui.selectInter.setMulti(false)
-        }
+        },
+        comments:[
+          {
+              name:"Tips",
+              description:[
+                  "Edit selected text node"
+              ]
+          }
+        ]
       }
       this.ui.defaultSelect = {
         name: 'Select',
@@ -1700,7 +1737,15 @@
         onSet: function() {
             vm.ui.dragSelectInter.setMulti(true)
             vm.ui.selectInter.setMulti(true)
-        }
+        },
+        comments:[
+          {
+              name:"Tips",
+              description:[
+                  "Select features using keyboard or mouse."
+              ]
+          }
+        ]
       }
       this.ui.defaultEdit = {
         name: 'Edit Geometry',
@@ -1715,7 +1760,15 @@
         onSet: function() {
             vm.ui.dragSelectInter.setMulti(false)
             vm.ui.selectInter.setMulti(false)
-        }
+        },
+        comments:[
+          {
+              name:"Tips",
+              description:[
+                  "Edit annotation features"
+              ]
+          }
+        ]
       }
       this.tools = [
         this.ui.defaultPan,
@@ -1769,6 +1822,14 @@
           if (f.get('note')) { return }
           f.set('note', $.extend({}, vm.note))
         },
+        comments:[
+          {
+              name:"Tips",
+              description:[
+                  "Create a text note and place it into map."
+              ]
+          }
+        ]
       }
 
       var customAdd = function (f) {
@@ -1840,7 +1901,15 @@
             } else {
                 return "selected"
             }
-          }
+          },
+          comments:[
+            {
+                name:"Tips",
+                description:[
+                    "Create a customized point and place it in map. "
+                ]
+            }
+          ]
       }
 
       this.ui.defaultLine = {
@@ -1852,7 +1921,13 @@
         onAdd: customAdd,
         style: vm.getVectorStyleFunc(this.tints),
         comments:[
-          {name:"Tips",description:["Hold down the 'SHIFT' key during drawing to enable freehand mode. "]}
+          {
+            name:"Tips",
+            description:[
+                "Draw a line on map",
+                "Hold down the 'SHIFT' key during drawing to enable freehand mode. "
+            ]
+          }
         ]
       }
 
@@ -1867,7 +1942,13 @@
         measureLength:true,
         measureArea:true,
         comments:[
-          {name:"Tips",description:["Hold down the 'SHIFT' key during drawing to enable freehand mode. "]}
+          {
+            name:"Tips",
+            description:[
+                "Draw a polygon on map",
+                "Hold down the 'SHIFT' key during drawing to enable freehand mode. "
+            ]
+          }
         ]
       }
 

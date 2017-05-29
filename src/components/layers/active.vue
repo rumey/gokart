@@ -146,9 +146,6 @@
       "layer": function() {
         this.layerRefreshStopped = this.layer.refresh?(this.layer.autoRefreshStopped || false):true
       },
-      "screenHeight":function(newValue,oldValue) {
-        this.adjustHeight()
-      }
     },
     // methods callable from inside the template
     methods: {

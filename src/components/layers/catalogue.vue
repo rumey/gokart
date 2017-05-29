@@ -163,9 +163,6 @@ div.ol-previewmap.ol-uncollapsible {
       loading: function () { return this.$root.loading },
     },
     watch:{
-      "screenHeight":function(newValue,oldvalue) {
-        this.adjustHeight()
-      },
       "search":function(newValue,oldvalue) {
         this.adjustHeight()
       }
