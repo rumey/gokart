@@ -526,16 +526,21 @@
 
       },
       isModifiable:function(bushfire) {
-        return this.whoami["bushfire"]["permission"][bushfire.get('status') + ".modify"]
+        try{
+            return this.whoami["bushfire"]["permission"][bushfire.get('status') + ".modify"]
+        } catch(ex){
+            return false
+        }
       },
       isFireboundaryDrawable:function(bushfire) {
         return bushfire.get('status') === "new" || (bushfire.get('report_status') === 1)
       },
       isEditable:function(bushfire) {
-        return this.whoami["bushfire"]["permission"][bushfire.get('status') + ".edit"]
-      },
-      isViewable:function(bushfire) {
-        return this.whoami["bushfire"]["permission"][bushfire.get('status') + ".view"]
+        try{
+            return this.whoami["bushfire"]["permission"][bushfire.get('status') + ".edit"]
+        } catch(ex){
+            return false
+        }
       },
       isDeletable:function(bushfire) {
         return bushfire.get('status') === "new"
@@ -548,7 +553,11 @@
         }
       },
       canBatchUpload:function() {
-        return this.revision && this.whoami["bushfire"]["permission"]["final_authorised.modify"]
+        try{
+            return this.revision && this.whoami["bushfire"]["permission"]["final_authorised.modify"]
+        } catch(ex) {
+            return false
+        }
       },
       canEdit:function(bushfire) {
         return this.revision && bushfire.get('status') !== "new" && this.isEditable(bushfire) && bushfire.get('tint') !== "modified"
