@@ -111,10 +111,12 @@
                   <div class="small-12 expanded button-group">
                     <a title="Zoom to selected" class="button bfrsbutton" @click="zoomToSelected()" ><img style="width:14px;height:14px"src="dist/static/images/zoom-to-selected.svg"/><br>Zoom To<br>Selected</a>
                     <a title="Refresh bushfire list" class="button bfrsbutton" @click="updateCQLFilter('refresh',200)" ><i class="fa fa-refresh" aria-hidden="true"></i><br>Refresh<br>Bushfires </a>
-                    <label class="button bfrsbutton" for="uploadBushfires" title="Support GeoJSON(.geojson .json), GPS data(.gpx), GeoPackage(.gpkg), 7zip(.7z), TarFile(.tar.gz,tar.bz,tar.xz),ZipFile(.zip)" style="line-height:1;">
-                        <i class="fa fa-upload"></i><br>Batch<br>Upload
-                    </label>
-                    <input type="file" id="uploadBushfires" class="show-for-sr" name="bushfiresfile" accept=".json,.geojson,.gpx,.gpkg,.7z,.tar,.tar.gz,.tar.bz,.tar.xz,.zip" v-el:bushfiresfile @change="importList()"/>
+                    <div v-show="canBatchUpload()">
+                        <label class="button bfrsbutton" for="uploadBushfires" title="Support GeoJSON(.geojson .json), GPS data(.gpx), GeoPackage(.gpkg), 7zip(.7z), TarFile(.tar.gz,tar.bz,tar.xz),ZipFile(.zip)" style="line-height:1;">
+                            <i class="fa fa-upload"></i><br>Batch<br>Upload
+                        </label>
+                        <input type="file" id="uploadBushfires" class="show-for-sr" name="bushfiresfile" accept=".json,.geojson,.gpx,.gpkg,.7z,.tar,.tar.gz,.tar.bz,.tar.xz,.zip" v-el:bushfiresfile @change="importList()"/>
+                    </div>
                     <a class="button bfrsbutton" @click="downloadList('geojson')" title="Export Bushfire as GeoJSON"><i class="fa fa-download" aria-hidden="true"></i><br>Download<br>(geojson) </a>
                     <a class="button bfrsbutton" @click="downloadList('gpkg')" title="Export Bushfire as GeoPackage"><i class="fa fa-download" aria-hidden="true"></i><br>Download<br>(gpkg)</a>
                   </div>
@@ -129,7 +131,7 @@
                   <a v-if="canReset(f)"  @click.stop.prevent="resetFeature(f)" title="Reset" class="button tiny secondary float-right acion" style="margin-left:2px"><i class="fa fa-undo actionicon"></i></a>
                   <a v-if="canDelete(f)" @click.stop.prevent="deleteFeature(f)" title="Delete" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-trash actionicon"></i></a>
                   <a v-if="canUpload(f)"  @click.stop.prevent="uploadBushfire(f)" title="Upload" class="button tiny secondary float-right acion" style="margin-left:2px"><i class="fa fa-upload actionicon"></i></a>
-                  <a @click.stop.prevent="startEditFeature(f)" title="Edit Bushfire" class="button tiny secondary float-right action">
+                  <a v-if="canModify(f)" @click.stop.prevent="startEditFeature(f)" title="Edit Bushfire" class="button tiny secondary float-right action">
                     <svg class="editicon"><use xlink:href="dist/static/images/iD-sprite.svg#icon-area"></use></svg>
                   </a>
                   <a v-if="canCreate(f)" @click.stop.prevent="createFeature(f)" title="Create" class="button tiny secondary float-right action" style="margin-left:2px;background-color:red"><i class="fa fa-save actionicon"></i></a>
@@ -545,10 +547,16 @@
             return false
         }
       },
+      canBatchUpload:function() {
+        return this.revision && this.whoami["bushfire"]["permission"]["final_authorised.modify"]
+      },
       canEdit:function(bushfire) {
         return this.revision && bushfire.get('status') !== "new" && this.isEditable(bushfire) && bushfire.get('tint') !== "modified"
       },
       canUpload:function(bushfire) {
+        return this.revision && this.isModifiable(bushfire)
+      },
+      canModify:function(bushfire) {
         return this.revision && this.isModifiable(bushfire)
       },
       canReset:function(bushfire) {
@@ -1242,9 +1250,10 @@
                 vm.selectedFeatures.setAt(index,features[0])
             }
               
-              if (callback) {
-                  callback(features[0])
-              }
+            if (callback) {
+                callback(features[0])
+            }
+            vm._checkPermission(features,0)
           } else {
             //feature does not exist or is invalid, remove it from bushfire list
             vm.bushfireMapLayer.getSource().removeFeature(feat)
@@ -1724,7 +1733,8 @@
                 }
 
                 vm.selectedFeatures.clear()
-                var notFoundBushfires = null
+                //var notFoundBushfires = null
+                //var noPermissionBushfires = null
                 var geometries = null
                 $.each(features,function(index,feature){
                     if (feature.get('fire_number') !== undefined) {
@@ -1732,6 +1742,9 @@
                         var feat = vm.allFeatures.getArray().find(function(f) {return f.get('fire_number') === feature.get('fire_number')})
                         canUpload(feature,feat)
                         if (feat) {
+                            if (!vm.isModifiable(feat)) {
+                                return
+                            }
                             changed = false
                             geometries = feat.getGeometry().getGeometriesArray()
                             featurePoint = geometries.find(function(g){return g instanceof ol.geom.Point}) || null
@@ -1832,8 +1845,8 @@
                             vm.measure.remeasureFeature(feature)
                             vm.selectedFeatures.push(feature)
                         } else {
-                            notFoundBushfires = notFoundBushfires || []
-                            notFoundBushfires.push(feature)
+                            //notFoundBushfires = notFoundBushfires || []
+                            //notFoundBushfires.push(feature)
                         }
                     }
                 }) 
@@ -1863,10 +1876,11 @@
                     import_task.setStatus(utils.SUCCEED)
                     vm._taskManager.clearTasks(feat)
                 }
-
+                /*
                 if (notFoundBushfires) {
                     alert("Some bushfires are not found." + JSON.stringify(notFoundBushfires.map(function(o) {return {id:o.get('id'),name:o.get('name')}})))
                 }
+                */
             }
           }catch(ex) {
             if (import_task) {
@@ -2193,18 +2207,100 @@
           "unknown.edit":false,
           "unknown.modify":false,
           "unknown.delete":false,
-          "initial.edit":true,
-          "initial.modify":true,
+          "initial.edit":null,
+          "initial.modify":null,
           "initial.delete":false,
-          "draft_final.edit":true,
-          "draft_final.modify":true,
+          "draft_final.edit":null,
+          "draft_final.modify":null,
           "draft_final.delete":false,
-          "final_authorised.edit":true,
-          "final_authorised.modify":true,
+          "final_authorised.edit":null,
+          "final_authorised.modify":null,
           "final_authorised.delete":false,
-          "reviewed.edit":true,
-          "reviewed.modify":true,
+          "reviewed.edit":null,
+          "reviewed.modify":null,
           "reviewed.delete":false,
+          "_checked_":0
+      }
+
+      var permissionConfig = [
+          ["create",vm.createUrl(),null,function(hasPermission){
+             if (hasPermission) {
+                 if (vm.tools && !vm.tools.find(function(t){return t === vm.ui.originPointTool})) {
+                  vm.tools.push(vm.ui.originPointTool)
+                 }
+             }
+          }],
+          ["initial.edit",vm.editUrl,function(f){return f.get('status') === "initial"},null],
+          ["initial.modify",vm.editUrl,function(f){return f.get('status') === "initial"},null],
+          ["draft_final.edit",vm.editUrl,function(f) {return f.get('status') === "draft_final"},null],
+          ["draft_final.modify",vm.editUrl,function(f) {return f.get('status') === "draft_final"},null],
+          ["final_authorised.edit",vm.editUrl,function(f) {return f.get('status') === "final_authorised"},null],
+          ["final_authorised.modify",vm.editUrl,function(f) {return f.get('status') === "final_authorised"},null],
+          ["reviewed.edit",vm.editUrl,function(f) {return f.get('status') === "reviewed"},null],
+          ["reviewed.modify",vm.editUrl,function(f) {return f.get('status') === "reviewed"},null],
+      ]
+      vm._checkPermission = function(features,index,callback){
+          var p = permissionConfig[index]
+          var url = null
+          if (vm.whoami['bushfire']['permission']['_checked_'] === permissionConfig.length) {
+              //All permission checks are done
+              if (callback) callback()
+              return
+          }
+
+          if (vm.whoami['bushfire']["permission"][p[0]] === null || vm.whoami['bushfire']["permission"][p[0]] === undefined){
+              if (p[1] === null) {
+                  //always have the permission
+                  vm.whoami['bushfire']["permission"][p[0]] = true
+                  vm.whoami['bushfire']["permission"]["changed"] = true
+                  vm.whoami['bushfire']['permission']['_checked_'] = vm.whoami['bushfire']['permission']['_checked_'] + 1
+              } else {
+                  if (typeof p[1] === "string") {
+                      //url is a constant string
+                      url = p[1]
+                  } else {
+                      //url is a function with a bushfire argument.
+                      var f = (Array.isArray(features))?features.find(p[2]):(p[2](f)?features:null)
+                      if (f) {
+                          //get the test url
+                          url = p[1](f)
+                      } else {
+                          //can't find a bushfire to test
+                          url = null
+                          vm.whoami['bushfire']["permission"][p[0]] = null
+                      }
+                  }
+              }
+          }
+          if (url) {
+              vm.utils.checkPermission(url,function(hasPermission){
+                  vm.whoami['bushfire']['permission']['_checked_'] = vm.whoami['bushfire']['permission']['_checked_'] + 1
+                  vm.whoami['bushfire']["permission"][p[0]] = hasPermission
+                  vm.whoami['bushfire']["permission"]["changed"] = true
+                  if (p[3]) {
+                      p[3](hasPermission)
+                  }
+                  if (index < permissionConfig.length - 1) {
+                      vm._checkPermission(features,index + 1,callback)
+                  } else {
+                      if (vm.whoami['bushfire']["permission"]["changed"]) {
+                          delete vm.whoami['bushfire']["permission"]["changed"]
+                          vm.revision += 1
+                      }
+                      if (callback) callback()
+                  }
+              })
+          } else {
+              if (index < permissionConfig.length - 1) {
+                  vm._checkPermission(features,index + 1,callback)
+              } else {
+                  if (vm.whoami['bushfire']["permission"]["changed"]) {
+                      delete vm.whoami['bushfire']["permission"]["changed"]
+                      vm.revision += 1
+                  }
+                  if (callback) callback()
+              }
+          }
       }
 
       vm.loadRegions()
@@ -2628,67 +2724,7 @@
                 }
                 vm._bfrsStatus.phaseEnd("load_bushfires")
             }
-            var permissionConfig = [
-                ["create",vm.env.bfrsService + "/bfrs/create/",null,function(hasPermission){
-                   if (hasPermission) {
-                       if (vm.tools && !vm.tools.find(function(t){return t === vm.ui.originPointTool})) {
-                        vm.tools.push(vm.ui.originPointTool)
-                       }
-                   }
-                }],
-                ["initial.edit",null,function(f){return f.get('status') === "initial"},null],
-                ["draft_final.edit",null,function(f) {return f.get('status') === "final"},null],
-                ["final_authorised.edit",null,function(f) {return f.get('status') === "final_authorised"},null],
-            ]
-            var checkPermission = function(index){
-                var p = permissionConfig[index]
-                var url = null
-                if (vm.whoami['bushfire']["permission"][p[0]] === null || vm.whoami['bushfire']["permission"][p[0]] === undefined){
-                    if (p[1] === null) {
-                        //always have the permission
-                        vm.whoami['bushfire']["permission"][p[0]] = true
-                        vm.whoami['bushfire']["permission"]["changed"] = true
-                    } else {
-                        if (typeof p[1] === "string") {
-                            //url is a constant string
-                            url = p[1]
-                        } else {
-                            //url is a function with a bushfire argument.
-                            var f = features.find(p[2])
-                            if (f) {
-                                //get the test url
-                                url = p[1](f)
-                            } else {
-                                //can't find a bushfire to test
-                                url = null
-                                vm.whoami['bushfire']["permission"][p[0]] = null
-                                vm.whoami['bushfire']["permission"]["changed"] = true
-                            }
-                        }
-                    }
-                }
-                if (url) {
-                    vm.utils.checkPermission(url,function(hasPermission){
-                        vm.whoami['bushfire']["permission"][p[0]] = hasPermission
-                        vm.whoami['bushfire']["permission"]["changed"] = true
-                        if (p[3]) {
-                            p[3](hasPermission)
-                        }
-                        if (index < permissionConfig.length - 1) {
-                            checkPermission(index + 1)
-                        } else {
-                            processResources()
-                        }
-                    })
-                } else {
-                    if (index < permissionConfig.length - 1) {
-                        checkPermission(index + 1)
-                    } else {
-                        processResources()
-                    }
-                }
-            }
-            checkPermission(0)
+            vm._checkPermission(features,0,processResources)
         }
       })
 
