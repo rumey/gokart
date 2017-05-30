@@ -78,7 +78,7 @@
             var vm = this
             var geom = null
             this.features.forEach(function(feature) {
-                vm.measuring(feature,null,true,false,false,"changeUnit") 
+                vm.measuring(feature,null,true,false,false,"changeUnit",true) 
             })
 
             $.each(vm._measureLayers,function(index,layer){
@@ -91,7 +91,7 @@
         areaUnit:function(newValue,oldValue) {
             var vm = this
             this.features.forEach(function(feature) {
-                vm.measuring(feature,null,false,true,false,"changeUnit") 
+                vm.measuring(feature,null,false,true,false,"changeUnit",true) 
             })
 
             $.each(vm._measureLayers,function(index,layer){
@@ -137,12 +137,12 @@
     },
     // methods callable from inside the template
     methods: {
-      //layer can be layer id, layer setting
+      //layer can be layer id, layer object
       register:function(layer,features,filter) {
         this._measureLayers = this._measureLayers || []
         this._measureLayers.push([layer["id"] || layer,features || null, filter||null,{}])
       },
-      //layer can be layerid, layer settings, and memeber of this._measureLayers
+      //layer can be layerid, layer object, and memeber of this._measureLayers
       enableLayerMeasurement:function(layer,enable) {
         var vm = this
         var layer = (Array.isArray(layer))?layer:this._measureLayers.find(function(l) {return l[0] === (layer["id"] || layer)})
@@ -285,16 +285,16 @@
             // set feature
             vm.drawingFeature = evt.feature
 
-            vm.createTooltip(vm.drawingFeature,null,measureLength,measureArea,measureBearing)
+            vm.createTooltip(vm.drawingFeature,null,measureLength,measureArea,measureBearing,true)
 
             vm.geometryChangeHandler = vm.drawingFeature.getGeometry().on('change', function(feature,measureLength,measureArea,measureBearing){
                 return function(evg) {
-                    vm.measuring(feature,null,measureLength,measureArea,measureBearing,"drawing")
+                    vm.measuring(feature,null,measureLength,measureArea,measureBearing,"drawing",true)
                 }
             }(vm.drawingFeature,measureLength,measureArea,measureBearing))
         }
       },
-      measuring: function(feature,getMeasureGeometry,measureLength,measureArea,measureBearing,mode,indexes) {
+      measuring: function(feature,getMeasureGeometry,measureLength,measureArea,measureBearing,mode,measureFeature,indexes) {
         var vm = this
         this._measure = this._measure || function(feature,geom,tooltipElement,tooltip,measurement,measureLength,measureArea,measureBearing,mode) {
             if (!tooltipElement) {
@@ -403,29 +403,28 @@
             }
         }
 
+        measureFeature = ((measureFeature === undefined || measureFeature === null))?vm.measureFeature:measureFeature
         if(indexes && feature.get('measurement') !== undefined && feature.get('measurement') !== null) {
             var geom = this.annotations.getSelectedGeometry(feature,indexes)
             var measurement = this.getMeasurementObject(feature.get('measurement'),indexes,true,indexes.length - 2)
             measurement.splice(indexes[indexes.length - 1],0,(geom instanceof ol.geom.GeometryCollection || geom instanceof ol.geom.MultiPoint || geom instanceof ol.geom.MultiLineString || geom instanceof ol.geom.MultiPolygon)?[]:(geom instanceof ol.geom.Point?null:{}))
-            if (vm.measureFeature) {
+            if (measureFeature) {
                 measurement = measurement[indexes[indexes.length - 1]]
                 this._measure(feature,geom,this.getMeasurementObject(feature.tooltipElement,indexes),this.getMeasurementObject(feature.tooltip,indexes),measurement,measureLength,measureArea,measureBearing,mode)
             }
-        } else {
-            if (vm.measureFeature || (feature.get('measurement') !== undefined && feature.get('measurement') !== null)) {
-                var measurement = this._measure(
-                    feature,
-                    getMeasureGeometry?getMeasureGeometry.call(feature):feature.getGeometry(),
-                    feature.tooltipElement,
-                    feature.tooltip,
-                    feature.get('measurement'),
-                    measureLength,
-                    measureArea,
-                    measureBearing,mode
-                )
-                if (measurement && measurement !== feature.get('measurement')) {
-                    feature.set('measurement',measurement,true)
-                }
+        } else if (measureFeature || (feature.get('measurement') !== undefined && feature.get('measurement') !== null)) {
+            var measurement = this._measure(
+                feature,
+                getMeasureGeometry?getMeasureGeometry.call(feature):feature.getGeometry(),
+                feature.tooltipElement,
+                feature.tooltip,
+                feature.get('measurement'),
+                measureLength,
+                measureArea,
+                measureBearing,mode
+            )
+            if (measurement && measurement !== feature.get('measurement')) {
+                feature.set('measurement',measurement,true)
             }
         }
       },
@@ -529,7 +528,7 @@
             }
         }
       },
-      createTooltip: function (feature,getMeasureGeometry,measureLength,measureArea,measureBearing,indexes) {
+      createTooltip: function (feature,getMeasureGeometry,measureLength,measureArea,measureBearing,measureFeature,indexes) {
         var vm = this
 
         this._createTooltipElement = this._createTooltipElement || function(geom,measureLength,measureArea,measureBearing) {
@@ -598,10 +597,11 @@
             }
         }
     
+        measureFeature = ((measureFeature === undefined || measureFeature === null))?vm.measureFeature:measureFeature
         var tooltipElement = null
         if (feature.tooltipElement === undefined || feature.tooltipElement === null) {
             //console.log("Create measure tooltip element")
-            if (vm.measureFeature) {
+            if (measureFeature) {
                 tooltipElement = this._createTooltipElement(getMeasureGeometry?getMeasureGeometry.call(feature):feature.getGeometry(),measureLength,measureArea,measureBearing)
                 if (tooltipElement && (!Array.isArray(tooltipElement) || tooltipElement.length > 0)) {
                     feature['tooltipElement'] = tooltipElement
@@ -618,7 +618,7 @@
 
         if (feature.tooltip === undefined || feature.tooltip === null) { 
             //console.log("Create measure tooltip overlay")
-            if (vm.measureFeature && feature['tooltipElement']) {
+            if (measureFeature && feature['tooltipElement']) {
                 feature['tooltip'] = this._createTooltip(feature['tooltipElement'])
             }
         } else if(Array.isArray(indexes)){
@@ -1014,8 +1014,8 @@
         tool = tool?vm.annotations.getTool(tool):null
         if (!tool) {return}
         
-        vm.createTooltip(ev.feature,tool.getMeasureGeometry,tool.measureLength,tool.measureArea,false,ev.indexes)
-        vm.measuring(ev.feature,tool.getMeasureGeometry,tool.measureLength,tool.measureArea,false,"show",ev.indexes) 
+        vm.createTooltip(ev.feature,tool.getMeasureGeometry,tool.measureLength,tool.measureArea,false,vm.measureFeature,ev.indexes)
+        vm.measuring(ev.feature,tool.getMeasureGeometry,tool.measureLength,tool.measureArea,false,"show",vm.measureFeature,ev.indexes) 
       }
       var deleteFeatureGeometryListener = function(ev) {
         var tool = ev.feature.get('toolName')

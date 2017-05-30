@@ -403,6 +403,9 @@
       bushfireLabels:function(newValue,oldValue) {
         this.showBushfireLabels()
       },
+      tools:function(newValue,oldValue) {
+        this.adjustHeight()
+      }
     },
     methods: {
       featureTasks:function(feat) {
