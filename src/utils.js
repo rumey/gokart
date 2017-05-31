@@ -125,20 +125,43 @@ Utils.prototype.checkPermission = function(url,callback) {
     } else {
         url = url + "?checkpermission=true"
     }
+    var parameters = null
+    if (arguments.length > 2) {
+        parameters = []
+        for(var index = 2;index < arguments.length;index++) {
+            parameters.push(arguments[index])
+        }
+    }
     $.ajax(url ,{
         xhrFields:{
             withCredentials: true
         },
         success:function(data,status,jqXHR) {
-            callback(true)
-        },
-        error:function(jqXHR) {
-            if (jqXHR.status === 401) {
-                callback(false)
-            } else if(jqXHR.status >= 500) {
-                callback(false)
+            if (parameters) {
+                parameters.splice(0,0,true)
+                callback.apply(null,parameters)
             } else {
                 callback(true)
+            }
+        },
+        error:function(jqXHR) {
+            if (parameters) {
+                if (jqXHR.status === 401) {
+                    parameters.splice(0,0,false)
+                } else if(jqXHR.status >= 500) {
+                    parameters.splice(0,0,false)
+                } else {
+                    parameters.splice(0,0,true)
+                }
+                callback.apply(null,parameters)
+            } else {
+                if (jqXHR.status === 401) {
+                    callback(false)
+                } else if(jqXHR.status >= 500) {
+                    callback(false)
+                } else {
+                    callback(true)
+                }
             }
         }
         
