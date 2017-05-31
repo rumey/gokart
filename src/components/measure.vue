@@ -84,7 +84,7 @@
             $.each(vm._measureLayers,function(index,layer){
                 layer[1].forEach(function(feature) {
                     var tool = vm.annotations.getTool(feature.get('toolName'))
-                    vm.measuring(feature,tool?too.getMeasureGeometry:null,true,false,false,"changeUnit") 
+                    vm.measuring(feature,tool?tool.getMeasureGeometry:null,true,false,false,"changeUnit") 
                 })
             })
         },
