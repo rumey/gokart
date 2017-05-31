@@ -2265,13 +2265,13 @@
                  }
              }
           }],
-          ["initial.edit",vm.saveUrl,"PATCH",function(f){return f.get('status') === "initial"},null],
+          ["initial.edit",vm.editUrl,"GET",function(f){return f.get('status') === "initial"},null],
           ["initial.modify",vm.saveUrl,"PATCH",function(f){return f.get('status') === "initial"},null],
-          ["draft_final.edit",vm.saveUrl,"PATCH",function(f) {return f.get('status') === "draft_final"},null],
+          ["draft_final.edit",vm.editUrl,"GET",function(f) {return f.get('status') === "draft_final"},null],
           ["draft_final.modify",vm.saveUrl,"PATCH",function(f) {return f.get('status') === "draft_final"},null],
-          ["final_authorised.edit",vm.saveUrl,"PATCH",function(f) {return f.get('status') === "final_authorised"},null],
+          ["final_authorised.edit",vm.editUrl,"GET",function(f) {return f.get('status') === "final_authorised"},null],
           ["final_authorised.modify",vm.saveUrl,"PATCH",function(f) {return f.get('status') === "final_authorised"},null],
-          ["reviewed.edit",vm.saveUrl,"PATCH",function(f) {return f.get('status') === "reviewed"},null],
+          ["reviewed.edit",vm.editUrl,"GET",function(f) {return f.get('status') === "reviewed"},null],
           ["reviewed.modify",vm.saveUrl,"PATCH",function(f) {return f.get('status') === "reviewed"},null],
       ]
       vm._checkPermission = function(features,callback){
