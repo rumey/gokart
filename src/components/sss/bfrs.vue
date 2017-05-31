@@ -96,10 +96,10 @@
                 <div class="row collapse">
                   <div class="small-6 columns">
                     <select name="select" v-model="statusFilter" @change="updateCQLFilter('bushfireStatus',500)">
-                      <option value="" selected>All bushfires</option> 
-                      <option value="report_status = 1">Initial Bushfires</option>
-                      <option value="report_status = 2">Initial Authorised Bushfires</option>
-                      <option value="report_status >= 3">Final Authorised Bushfires</option>
+                      <option value="" selected>All Reports</option> 
+                      <option value="report_status = 1">Draft Incident</option>
+                      <option value="report_status = 2">Incident Submitted</option>
+                      <option value="report_status >= 3">Report Authorised</option>
                     </select>
                   </div>
                   <div class="small-6 columns">
@@ -1171,6 +1171,7 @@
         feat.setStyle(this.bushfireStyleFunc)
         feat.set('modifyType',3,true)
         feat.set('fire_number',feat.get('id').toString(),true)
+        feat.set('report_status',99998,true)
 
         this.bushfireMapLayer.getSource().addFeature(feat)
         var insertIndex = null
@@ -2227,11 +2228,21 @@
 
       vm._reportStatus = {
        99999: "unknown",
+       99998: "new",
         1: "initial",
         2: "draft_final",
         3: "final_authorised",
         4: "reviewed"
       }
+      vm._reportStatusName = {
+       99999: "Unknown",
+       99998: "New Draft Incident",
+        1: "Draft Incident",
+        2: "Incident Submitted",
+        3: "Report Authorised",
+        4: "Report Reviewed"
+      }
+      
       
       vm.whoami["bushfire"] = vm.whoami["bushfire"] || {}
       vm.whoami["bushfire"]["permission"] = vm.whoami["bushfire"]["permission"] || {
@@ -2621,7 +2632,7 @@
         name: 'Bush Fire Report',
         id: vm.env.bushfireLayer,
         getFeatureInfo:function (f) {
-            return {name:f.get("fire_number"), img:map.getBlob(f, ['icon', 'tint']), comments:f.get('name') + "(" + f.get('status')  + ")"}
+            return {name:f.get("fire_number"), img:map.getBlob(f, ['icon', 'tint']), comments:f.get('name') + "(" + (vm._reportStatusName[f.get('report_status')] || vm._reportStatusName[99999]) + ")"}
         },
         initialLoad:false,
         refresh: 60,
