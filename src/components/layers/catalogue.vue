@@ -292,7 +292,7 @@ div.ol-previewmap.ol-uncollapsible {
             layers.push(l)
           })
           if (checkingLayer) { 
-              utils.checkPermission(vm.env.catalogueAdminService + "/django-admin/catalogue/record/" + checkingLayer.systemid + "/change/",function(allowed){
+              utils.checkPermission(vm.env.catalogueAdminService + "/django-admin/catalogue/record/" + checkingLayer.systemid + "/change/","GET",function(allowed){
                 vm.whoami.editLayer = allowed
                 vm.catalogue.extend(layers)
                 callback()

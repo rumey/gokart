@@ -2258,21 +2258,21 @@
       }
 
       var permissionConfig = [
-          ["create",vm.createUrl(),null,function(hasPermission){
+          ["create",vm.createUrl(),"GET",null,function(hasPermission){
              if (hasPermission) {
                  if (vm.tools && !vm.tools.find(function(t){return t === vm.ui.originPointTool})) {
                   vm.tools.push(vm.ui.originPointTool)
                  }
              }
           }],
-          ["initial.edit",vm.editUrl,function(f){return f.get('status') === "initial"},null],
-          ["initial.modify",vm.editUrl,function(f){return f.get('status') === "initial"},null],
-          ["draft_final.edit",vm.editUrl,function(f) {return f.get('status') === "draft_final"},null],
-          ["draft_final.modify",vm.editUrl,function(f) {return f.get('status') === "draft_final"},null],
-          ["final_authorised.edit",vm.editUrl,function(f) {return f.get('status') === "final_authorised"},null],
-          ["final_authorised.modify",vm.editUrl,function(f) {return f.get('status') === "final_authorised"},null],
-          ["reviewed.edit",vm.editUrl,function(f) {return f.get('status') === "reviewed"},null],
-          ["reviewed.modify",vm.editUrl,function(f) {return f.get('status') === "reviewed"},null],
+          ["initial.edit",vm.saveUrl,"PATCH",function(f){return f.get('status') === "initial"},null],
+          ["initial.modify",vm.saveUrl,"PATCH",function(f){return f.get('status') === "initial"},null],
+          ["draft_final.edit",vm.saveUrl,"PATCH",function(f) {return f.get('status') === "draft_final"},null],
+          ["draft_final.modify",vm.saveUrl,"PATCH",function(f) {return f.get('status') === "draft_final"},null],
+          ["final_authorised.edit",vm.saveUrl,"PATCH",function(f) {return f.get('status') === "final_authorised"},null],
+          ["final_authorised.modify",vm.saveUrl,"PATCH",function(f) {return f.get('status') === "final_authorised"},null],
+          ["reviewed.edit",vm.saveUrl,"PATCH",function(f) {return f.get('status') === "reviewed"},null],
+          ["reviewed.modify",vm.saveUrl,"PATCH",function(f) {return f.get('status') === "reviewed"},null],
       ]
       vm._checkPermission = function(features,callback){
           if (vm.whoami['bushfire']['permission']['_checked_'] === permissionConfig.length) {
@@ -2307,7 +2307,7 @@
                           url = p[1]
                       } else {
                           //url is a function with a bushfire argument.
-                          var f = (Array.isArray(features))?features.find(p[2]):(p[2](f)?features:null)
+                          var f = (Array.isArray(features))?features.find(p[3]):(p[3](features)?features:null)
                           if (f) {
                               //get the test url
                               url = p[1](f)
@@ -2322,12 +2322,12 @@
               if (url) {
                   taskCounter += 1
                   
-                  vm.utils.checkPermission(url,function(hasPermission,permission){
+                  vm.utils.checkPermission(url,p[2],function(hasPermission,permission){
                       vm.whoami['bushfire']['permission']['_checked_'] = vm.whoami['bushfire']['permission']['_checked_'] + 1
                       vm.whoami['bushfire']["permission"][permission[0]] = hasPermission
                       vm.whoami['bushfire']["permission"]["changed"] = true
-                      if (permission[3]) {
-                          permission[3](hasPermission)
+                      if (permission[4]) {
+                          permission[4](hasPermission)
                       }
                       if (--taskCounter <= 0) vm._checkPermissionCallback(callback)
                   },p)

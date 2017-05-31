@@ -114,7 +114,8 @@ Utils.prototype.getFeatureTaskManager = function(changeCallback) {
     return new FeatureTaskManager(changeCallback)
 }
 
-Utils.prototype.checkPermission = function(url,callback) {
+Utils.prototype.checkPermission = function(url,method,callback) {
+    method = method || "GET"
     var pos = url.indexOf('?')
     if  (pos >= 0) {
         if (pos === url.length - 1) {
@@ -126,16 +127,17 @@ Utils.prototype.checkPermission = function(url,callback) {
         url = url + "?checkpermission=true"
     }
     var parameters = null
-    if (arguments.length > 2) {
+    if (arguments.length > 3) {
         parameters = []
-        for(var index = 2;index < arguments.length;index++) {
+        for(var index = 3;index < arguments.length;index++) {
             parameters.push(arguments[index])
         }
     }
-    $.ajax(url ,{
+    var ajaxSetting = {
         xhrFields:{
             withCredentials: true
         },
+        method:method,
         success:function(data,status,jqXHR) {
             if (parameters) {
                 parameters.splice(0,0,true)
@@ -165,7 +167,12 @@ Utils.prototype.checkPermission = function(url,callback) {
             }
         }
         
-    })
+    }
+    if (["POST","PATCH","PUT"].indexOf(method) >= 0) {
+        ajaxSetting["contentType"] = "application/json"
+        ajaxSetting["data"] = JSON.stringify({})
+    }
+    $.ajax(url ,ajaxSetting)
 }
 
 Utils.prototype.editResource = function(event) {

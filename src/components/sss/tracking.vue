@@ -737,7 +737,7 @@
             if ((vm.whoami.editVehicle === null || vm.whoami.editVehicle === undefined ) && features.length > 0) {
                 var f = features.find(function(f) {return f.get('source_device_type') != "tracplus"})
                 if (f){
-                    utils.checkPermission(vm.env.resourceTrackingService + "/sss_admin/tracking/device/" + f.get('id') + "/change/",function(allowed){
+                    utils.checkPermission(vm.env.resourceTrackingService + "/sss_admin/tracking/device/" + f.get('id') + "/change/","GET",function(allowed){
                         vm.whoami.editVehicle = allowed
                         processResources()
                     })
