@@ -68,7 +68,7 @@
                             <span class="show-for-sr">Show selected only</span>
                          </label>
                         </div>
-                        <label for="selectedBushfiresOnly" style="margin-left:3px" class="side-label">Show selected only</label>
+                        <label for="selectedBushfiresOnly" style="side-label" class="side-label">Show selected only</label>
                       </div>
                     </div>
                   </div>
