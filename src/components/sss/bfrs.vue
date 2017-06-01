@@ -77,7 +77,7 @@
                 <div class="row collapse">
                   <div class="small-6 columns">
                     <select name="select" v-model="region" @change="updateCQLFilter('region',2000)">
-                      <option value="" selected>All regions</option> 
+                      <option value="" selected>---------</option> 
                       <option v-for="r in regions"  value="{{r.region_id}}" track-by="region_id">
                         {{r.region}}
                       </option>
@@ -85,7 +85,7 @@
                   </div>
                   <div class="small-6 columns">
                     <select name="select" v-model="district" @change="updateCQLFilter('district',500)">
-                      <option value="" selected>All districts</option> 
+                      <option value="" selected>---------</option> 
                       <option v-for="d in districts"  value="{{d.id}}" track-by="id">
                         {{d.district}}
                       </option>
@@ -96,7 +96,7 @@
                 <div class="row collapse">
                   <div class="small-6 columns">
                     <select name="select" v-model="statusFilter" @change="updateCQLFilter('bushfireStatus',500)">
-                      <option value="" selected>All Reports</option> 
+                      <option value="" selected>---------</option> 
                       <option value="report_status = 1">Draft Incident</option>
                       <option value="report_status = 2">Incident Submitted</option>
                       <option value="report_status >= 3">Report Authorised</option>
