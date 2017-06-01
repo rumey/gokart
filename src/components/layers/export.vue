@@ -1,6 +1,7 @@
 <template>
   <div class="tabs-panel" id="layers-export" v-cloak>
     <div id="map-export-controls">
+      <div id="settings-fixpart">  
       <!--div class="tool-slice row collapse">
         <div class="small-3">
           <label class="tool-label">Vector format:</label>
@@ -77,53 +78,6 @@
       </div>
       
       <hr class="row"/>
-
-      <div class="tool-slice row collapse">
-        <div class="small-3">
-          <label class="tool-label">Save view:</label>
-        </div>
-        <div class="small-9 columns">
-          <div class="input-group">
-            <input v-el:savestatename class="input-group-field" type="text" placeholder="Name for saved view"/>
-            <div class="input-group-button">
-              <a class="button" @click="saveStateButton()">Save</a>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="tool-slice row collapse">
-        <div class="small-3">
-          <label class="tool-label">Export view:</label>
-        </div>
-        <div class="small-9 columns">
-          <div class="expanded button-group">
-            <a class="button expanded" @click="download()"><i class="fa fa-download"></i> Download current view</a>
-          </div>
-        </div>
-      </div>
-      <div class="tool-slice row collapse">
-        <div class="small-3">
-          <label class="tool-label">Load view:</label>
-        </div>
-        <div class="small-9 columns">
-          <div class="expanded button-group">
-            <label class="button expanded" for="uploadFile"><i class="fa fa-upload"></i> Upload view file</label><input type="file" id="uploadFile" class="show-for-sr" name="statefile" accept="application/json" v-model="statefile" v-el:statefile @change="load()"/>
-          </div>
-          <div v-for="state in states" class="feature-row" style="overflow: hidden">
-            <div class="float-right button-group small">
-              <a class="button" title="Open view" @click="open(state)"><i class="fa fa-folder-open"></i></a>
-              <a class="button" title="Download view" @click="download(state)"><i class="fa fa-download"></i></a>
-              <a class="button alert" title="Delete view" @click="remove(state)">✕</a>
-            </div>
-            {{ state }}
-          </div>
-          <div v-if="states.length == 0" class="feature-row">
-            No saved views yet
-          </div>
-        </div>
-      </div>
-
-      <hr class="row"/>
       <div class="tool-slice row collapse">
         <div class="small-3">
           <label class="tool-label">Info:</label>
@@ -174,6 +128,60 @@
         </div>
       </div>
 
+      <hr class="row"/>
+      <div class="tool-slice row collapse">
+        <div class="small-3">
+          <label class="tool-label">Save view:</label>
+        </div>
+        <div class="small-9 columns">
+          <div class="input-group">
+            <input v-el:savestatename class="input-group-field" type="text" placeholder="Name for saved view"/>
+            <div class="input-group-button">
+              <a class="button" @click="saveStateButton()">Save</a>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="tool-slice row collapse">
+        <div class="small-3">
+          <label class="tool-label">Export view:</label>
+        </div>
+        <div class="small-9 columns">
+          <div class="expanded button-group">
+            <a class="button expanded" @click="download()"><i class="fa fa-download"></i> Download current view</a>
+          </div>
+        </div>
+      </div>
+      <div class="tool-slice row collapse">
+        <div class="small-3">
+          <label class="tool-label">Load view:</label>
+        </div>
+        <div class="small-9 columns">
+          <div class="expanded button-group">
+            <label class="button expanded" for="uploadFile"><i class="fa fa-upload"></i> Upload view file</label><input type="file" id="uploadFile" class="show-for-sr" name="statefile" accept="application/json" v-model="statefile" v-el:statefile @change="load()"/>
+          </div>
+        </div>
+      </div>
+      </div>
+
+      <div class="tool-slice row collapse scroller" id="settings-flexible">
+        <div class="small-3">
+          <label class="tool-label"></label>
+        </div>
+        <div class="small-9 columns">
+          <div v-for="state in states" class="feature-row" style="overflow: hidden">
+            <div class="float-right button-group small">
+              <a class="button" title="Open view" @click="open(state)"><i class="fa fa-folder-open"></i></a>
+              <a class="button" title="Download view" @click="download(state)"><i class="fa fa-download"></i></a>
+              <a class="button alert" title="Delete view" @click="remove(state)">✕</a>
+            </div>
+            {{ state }}
+          </div>
+          <div v-if="states.length == 0" class="feature-row">
+            No saved views yet
+          </div>
+        </div>
+      </div>
 
       <div class="hide" v-el:legendsvg>
         <gk-legend></gk-legend>
@@ -232,7 +240,19 @@
   import gkLegend from './legend.vue'
   import gkLayerlegends from './layerlegends.vue'
   export default {
-    store: ['whoami', 'dpmm', 'view', 'mmPerInch','settings','displayResolution'],
+    store: {
+        whoami:'whoami', 
+        dpmm:'dpmm', 
+        view:'view', 
+        mmPerInch:'mmPerInch',
+        settings:'settings',
+        displayResolution:'displayResolution',
+        activeMenu:'activeMenu',
+        activeSubmenu:'activeSubmenu',
+        screenHeight:'layout.screenHeight',
+        hintsHeight:'layout.hintsHeight',
+        leftPanelHeadHeight:'layout.leftPanelHeadHeight'
+    },
     components: { gkLegend,gkLayerlegends },
     data: function () {
       return {
@@ -297,6 +317,13 @@
     },
     // methods callable from inside the template
     methods: {
+      adjustHeight:function() {
+        if (this.activeMenu === "layers" && this.activeSubmenu === "export") {
+            console.log("screenHeight=" + this.screenHeight)
+            console.log("fixedHeight=" + $("#settings-fixpart").height() )
+            $("#settings-flexible").height(this.screenHeight - this.leftPanelHeadHeight -16 - $("#settings-fixpart").height() - this.hintsHeight)
+        }
+      },
       toggleRetainBoundingbox:function(ev) {
         this.settings.print.retainBoundingbox = !this.settings.print.retainBoundingbox
         this.saveState()
