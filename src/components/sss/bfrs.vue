@@ -103,6 +103,16 @@
                     </select>
                   </div>
                   <div class="small-6 columns">
+                    <select name="select" v-model="yearFilter">
+                      <option v-for="y in years"  value="{{y[0]}}" track-by="$index">
+                        {{y[1]}}
+                      </option>
+                    </select>
+                  </div>
+                </div>
+    
+                <div class="row collapse">
+                  <div class="small-12 columns">
                     <input type="search" v-model="search" placeholder="Find a bushfire" @keyup="updateFeatureFilter">
                   </div>
                 </div>
@@ -232,6 +242,7 @@
         selectedOnly: false,
         search: '',
         statusFilter: '',
+        yearFilter:null,
         region:'',
         district:'',
         bushfireLabelsDisabled:false,
@@ -324,6 +335,10 @@
         return this.$root.map?this.$root.map.getMapLayer(this.bushfireLayer):undefined
       },
       finalFireBoundaryLayer: function() {
+        //console.log(this.env.bushfireLayer)
+        return bushfireLayer.dependentLayers[0]
+      },
+      finalFireBoundaryMapLayer: function() {
         return this.$root.map?this.$root.map.getMapLayer(this.env.finalFireBoundaryLayer):undefined
       },
       selectedFinalFireBoundaryMapLayer: function() {
@@ -334,6 +349,20 @@
       },
       districtFilter:function() {
         return this.district?("district_id=" + this.district) : null
+      },
+      years:function() {
+        try{
+            return this.profileRevision && this.whoami["bushfire"]["years"]
+        }catch(ex) {
+            return []
+        }
+      },
+      regions:function() {
+        try{
+            return this.profileRevision && this.whoami["bushfire"]["regions"]
+        }catch(ex) {
+            return []
+        }
       },
       regions:function() {
         try{
@@ -407,6 +436,24 @@
       },
       tools:function(newValue,oldValue) {
         this.adjustHeight()
+      },
+      yearFilter:function(newValue,oldValue) {
+        if (oldValue) {
+            vm.map.enableDependentLayer(vm.bushfireMapLayer,vm.env.finalFireBoundaryLayer,false)
+        }
+        var index = null
+        if (newValue) {
+            newValue = parseInt(newValue)
+            index = vm.finalFireBoundaryLayer.timeline.findIndex(function(t) {return t[0] === newValue})
+        }
+        if (index) {
+            finalFireBoundaryLayer.timeIndex = index
+            vm.map.enableDependentLayer(vm.bushfireMapLayer,vm.env.finalFireBoundaryLayer,true)
+            this.updateCQLFilter("year")
+        } else {
+            finalFireBoundaryLayer.timeIndex = null
+        }
+        
       }
     },
     methods: {
@@ -417,8 +464,8 @@
         var vm = this
         wait = wait || 1000
         this._refreshWMSLayer = this._refreshWMSLayer || debounce(function(){
-            if (vm.finalFireBoundaryLayer) {
-                vm.finalFireBoundaryLayer.refresh()   
+            if (vm.finalFireBoundaryMapLayer) {
+                vm.finalFireBoundaryMapLayer.refresh()   
             }
         },wait)
 
@@ -1962,8 +2009,9 @@
                 } else {
                     vm.bushfireFilter = ''
                 }
+                vm.yearFilter = "year=" + vm.yearFilter
                 // CQL statement assembling logic
-                var filters = [vm.statusFilter, vm.bushfireFilter, vm.regionFilter, vm.districtFilter].filter(function(f){return (f || false) && true})
+                var filters = [vm.statusFilter, vm.bushfireFilter, vm.regionFilter, vm.districtFilter,vm.yearFilter].filter(function(f){return (f || false) && true})
                 if (filters.length === 0) {
                   vm.bushfireLayer.cql_filter = ''
                 } else if (filters.length === 1) {
@@ -2102,7 +2150,7 @@
       },
       loadUserProfile:function() {
         var vm = this
-        vm._bfrsStatus.phaseBegin("load_profile",20,"Load profile")
+        vm._bfrsStatus.phaseBegin("load_profile",15,"Load profile")
         $.ajax({
             url: vm.env.bfrsService + "/api/v1/profile/?format=json",
             method:"GET",
@@ -2130,7 +2178,7 @@
       },
       loadRegions:function() {
         var vm = this
-        vm._bfrsStatus.phaseBegin("load_regions",20,"Load regions")
+        vm._bfrsStatus.phaseBegin("load_regions",15,"Load regions")
         $.ajax({
             url: vm.env.bfrsService + "/api/v1/region/?format=json",
             method:"GET",
@@ -2156,7 +2204,34 @@
             }
         })
       },
-
+      loadYears:function() {
+        var vm = this
+        vm._bfrsStatus.phaseBegin("load_yearss",10,"Load years")
+        $.ajax({
+            url: vm.env.bfrsService + "/api/v1/bushfire/fields/year/?format=json",
+            method:"GET",
+            dataType:"json",
+            success: function (response, stat, xhr) {
+                vm.whoami["bushfire"]["years"] = response.map(function(y,index){return [y,y + "/" + (y + 1)]})
+                vm.finalFireBoundaryLayer.timeline = response.map(function(y) {return [y.toString(),vm.env.finalFireBoundaryLayer + "_" + y,null]})
+                if (response.length > 0) {
+                    vm.yearFilter = response[0]
+                    vm.finalFireBoundaryLayer.timeline = response.map(function(y) {return [y,vm.env.finalFireBoundaryLayer + "_" + y,null]})
+                } else {
+                    vm.yearFilter = null
+                }
+                vm.profileRevision += 1
+                vm._bfrsStatus.phaseEnd("load_years")
+            },
+            error: function (xhr,status,message) {
+                alert(status + " : " + (xhr.responseText || message))
+                vm._bfrsStatus.phaseFailed("load_years","Failed to loading years data. status = " + status + " , message = " + (xhr.responseText || message))
+            },
+            xhrFields: {
+              withCredentials: true
+            }
+        })
+      },
       setup: function() {
         var vm = this
         //restore the selected features
@@ -2839,6 +2914,8 @@
         })
 
         vm._bfrsStatus.phaseEnd("attach_event")
+
+        vm.loadYears()
         //load user profile
         vm.loadUserProfile()
 
