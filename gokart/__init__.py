@@ -611,11 +611,16 @@ def getOutputDatasource(workdir,fmt,layer,geometryType=None):
             path = os.path.join(workdir,"{}-{}{}".format(layer["sourcename"],geometryType,fmt["fileext"]))
         else:
             path = os.path.join(workdir,"{}{}".format(layer["sourcename"],fmt["fileext"]))
-    else:
+    elif layer.get("sourcename",None):
         if geometryType:
             path = os.path.join(workdir,layer["sourcename"],"{}-{}{}".format(layer["layer"],geometryType,fmt["fileext"]))
         else:
             path = os.path.join(workdir,layer["sourcename"],"{}{}".format(layer["layer"],fmt["fileext"]))
+    else:
+        if geometryType:
+            path = os.path.join(workdir,"{}-{}{}".format(layer["layer"],geometryType,fmt["fileext"]))
+        else:
+            path = os.path.join(workdir,"{}{}".format(layer["layer"],fmt["fileext"]))
     
     if not os.path.exists(os.path.dirname(path)):
         os.makedirs(os.path.dirname(path))
@@ -701,9 +706,10 @@ def loadDatasource(session_cookie,workdir,loadedDatasources,options):
     if len(options["datasources"]) == 0:
         raise Exception("No spatial data are found in datasource  ({}).".format(options["sourcename"]))
 
+    #get the datasource selected by user
     if options.get("datasource"):
         if options["datasource"] == "*":
-            #include all datasource
+            #include all datasource and layers; used when loading a datasource
             return
         else:
             #have selected datasource , find it
@@ -717,6 +723,7 @@ def loadDatasource(session_cookie,workdir,loadedDatasources,options):
                 options["datasource"] = datasource
             else:
                 raise Exception("Datasource({}) does not exist.".format(options["datasource"]))
+
     elif len(options["datasources"]) > 1:
         raise Exception("Multiple datasource({}) are found, please choose one".format(str([d[1] for d in options["datasources"]])))
     else:
@@ -758,7 +765,7 @@ def loadDatasource(session_cookie,workdir,loadedDatasources,options):
         if "layer" in options:
             cmd.append(options["layer"])
 
-        print " ".join(cmd)
+        #print " ".join(cmd)
         subprocess.check_call(cmd)
         options["datasource"] = getDatasourceFiles(filterdir,datasource)[0]
 
@@ -855,6 +862,7 @@ def downloaod(fmt):
             default_geometry_type: The geometry type of the empty geometry 
             type_mapping: the mapping between geometry type and business name used in the datasource or layer name
             srs: srs optional, default is first's source layer's srs
+            ignore_if_empty: empty layer will not be returned if true; default is false
             sourcelayers: a source layer or a list of source layers
             {
                 type: "WFS" or "UPLOAD" or "FORM". deduced from other properties
@@ -882,6 +890,7 @@ def downloaod(fmt):
             default_geometry_type: The geometry type of the empty geometry 
             defautlSrs:default srs; optional
             datasource: used if sourcetype is "UPLOAD" and uploaded file contains multiple datasources
+            ignore_if_empty: empty layer will not be returned if true; default is false
         }
     
     filename:optional, used when multiple output datasources are downloaded
@@ -928,11 +937,17 @@ def downloaod(fmt):
                 elif not isinstance(layer["sourcelayers"],list):
                     layer["sourcelayers"] = [layer["sourcelayers"]]
 
-        #set layer's field strategy
+        #set field strategy and ignore_if_empty for layers
         if layers:
             for layer in layers:
                 if layer.get("fields") and not layer.get("fieldStrategy"):
-                    options["source"]["fieldStrategy"] = "Intersection"
+                    layer["fieldStrategy"] = "Intersection"
+                layer["ignore_if_empty"] = layer.get("ignore_if_empty",False)
+
+        #set datasource's ignore_if_empty
+        if datasources:
+            for datasource in datasources:
+                datasource["ignore_if_empty"] = datasource.get("ignore_if_empty",False)
 
     
         def setDatasourceType(ds):
@@ -1060,7 +1075,8 @@ def downloaod(fmt):
 
                         layer = {
                             "sourcename":getBaseDatafileName(dsfile[1],True),
-                            "sourcelayers":[sourcelayer]
+                            "sourcelayers":[sourcelayer],
+                            "ignore_if_empty":datasource["ignore_if_empty"]
                         }
                         if sourcelayer["format"]["name"] in ["geojson","json"]:
                             layer["layer"] = getBaseDatafileName(sourcelayer["datasource"][1],False)
@@ -1081,6 +1097,9 @@ def downloaod(fmt):
                 while index2 >= 0:
                     if not layers[index1]["sourcelayers"][index2].get("meta"):
                         #no spatial data
+                        del layers[index1]["sourcelayers"][index2]
+                    elif layers[index1]["ignore_if_empty"] and layers[index1]["sourcelayers"][index2]["meta"].get("features",0) == 0:
+                        #no features
                         del layers[index1]["sourcelayers"][index2]
                     index2 -= 1
                 if len(layers[index1]["sourcelayers"]) == 0:
@@ -1154,12 +1173,17 @@ def downloaod(fmt):
                     layer["sourcename"] = getBaseDatafileName(layer["sourcelayers"][0]["datasource"][1],True)
                 names[layer["sourcename"]] = names.get(layer["sourcename"],0) + 1
 
-            #append the layer name to the file name if the prefered name is duplicate.
+            #if all the sourcename are same, then no need to use separate folder, set the sourcename to None
+            if len(names) <= 1:
+                for layer in layers:
+                    layer["sourcename"] = None
 
-            for layer in layers:
-                if names[layer["sourcename"]] > 1:
-                    #layer["sourcename"] = os.path.join(layer["sourcename"],layer["layer"])
-                    pass
+
+            #append the layer name to the file name if the prefered name is duplicate.
+            #for layer in layers:
+            #    if names[layer["sourcename"]] > 1:
+            #        layer["sourcename"] = os.path.join(layer["sourcename"],layer["layer"])
+            #        pass
             
             del names
 
@@ -1200,7 +1224,10 @@ def downloaod(fmt):
         #import ipdb;ipdb.set_trace()
         for layer in layers:
             #populate the vrt file
-            vrtFile = os.path.join(vrtdir,layer["sourcename"],"{}.vrt".format(layer["layer"]))
+            if layer.get("sourcename",None):
+                vrtFile = os.path.join(vrtdir,layer["sourcename"],"{}.vrt".format(layer["layer"]))
+            else:
+                vrtFile = os.path.join(vrtdir,"{}.vrt".format(layer["layer"]))
             if not os.path.exists(os.path.dirname(vrtFile)):
                 os.makedirs(os.path.dirname(vrtFile))
             vrt = UNIONLAYERS_TEMPLATE.render(layer)
@@ -1214,7 +1241,7 @@ def downloaod(fmt):
                 else:
                     cmd = ["ogr2ogr","-skipfailures","-overwrite" ,"-t_srs",layer.get("srs","EPSG:4326"), "-f", fmt["format"],outputDatasource, vrtFile] 
                     outputFiles.append(outputDatasource)
-                print " ".join(cmd)
+                #print " ".join(cmd)
                 subprocess.check_call(cmd) 
             else:
                 #get all geometry types in the source layer list
@@ -1270,7 +1297,7 @@ def downloaod(fmt):
                     else:
                         cmd = ["ogr2ogr","-skipfailures","-overwrite" ,"-t_srs",layer.get("srs","EPSG:4326"), "-f", fmt["format"],outputDatasource, vrtFile]
                         outputFiles.append(outputDatasource)
-                    print " ".join(cmd)
+                    #print " ".join(cmd)
                     subprocess.check_call(cmd) 
                 else:
                     for t in srcTypes:
@@ -1281,7 +1308,7 @@ def downloaod(fmt):
                         else:
                             cmd = ["ogr2ogr","-skipfailures","-overwrite","-where", where,"-t_srs",layer.get("srs","EPSG:4326"), "-f", fmt["format"],outputDatasource, vrtFile]
                             outputFiles.append(outputDatasource)
-                        print " ".join(cmd)
+                        #print " ".join(cmd)
                         subprocess.check_call(cmd) 
         
         #import ipdb;ipdb.set_trace()

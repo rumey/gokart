@@ -1357,8 +1357,9 @@
             return style
         }
       },
-      getLabelStyleFunc:function(tints) {
+      getLabelStyleFunc:function(tints,labelProperty) {
         var vm = this
+        labelProperty = labelProperty || 'label'
         return function() {
             var f = this
             var tool = null
@@ -1371,7 +1372,7 @@
             return new ol.style.Style({
                 text: new ol.style.Text({
                   offsetX: 12,
-                  text:f.get('label'),
+                  text:f.get(labelProperty),
                   textAlign: 'left',
                   font: '12px Helvetica,Roboto,Arial,sans-serif',
                   stroke: new ol.style.Stroke({
