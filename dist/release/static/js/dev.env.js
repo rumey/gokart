@@ -18,11 +18,13 @@ var env = {
 
     s3Service:"http://gokart.dpaw.io/",
 
-    bushfireListLayer:"dpaw:bushfire_latest_dev",
+    bushfireLayer:"dpaw:bushfire_latest_dev",
     finalFireboundaryLayer:"dpaw:bushfire_final_fireboundary_latest_dev",
+    fireboundaryLayer:"dpaw:bushfire_fireboundary_latest_dev",
 
-    fireboundaryLayer:"dpaw:bushfire_fireboundary_dev",
-    bushfireLayer:"dpaw:bushfire_dev"
+    allBushfireLayer:"dpaw:bushfire_dev",
+    allFireboundaryLayer:"dpaw:bushfire_fireboundary_dev"
+
 };
 
 document.body.onload = function() {
