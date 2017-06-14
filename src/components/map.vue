@@ -1437,18 +1437,17 @@
         var index = this.olmap.getLayers().getArray().findIndex(function(l) {return l === olLayer})
         if (index < 0) return
         var vm = this
-        var pos = index
-        $.each(olLayer.layer.dependentLayers,function(index,l){
+        for(var i = olLayer.layer.dependentLayers.length - 1;i >= 0;i--) {
+            l = olLayer.layer.dependentLayers[i]  
             if (l.mapLayerId === dependentLayerId) {
-                vm.olmap.getLayers().insertAt(pos,l.mapLayer)
+                vm.olmap.getLayers().insertAt(index,l.mapLayer)
                 l.mapLayer.show = true
                 vm.olmap.dispatchEvent(vm.createEvent(vm,"addLayer",{mapLayer:l.mapLayer}))
-                return false
-            } else {
-                index = vm.olmap.getLayers().getArray().findIndex(function(l1) {return l1 === l})
-                if (index >= 0) pos = index
+                break
+            } else if (l.mapLayer.show){
+                --index
             }
-        })
+        }
       },
       getMapLayer: function (id) {
         if (!this.olmap) { return undefined}
