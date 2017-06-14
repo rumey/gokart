@@ -1,9 +1,9 @@
 var browser_config = { 
     non_match_policy : "confirm",
-    non_match_timeout: 30,
+    non_match_timeout: 43200,
 
     browser_match_policy: "confirm",
-    browser_match_timeout:30,
+    browser_match_timeout:43200,
 
     full_match_timeout:604800,
 
