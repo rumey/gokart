@@ -637,12 +637,12 @@
         return this.env.bfrsService + "/delete/" + feat.get('id')
       },
       startEditFeature:function(feat) {
-        if (this.annotations.tool !== this.ui.modifyTool) {
-            this.annotations.setTool(this.ui.modifyTool)
-        }
-        if (this.selectedFeatures.getLength() === 1 || this.selectedFeatures.item(0) !== feat) {
+        if (this.selectedFeatures.getLength() !== 1 || this.selectedFeatures.item(0) !== feat) {
             if (this.selectedFeatures.getLength() > 0) this.selectedFeatures.clear()
             this.selectedFeatures.push(feat)
+        }
+        if (this.annotations.tool !== this.ui.modifyTool) {
+            this.annotations.setTool(this.ui.modifyTool)
         }
       },
       validateBushfire:function(feat,validateType,callback) {
@@ -789,12 +789,12 @@
         }catch(ex) {
             if (!feat.get('external_feature')) {
                 if (indexes) {feat['selectedIndex'] = indexes}
-                if (this.annotations.tool !== this.ui.modifyTool) {
-                    this.annotations.setTool(this.ui.modifyTool)
-                }
                 if (this.annotations.selectedFeatures.length !== 1 || this.annotations.selectedFeatures.item(0) !== feat) {
                     this.annotations.selectedFeatures.clear()
                     this.annotations.selectedFeatures.push(feat)
+                }
+                if (this.annotations.tool !== this.ui.modifyTool) {
+                    this.annotations.setTool(this.ui.modifyTool)
                 }
             }
 
@@ -2591,6 +2591,11 @@
               ],
               selectMode:"geometry",
               keepSelection:true,
+              onUnset: function() {
+                  vm.selectedFeatures.forEach(function(f){
+                      f.getGeometry().changed()
+                  })
+              },
               onSet: function() {
                   vm.ui.geometrySelectInter.setMulti(false)
                   if (vm.selectedFeatures.getLength() > 1) {
