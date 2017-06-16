@@ -1645,7 +1645,7 @@
                             this._interact = null
                         }
                         try {
-                            this.controls.getOverviewMap().removeLayer(this.controls.getOverviewMap().getLayers().get(0))
+                            this.controls.getOverviewMap().removeLayer(this.controls.getOverviewMap().getLayers().item(0))
                         } catch (ex) {
                         }
                     }
