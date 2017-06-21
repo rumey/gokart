@@ -77,15 +77,17 @@ GokartClient.prototype.call = function(method,options,module,ignoreIfNotOpen){
     var request = JSON.stringify(vm.populateRequest(method,{module:module,options:options}))
     var syncMessageFunc = null
 
+    var sendMessage = null
+
     var gokartWindowIsActive = function() {
         if (!vm.gokartWindow || vm.gokartWindow.closed) {
             return false
+        } else if (vm.gokartWindow.location.origin === window.location.origin && vm.gokartWindow.location.pathname === "/" + vm.app) {
+            return true
+        } else if (!vm.gokartWindow.location || !vm.gokartWindow.location.origin || vm.gokartWindow.location.origin === "null" || vm.gokartWindow.location.origin === "") {
+            return null
         } else {
-            try {
-                return (vm.gokartWindow.location.origin === window.location.origin && vm.gokartWindow.location.pathname === "/" + vm.app)
-            }catch(ex) {
-                return false
-            }
+            return false
         }
     }
 
@@ -94,17 +96,12 @@ GokartClient.prototype.call = function(method,options,module,ignoreIfNotOpen){
         if (vm.debug) console.log(Date() + " : " + vm.app + " is opened and send request to " + vm.app + " through postMessage. request = " + request)
         vm.gokartWindow.postMessage(request,window.location.origin);
 
-        vm._clearTimeoutTask;
+        vm._clearTimeoutTask();
         if (vm.debug) console.log(Date() + " : Create a timeout task to resend the request  if postMessage to " + vm.app + " is timeout. timeout = 1 seconds" )
         vm.timeoutTask = setTimeout(function(){
             vm.timeoutTask = null
             if (vm.debug) console.log(Date() + " : post request to " + vm.app + " timeout")
-            if (gokartWindowIsActive()) {
-                postMessageFunc()
-            } else {
-                syncMessageFunc()
-                vm.gokartWindow = null
-            }
+            sendMessage()
         },1000)
     }
 
@@ -128,12 +125,20 @@ GokartClient.prototype.call = function(method,options,module,ignoreIfNotOpen){
         },2000)
     }
 
-    if (gokartWindowIsActive()) {
-        postMessageFunc()
-    } else {
-        this.gokartWindow = null
-        syncMessageFunc()
+    sendMessage = function() {
+        var isActive = gokartWindowIsActive()
+        if (isActive === null) {
+            if (vm.debug) console.log(Date() + " : gokart window is not available, create a timeout task to send message to " + vm.app + " is timeout. timeout = 200 milliseconds" )
+            vm._clearTimeoutTask();
+            vm.timeoutTask = setTimeout(sendMessage,200)
+        } else if (isActive) {
+            postMessageFunc()
+        } else {
+            syncMessageFunc()
+        }
     }
+
+    sendMessage()
 
 }
 
