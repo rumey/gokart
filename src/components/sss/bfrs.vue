@@ -38,7 +38,7 @@
                       <span class="show-for-sr">Viewport bushfires only</span>
                     </label>
                   </div>
-                  <label for="bushfiresInViewport" class="side-label">Restrict to viewport ({{ stats }})</label>
+                  <label for="bushfiresInViewport" class="side-label">Restrict to viewport ({{extentFeatureSize}}/{{featureSize}} )</label>
                 </div>
                 <div class="row">
                   <div class="switch tiny">
@@ -63,12 +63,12 @@
                     <div class="columns">
                       <div class="row">
                         <div class="switch tiny">
-                          <input class="switch-input" id="selectedBushfiresOnly" type="checkbox" v-bind:disabled="selectedOnlyDisabled" v-model="selectedOnly" @change="updateCQLFilter('selectedBushfire',500)" />
-                          <label class="switch-paddle" for="selectedBushfiresOnly">
-                            <span class="show-for-sr">Show selected only</span>
+                          <input class="switch-input" id="showFireboundary" type="checkbox" v-model="showFireboundary" />
+                          <label class="switch-paddle" for="showFireboundary">
+                            <span class="show-for-sr">Show fire boundary</span>
                          </label>
                         </div>
-                        <label for="selectedBushfiresOnly" style="side-label" class="side-label">Show selected only</label>
+                        <label for="showFireboundary" style="side-label" class="side-label">Show fire boundary</label>
                       </div>
                     </div>
                   </div>
@@ -78,12 +78,12 @@
                     <div class="columns">
                       <div class="row">
                         <div class="switch tiny">
-                          <input class="switch-input" id="showFireboundary" type="checkbox" v-model="showFireboundary" />
-                          <label class="switch-paddle" for="showFireboundary">
-                            <span class="show-for-sr">Show fire boundary</span>
+                          <input class="switch-input" id="selectedBushfiresOnly" type="checkbox" v-bind:disabled="selectedOnlyDisabled" v-model="selectedOnly" @change="updateCQLFilter('selectedBushfire',500)" />
+                          <label class="switch-paddle" for="selectedBushfiresOnly">
+                            <span class="show-for-sr">Show selected only</span>
                          </label>
                         </div>
-                        <label for="showFireboundary" style="side-label" class="side-label">Show fire boundary</label>
+                        <label for="selectedBushfiresOnly" style="side-label" class="side-label">Show selected only</label>
                       </div>
                     </div>
                   </div>
@@ -118,7 +118,7 @@
                     </select>
                   </div>
                   <div class="small-6 columns">
-                    <input type="search" v-model="search" placeholder="Find a bushfire" @keyup="updateFeatureFilter">
+                    <input type="search" v-model="search" placeholder="Find a bushfire" @keyup="updateFeatureFilter()">
                   </div>
                 </div>
     
@@ -140,8 +140,8 @@
             </div>
 
             <div id="bfrs-list" class="layers-flexibleframe scroller" style="margin-left:-15px; margin-right:-15px;">
-              <div v-for="f in features" class="row feature-row" v-bind:class="{'feature-selected': selected(f) }"
-                @click="toggleSelect(f)" track-by="get('id')">
+              <template v-for="f in featurelist" track-by="get('id')">
+              <div v-if="showFeature(f)" class="row feature-row" v-bind:class="{'feature-selected': selected(f) }" @click="toggleSelect(f)">
                 <div class="small-12 columns">
                   <a v-if="canReset(f)"  @click.stop.prevent="resetFeature(f)" title="Reset" class="button tiny secondary float-right acion" style="margin-left:2px"><i class="fa fa-undo actionicon"></i></a>
                   <a v-if="canDelete(f)" @click.stop.prevent="deleteFeature(f)" title="Delete" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-trash actionicon"></i></a>
@@ -167,6 +167,7 @@
 
                 </template>
               </div>
+              </template>
             </div>
 
             <div v-show="$root.isShowHints('bfrs')" class="tool-slice row collapse" id="bfrs-hints">
@@ -261,11 +262,12 @@
         tools: [],
         fields: ['fire_number', 'name'],
         drawings:new ol.Collection(),
-        allFeatures: new ol.Collection(),
-        extentFeatures: [],
+        features: new ol.Collection(),
         selectedBushfires: [],
         revision:1,
         profileRevision:1,
+        extentFeatureSize:0,
+        featureSize:0,
         tints: {
           'new':[["#b43232","#c8c032e6"]],
           'new.text':"#c8c032e6",
@@ -313,13 +315,6 @@
       export: function () { return this.$root.export },
       loading: function () { return this.$root.loading },
       utils: function () { return this.$root.utils },
-      features: function () {
-        if (this.viewportOnly) {
-          return this.revision && this.extentFeatures
-        } else {
-          return this.revision && this.allFeatures.getArray()
-        }
-      },
       moduleStatus: function(){
         return this._bfrsStatus || {}
       },
@@ -335,9 +330,6 @@
       },
       selectedFeatures: function () {
         return this.annotations.selectedFeatures
-      },
-      stats: function () {
-        return this.extentFeatures.length + '/' + this.allFeatures.getLength()
       },
       bushfireLayer: function() {
         //console.log(this.env.bushfireLayer)
@@ -411,6 +403,13 @@
             }.call(this)
         }
         return this._bushfireStyleFunc
+      },
+      featurelist:function() {
+        try {
+            return this.revision && this._featurelist.getArray()
+        } catch (ex) {
+            return [];
+        }
       }
     },
     watch:{
@@ -443,6 +442,13 @@
       }
     },
     methods: {
+      originpointCoordinate:function(feat){
+        try {
+            return feat.getGeometry().getGeometriesArray()[0].getCoordinates()
+        } catch (ex) {
+            return null
+        }
+      },
       featureTasks:function(feat) {
         return this.revision && ((this._taskManager)?this._taskManager.getTasks(feat):null)
       },
@@ -480,21 +486,22 @@
 
         this._refreshSelectedFinalFireboundaryLayer.call({wait:wait})
       },
+      featureExtent: function(feat) {
+        if (feat.get('fire_boundary')) {
+            if (feat.getGeometry()) {
+                return ol.extent.extend(feat.get('fire_boundary'),feat.getGeometry().getExtent())
+            } else {
+                return feat.get('fire_boundary')
+            }
+        } else {
+            return feat.getGeometry().getExtent()
+        }
+      },
       zoomToSelected:function(wait) {
         var vm = this
         wait = wait || 0
         vm._zoomToSelected = vm._zoomToSelectedFunc || debounce(function() {
-            vm.map.zoomToSelected(125,function(f){
-                if (f.get('fire_boundary')) {
-                    if (f.getGeometry()) {
-                        return ol.extent.extend(f.get('fire_boundary'),f.getGeometry().getExtent())
-                    } else {
-                        return f.get('fire_boundary')
-                    }
-                } else {
-                    return f.getGeometry().getExtent()
-                }
-            })
+            vm.map.zoomToSelected(125,vm.featureExtent)
         },wait)
         if (wait === 0) {
             vm._zoomToSelected.call({wait:1})
@@ -527,7 +534,7 @@
 
         updateType = updateType || ((action === "create")?"query":null)
         if (!updateType && options["bushfireid"] !== null && options["bushfireid"] !== undefined){
-            var bushfire = this.allFeatures.getArray().find(function(f) {return f.get('fire_number') === options["bushfireid"]})
+            var bushfire = this.features.getArray().find(function(f) {return f.get('fire_number') === options["bushfireid"]})
             if (bushfire) {
                 this.selectedFeatures.push(bushfire)
                 if (options["refresh"] || action === "update") {
@@ -546,7 +553,7 @@
         if (updateType || options["refresh"]) {
             this.updateCQLFilter(updateType,(updateType === "query")?0:1,function(){
                 if (options["bushfireid"] !== null && options["bushfireid"] !== undefined){
-                    var feat = vm.allFeatures.getArray().find(function(o) {return o.get('fire_number') == options["bushfireid"]})
+                    var feat = vm.features.getArray().find(function(o) {return o.get('fire_number') == options["bushfireid"]})
                     if (feat) {
                         vm.selectedFeatures.push(feat)
                         vm.zoomToSelected()
@@ -1213,26 +1220,29 @@
         feat.set('fire_number',this.newFireNumber(featId),true)
         feat.set('report_status',99998,true)
 
-        this.bushfireMapLayer.getSource().addFeature(feat)
-        var insertIndex = null
-        $.each(this.allFeatures.getArray(),function(index,f){
-            if (f.get('status') === 'new') {
-                if (featId < Math.abs(f.get('id'))) {
+        vm._insertNewFeature = vm._insertNewFeature || function(features,feat){
+            var insertIndex = null
+            $.each(features.getArray(),function(index,f){
+                if (f.get('status') === 'new') {
+                    if (featId < Math.abs(f.get('id'))) {
+                        insertIndex = index
+                        return false
+                    }
+                } else {
                     insertIndex = index
                     return false
                 }
+            })
+            if (insertIndex != null) {
+                features.insertAt(insertIndex,feat)
             } else {
-                insertIndex = index
-                return false
+                features.push(feat)
             }
-        })
-        if (insertIndex != null) {
-            this.allFeatures.insertAt(insertIndex,feat)
-        } else {
-            this.allFeatures.push(feat)
         }
 
-        this.revision += 1
+        vm._insertNewFeature(this.features,feat)
+        //add to the feature list and map
+        vm._insertNewFeature(this._featurelist,feat)
         return feat
       },
       createFeature:function(feat) {
@@ -1261,13 +1271,10 @@
          if (this.canDelete(feat)) {
             vm._deleteFeature = vm._deleteFeature || function(feat) {
                 //console.log("Delete feature " + feat.get('label'))
-                vm.bushfireMapLayer.getSource().removeFeature(feat)
-                vm.allFeatures.remove(feat)
+                vm.features.remove(feat)
+                //remove feature from list and map
+                vm._featurelist.remove(feat)
                 vm.selectedFeatures.remove(feat)
-                var index = vm.extentFeatures.findIndex(function(f){ return f == feat})
-                if (index >= 0) {
-                    vm.extentFeatures.splice(index,1)
-                }
                 vm.revision += 1
             }
             if (feat.get('status') === 'new') {
@@ -1294,31 +1301,24 @@
         this.bushfireMapLayer.getSource().retrieveFeatures(filter,function(features){
           if (features && features.length) {
             vm.initBushfire(features[0])
-            var f = vm.bushfireMapLayer.getSource().getFeatures().find(function(f) {return f.get('fire_number') === feat.get('fire_number')})
-            if (f) {
-                vm.bushfireMapLayer.getSource().removeFeature(f)
-            }
             if (feat.selectedIndex !== undefined) {
                 if (vm.annotations.getSelectedGeometry(features[0],feat.selectedIndex)) {
-                    features[0].selectedIndex = f.selectedIndex
+                    features[0].selectedIndex = feat.selectedIndex
                 } else {
                     vm.selectDefaultGeometry(features[0])
                 }
             }
 
-            vm.bushfireMapLayer.getSource().addFeature(features[0])
-
-            var index = vm.allFeatures.getArray().findIndex(function(f){return f.get('fire_number') === feat.get('fire_number')})
+            var index = vm.features.getArray().findIndex(function(f){return f.get('fire_number') === feat.get('fire_number')})
             if (index >= 0) {
-                vm.allFeatures.setAt(index,features[0])
-                vm.revision += 1
+                vm.features.setAt(index,features[0])
             }
 
-            if (vm.extentFeatures) {
-                index = vm.extentFeatures.findIndex(function(f){return f.get('fire_number') === feat.get('fire_number')})
-                if (index >= 0) {
-                    vm.extentFeatures[index] = features[0]
-                }
+            //features in layer's source is synchronized with _featurelist
+            index = vm._featurelist.getArray().findIndex(function(f){return f.get('fire_number') === feat.get('fire_number')})
+            if (index >= 0) {
+                vm._featurelist.setAt(index,features[0])
+                vm.revision += 1
             }
 
             index = vm.selectedFeatures.getArray().findIndex(function(f){return f.get('fire_number') === feat.get('fire_number')})
@@ -1333,13 +1333,9 @@
           } else {
             //feature does not exist or is invalid, remove it from bushfire list
             vm.bushfireMapLayer.getSource().removeFeature(feat)
-            vm.allFeatures.remove(feat)
+            vm.features.remove(feat)
 
             vm.selectedFeatures.remove(feat)
-            var index = vm.extentFeatures.findIndex(function(f){ return f == feat})
-            if (index >= 0) {
-                vm.extentFeatures.splice(index,1)
-            }
             vm.revision += 1
             if (callback) {
                 callback(null)
@@ -1360,7 +1356,6 @@
       //    -1: feature is drawed ,can't figure out which part of spatial data was modified  
       postModified:function(bushfires,modifyType) {
         var vm = this
-        var sortRequired = false
         this._bushfirePostModified = this._bushfirePostModified || function(bushfire,modifyType) {
             if (bushfire.get('tint') !== "modified" && (bushfire.get('status') !== "new" || bushfire.get("saved"))) {
                 bushfire.set('tint',"modified",true)
@@ -1377,22 +1372,6 @@
                 }
             }
             bushfire.set('modifyType',(bushfire.get('modifyType') || 0) | modifyType,true)
-            var index = (vm.extentFeatures)?vm.extentFeatures.findIndex(function(f) { return f === bushfire}):-1
-            if (index >= 0) {
-                if (bushfire.getGeometry().getGeometriesArray().length === 0 && 
-                    (!bushfire.get('fire_boundary'))
-                ) {
-                    //all geometries are deleted
-                    vm.extentFeatures.splice(index,1)
-                }
-            } else {
-                if (bushfire.getGeometry().getGeometriesArray().length > 0 || 
-                    (bushfire.get('fire_boundary'))
-                ) {
-                    vm.extentFeatures.push(bushfire)
-                    sortRequired = true
-                }
-            }
         }
         if (Array.isArray(bushfires)) {
             $.each(bushfires,function(index,bushfire){
@@ -1400,9 +1379,6 @@
             })
         } else {
             vm._bushfirePostModified(bushfires,modifyType)
-        }
-        if (sortRequired) {
-            vm.extentFeatures.sort(vm.featureOrder)
         }
         vm.revision += 1
       },
@@ -1823,7 +1799,7 @@
                 $.each(features,function(index,feature){
                     if (feature.get('fire_number') !== undefined) {
                         //existed bushfire report
-                        var feat = vm.allFeatures.getArray().find(function(f) {return f.get('fire_number') === feature.get('fire_number')})
+                        var feat = vm.features.getArray().find(function(f) {return f.get('fire_number') === feature.get('fire_number')})
                         canUpload(feature,feat)
                         if (feat) {
                             if (!vm.isModifiable(feat)) {
@@ -2013,17 +1989,6 @@
                   vm.bushfireLayer.cql_filter = "(" + filters.join(") and (") + ")"
                 }
                 if (updateType === "selectedBushfire" && vm.bushfireFilter) {
-                    //chosed some bushfires
-                    var filteredFeatures = vm.bushfireMapLayer.getSource().getFeatures().filter(function(f){
-                        return f.get('status') === "new" || vm.selectedBushfires.indexOf(f.get('fire_number')) >= 0
-                    })
-                    vm.bushfireMapLayer.getSource().clear()
-                    vm.bushfireMapLayer.getSource().addFeatures(filteredFeatures)
-                    $.each(filteredFeatures,function(index,feature){
-                        if (vm.selectedBushfires.indexOf(feature.get('fire_number')) >= 0) {
-                            vm.annotations.tintSelectedFeature(feature)
-                        }
-                    })
                     vm.updateFeatureFilter(true)
                     return
                 }
@@ -2051,16 +2016,6 @@
             vm._updateCQLFilter.call({wait:wait},updateType,callback)
         }
       },
-      featureFilter: function (f) {
-        var search = ('' + this.search).toLowerCase()
-        var found = !search || this.fields.some(function (key) {
-          return ('' + f.get(key)).toLowerCase().indexOf(search) > -1
-        })
-        if (this.selectedOnly && this.selectedFeatures.length) {
-          return this.selected(f) && found
-        };
-        return found
-      },
       featureOrder: function (a, b) {
         if (a.get('status') === "new") {
             if  (b.get('status') === 'new') {
@@ -2074,21 +2029,44 @@
             return a.get('label') < b.get('label')?-1:1
         }
       },
+      featureFilter: function (feat) {
+        var search = ('' + this.search).toLowerCase()
+        if (search && !this.fields.some(function (key) {
+            return ('' + feat.get(key)).toLowerCase().indexOf(search) > -1
+        })){
+            return false
+        }
+
+        if (this.selectedOnly && this.selectedFeatures.getLength() > 0 && !this.selected(feat)) {
+          return false
+        }
+
+        return true
+      },
+      showFeature:function(feat) {
+        return this.revision && (!this.viewportOnly || feat.inViewport)
+      },
+      setExtentFeatureSize:function() {
+        var vm = this
+        var size = 0
+        this._featurelist.forEach(function(feat){
+            if (feat.inViewport) {
+                ++size
+            }
+        })
+        this.extentFeatureSize = size;
+      },
+      //filter the loaded features based on report name and fire number
+      //called when refresh, input search criteria
       updateFeatureFilter: function(runNow) {
         var vm = this
         var updateFeatureFilterFunc = function() {
-            // syncing of Resource Tracking features between Vue state and OL source
-            var mapLayer = vm.bushfireMapLayer
-            if (!mapLayer) { return }
-            // update vue list for filtered features in the current extent
-            vm.extentFeatures = mapLayer.getSource().getFeaturesInExtent(vm.$root.map.extent).filter(vm.featureFilter)
-            vm.extentFeatures.sort(vm.featureOrder)
-            // update vue list for filtered features
-            var allFeatures = mapLayer.getSource().getFeatures().filter(vm.featureFilter)
-            allFeatures.sort(vm.featureOrder)
-            vm.allFeatures.clear()
-            vm.allFeatures.extend(allFeatures)
-            //
+            var list = vm.features.getArray().filter(function(feat){return vm.featureFilter(feat)})
+            vm.featureSize = list.length;
+            vm._featurelist.clear()
+            vm._featurelist.extend(list)
+            vm.setExtentFeatureSize()
+            vm.revision += 1;
         }
         if (runNow) {
             updateFeatureFilterFunc()
@@ -2096,7 +2074,7 @@
             if (!vm._updateFeatureFilter) {
                 vm._updateFeatureFilter = debounce(function(){
                     updateFeatureFilterFunc()
-                },700)
+                },200)
             }
             vm._updateFeatureFilter()
         }
@@ -2104,13 +2082,13 @@
       updateViewport: function(runNow) {
         var vm = this
         var updateViewportFunc = function() {
-            // syncing of Resource Tracking features between Vue state and OL source
-            var mapLayer = vm.bushfireMapLayer
-            if (!mapLayer) { return }
-            var feats = mapLayer.getSource().getFeatures()
-            // update vue list for filtered features in the current extent
-            vm.extentFeatures = mapLayer.getSource().getFeaturesInExtent(vm.$root.map.extent).filter(vm.featureFilter)
-            vm.extentFeatures.sort(vm.featureOrder)
+            vm.features.forEach(function(feat) {
+                feat.inViewport = ol.extent.containsCoordinate(vm.map.extent,vm.originpointCoordinate(feat))
+            })
+            vm.setExtentFeatureSize()
+            if (vm.viewportOnly) {
+                vm.revision += 1;
+            }
         }
         if (runNow) {
             updateViewportFunc()
@@ -2118,7 +2096,7 @@
             if (!vm._updateViewport) {
                 vm._updateViewport = debounce(function(){
                     updateViewportFunc()
-                },100)
+                },500)
             }
             vm._updateViewport()
         }
@@ -2260,6 +2238,7 @@
     },
     ready: function () {
       var vm = this
+      this._featurelist =new ol.Collection()
       this._taskManager = utils.getFeatureTaskManager(function(){
         vm.revision++
       })
@@ -2391,7 +2370,7 @@
       vm.loadRegions()
 
       vm.ui = {}
-      var toolConfig = {features:vm.allFeatures,mapLayers:function(layer){return layer.get("id") === vm.env.bushfireLayer }}
+      var toolConfig = {features:vm.features,mapLayers:function(layer){return layer.get("id") === vm.env.bushfireLayer }}
       /*
       vm.ui.translateInter = vm.annotations.translateInterFactory()(toolConfig)
       vm.ui.translateInter.on("translateend",function(ev){
@@ -2614,7 +2593,8 @@
                     description:[
                         "Click on the map to start drawing a bushfire",
                         "Hold down the 'SHIFT' key during drawing to enable freehand mode",
-                        "To delete a fire boundary click inside the fire boundary to be deleted and press the 'DELETE' key"
+                        "To delete a fire boundary click inside the fire boundary to be deleted and press the 'DELETE' key",
+                        "To modify the boundary or origin click and drag to adjust"
                     ]
                 }
               ]
@@ -2630,7 +2610,7 @@
                   vm.ui.originPointDraw
               ],
               sketchStyle: vm.annotations.getIconStyleFunction(vm.tints),
-              features:vm.allFeatures,
+              features:vm.features,
               scope:[],
               measureLength:true,
               measureArea:true,
@@ -2681,6 +2661,7 @@
         },
         initialLoad:false,
         refresh: 60,
+        features:vm._featurelist,
         dependentLayers:[
             {
                 type: 'TileLayer',
@@ -2728,8 +2709,8 @@
                 //merge the current changes with the new features
                 var insertPosition = 0
                 var loadedFeature = null
-                for(var index = vm.allFeatures.getLength() - 1;index >= 0;index--) {
-                    f = vm.allFeatures.item(index)
+                for(var index = vm.features.getLength() - 1;index >= 0;index--) {
+                    f = vm.features.item(index)
                     if (f.get('status') === 'new') {
                         //new features always are the begining and sorted.
                         if (f.get('saved')) {
@@ -2805,7 +2786,9 @@
                         }
                     }
                 }
-                defaultOnload(loadType,vectorSource,features)
+                vm.features.clear()
+                vm.features = vm.features.extend(features.sort(vm.featureOrder))
+                vm.updateViewport(true)
 
                 vm.updateFeatureFilter(true)
 
@@ -2819,7 +2802,7 @@
         }
       })
 
-      this.measure.register(vm.env.bushfireLayer,this.allFeatures)
+      this.measure.register(vm.env.bushfireLayer,this.features)
       vm._bfrsStatus.phaseEnd("initialize")
 
       vm._bfrsStatus.phaseBegin("gk-init",20,"Listen 'gk-init' event",true,true)
@@ -2828,7 +2811,7 @@
         vm._bfrsStatus.phaseEnd("gk-init")
 
         vm._bfrsStatus.phaseBegin("attach_event",10,"Attach events")
-        map.olmap.getView().on('propertychange', vm.updateViewport)
+        map.olmap.getView().on('propertychange', function() {vm.updateViewport()})
 
         vm.selectedFeatures.on('add', function (event) {
           if (event.element.get('toolName') === "Bfrs Origin Point") {
@@ -2874,8 +2857,7 @@
 
         vm.map.olmap.on("removeLayer",function(ev){
             if (ev.mapLayer.get('id') === vm.env.bushfireLayer) {
-                vm.allFeatures.clear()
-                vm.extentFeatures = []
+                vm.features.clear()
             }
         })
 

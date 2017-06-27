@@ -108,6 +108,37 @@ moment.fn.toLocaleString = function(){
 moment.fromLocaleString = function(datestr){
     return moment.tz(datestr,'ddd MMM DD YYYY HH:mm:ss [AWST]','Australia/Perth')
 }
+
+//config Vue
+//three call formats:
+//1. list, prop ,value : check whether objects'property is equal with value
+//2. list, prop : check whether object's property is true
+//3. list, func : check whether return value of func(o) is true
+Vue.filter('filterIf', function (list) {
+  if (!list) { return }
+  if (arguments.length === 2) {
+      if (typeof arguments[1] === "string") {
+          var prop = arguments[1];
+          return list.filter(function (val) {
+            return val && val[prop];
+          })
+      } else {
+          var func = arguments[1];
+          return list.filter(function (val) {
+            return func(val);
+          })
+      }
+  } else if(arguments.length === 3) {
+      var prop = arguments[1];
+      var value = arguments[2];
+      return list.filter(function (val) {
+        return val && val[prop] === value;
+      })
+  } else {
+      return ;
+  }
+})
+
 export {
   $,
   ol,

@@ -905,7 +905,9 @@
         }, options.params || {})
 
 
-        var vectorSource = new ol.source.Vector()
+        var vectorSource = new ol.source.Vector({
+            features:options.features || undefined
+        })
         var vector = new ol.layer.Vector({
           opacity: options.opacity || 1,
           source: vectorSource,

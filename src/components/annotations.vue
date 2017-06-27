@@ -163,13 +163,6 @@
   import { $, ol, Vue } from 'src/vendor.js'
   import gkDrawinglogs from './drawinglogs.vue'
 
-  Vue.filter('filterIf', function (list, prop, value) {
-    if (!list) { return }
-    return list.filter(function (val) {
-      return val && val[prop] === value
-    })
-  })
-
   var noteOffset = 0
   var notePadding = 10
 
