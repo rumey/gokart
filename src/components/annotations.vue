@@ -367,6 +367,7 @@
         }
         var vm = this
         var file = this.$els.annotationsfile.files[0]
+        this.$els.annotationsfile.value = null;
         this.export.importVector(file,function(features,fileFormat){
             var ignoredFeatures = []
             var f = null

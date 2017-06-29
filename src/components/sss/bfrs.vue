@@ -1587,10 +1587,12 @@
         $("#uploadBushfires").click()
       },
       importList: function () {
-        var files = this.$els.bushfiresfile.files
-        if (files.length === 0) {
+        if (this.$els.bushfiresfile.files.length === 0) {
             return
         }
+        var file = this.$els.bushfiresfile.files[0]
+        this.$els.bushfiresfile.value = null
+
         var targetFeature = this._uploadTargetFeature
         delete this._uploadTargetFeature
 
@@ -1608,7 +1610,7 @@
             import_task = this._taskManager.addTask(targetFeature,"import","import","Import bushfire fire boundary",utils.RUNNING)
         }
         var vm = this
-        this.export.importVector(files[0],function(features,fileFormat){
+        this.export.importVector(file,function(features,fileFormat){
           try{
             var ignoredFeatures = []
             var f = null
