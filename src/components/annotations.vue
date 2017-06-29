@@ -357,7 +357,7 @@
             this.selectedFeatures.extend(this._cachedSelectedFeatures[this._selectedFeaturesKey])
         }
       },
-      isSelectedFeaturesOfModule:function(menu,submenu) {
+      isFeaturesSelectedFromModule:function(menu,submenu) {
         var key = submenu?(menu + "." + submenu):menu
         return this._selectedFeaturesKey === key
       },

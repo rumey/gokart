@@ -16,6 +16,8 @@ FeatureTask.FAILED = -1
 FeatureTask.WAITING = 1
 FeatureTask.RUNNING = 2
 FeatureTask.SUCCEED = 3
+FeatureTask.WARNING = 4
+FeatureTask.IGNORED =  5
 
 FeatureTask.prototype._getIcon = function() {
     if (this.status === FeatureTask.FAILED) {
@@ -26,6 +28,10 @@ FeatureTask.prototype._getIcon = function() {
         return "fa-spinner"
     } else if (this.status === FeatureTask.SUCCEED) {
         return "fa-check"
+    } else if (this.status === FeatureTask.WARNING) {
+        return "fa-warning"
+    } else if (this.status === FeatureTask.IGNORED) {
+        return "fa-minus"
     }  else {
         return "fa-spinner"
     }
@@ -40,6 +46,10 @@ FeatureTask.prototype._getStatusText = function() {
         return "Running"
     } else if (this.status === FeatureTask.SUCCEED) {
         return "OK"
+    } else if (this.status === FeatureTask.WARNING) {
+        return "Warning"
+    } else if (this.status === FeatureTask.IGNORED) {
+        return "Ignore"
     }  else {
         return "Running"
     }
@@ -54,6 +64,7 @@ FeatureTask.prototype.setStatus = function(status,message) {
 }
 
 let FeatureTaskManager = function(changeCallback) {
+    //call when feature's tasks changed.
     this.changeCallback = changeCallback
 }
 
@@ -72,12 +83,21 @@ FeatureTaskManager.prototype.initTasks = function(feat) {
 }
 FeatureTaskManager.prototype.clearTasks = function(feat) {
     var vm = this
+    var tasks = feat.tasks
+    var delay = 1000
+    if (this.allTasksSucceed(feat)) {
+        delay = 1000
+    } else if(this.allTasksNotFailed(feat)) {
+        delay = 10000
+    } else {
+        delay = 60000
+    }
     setTimeout(function(){
         if (vm.changeCallback) vm.changeCallback()
-        if (feat.tasks) {
-            feat.tasks.length = 0
+        if (tasks) {
+            tasks.length = 0
         }
-    },1000)
+    },delay)
 }
 FeatureTaskManager.prototype.getTasks = function(feat) {
     return feat.tasks
@@ -95,11 +115,15 @@ FeatureTaskManager.prototype.addTask = function(feat,scope,taskId,description,st
 }
 
 FeatureTaskManager.prototype.allTasksSucceed = function(feat,scope) {
-    return !((feat.tasks.find(function(t) {return t.scope === scope && t.status !== FeatureTask.SUCCEED}) && true)||false)
+    return !((feat.tasks.find(function(t) {return (!scope || t.scope === scope) && t.status !== FeatureTask.SUCCEED && t.status !== FeatureTask.IGNORED}) && true)||false)
+}
+
+FeatureTaskManager.prototype.allTasksNotFailed = function(feat,scope) {
+    return !((feat.tasks.find(function(t) {return (!scope || t.scope === scope) && t.status !== FeatureTask.SUCCEED && t.status !== FeatureTask.WARNING && t.status !== FeatureTask.IGNORED}) && true)||false)
 }
 
 FeatureTaskManager.prototype.allTasksFinished = function(feat,scope) {
-    return !((feat.tasks.find(function(t) {return t.scope === scope && t.status !== FeatureTask.SUCCEED && t.status !== FeatureTask.FAILED}) && true)||false)
+    return !((feat.tasks.find(function(t) {return (!scope || t.scope === scope) && t.status !== FeatureTask.SUCCEED && t.status !== FeatureTask.FAILED && t.status !== FeatureTask.WARNING && t.status !== FeatureTask.IGNORED}) && true)||false)
 }
 
 let Utils = function() {
@@ -109,6 +133,8 @@ Utils.prototype.SUCCEED = FeatureTask.SUCCEED
 Utils.prototype.FAILED = FeatureTask.FAILED
 Utils.prototype.WAITING = FeatureTask.WAITING
 Utils.prototype.RUNNING = FeatureTask.RUNNING
+Utils.prototype.WARNING = FeatureTask.WARNING
+Utils.prototype.IGNORED = FeatureTask.IGNORED
 
 Utils.prototype.getFeatureTaskManager = function(changeCallback) {
     return new FeatureTaskManager(changeCallback)

@@ -399,13 +399,21 @@
             }
         })
       },
-      downloadVector:function(format,options) {
+      downloadVector:function(format,options,callback) {
         var vm = this
         var formData = new window.FormData()
         var tasks = 1
         var defaultFileName = null
-        var callback = function() {
+        if (!callback) {
+            callback = function(status,msg) {
+                if (msg) {
+                    alert(msg)
+                }
+            }
+        }
+        var sendRequest = function() {
             if (tasks > 0) {
+                callback(true)
                 return
             }
             try{
@@ -418,7 +426,7 @@
                         if (req.status >= 400) {
                             var reader = new FileReader()
                             reader.addEventListener("loadend",function(e){
-                                alert(e.target.result)
+                                callback(false,e.target.result)
                             })
                             reader.readAsText(req.response)
                         } else {
@@ -434,14 +442,15 @@
                                 filename = "download." + format
                             }
                             saveAs(req.response, filename)
+                            callback(true)
                         }
                     } catch(ex) {
-                        alert(ex.message || ex)
+                        callback(false,ex.message || ex)
                     }
                 }
                 req.send(formData)
             }catch(ex) {
-                alert(ex.message || ex)
+                callback(false,ex.message || ex)
             }
         }
         try {
@@ -480,9 +489,9 @@
             })
     
             tasks -= 1
-            callback()
+            sendRequest()
         }catch(ex) {
-            alert(ex.message || ex)
+            callback(false,ex.message || ex)
         }
       },
       getSpatialInfo: function(){

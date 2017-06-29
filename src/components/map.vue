@@ -1780,6 +1780,15 @@
                 }
             }
         }
+      },
+      setRefreshInterval: function(layer,interval) {
+          var vm = this
+          layer.refresh = interval
+          if (layer.dependentLayers) {
+            $.each(layer.dependentLayers,function(index,dependentLayer){
+                vm.setRefreshInterval(dependentLayer,dependentLayer.inheritRefresh?layer.refresh:dependentLayer.refresh)
+            })
+          }
       }
     },
     ready: function () {
@@ -1791,6 +1800,16 @@
       this.cachedStyles = {}
       this.jobs = {}
 
+      this._setRefreshInterval = function(layer,interval) {
+          layer.refresh = interval
+          if (layer.dependentLayers) {
+            $.each(layer.dependentLayers,function(index,dependentLayer){
+                if (dependentLayer.inheritRefresh) {
+                    dependentLayer["mapLayer"].stopAutoRefresh()
+                }
+            })
+          }
+      }
       this._stopAutoRefresh = function(olLayer) {
           if (olLayer.autoRefresh) {
               clearInterval(olLayer.autoRefresh)

@@ -115,7 +115,7 @@
         },
         set: function (val) {
           var vm = this
-          vm.layer.refresh = val
+          vm.map.setRefreshInterval(vm.layer,val)
           if (vm.layerRefreshStopped) {
             return
           }

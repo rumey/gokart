@@ -77,7 +77,7 @@
                 </select>
               </div>
               <div class="small-6 columns">
-                <input type="search" v-model="search" placeholder="Find a resource" @keyup="updateFeatureFilter">
+                <input type="search" v-model="search" placeholder="Find a resource" @keyup="updateFeatureFilter()">
               </div>
             </div>
             <div class="row">
@@ -497,7 +497,7 @@
             if (!vm._updateFeatureFilter) {
                 vm._updateFeatureFilter = debounce(function(){
                     updateFeatureFilterFunc()
-                },700)
+                },500)
             }
             vm._updateFeatureFilter()
         }
@@ -519,7 +519,7 @@
             if (!vm._updateViewport) {
                 vm._updateViewport = debounce(function(){
                     updateViewportFunc()
-                },100)
+                },200)
             }
             vm._updateViewport()
         }
@@ -720,7 +720,7 @@
         onload: function(loadType,vectorSource,features,defaultOnload) {
             function processResources() {
                 defaultOnload(loadType,vectorSource,features)
-                if (vm.annotations.isSelectedFeaturesOfModule("tracking") && vm.selectedFeatures.getLength() > 0) {
+                if (vm.annotations.isFeaturesSelectedFromModule("tracking") && vm.selectedFeatures.getLength() > 0) {
                     for(var index = vm.selectedFeatures.getLength() - 1;index >= 0;index--) {
                         var f = vm.selectedFeatures.item(index)
                         loadedFeature = features.find(function(f1){return f1.get('deviceid') === f.get('deviceid')})
@@ -816,7 +816,7 @@
         trackingStatus.phaseEnd("gk-init")
 
         trackingStatus.phaseBegin("attach_events",10,"Attach events")
-        map.olmap.getView().on('propertychange', vm.updateViewport)
+        map.olmap.getView().on('propertychange', function() {vm.updateViewport()})
 
         /*var layersAdded = global.debounce(function () {
           var mapLayer = vm.trackingMapLayer

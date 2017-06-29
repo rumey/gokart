@@ -342,6 +342,10 @@ div.ol-previewmap.ol-uncollapsible {
                 layer.mapLayerId = layer.mapLayerId || layer.id
             })
         }
+
+        if (l.refresh) {
+            vm.map.setRefreshInterval(l,l.refresh)
+        }
       })
       catalogueStatus.phaseBegin("gk-init",80,"Listen 'gk-init' event",true,true)
       this.$on('gk-init', function() {

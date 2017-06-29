@@ -3,14 +3,44 @@
         <h3>{{title}}</h3>
         <div v-for="line in messages" class="row" track-by="$index" >
             <div v-for="message in line" class="small-{{message[1]}} columns {{message[2] || ''}}" track-by="$index">
-                   <a>{{message[0]}}</a>
+                 <pre>  {{message[0]}}</pre>
+            </div>
+        </div>
+
+        <div class="row align-center" v-if="hasProgressBar">
+            <div class="small-3 columns small-centered" >
+                Total: {{tasks}}
+            </div>
+            <div class="small-1 columns small-centered" >
+            </div>
+
+            <div class="small-2 columns small-centered" >
+                Succeed: {{succeedTasks}}
+            </div>
+
+            <div class="small-2 columns small-centered" >
+                Warning: {{warningTasks}}
+            </div>
+
+            <div class="small-2 columns small-centered" >
+                Failed: {{failedTasks}}
+            </div>
+
+            <div class="small-2 columns small-centered" >
+                Ignore: {{ignoredTasks}}
+            </div>
+
+            <div class="small-12 columns small-centered" >
+                <div class="progress" role="progressbar" tabindex="0" aria-valuenow="{{completedTasks}}" aria-valuemin="0" aria-valuemax="{{tasks}}">
+                    <div class="progress-meter" v-bind:style="fillstyle"></div>
+                </div>
             </div>
         </div>
 
         <br>
-        <div class="row align-center">
+        <div class="row align-center" v-if="hasButton">
             <div class="small-12 columns small-centered" >
-                <button  v-for="button in buttons" class="button {{button[2] || ''}}" @click="clickButton(button[0])" track-by="$index">
+                <button  v-for="button in buttons" class="button {{button[2] || ''}}" @click="close(button[0])" track-by="$index">
                     {{button[1]}}
                 </button>
             </div>
@@ -42,64 +72,119 @@
         classes:"small",
         title:"",
         //[['msg',columnSize,'classes'],]
-        messages:[],
         //[['buttonvalue','buttontext','classes'],]
         buttons:[],
+        tasks:null,
+        succeedTasks:null,
+        failedTasks:null,
+        warningTasks:null,
+        ignoredTasks:null,
         callback:null,
         value:null,
-        defaultValue:null
+        defaultValue:null,
+        revision:1,
       }
     },
     computed: {
       loading: function () { return this.$root.loading },
+      hasButton:function() {
+        return this.buttons.length > 0
+      },
+      messages:function() {
+        return this.revision && (this._messages || []);
+      },
+      hasProgressBar:function() {
+        return this.tasks > 0
+      },
+      completedTasks:function() {
+        return this.succeedTasks + this.failedTasks + this.warningTasks + this.ignoredTasks
+      },
+      fillstyle:function() {
+        return "width:" + (this.completedTasks / this.tasks) * 100 + "%"
+      }
     },
     methods: {
+      //options
+      //title: dialog title
+      //message: 
+      // 1. string. 
+      // 2. array of string or [string, columns, classes]
+      //buttons: array of [value,"button name"]
+      //defaultOption: used if user close the dialog 
+      //callback: called if user click one button or have a defaultOption
       show:function(options) {
+        if (options === undefined) {
+            $("#userdialog").foundation('open')
+            return
+        }
         var vm = this
         this.classes = options.classes || "small"
-        this.title = options.title || "Hi"
-        this.messages.length = 0
+        this.title = options.title || ""
+        this._messages.length = 0
         var messageLine = null
         if (Array.isArray(options.messages)) {
             $.each(options.messages,function(index,line){
-                messageLine = []
-                vm.messages.push(messageLine)
-                if (Array.isArray(line)) {
-                    $.each(line,function(index,message){
-                        if (Array.isArray(message)) {
-                            messageLine.push(message)
-                        } else {
-                            messageLine.push([message,12])
-                        }
-                    })
-                } else {
-                    messageLine.push([line,12])
-                }
+                vm.addMessage(line)
             })
         } else {
-            this.messages.push([[options.messages,12]])
+            this._messages.push([[options.messages,12]])
         }
-        this.buttons = options.buttons || [[true,"Ok"],[false,"Cancel"]]
+        this.buttons = (options.buttons === undefined)?[[true,"Ok"],[false,"Cancel"]]:(options.buttons || [])
         this.callback = options.callback
         this.defaultOption = options.defaultOption === undefined?null:options.defaultOption
         this.option = null
+        this.tasks = options.tasks
+        this.succeedTasks = this.hasProgressBar?0:null
+        this.failedTasks = this.hasProgressBar?0:null
+        this.warningTasks = this.hasProgressBar?0:null
+        this.ignoredTasks = this.hasProgressBar?0:null
 
         $("#userdialog").foundation('open')
+        this.revision += 1
       },
-      clickButton:function(option) {
-        this.option = option
+      close:function(option) {
+        this.option = (option === undefined)?this.defaultOption:option
         $("#userdialog").foundation('close')
-      }
+      },
+      addMessage:function(message) {
+        messageLine = []
+        this._messages.push(messageLine)
+        if (Array.isArray(message)) {
+            $.each(message,function(index,column){
+                if (Array.isArray(column)) {
+                    messageLine.push(column)
+                } else {
+                    messageLine.push([column,12])
+                }
+            })
+        } else {
+            messageLine.push([message,12])
+        }
+        this.revision += 1
+      },
+      addSucceedTask:function() {
+        this.succeedTasks += 1
+      },
+      addWarningTask:function() {
+        this.warningTasks += 1
+      },
+      addFailedTask:function() {
+        this.failedTasks += 1
+      },
+      addIgnoredTask:function() {
+        this.ignoredTasks += 1
+      },
     },
     ready: function () {
       var vm = this
+      this._messages = []
       var dialogStatus = this.loading.register("dialog","Dialog Component")
       dialogStatus.phaseBegin("initialize",100,"Initialize")
 
       $("#userdialog").on("closed.zf.reveal",function(){
         if (vm.callback) {
-            var value = (vm.option === null?vm.defaultOption:vm.option)
-            if (value !== null) {
+            var value = ((vm.option === null || vm.option === undefined )?vm.defaultOption:vm.option)
+            if (value !== null && value !== undefined) {
                 vm.callback(value)
             }
             vm.callback = null
