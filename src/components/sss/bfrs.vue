@@ -4,8 +4,8 @@
       <div class="columns">
         <ul class="tabs" id="bfrs-tabs">
           <li class="tabs-title is-active">
-            <a class="label" aria-selected="true">Bushfire Report
-              <small v-if="active.layerRefreshStatus(bushfireMapLayer)" style="white-space:pre-wrap"><br>Updated: {{ active.layerRefreshStatus(bushfireMapLayer) }}</small>
+            <a class="label" aria-selected="true" ><span @click.stop.prevent="utils.editResource($event,env.bfrsService,env.bfrsService)" style="cursor:pointer;text-decoration:underline">Bushfire Report</span>
+                <small v-if="active.layerRefreshStatus(bushfireMapLayer)" style="white-space:pre-wrap"><br>Updated: {{ active.layerRefreshStatus(bushfireMapLayer) }}</small>
             </a>
           </li>
         </ul>
@@ -150,7 +150,7 @@
                     <svg class="editicon"><use xlink:href="dist/static/images/iD-sprite.svg#icon-area"></use></svg>
                   </a>
                   <a v-if="canCreate(f)" @click.stop.prevent="createFeature(f)" title="Create" class="button tiny secondary float-right action" style="margin-left:2px;background-color:red"><i class="fa fa-save actionicon"></i></a>
-                  <a v-if="canEdit(f) " @click.stop.prevent="utils.editResource($event)" title="Open bushfire form" href="{{editUrl(f)}}" target="_blank" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-pencil-square-o actionicon"></i></a>
+                  <a v-if="canEdit(f) " @click.stop.prevent="utils.editResource($event)" title="Open bushfire form" href="{{editUrl(f)}}" target="{{env.bfrsService}}" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-pencil-square-o actionicon"></i></a>
                   <a v-if="canSave(f)" @click.stop.prevent="saveFeature(f)" title="Save" class="button tiny secondary float-right action" style="margin-left:2px;background-color:red">
                     <i class="fa fa-save actionicon"></i>
                   </a>
@@ -191,7 +191,7 @@
       </div>
     </div>
 
-    <form id="bushfire_create" name="bushfire_create" action="{{createUrl()}}" method="post" target="{{utils.getAddressTarget("_blank")}}">
+    <form id="bushfire_create" name="bushfire_create" action="{{createUrl()}}" method="post" target="{{utils.getWindowTarget(env.bfrsService)}}">
         <input type="hidden" name="sss_create" id="sss_create">
     </form>
   </div>
@@ -883,6 +883,7 @@
         
                 if ((modifyType & 1) === 1) {
                     spatialData["origin_point"] = originPoint
+                    spatialData["origin_point_mga"] = vm.map.getMGA(originPoint)
                     spatialData["tenure_ignition_point"]  = null
                     spatialData["fire_position"]  = null
                 }
@@ -2969,6 +2970,12 @@
         })
         // enable resource bfrs layer, if disabled
         //vm.annotations.setDefaultTool('bfrs','Pan')
+        $.each([vm.annotations.ui.defaultPan],function(index,t) {
+            t.scope = t.scope || []
+            t.scope.push("bfrs")
+        })
+
+
         $.each(vm.annotations.tools.filter(function (t) {
           return t.scope && t.scope.indexOf("bfrs") >= 0
         }),function(index,t){

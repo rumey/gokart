@@ -1681,7 +1681,7 @@
         name: 'Pan',
         icon: 'fa-hand-paper-o',
         cursor:['-webkit-grab','-moz-grab'],
-        scope:["annotation","bfrs","resourcetracking"],
+        scope:["annotation"],
         interactions: [
           map.dragPanInter,
           map.doubleClickZoomInter,
@@ -1722,7 +1722,7 @@
       this.ui.defaultSelect = {
         name: 'Select',
         icon: 'fa-mouse-pointer',
-        scope:["annotation","resourcetracking"],
+        scope:["annotation"],
         interactions: [
           this.ui.keyboardInter,
           this.ui.dragSelectInter,

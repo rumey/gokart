@@ -850,6 +850,12 @@
 
         trackingStatus.phaseBegin("init_tools",10,"Initialize tools")
         //vm.annotations.setDefaultTool('tracking','Pan')
+        
+        $.each([vm.annotations.ui.defaultPan,vm.annotations.ui.defaultSelect],function(index,t) {
+            t.scope = t.scope || []
+            t.scope.push("resourcetracking")
+        })
+
         vm.tools = vm.annotations.tools.filter(function (t) {
           return t.scope && t.scope.indexOf("resourcetracking") >= 0
         })

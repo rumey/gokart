@@ -201,16 +201,23 @@ Utils.prototype.checkPermission = function(url,method,callback) {
     $.ajax(url ,ajaxSetting)
 }
 
-Utils.prototype.editResource = function(event) {
-    var target = (event.target.nodeName == "A")?event.target:event.target.parentNode;
+Utils.prototype.editResource = function(event,url,target) {
+    if (!url) {
+        var targetElement = (event.target.nodeName == "A")?event.target:event.target.parentNode;
+        url = targetElement.href
+        target = targetElement.target
+    }
+    if (!target) {
+        target = "_blank"
+    }
     if (env.appType == "cordova") {
-        window.open(target.href,"_system");
+        window.open(url,"_system");
     } else {
-        window.open(target.href,target.target);
+        window.open(url,target);
     }
 }
 
-Utils.prototype.getAddressTarget = function(target){
+Utils.prototype.getWindowTarget = function(target){
     return (env.appType === "cordova")?"_system":target
 }
 
