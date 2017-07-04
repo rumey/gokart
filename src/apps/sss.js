@@ -225,6 +225,7 @@ localforage.getItem('sssOfflineStore').then(function (store) {
             if (this[module]["adjustHeight"]) {
                 this[module]["adjustHeight"]()
             }
+            this.loading.adjustHeight()
         }
     },
     methods: {

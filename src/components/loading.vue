@@ -40,9 +40,13 @@
       </div>
       <div v-if="hasError">
           <hr class="row" style="border-width:4px;">
-          <div v-for="error in errors" class="row"  track_by="$index">
-            <div class="small-12">
-                <a class="error">{{error}} </a>
+          <div id="error-container" class="scroller" >
+          <div id="error-list" >
+              <div v-for="error in errors" class="row"  track_by="$index">
+                <div class="small-12">
+                    <a class="error">{{error}} </a>
+                </div>
+              </div>
             </div>
           </div>
       </div>
@@ -94,6 +98,9 @@
 <script>
   import { $,Vue } from 'src/vendor.js'
   export default {
+    store: {
+        screenHeight:'layout.screenHeight',
+    },
     data: function () {
       return {
         app:null,
@@ -120,9 +127,47 @@
         return  this.revision && this.app
       },
     },
+    watch:{
+        errors:function(newValue,oldValue) {
+            this.adjustHeight()
+        }
+    },
     props:["application"],
     methods: {
+      adjustHeight:function() {
+        if ($("#loading-status").length === 0) {
+            //closed
+            return
+        }
+        if ($("#error-container").length === 0) {
+            //no errors
+            return
+        }
+        var maxHeight = Math.floor(this.screenHeight * 0.95)
+        var height = $("#loading-status").height()
+        var containerHeight = $("#error-container").height()
+        var listHeight = $("#error-list").height()
+        if (height <= maxHeight) {
+            if (listHeight <= containerHeight) {
+                //no need to change
+                return
+            } else {
+                containerHeight += maxHeight - height
+                if (containerHeight > listHeight) {
+                    containerHeight = listHeight
+                }
+            }
+        } else {
+            containerHeight -= height - maxHeight
+            if (containerHeight < 30) {
+                containerHeight = 30
+            }
+        }
+        $("#error-container").height(containerHeight)
+
+      },
       close:function() {
+          ++this.revision
           $("#loading-status-overlay").remove()
           $("#loading-status").remove()
       },
@@ -234,6 +279,16 @@
     },
     ready: function () {
         var vm = this
+        window.alert = function() {
+            originAlert = window.alert
+            return function(msg) {
+                if ($("#loading-status-overlay").length > 0) {
+                    console.error(msg)
+                } else {
+                    originAlert(msg)
+                }
+            }
+        }()
         //vm.register("app",this.application)
         var loadingStatus = vm.register("LoadingStatus","Loading Status Component")
         loadingStatus.phaseBegin("initialize",100,"Override console")

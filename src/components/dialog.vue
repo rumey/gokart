@@ -106,7 +106,7 @@
     methods: {
       //options
       //title: dialog title
-      //message: 
+      //messages: 
       // 1. string. 
       // 2. array of string or [string, columns, classes]
       //buttons: array of [value,"button name"]
