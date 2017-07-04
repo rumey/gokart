@@ -1192,7 +1192,7 @@
             },
             function(ex) {
                 task.setStatus(utils.FAILED,ex.message || ex)
-                if (failedCallback) failedCallback(task.message)
+                callback(feat,utils.FAILED,task.message)
             })
         }
       },
@@ -1222,6 +1222,11 @@
             feat.set('toolName','Bfrs Origin Point',true)
             feat.set('fillColour',this.tints["new.fillColour"],true)
             feat.set('colour',this.tints["new.colour"],true)
+            if (feat.getGeometry()) {
+                feat.inViewport = ol.extent.containsCoordinate(vm.map.extent,vm.originpointCoordinate(feat))
+            } else {
+                feat.inViewport = false
+            }
         } else {
             feat = new ol.Feature({
                 geometry:new ol.geom.GeometryCollection([]),
@@ -1234,6 +1239,7 @@
                 fillColour:this.tints["new.fillColour"],
                 colour:this.tints["new.colour"],
             })
+            feat.inViewport = true
         }
         feat.setStyle(this.bushfireStyleFunc)
         feat.set('modifyType',3,true)
@@ -1322,6 +1328,7 @@
         this.bushfireMapLayer.getSource().retrieveFeatures(filter,function(features){
           if (features && features.length) {
             vm.initBushfire(features[0])
+            features[0].inViewport = ol.extent.containsCoordinate(vm.map.extent,vm.originpointCoordinate(features[0]))
             if (feat.selectedIndex !== undefined) {
                 if (vm.annotations.getSelectedGeometry(features[0],feat.selectedIndex)) {
                     features[0].selectedIndex = feat.selectedIndex
@@ -1492,38 +1499,43 @@
             if (cql_filter.length > 0) {
                 cql_filter = "&cql_filter=" + cql_filter
             }
-        } 
+        }
+        var bbox = ""
+        if (this.viewportOnly) {
+            bbox = this.map.extent
+            bbox = "&bbox=" + bbox[1] + "," + bbox[0] + "," + bbox[3] + "," + bbox[2]
+        }
         var bushfireLayer = (downloadType === "listed")?vm.env.bushfireLayer:vm.env.allBushfireLayer
         var fireboundaryLayer = (downloadType === "listed")?vm.env.fireboundaryLayer:vm.env.allFireboundaryLayer
         var options = {
-            filename:"bushfires_" + downloadType,
+            filename:"bushfires_" + downloadType + "_" + moment().format('YYYY-MM-DD-HHmm'),
             srs:"EPSG:4326",
             layers:[{
                 layer:"initial_bushfire_originpoint",
                 ignore_if_empty:true,
                 sourcelayers:{
-                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + bushfireLayer + cql_filter ,
+                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + bushfireLayer + cql_filter  + bbox,
                     where:"report_status=1",
                 }
             },{
                 layer:"final_bushfire_originpoint",
                 ignore_if_empty:true,
                 sourcelayers:{
-                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + bushfireLayer + cql_filter,
+                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + bushfireLayer + cql_filter + bbox,
                     where:"report_status>1",
                 }
             },{
                 layer:"initial_bushfire_fireboundary",
                 ignore_if_empty:true,
                 sourcelayers:{
-                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + cql_filter,
+                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + cql_filter + bbox,
                     where:"report_status=1",
                 }
             },{
                 layer:"final_bushfire_fireboundary",
                 ignore_if_empty:true,
                 sourcelayers:{
-                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + cql_filter,
+                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + cql_filter + bbox,
                     where:"report_status>1",
                 }
             }]
@@ -1840,6 +1852,7 @@
                 }
 
                 var selectedFeatures = []
+                var importedFinalFeatures = 0
                 var importingFeatures = features.length
                 if (!import_task && features.length > 0) {
                     vm.dialog.show({
@@ -1873,6 +1886,9 @@
                     if (importingFeatures <= 0) {
                         vm.selectedFeatures.clear()
                         vm.selectedFeatures.extend(selectedFeatures)
+                        if (importedFinalFeatures > 0) {
+                            vm.updateCQLFilter('refresh',1)
+                        }
                     }
                 }
 
@@ -1954,10 +1970,8 @@
                                             vm._taskManager.clearTasks(feat)
                                         }
                                         if (status === utils.SUCCEED || status === utils.WARNING) {
-                                            vm.resetFeature(feat,false)
-                                            vm.refreshFinalFireboundaryLayer()
+                                            importedFinalFeatures += 1
                                             selectedFeatures.push(feat)
-                                            vm.refreshSelectedFinalFireboundaryLayer()
                                         }
                                         if (import_task && msg) {
                                             alert(msg)
@@ -2204,8 +2218,9 @@
       updateViewport: function(runNow) {
         var vm = this
         var updateViewportFunc = function() {
+            var viewportExtent = vm.map.extent
             vm.features.forEach(function(feat) {
-                feat.inViewport = ol.extent.containsCoordinate(vm.map.extent,vm.originpointCoordinate(feat))
+                feat.inViewport = ol.extent.containsCoordinate(viewportExtent,vm.originpointCoordinate(feat))
             })
             vm.setExtentFeatureSize()
             if (vm.viewportOnly) {
