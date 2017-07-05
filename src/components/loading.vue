@@ -1,6 +1,7 @@
 <template>
     <div id="loading-status-overlay" v-if="show">
-    <div id="loading-status" v-if="show">
+    <div id="loading-status" v-if="show" class="scroller">
+      <div id="loading-status-body">
       <div class="row" >
         <div class="small-11">
             <h4>Status</h4>
@@ -40,15 +41,14 @@
       </div>
       <div v-if="hasError">
           <hr class="row" style="border-width:4px;">
-          <div id="error-container" class="scroller" >
           <div id="error-list" >
               <div v-for="error in errors" class="row"  track_by="$index">
                 <div class="small-12">
                     <a class="error">{{error}} </a>
                 </div>
               </div>
-            </div>
           </div>
+       </div>
       </div>
     </div>
     </div>
@@ -128,42 +128,34 @@
       },
     },
     watch:{
-        errors:function(newValue,oldValue) {
+        revision:function(newValue,oldValue) {
             this.adjustHeight()
         }
     },
     props:["application"],
     methods: {
       adjustHeight:function() {
-        if ($("#loading-status").length === 0) {
+        if ($("#loading-status").length === 0 || this.screenHeight === 0) {
             //closed
-            return
-        }
-        if ($("#error-container").length === 0) {
-            //no errors
             return
         }
         var maxHeight = Math.floor(this.screenHeight * 0.95)
         var height = $("#loading-status").height()
-        var containerHeight = $("#error-container").height()
-        var listHeight = $("#error-list").height()
-        if (height <= maxHeight) {
-            if (listHeight <= containerHeight) {
+        var bodyHeight = $("#loading-status-body").height()
+        if (bodyHeight < 500) {
+            bodyHeight = 500
+        }
+        if (bodyHeight <= maxHeight) {
+            if (height === bodyHeight) {
                 //no need to change
                 return
             } else {
-                containerHeight += maxHeight - height
-                if (containerHeight > listHeight) {
-                    containerHeight = listHeight
-                }
+                height = bodyHeight
             }
         } else {
-            containerHeight -= height - maxHeight
-            if (containerHeight < 30) {
-                containerHeight = 30
-            }
+            height = maxHeight
         }
-        $("#error-container").height(containerHeight)
+        $("#loading-status").height(height)
 
       },
       close:function() {
@@ -295,6 +287,7 @@
         vm._sequence = 0
         var addMessage = function(message) {
             if (message && message.length > 0) {
+                vm.revision += 1
                 vm.errors.push((++vm._sequence) + " : " + message)
             }
         }
