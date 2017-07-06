@@ -2586,6 +2586,10 @@
                 }
                 return result
             }
+        },
+        drawProperties:{
+            minDistance:20,
+            freehandSnapTolerance:12,
         }
       })({
         features:vm.drawings

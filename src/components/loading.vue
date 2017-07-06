@@ -142,8 +142,8 @@
         var maxHeight = Math.floor(this.screenHeight * 0.95)
         var height = $("#loading-status").height()
         var bodyHeight = $("#loading-status-body").height()
-        if (bodyHeight < 500) {
-            bodyHeight = 500
+        if (bodyHeight < 200) {
+            bodyHeight = 200
         }
         if (bodyHeight <= maxHeight) {
             if (height === bodyHeight) {

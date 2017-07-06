@@ -88,6 +88,65 @@ ol.control.FullScreen.prototype.handleFullScreenChange_ = function() {
     }
 }()
 
+ol.interaction.Draw.prototype.addToDrawing_ = function() {
+    var originFunc = ol.interaction.Draw.prototype.addToDrawing_;
+    return function(event) {
+        if (this.freehand_) {
+          var coordinates = null
+          if (this.mode_ === ol.interaction.Draw.Mode.LINE_STRING) {
+            coordinates = this.sketchCoords_;
+          } else if (this.mode_ === ol.interaction.Draw.Mode.POLYGON) {
+            coordinates = this.sketchCoords_[0];
+          }
+          if (coordinates.length >= 2) {
+              if (coordinates[coordinates.length - 2][0] === event.coordinate[0] && coordinates[coordinates.length - 2][1] === event.coordinate[1]) {
+                  return
+              }
+              if (this.get('minDistance')) {
+                  var lastPoint = event.map.getPixelFromCoordinate(coordinates[coordinates.length - 2])
+                  if (Math.sqrt(Math.pow(event.pixel[0] - lastPoint[0],2) + Math.pow(event.pixel[1] - lastPoint[1],2)) <= this.get('minDistance')) {
+                      return
+                  }
+              }
+          }
+        }
+        originFunc.call(this,event)
+    }
+}();
+
+ol.interaction.Draw.prototype.atFinish_ = function(event) {
+  var at = false;
+  if (this.sketchFeature_) {
+    var potentiallyDone = false;
+    var potentiallyFinishCoordinates = [this.finishCoordinate_];
+    if (this.mode_ === ol.interaction.Draw.Mode.LINE_STRING) {
+      potentiallyDone = this.sketchCoords_.length > this.minPoints_;
+    } else if (this.mode_ === ol.interaction.Draw.Mode.POLYGON) {
+      potentiallyDone = this.sketchCoords_[0].length >
+          this.minPoints_;
+      potentiallyFinishCoordinates = [this.sketchCoords_[0][0],
+        this.sketchCoords_[0][this.sketchCoords_[0].length - 2]];
+    }
+    if (potentiallyDone) {
+      var map = event.map;
+      for (var i = 0, ii = potentiallyFinishCoordinates.length; i < ii; i++) {
+        var finishCoordinate = potentiallyFinishCoordinates[i];
+        var finishPixel = map.getPixelFromCoordinate(finishCoordinate);
+        var pixel = event.pixel;
+        var dx = pixel[0] - finishPixel[0];
+        var dy = pixel[1] - finishPixel[1];
+        var snapTolerance = this.freehand_ ? (this.get('freehandSnapTolerance') || 1) : this.snapTolerance_;
+        at = Math.sqrt(dx * dx + dy * dy) <= snapTolerance;
+        if (at) {
+          this.finishCoordinate_ = finishCoordinate;
+          break;
+        }
+      }
+    }
+  }
+  return at;
+};
+
 
 //customize thie method to avoid cyclic object value
 JSON.stringify = (function(){
