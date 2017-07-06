@@ -1501,7 +1501,7 @@
             }
         }
         var bbox = ""
-        if (this.viewportOnly) {
+        if (this.viewportOnly && downloadType === "listed") {
             bbox = this.map.extent
             bbox = "&bbox=" + bbox[1] + "," + bbox[0] + "," + bbox[3] + "," + bbox[2]
         }
