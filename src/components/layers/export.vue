@@ -319,8 +319,8 @@
     methods: {
       adjustHeight:function() {
         if (this.activeMenu === "layers" && this.activeSubmenu === "export") {
-            console.log("screenHeight=" + this.screenHeight)
-            console.log("fixedHeight=" + $("#settings-fixpart").height() )
+            //console.log("screenHeight=" + this.screenHeight)
+            //console.log("fixedHeight=" + $("#settings-fixpart").height() )
             $("#settings-flexible").height(this.screenHeight - this.leftPanelHeadHeight -16 - $("#settings-fixpart").height() - this.hintsHeight)
         }
       },
