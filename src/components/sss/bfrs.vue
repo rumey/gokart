@@ -1625,7 +1625,48 @@
         var vm = this
         this.export.importVector(file,function(features,fileFormat){
           try{
-            var ignoredFeatures = []
+            var importedFinalFeatures = 0
+            var importingFeatures = features.length
+            if (!import_task && features.length > 0) {
+                vm.dialog.show({
+                    messages:"Importing bushfires...",
+                    tasks: features.length,
+                    buttons:null
+                })
+            }
+            var featureImported = function(status,message) {
+                if (!import_task) {
+                    if (status === utils.SUCCEED) {
+                        vm.dialog.addSucceedTask()
+                    } else if (status === utils.WARNING) {
+                        vm.dialog.addWarningTask()
+                    } else if (status === utils.IGNORED) {
+                        vm.dialog.addIgnoredTask()
+                    } else if (status === utils.MERGED) {
+                        vm.dialog.addMergedTask()
+                    } else {
+                        vm.dialog.addFailedTask()
+                    }
+                    if (message) {
+                        vm.dialog.addMessage(message)
+                    }
+                    if (vm.dialog.tasks <= vm.dialog.succeedTasks) {
+                        setTimeout(function(){vm.dialog.close()},1000);
+                    }
+                } else if(message) {
+                    alert(message)
+                }
+
+                importingFeatures -= 1
+                if (importingFeatures <= 0) {
+                    vm.selectedFeatures.clear()
+                    vm.selectedFeatures.extend(selectedFeatures)
+                    if (importedFinalFeatures > 0) {
+                        vm.updateCQLFilter('refresh',1)
+                    }
+                }
+            }
+
             var f = null
             //initialize the loaded features
             if (fileFormat === "gpx") {
@@ -1641,11 +1682,12 @@
                     }
                     if (uploadType === "originpoint") {
                         features.splice(i,1)
+                        featureImported(utils.IGNORED)
                         continue
                     }
                     if (feature.getGeometry() instanceof ol.geom.Point) {
                         //feature.set('toolName','Spot Fire')
-                        ignoredFeatures.push(feature)
+                        featureImported(utils.IGNORED)
                         features.splice(i,1)
                     } else if(feature.getGeometry() instanceof ol.geom.LineString) {
                         var coordinates = feature.getGeometry().getCoordinates()
@@ -1662,7 +1704,7 @@
                         })
                         feature.setGeometry(mp)
                     } else {
-                        ignoredFeatures.push(feature)
+                        featureImported(utils.IGNORED)
                         features.splice(i,1)
                     }
                 }
@@ -1703,44 +1745,43 @@
                     if (targetOnly && feature.get('fire_number') !== targetFeature.get('fire_number')) { 
                         //not target feature, ignore
                         features.splice(i,1)
+                        featureImported(utils.IGNORED)
                         continue
                     } 
                     if (feature.getGeometry() instanceof ol.geom.Point) {
                         if (uploadType === "fireboundary") {
+                            featureImported(utils.IGNORED)
                             features.splice(i,1)
                         }
-                        continue
                     } else if (feature.getGeometry() instanceof ol.geom.Polygon) {
                         if (uploadType === "originpoint") {
+                            featureImported(utils.IGNORED)
                             features.splice(i,1)
                         }
-                        continue
                     } else if (feature.getGeometry() instanceof ol.geom.MultiPolygon) {
                         if (uploadType === "originpoint") {
+                           featureImported(utils.IGNORED)
                             features.splice(i,1)
                         }
-                        continue
                     } else if (feature.getGeometry() instanceof ol.geom.GeometryCollection) {
                         //remove the MultiPoint feature
                         features.splice(i,1)
                         //split the gemoetry collection into mutiple features
                         var geometries = null
                         geometries = feature.getGeometry().getGeometries()
-                                    
+                                   
                         //split MultiPoint to multiple point feature
                         $.each(geometries,function(index,geometry){
                             f = new ol.Feature({ geometry:geometry}) 
                             features.splice(i,0,f)
                             i += 1
                         })
+                        vm.dialog.addTasks(geometries.length - 1)
                     } else {
-                        ignoredFeatures.push(feature)
+                        featureImported(utils.IGNORED)
                         features.splice(i,1)
                     }  
                 }
-            }
-            if (ignoredFeatures.length) {
-                //console.warn("The following features are ignored.\r\n" + vm.$root.geojson.writeFeatures(features))
             }
             if (features && features.length == 0) {
                 if (targetFeature) {
@@ -1778,9 +1819,11 @@
                             if (feat.getGeometry() instanceof ol.geom.MultiPolygon) {
                                 feat.setGeometry(new ol.geom.GeometryCollection([features[i].getGeometry(),feat.getGeometry()]))
                                 features.splice(i,1)
+                                featureImported(utils.MERGED)
                             } else {
                                 //already have a point, ignore the point
                                 features.splice(i,1)
+                                featureImported(utils.IGNORED)
                             }
                         } else if (features[i].getGeometry() instanceof ol.geom.Polygon) {
                             if (feat.getGeometry() instanceof ol.geom.MultiPolygon) {
@@ -1793,6 +1836,7 @@
                                 feat.getGeometry().getGeometriesArray()[1].appendPolygon(features[i].getGeometry())
                                 features.splice(i,1)
                             }
+                            featureImported(utils.MERGED)
                         } else if (features[i].getGeometry() instanceof ol.geom.MultiPolygon) {
                             if (feat.getGeometry() instanceof ol.geom.MultiPolygon) {
                                 $.each(features[i].getGeometry().getPolygons(),function(index,p) {
@@ -1809,6 +1853,7 @@
                                 })
                                 features.splice(i,1)
                             }
+                            featureImported(utils.MERGED)
                         }
                     } else {
                         feat = features[i]
@@ -1852,45 +1897,6 @@
                 }
 
                 var selectedFeatures = []
-                var importedFinalFeatures = 0
-                var importingFeatures = features.length
-                if (!import_task && features.length > 0) {
-                    vm.dialog.show({
-                        messages:"Importing bushfires...",
-                        tasks: features.length,
-                        buttons:null
-                    })
-                }
-                var featureImported = function(status,message) {
-                    if (!import_task) {
-                        if (status === utils.SUCCEED) {
-                            vm.dialog.addSucceedTask()
-                        } else if (status === utils.WARNING) {
-                            vm.dialog.addWarningTask()
-                        } else if (status === utils.IGNORED) {
-                            vm.dialog.addIgnoredTask()
-                        } else {
-                            vm.dialog.addFailedTask()
-                        }
-                        if (message) {
-                            vm.dialog.addMessage(message)
-                        }
-                        if (vm.dialog.tasks <= vm.dialog.succeedTasks) {
-                            setTimeout(function(){vm.dialog.close()},1000);
-                        }
-                    } else if(message) {
-                        alert(message)
-                    }
-
-                    importingFeatures -= 1
-                    if (importingFeatures <= 0) {
-                        vm.selectedFeatures.clear()
-                        vm.selectedFeatures.extend(selectedFeatures)
-                        if (importedFinalFeatures > 0) {
-                            vm.updateCQLFilter('refresh',1)
-                        }
-                    }
-                }
 
                 if (vm.search && vm.search.trim().length > 0) {
                     vm.search = ""

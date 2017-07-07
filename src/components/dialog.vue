@@ -8,14 +8,16 @@
         </div>
 
         <div class="row align-center" v-if="hasProgressBar">
-            <div class="small-3 columns small-centered" >
+            <div class="small-2 columns small-centered" >
                 Total: {{tasks}}
-            </div>
-            <div class="small-1 columns small-centered" >
             </div>
 
             <div class="small-2 columns small-centered" >
                 Succeed: {{succeedTasks}}
+            </div>
+
+            <div class="small-2 columns small-centered" >
+                Succeed: {{mergedTasks}}
             </div>
 
             <div class="small-2 columns small-centered" >
@@ -76,6 +78,7 @@
         buttons:[],
         tasks:null,
         succeedTasks:null,
+        mergedTasks:null,
         failedTasks:null,
         warningTasks:null,
         ignoredTasks:null,
@@ -138,6 +141,7 @@
         this.failedTasks = this.hasProgressBar?0:null
         this.warningTasks = this.hasProgressBar?0:null
         this.ignoredTasks = this.hasProgressBar?0:null
+        this.mergedTasks = this.hasProgressBar?0:null
 
         $("#userdialog").foundation('open')
         this.revision += 1
@@ -174,6 +178,12 @@
       addIgnoredTask:function() {
         this.ignoredTasks += 1
       },
+      addMergedTask:function() {
+        this.mergedTasks += 1
+      },
+      addTasks:function(newTasks) {
+        this.tasks += newTasks
+      }
     },
     ready: function () {
       var vm = this

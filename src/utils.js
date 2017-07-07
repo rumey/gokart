@@ -18,6 +18,7 @@ FeatureTask.RUNNING = 2
 FeatureTask.SUCCEED = 3
 FeatureTask.WARNING = 4
 FeatureTask.IGNORED =  5
+FeatureTask.MERGED =  6
 
 FeatureTask.prototype._getIcon = function() {
     if (this.status === FeatureTask.FAILED) {
@@ -32,6 +33,8 @@ FeatureTask.prototype._getIcon = function() {
         return "fa-warning"
     } else if (this.status === FeatureTask.IGNORED) {
         return "fa-minus"
+    } else if (this.status === FeatureTask.MERGED) {
+        return "fa-link"
     }  else {
         return "fa-spinner"
     }
@@ -49,7 +52,9 @@ FeatureTask.prototype._getStatusText = function() {
     } else if (this.status === FeatureTask.WARNING) {
         return "Warning"
     } else if (this.status === FeatureTask.IGNORED) {
-        return "Ignore"
+        return "Ignored"
+    } else if (this.status === FeatureTask.MERGED) {
+        return "Merged"
     }  else {
         return "Running"
     }
@@ -115,15 +120,15 @@ FeatureTaskManager.prototype.addTask = function(feat,scope,taskId,description,st
 }
 
 FeatureTaskManager.prototype.allTasksSucceed = function(feat,scope) {
-    return !((feat.tasks.find(function(t) {return (!scope || t.scope === scope) && t.status !== FeatureTask.SUCCEED && t.status !== FeatureTask.IGNORED}) && true)||false)
+    return feat.tasks.find(function(t) {return (!scope || t.scope === scope) && [FeatureTask.SUCCEED,FeatureTask.IGNORED,FeatureTask.MERGED].indexOf(t.status) === -1 })?false:true;
 }
 
 FeatureTaskManager.prototype.allTasksNotFailed = function(feat,scope) {
-    return !((feat.tasks.find(function(t) {return (!scope || t.scope === scope) && t.status !== FeatureTask.SUCCEED && t.status !== FeatureTask.WARNING && t.status !== FeatureTask.IGNORED}) && true)||false)
+    return feat.tasks.find(function(t) {return (!scope || t.scope === scope) && [FeatureTask.SUCCEED,FeatureTask.IGNORED,FeatureTask.MERGED,FeatureTask.WARNING].indexOf(t.status) === -1 })?false:true;
 }
 
 FeatureTaskManager.prototype.allTasksFinished = function(feat,scope) {
-    return !((feat.tasks.find(function(t) {return (!scope || t.scope === scope) && t.status !== FeatureTask.SUCCEED && t.status !== FeatureTask.FAILED && t.status !== FeatureTask.WARNING && t.status !== FeatureTask.IGNORED}) && true)||false)
+    return feat.tasks.find(function(t) {return (!scope || t.scope === scope) && [FeatureTask.RUNNING,FeatureTask.WAITING].indexOf(t.status) >= 0 })?false:true;
 }
 
 let Utils = function() {
@@ -135,6 +140,7 @@ Utils.prototype.WAITING = FeatureTask.WAITING
 Utils.prototype.RUNNING = FeatureTask.RUNNING
 Utils.prototype.WARNING = FeatureTask.WARNING
 Utils.prototype.IGNORED = FeatureTask.IGNORED
+Utils.prototype.MERGED = FeatureTask.MERGED
 
 Utils.prototype.getFeatureTaskManager = function(changeCallback) {
     return new FeatureTaskManager(changeCallback)
