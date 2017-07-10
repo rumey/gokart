@@ -1320,16 +1320,20 @@
             } else {
                 tool = vm.tool
             }
-            var tint = vm.getStyleProperty(f,"tint","",tool) + ".text"
+            var strokeTint = vm.getStyleProperty(f,"tint","",tool) + ".textStroke"
+            var fillTint = vm.getStyleProperty(f,"tint","",tool) + ".textFill"
             return new ol.style.Style({
                 text: new ol.style.Text({
-                  offsetX: 12,
+                  offsetX: (tool.label && tool.label.offsetX) || 12,
                   text:f.get(labelProperty),
                   textAlign: 'left',
-                  font: '12px Helvetica,Roboto,Arial,sans-serif',
+                  font: (tool.label && tool.label.font) || '12px Helvetica,Roboto,Arial,sans-serif',
+                  fill : new ol.style.Fill({
+                    color:tints[fillTint] || "#333"
+                  }),
                   stroke: new ol.style.Stroke({
-                    color: tints[tint],
-                    width: 4
+                    color: tints[strokeTint] ,
+                    width: (tool.label && tool.label.strokeWidth) || 4
                   })
                 }),
             })

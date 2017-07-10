@@ -270,35 +270,43 @@
         featureSize:0,
         tints: {
           'new':[["#b43232","#c8c032e6"]],
-          'new.text':"#c8c032e6",
+          'new.textStroke':"#c8c032e6",
+          'new.textFill':"#333",
           'new.fillColour':[0, 0, 0, 0.25],
           'new.colour':"#c8c032e6",
           'unknown': [['#b43232','#f90c25']],
-          'unknown.text': '#f90c25',
+          'unknown.textStroke': '#f90c25',
+          'unknown.textFill': '#333',
           'unknown.fillColour':[0, 0, 0, 0.25],
           'unknown.colour': '#f90c25',
-          'initial': [['#b43232','#808080']],
-          'initial.text': '#808080',
+          'initial': [['#b43232','#D3D3D3']],
+          'initial.textStroke': '#D3D3D3',
+          'initial.textFill': '#333',
           'initial.fillColour':[0, 0, 0, 0.25],
-          'initial.colour': '#808080',
-          'draft_final': [['#b43232', '#ff0000']],
-          'draft_final.text': '#ff0000',
+          'initial.colour': '#D3D3D3',
+          'draft_final': [['#b43232', '#8B0000']],
+          'draft_final.textStroke': '#8B0000',
+          'draft_final.textFill': '#FFFFFF',
           'draft_final.fillColour':[0, 0, 0, 0.25],
-          'draft_final.colour': '#ff0000',
-          'final_authorised': [['#b43232', '#008000']],
-          'final_authorised.text': '#008000',
+          'draft_final.colour': '#8B0000',
+          'final_authorised': [['#b43232', '#90EE90']],
+          'final_authorised.textStroke': '#90EE90',
+          'final_authorised.textFill': '#333',
           'final_authorised.fillColour':[0, 0, 0, 0.25],
-          'final_authorised.colour': '#008000',
-          'reviewed': [['#b43232', '#008000']],
-          'reviewed.text': '#008000',
+          'final_authorised.colour': '#90EE90',
+          'reviewed': [['#b43232', '#90EE90']],
+          'reviewed.textStroke': '#90EE90',
+          'reviewed.textFill': '#333',
           'reviewed.fillColour':[0, 0, 0, 0.25],
-          'reviewed.colour': '#008000',
+          'reviewed.colour': '#90EE90',
           'modified':[["#b43232","#f57900"]],
-          'modified.text':"#f57900",
+          'modified.textStroke':"#f57900",
+          'modified.textFill':"#333",
           'modified_authorised.fillColour':[0, 0, 0, 0.25],
           'modified.colour':"#f57900",
           'selected': [['#b43232', '#2199e8']],
-          'selected.text': '#2199e8',
+          'selected.textStroke': '#2199e8',
+          'selected.textFill': '#333',
         }
       }
     },
@@ -1245,6 +1253,7 @@
         feat.set('modifyType',3,true)
         feat.set('fire_number',this.newFireNumber(featId),true)
         feat.set('report_status',99998,true)
+        feat.icon = 'dist/static/symbols/fire/dashed-origin.svg'
 
         vm._insertNewFeature = vm._insertNewFeature || function(features,feat){
             var insertIndex = null
@@ -1468,6 +1477,9 @@
         feature.set('fillColour',this.tints[feature.get('tint') + ".fillColour"])
         feature.set('colour',this.tints[feature.get('tint') + ".colour"])
         feature.setStyle(this.bushfireStyleFunc)
+        if (feature.get('status') === 'initial') {
+            feature.icon = 'dist/static/symbols/fire/dashed-origin.svg' 
+        }
       },
       showBushfireLabels:function() {
         if (this.bushfireMapLayer && !this.$root.active.isHidden(this.bushfireMapLayer)) {
@@ -2752,6 +2764,11 @@
               tints: vm.tints,
               selectedFillColour:[0, 0, 0, 0.25],
               fillColour:[0, 0, 0, 0.25],
+              label:{
+                offsetX:17,
+                strokeWidth:8,
+                font: "Bold 12px Helvetica,Roboto,Arial,sans-serif"
+              },
               size:2,
               interactions: [
                   vm.ui.originPointDraw
