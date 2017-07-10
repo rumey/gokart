@@ -1322,18 +1322,19 @@
             }
             var strokeTint = vm.getStyleProperty(f,"tint","",tool) + ".textStroke"
             var fillTint = vm.getStyleProperty(f,"tint","",tool) + ".textFill"
+            var labelStyle = tool.labelStyle || {}
             return new ol.style.Style({
                 text: new ol.style.Text({
-                  offsetX: (tool.label && tool.label.offsetX) || 12,
+                  offsetX: labelStyle.offsetX || 12,
                   text:f.get(labelProperty),
                   textAlign: 'left',
-                  font: (tool.label && tool.label.font) || '12px Helvetica,Roboto,Arial,sans-serif',
+                  font: labelStyle.font || '12px Helvetica,Roboto,Arial,sans-serif',
                   fill : new ol.style.Fill({
                     color:tints[fillTint] || "#333"
                   }),
                   stroke: new ol.style.Stroke({
                     color: tints[strokeTint] ,
-                    width: (tool.label && tool.label.strokeWidth) || 4
+                    width: labelStyle.strokeWidth || 4
                   })
                 }),
             })

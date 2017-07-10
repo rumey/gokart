@@ -2764,7 +2764,7 @@
               tints: vm.tints,
               selectedFillColour:[0, 0, 0, 0.25],
               fillColour:[0, 0, 0, 0.25],
-              label:{
+              labelStyle:{
                 offsetX:17,
                 strokeWidth:8,
                 font: "Bold 12px Helvetica,Roboto,Arial,sans-serif"
