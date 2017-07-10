@@ -66,7 +66,7 @@ var Gokart = (function() {
 
     return {
         get:function(module,url,app) {
-            var url = url || "https://sss.dpaw.wa.gov.au";
+            var url = url || "https://sss.dbca.wa.gov.au";
             if (url.endsWith("/")) {
                 url = url.substring(0,url.length - 1)
             }
