@@ -156,7 +156,7 @@ def himawari8(target):
 
 
 session_key_header = "X-Session-Key"
-sso_cookie_name = os.environ.get("SSO_COOKIE_NAME") or "oim_dpaw_wa_gov_au_sessionid"
+sso_cookie_name = os.environ.get("SSO_COOKIE_NAME") or "dbca_wa_gov_au_sessionid"
 
 def get_session_cookie():
     """ 
@@ -183,7 +183,7 @@ def get_file_md5(f):
     return get_md5_output[0].split()[0]
 
 
-basetime_url = os.environ.get("BOM_BASETIME_URL") or "https://kmi.dpaw.wa.gov.au/geoserver/bom/wms?service=WMS&version=1.1.0&request=GetMap&styles=&bbox=70.0,-55.0,195.0,20.0&width=768&height=460&srs=EPSG:4283&format=image%2Fgif&layers={}"
+basetime_url = os.environ.get("BOM_BASETIME_URL") or "https://kmi.dbca.wa.gov.au/geoserver/bom/wms?service=WMS&version=1.1.0&request=GetMap&styles=&bbox=70.0,-55.0,195.0,20.0&width=768&height=460&srs=EPSG:4283&format=image%2Fgif&layers={}"
 basetime_re = re.compile("(\d{4})-(\d{2})-(\d{2})\s*(\d{2})\D*(\d{2})\s*(UTC)")
 def getTimelineFromLayer(target,current_timeline):
     basetimeLayer = bottle.request.query.get("basetimelayer")
@@ -1044,7 +1044,7 @@ def downloaod(fmt):
         workdir = tempfile.mkdtemp()
 
         session_cookie = get_session_cookie()
-        cookies={"oim_dpaw_wa_gov_au_sessionid":session_cookie} if ENV_TYPE == "prod" else {"oim_dpaw_wa_gov_au_sessionid":session_cookie,"oim_uat_dpaw_wa_gov_au_sessionid":session_cookie}
+        cookies={sso_cookie_name:session_cookie}
 
         loaddir = os.path.join(workdir,"load")
         os.mkdir(loaddir)
@@ -1467,7 +1467,7 @@ def spatial():
             options = {}
 
         session_cookie = get_session_cookie()
-        cookies={"oim_dpaw_wa_gov_au_sessionid":session_cookie} if ENV_TYPE == "prod" else {"oim_dpaw_wa_gov_au_sessionid":session_cookie,"oim_uat_dpaw_wa_gov_au_sessionid":session_cookie}
+        cookies={sso_cookie_name:session_cookie}
         results = []
 
         features = features["features"] or []
