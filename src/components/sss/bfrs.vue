@@ -1506,7 +1506,7 @@
         if (downloadType === "listed") {
             cql_filter = vm.bushfireLayer.cql_filter || ""
             if (this.search && this.search.trim().length > 0) {
-                cql_filter = (cql_filter?(cql_filter + " and (("):"((") +  this.fields.map(function(field) { return "strToLowerCase(" + field + ") like '%25" + vm.search.trim() + "%25'"}).join(") or (") + "))"
+                cql_filter = (cql_filter?(cql_filter + " and (("):"((") +  this.fields.map(function(field) { return "strToLowerCase(" + field + ") like '%25" + vm.search.trim().toLowerCase() + "%25'"}).join(") or (") + "))"
             }
             if (cql_filter.length > 0) {
                 cql_filter = "&cql_filter=" + cql_filter
