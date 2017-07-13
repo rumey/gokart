@@ -184,7 +184,10 @@
                   <a v-if="canSave(f)" @click.stop.prevent="saveFeature(f)" title="Save" class="button tiny secondary float-right action" style="margin-left:2px;background-color:red">
                     <i class="fa fa-save actionicon"></i>
                   </a>
-                  <div class="feature-title"><img class="feature-icon" id="bushfire-icon-{{f.get('id')}}" v-bind:src="featureIconSrc(f)" /> {{ f.get('fire_number') }}<br><span class="reportname">{{f.get('name')}}</span> <i><small></small></i></div>
+                  <div class="feature-title"><img class="feature-icon" id="bushfire-icon-{{f.get('id')}}" v-bind:src="featureIconSrc(f)" /> {{ f.get('fire_number') }} <i><small></small></i></div>
+                </div>
+                <div class="small-12 columns">
+                      <div class="feature-title"><span class="reportname">{{f.get('name')}}</span> </div>
                 </div>
                 <template v-for="task in featureTasks(f)" track-by="$index">
                   <div class="small-12 columns">
