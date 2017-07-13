@@ -117,10 +117,10 @@
                   <label for="historyFrom">From:</label>
                 </div>
                 <div class="small-4">
-                  <input type="text" v-on:blur="verifyDate($event,['YY-M-D','YYYY-M-D'],'YYYY-MM-DD')" v-model="historyFromDate" placeholder="yyyy-mm-dd"></input>
+                  <input type="text" v-on:blur="utils.verifyDate($event,['YY-M-D','YYYY-M-D'],'YYYY-MM-DD')" v-model="historyFromDate" placeholder="yyyy-mm-dd"></input>
                 </div>
                 <div class="small-2">
-                  <input type="text" v-on:blur="verifyDate($event,'H:m','HH:mm')" v-model="historyFromTime" placeholder="24:00"></input>
+                  <input type="text" v-on:blur="utils.verifyDate($event,'H:m','HH:mm')" v-model="historyFromTime" placeholder="24:00"></input>
                 </div>
                 <div class="small-4">
                   <select name="select" v-model="history" @change="historyRange = history">
@@ -139,10 +139,10 @@
                   <label for="historyTo">To:</label>
                 </div>
                 <div class="small-4">
-                  <input type="text" v-on:blur="verifyDate($event,['YY-M-D','YYYY-M-D'],'YYYY-MM-DD')" v-model="historyToDate" placeholder="yyyy-mm-dd"></input>
+                  <input type="text" v-on:blur="utils.verifyDate($event,['YY-M-D','YYYY-M-D'],'YYYY-MM-DD')" v-model="historyToDate" placeholder="yyyy-mm-dd"></input>
                 </div>
                 <div class="small-2">
-                  <input type="text" v-on:blur="verifyDate($event,'H:m','HH:mm')" v-model="historyToTime" placeholder="24:00"></input>
+                  <input type="text" v-on:blur="utils.verifyDate($event,'H:m','HH:mm')" v-model="historyToTime" placeholder="24:00"></input>
                 </div>
                 <div class="small-2"></div>
                 <div class="small-2">
@@ -311,20 +311,6 @@
       adjustHeight:function() {
         if (this.activeMenu === "tracking") {
             $("#tracking-list").height(this.screenHeight - this.leftPanelHeadHeight - 50 - $("#tracking-list-controller-container").height())
-        }
-      },
-      verifyDate: function(event,inputPattern,pattern) {
-        var element = event.target;
-        element.value = element.value.trim()
-        if (element.value.length > 0) {
-            var m = moment(element.value,inputPattern,true)
-            if (!m.isValid()) {
-                setTimeout(function() {
-                    element.focus()
-                },10);
-            } else {
-                element.value = m.format(pattern)
-            }
         }
       },
       ago: function (time) {
@@ -721,6 +707,7 @@
             function processResources() {
                 defaultOnload(loadType,vectorSource,features)
                 if (vm.annotations.isFeaturesSelectedFromModule("tracking") && vm.selectedFeatures.getLength() > 0) {
+                    var loadedFeature = null
                     for(var index = vm.selectedFeatures.getLength() - 1;index >= 0;index--) {
                         var f = vm.selectedFeatures.item(index)
                         loadedFeature = features.find(function(f1){return f1.get('deviceid') === f.get('deviceid')})

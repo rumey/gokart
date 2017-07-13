@@ -1,4 +1,4 @@
-import { $ } from 'src/vendor.js'
+import { $,moment } from 'src/vendor.js'
 
 
 let FeatureTask = function(manager,scope,taskId,description,status,message) {
@@ -323,6 +323,32 @@ Utils.prototype.proxy = function(classname,object,attrs){
     }
     return new proxyCache[classname](object)
 
+}
+//verify the user input date string.
+//event, the dom event trigger this verification
+//inputPattern: the array of input patterns 
+//pattern: the pattern to normialize the user input 
+//if correct, format the date with pattern
+//if failed, set focus to the date element
+//return true if correct;otherwise return false
+Utils.prototype.verifyDate = function(event,inputPattern,pattern) {
+    var element = event.target;
+    element.value = element.value.trim()
+    if (element.value.length > 0) {
+        var m = moment(element.value,inputPattern,true)
+        if (!m.isValid()) {
+            setTimeout(function() {
+                element.focus()
+            },10);
+            return false
+        } else {
+            element.value = m.format(pattern)
+            $(element).trigger('change')
+            return true
+        }
+    } else {
+        return true
+    }
 }
 
 var utils = new Utils()

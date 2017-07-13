@@ -90,6 +90,15 @@
                 </div>
 
                 <div class="row collapse">
+                  <div class="small-8 columns">
+                    <input type="search" v-model="search" placeholder="Find a bushfire" @keyup="updateFeatureFilter()">
+                  </div>
+                  <div class="small-4 columns" style="text-align:right">
+                    <span v-on:click="showFilters = !showFilters" style="cursor:pointer"><i class="fa {{showFilters?'fa-angle-double-up':'fa-angle-double-down'}}" aria-hidden="true"></i> Filters</span>
+                  </div>
+                </div>
+                <div v-if="showFilters">
+                <div class="row collapse">
                   <div class="small-6 columns">
                     <select name="select" v-model="region" @change="updateCQLFilter('region',2000)">
                       <option value="" selected>All regions</option> 
@@ -117,9 +126,30 @@
                       <option value="report_status >= 3">Report Authorised</option>
                     </select>
                   </div>
-                  <div class="small-6 columns">
-                    <input type="search" v-model="search" placeholder="Find a bushfire" @keyup="updateFeatureFilter()">
+                  <div class="small-6">
+                    <select name="select" v-model="dateRange" v-on:change="changeDateRange()">
+                      <option value="" selected>Date range</option> 
+                      <!-- values in milliseconds -->
+                      <option value="1">Today</option> 
+                      <option value="2">Current week</option> 
+                      <option value="3">Current month</option> 
+                      <option value="4">Last week</option> 
+                      <option value="5">Last 4 weeks</option> 
+                      <option value="-1">Other</option> 
+                    </select>
                   </div>
+                </div>
+                <div class="row collapse">
+                  <div class="small-5">
+                      <input type="text" id="startDate" v-on:blur="changeEndDate($event)" v-on:keyup="changeStartDate($event,2000)" v-model="startDate" placeholder="yyyy-mm-dd" v-bind:disabled="dateRange !== '-1'"></input>
+                  </div>
+                  <div class="small-2" style="text-align:center">
+                      To
+                  </div>
+                  <div class="small-5">
+                      <input type="text" id="endDate" v-on:blur="changeStartDate($event)" v-on:keyup="changeEndDate($event,2000)" v-model="endDate" placeholder="yyyy-mm-dd"  v-bind:disabled="dateRange !== '-1'"></input>
+                  </div>
+                </div>
                 </div>
     
                 <div class="tool-slice row collapse">
@@ -263,6 +293,10 @@
         fields: ['fire_number', 'name'],
         drawings:new ol.Collection(),
         features: new ol.Collection(),
+        showFilters:true,
+        startDate:'',
+        endDate:'',
+        dateRange:'',
         selectedBushfires: [],
         revision:1,
         profileRevision:1,
@@ -352,12 +386,6 @@
       selectedFinalFireboundaryMapLayer: function() {
         return this.bushfireMapLayer?this.bushfireLayer.dependentLayers[1].mapLayer:null
       },
-      regionFilter:function() {
-        return this.region?("region_id=" + this.region) : null
-      },
-      districtFilter:function() {
-        return this.district?("district_id=" + this.district) : null
-      },
       regions:function() {
         try{
             return this.profileRevision && this.whoami["bushfire"]["regions"]
@@ -439,6 +467,9 @@
       tools:function(newValue,oldValue) {
         this.adjustHeight()
       },
+      showFilters:function(newValue,oldValue) {
+        this.adjustHeight()
+      },
       showFireboundary:function(newValue,oldValue) {
         var vm = this
         this.map.enableDependentLayer(this.bushfireMapLayer,this.env.finalFireboundaryLayer,newValue)
@@ -447,9 +478,112 @@
                 feature.getGeometry().changed()
             }
         })       
-      }
+      },
     },
     methods: {
+      regionFilter:function() {
+        return this.region?("region_id=" + this.region) : null
+      },
+      dateFilter:function() {
+        if (this.endDate && this.endDate.length !== 10) {
+            throw "endDate is under changing."
+        }
+        if (this.startDate && this.startDate.length !== 10) {
+            throw "startDate is under changing."
+        }
+
+        var startDate = (this.startDate)?moment(this.startDate,"YYYY-MM-DD",true):null
+        if (startDate && !startDate.isValid()) {
+            throw "startDate is under changing."
+        }
+
+        var endDate = (this.endDate && this.endDate !== moment().format("YYYY-MM-DD"))?moment(this.endDate,"YYYY-MM-DD",true):null
+        if (endDate && !endDate.isValid()) {
+            throw "endDate is under changing."
+        }
+
+
+        if (startDate) {
+            if (endDate) {
+                return "created BETWEEN '" + startDate.utc().format("YYYY-MM-DDTHH:mm:ssZ") + "' AND '" + endDate.add(1,"days").utc().format("YYYY-MM-DDTHH:mm:ssZ") + "'"
+            } else {
+                return "created >= '" + startDate.utc().format("YYYY-MM-DDTHH:mm:ssZ") + "'"
+            }
+        } else if (endDate) {
+            return "created < '" + endDate.add(1,"days").utc().format("YYYY-MM-DDTHH:mm:ssZ") + "'"
+        } else {
+            return null
+        }
+      },
+      bushfireFilter:function() {
+        // filter by specific bushfires if "Show selected only" is enabled
+        if (this.selectedOnly && !this.selectedOnlyDisabled) {
+            this._bushfireFilter = 'fire_number in (\'' + this.selectedBushfires.join('\',\'') + '\')'
+        } else if (this.selectedOnly) {
+            this._bushfireFilter = this._bushfireFilter || ''
+        } else {
+            this._bushfireFilter = ''
+        }
+        return this._bushfireFilter
+      },
+      districtFilter:function() {
+        return this.district?("district_id=" + this.district) : null
+      },
+      changeDateRange:function() {
+        var endDate = moment().startOf('day')
+        if (this.dateRange === "-1") {
+            //customized
+            return
+        } else if (this.dateRange === "") {
+            this.endDate = ''
+            this.startDate = ''
+        } else if (this.dateRange === "1") {
+            //today
+            this.endDate = endDate.format("YYYY-MM-DD")
+            this.startDate = endDate.format("YYYY-MM-DD")
+        } else if (this.dateRange === "2") {
+            //current week
+            this.endDate = endDate.format("YYYY-MM-DD")
+            this.startDate = endDate.startOf('week').format("YYYY-MM-DD")
+        } else if (this.dateRange === "3") {
+            //current month
+            this.endDate = endDate.format("YYYY-MM-DD")
+            this.startDate = endDate.startOf('month').format("YYYY-MM-DD")
+        } else if (this.dateRange === "4") {
+            //last week
+            this.endDate = endDate.format("YYYY-MM-DD")
+            this.startDate = endDate.subtract(6,"days").format("YYYY-MM-DD")
+        } else if (this.dateRange === "5") {
+            //last 4 weeks
+            this.endDate = endDate.format("YYYY-MM-DD")
+            this.startDate = endDate.subtract(27,"days").format("YYYY-MM-DD")
+        }
+        this.updateCQLFilter('date',1000)
+      },
+      changeStartDate:function(event,wait) {
+        var vm = this
+        wait = (wait == undefined)?1000:((wait === 0)?1:wait)
+        this._changeStartDate = this._changeStartDate || debounce(function(event){
+            if (utils.verifyDate(event,['YY-M-D','YYYY-M-D'],'YYYY-MM-DD')) {
+                vm.updateCQLFilter('date',1000)
+            }
+            vm.dateRange = "-1"
+        },wait)
+
+        this._changeStartDate.call({wait:wait},event)
+      },
+      changeEndDate:function(event,wait) {
+        var vm = this
+        wait = (wait == undefined)?1000:((wait === 0)?1:wait)
+        this._changeEndDate = this._changeEndDate || debounce(function(event){
+            if (utils.verifyDate(event,['YY-M-D','YYYY-M-D'],'YYYY-MM-DD')) {
+                vm.updateCQLFilter('date',1000)
+            }
+            vm.dateRange = "-1"
+        },wait)
+
+        this._changeEndDate.call({wait:wait},event)
+      },
       originpointCoordinate:function(feat){
         try {
             return feat.getGeometry().getGeometriesArray()[0].getCoordinates()
@@ -1639,6 +1773,7 @@
           try{
             var importedFinalFeatures = 0
             var importingFeatures = features.length
+            var selectedFeatures = []
             if (!import_task && features.length > 0) {
                 vm.dialog.show({
                     messages:"Importing bushfires...",
@@ -1908,8 +2043,6 @@
                     }
                 }
 
-                var selectedFeatures = []
-
                 if (vm.search && vm.search.trim().length > 0) {
                     vm.search = ""
                     vm.updateFeatureFilter(true)
@@ -2107,41 +2240,46 @@
         }
         if (!vm._updateCQLFilterFunc) {
             vm._updateCQLFilterFunc = function(updateType,callback){
-                if (!vm.bushfireMapLayer) {
-                    vm._updateCQLFilter.call({wait:100},updateType)
-                    return
-                }
-                if (vm.selectedOnly && !vm.selectedOnlyDisabled && vm.selectedBushfires.length === 0) {
-                    vm.selectedOnly = false
-                }
-                // filter by specific bushfires if "Show selected only" is enabled
-                if (vm.selectedOnly && !vm.selectedOnlyDisabled) {
-                    vm.bushfireFilter = 'fire_number in (\'' + vm.selectedBushfires.join('\',\'') + '\')'
-                } else if (vm.selectedOnly) {
-                    vm.bushfireFilter = vm.bushfireFilter || ''
-                } else {
-                    vm.bushfireFilter = ''
-                }
-                // CQL statement assembling logic
-                var filters = [vm.statusFilter, vm.bushfireFilter, vm.regionFilter, vm.districtFilter].filter(function(f){return (f || false) && true})
-                if (filters.length === 0) {
-                  vm.bushfireLayer.cql_filter = ''
-                } else if (filters.length === 1) {
-                  vm.bushfireLayer.cql_filter = filters[0]
-                } else {
-                  vm.bushfireLayer.cql_filter = "(" + filters.join(") and (") + ")"
-                }
-                if (updateType === "selectedBushfire" && vm.bushfireFilter) {
-                    vm.updateFeatureFilter(true)
-                    return
-                }
-                //clear bushfire filter or change other filter
-                vm.bushfireMapLayer.getSource().loadSource("query",callback)
-                if (updateType === "refresh") {
-                    vm.refreshFinalFireboundaryLayer()
-                    if (vm.selectedBushfires.length >= 0) { 
-                        vm.refreshSelectedFinalFireboundaryLayer()
+                try{
+                    if (!vm.bushfireMapLayer) {
+                        vm._updateCQLFilter.call({wait:100},updateType)
+                        return
                     }
+                    if (vm.selectedOnly && !vm.selectedOnlyDisabled && vm.selectedBushfires.length === 0) {
+                        vm.selectedOnly = false
+                    }
+                    // CQL statement assembling logic
+                    var bushfireFilter = vm.bushfireFilter()
+
+                    var filters = [vm.statusFilter, bushfireFilter, vm.regionFilter(), vm.districtFilter(),vm.dateFilter()].filter(function(f){return (f || false) && true})
+                    var cql_filter = ''
+                    if (filters.length === 0) {
+                      cql_filter = ''
+                    } else if (filters.length === 1) {
+                      cql_filter = filters[0]
+                    } else {
+                      cql_filter = "(" + filters.join(") and (") + ")"
+                    }
+                    if (updateType !== "refresh" && vm.bushfireLayer.cql_filter === cql_filter) {
+                        //not changed
+                        return 
+                    } else {
+                      vm.bushfireLayer.cql_filter = cql_filter
+                    }
+                    if (updateType === "selectedBushfire" && bushfireFilter) {
+                        vm.updateFeatureFilter(true)
+                        return
+                    }
+                    //clear bushfire filter or change other filter
+                    vm.bushfireMapLayer.getSource().loadSource("query",callback)
+                    if (updateType === "refresh") {
+                        vm.refreshFinalFireboundaryLayer()
+                        if (vm.selectedBushfires.length >= 0) { 
+                            vm.refreshSelectedFinalFireboundaryLayer()
+                        }
+                    }
+                } catch(ex) {
+                    //ignore the exception
                 }
             }
         }
@@ -2393,6 +2531,7 @@
     },
     ready: function () {
       var vm = this
+      this._changingDate = false
       this._featurelist =new ol.Collection()
       this._taskManager = utils.getFeatureTaskManager(function(){
         vm.revision++
