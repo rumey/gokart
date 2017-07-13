@@ -667,11 +667,11 @@
         var updateType = null
         var action = options["action"] || "select"
         if (!options) {return}
-        if ("region" in options && options["region"] !== this.region) {
+        if (!("region" in options) || options["region"] !== this.region) {
             this.region = options["region"] || ""
             updateType = "region"
         }
-        if ("district" in options && options["district"] != this.district) {
+        if (!("district" in options) || options["district"] !== this.district) {
             this.district = options["district"] || ""
             updateType = "district"
         }
@@ -700,7 +700,15 @@
         }
 
         if (updateType || options["refresh"]) {
-            this.updateCQLFilter(updateType,(updateType === "query")?0:1,function(){
+            if (this.statusFilter !== "") {
+                this.statusFilter = ""
+            }
+            if (this.dateRange !== "") {
+                this.dateRange = ""
+                this.startDate = ""
+                this.endDate = ""
+            }
+            this.updateCQLFilter(updateType,1,function(){
                 if (options["bushfireid"] !== null && options["bushfireid"] !== undefined){
                     var feat = vm.features.getArray().find(function(o) {return o.get('fire_number') == options["bushfireid"]})
                     if (feat) {
@@ -2293,7 +2301,8 @@
             },2000)
         }
         if (wait === 0) {
-            vm._updateCQLFilterFunc(updateType,callback)
+            //vm._updateCQLFilterFunc(updateType,callback)
+            vm._updateCQLFilter.call({wait:1},updateType,callback)
         } else if (wait === undefined || wait === null) {
             vm._updateCQLFilter(updateType,callback)
         } else {
