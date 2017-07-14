@@ -708,6 +708,7 @@
                 this.startDate = ""
                 this.endDate = ""
             }
+            updateType = options["refresh"]?"refresh":updateType
             this.updateCQLFilter(updateType,1,function(){
                 if (options["bushfireid"] !== null && options["bushfireid"] !== undefined){
                     var feat = vm.features.getArray().find(function(o) {return o.get('fire_number') == options["bushfireid"]})
