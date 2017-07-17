@@ -87,7 +87,9 @@ ol.control.FullScreen.prototype.handleFullScreenChange_ = function() {
         this.setMap(this.getMap())
     }
 }()
-
+//improve freehand drawing by
+//1. Remove the consectuive same points.
+//2. Guarantee the pixels between two points must be not less than the value of the property 'minDistance' if configured
 ol.interaction.Draw.prototype.addToDrawing_ = function() {
     var originFunc = ol.interaction.Draw.prototype.addToDrawing_;
     return function(event) {
@@ -114,6 +116,7 @@ ol.interaction.Draw.prototype.addToDrawing_ = function() {
     }
 }();
 
+//Configure the snapTolerance for freehand drawing
 ol.interaction.Draw.prototype.atFinish_ = function(event) {
   var at = false;
   if (this.sketchFeature_) {
