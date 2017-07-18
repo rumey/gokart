@@ -640,29 +640,32 @@
               if (layer == vm.featureOverlay) {
                   //select all annotation features except text note
                   layer.getSource().forEachFeatureIntersectingExtent(extent, function (feature) {
-                    if (!multi && vm.selectedFeatures.getLength() > 0) {return true}
+                    if (!multi && selectedFeatures.getLength() > 0) {return true}
                     if (!feature.get('note')) {
-                        vm.selectedFeatures.push(feature)
+                        selectedFeatures.push(feature)
                         return !multi
                     }
                   })
                   //select text note
                   vm.features.forEach(function(feature){
-                    if (!multi && vm.selectedFeatures.getLength() > 0) {return}
+                    if (!multi && selectedFeatures.getLength() > 0) {return}
                     if (feature.get('note')) {
                       if (ol.extent.intersects(extent,vm.getNoteExtent(feature))) {
-                        vm.selectedFeatures.push(feature)
+                        selectedFeatures.push(feature)
                       }
                     }
                   })
               } else {
                   layer.getSource().forEachFeatureIntersectingExtent(extent, function (feature) {
-                    if (!multi && vm.selectedFeatures.getLength() > 0) {return true}
-                    vm.selectedFeatures.push(feature)
+                    if (!multi && selectedFeatures.getLength() > 0) {return true}
+                    selectedFeatures.push(feature)
                     return !multi
                   })
               }
             })
+            if (options && options.listeners && options.listeners.selected) {
+                options.listeners.selected(selectedFeatures)
+            }
           })
           // clear selectedFeatures before dragging a box
           dragSelectInter.on('boxstart', function () {
@@ -818,7 +821,7 @@
                     vm.selecting = true
                     var result = this.defaultHandleEvent(event)
                     if (tool && tool.selectMode === "geometry") {
-                        vm.selectedFeatures.forEach(function(f){
+                        selectedFeatures.forEach(function(f){
                             var indexes = vm.getSelectedGeometryIndex(f.getGeometry(),event)
                             if (indexes) {
                                 f['selectedIndex'] = indexes
@@ -827,6 +830,10 @@
                             }
                             f.changed()
                         })
+                    } else {
+                        if (options && options.listeners && options.listeners.selected) {
+                            options.listeners.selected(selectedFeatures)
+                        }
                     }
                     return result
                 } finally {

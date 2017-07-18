@@ -1092,8 +1092,8 @@
                         if (interaction.events && interaction.events["deletefeaturegeometry"]) {
                             interaction.on("deletefeaturegeometry",deleteFeatureGeometryListener)
                         }
-                        if (interaction.events && interaction.events["deletefeatureallgeometries"]) {
-                            interaction.on("deletefeatureallgeometries",deleteFeatureAllGeometriesListener)
+                        if (interaction.events && interaction.events["deleteallgeometries"]) {
+                            interaction.on("deleteallgeometries",deleteFeatureAllGeometriesListener)
                         }
                         processedInteractions.push(interaction)
                     }

@@ -83,7 +83,7 @@
                             <span class="show-for-sr">Show selected only</span>
                          </label>
                         </div>
-                        <label for="selectedBushfiresOnly" style="side-label" class="side-label">Show selected only</label>
+                        <label for="selectedBushfiresOnly" style="side-label" class="side-label">Show selected only ({{selectedBushfires.length}})</label>
                       </div>
                     </div>
                   </div>
@@ -667,15 +667,17 @@
         var updateType = null
         var action = options["action"] || "select"
         if (!options) {return}
-        if (!("region" in options) || options["region"] !== this.region) {
+        if (this.region !== "" && (!("region" in options) || options["region"] !== this.region)) {
             this.region = options["region"] || ""
             updateType = "region"
         }
-        if (!("district" in options) || options["district"] !== this.district) {
+        if (this.district !== "" && (!("district" in options) || options["district"] !== this.district)) {
             this.district = options["district"] || ""
             updateType = "district"
         }
-        this.selectedFeatures.clear()
+        if (options["bushfireid"] !== null && options["bushfireid"] !== undefined){
+            this.selectedFeatures.clear()
+        }
 
         updateType = updateType || ((action === "create")?"query":null)
         if (!updateType && options["bushfireid"] !== null && options["bushfireid"] !== undefined){
@@ -689,9 +691,11 @@
                 if (options["refresh"] || action === "update") {
                     this.resetFeature(bushfire,false,function() {
                         vm.zoomToSelected()
+                        vm.scrollToSelected()
                     })
                 } else {
                     this.zoomToSelected()
+                    this.scrollToSelected()
                 }
                 return
             } else {
@@ -719,6 +723,7 @@
                             vm.updateFeatureFilter(true)
                         }
                         vm.zoomToSelected()
+                        vm.scrollToSelected()
                     }
                 }
 
@@ -2407,6 +2412,23 @@
             vm._updateViewport()
         }
       },
+      scrollToSelected:function() {
+        if (this.selectedFeatures.getLength() === 0) return
+        var index = -1
+
+        for (var i = 0;i < this.features.getLength() ;i++) {
+            if (this.showFeature(this.features.item(i))) {
+                index += 1
+                if (this.features.item(i) === this.selectedFeatures.item(0)) {
+                    break
+                }
+            }
+        }
+        if (index >= 0) {
+            var listElement = document.getElementById("bfrs-list")
+            listElement.scrollTop += listElement.children[index].getBoundingClientRect().top - listElement.getBoundingClientRect().top
+        }
+      },
       selectDefaultGeometry:function(feature) {
         var geometries = feature.getGeometry().getGeometriesArray()
         if (geometries.length > 1) {
@@ -2684,8 +2706,20 @@
           vm.postModified(ev.features.getArray())
       })
       */
-      vm.ui.dragSelectInter = vm.annotations.dragSelectInterFactory()(toolConfig)
-      vm.ui.selectInter = vm.annotations.selectInterFactory()(toolConfig)
+      vm.ui.dragSelectInter = vm.annotations.dragSelectInterFactory({
+        listeners: {
+            selected:function(selectedFeatures) {   
+                vm.scrollToSelected()
+            }
+        }
+      })(toolConfig)
+      vm.ui.selectInter = vm.annotations.selectInterFactory({
+        listeners: {
+            selected:function(selectedFeatures) {   
+                vm.scrollToSelected()
+            }
+        }
+      })(toolConfig)
       vm.ui.geometrySelectInter = vm.annotations.selectInterFactory({
         condition: function(event) {
             var result = ol.events.condition.singleClick(event)
@@ -2795,6 +2829,7 @@
             vm.selectedFeatures.clear()
             vm.selectedFeatures.push(f)
             vm.annotations.setTool("Bfrs Edit Geometry")
+            vm.scrollToSelected()
             //vm.validateBushfire(f,"addOriginPoint")
 
             vm.ui.originPointDraw.dispatchEvent(vm.map.createEvent(vm.ui.originPointDraw,"addfeaturegeometry",{feature:f,indexes:[0]}))
@@ -2816,7 +2851,7 @@
                   vm.annotations.keyboardInterFactory({
                     selectEnabled:false,
                     events: {
-                        deletefeatureallgeometries:true
+                        deleteallgeometries:true
                     },
                     deleteSelected:function(features,selectedFeatures) {
                         var feature = null
