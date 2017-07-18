@@ -193,7 +193,7 @@
         cql: '',
         tools: [],
         history: '',
-        fields: ['id', 'registration', 'rin_display', 'deviceid', 'symbol', 'district', 'usual_driver', 'usual_callsign', 'usual_location', 'current_driver', 'current_callsign', 'contractor_details', 'source_device_type'],
+        fields: ['id', 'registration', 'rin_display', 'deviceid', 'symbol', 'district_display', 'usual_driver', 'callsign_display', 'usual_location', 'current_driver', 'contractor_details', 'source_device_type'],
         allFeatures: [],
         extentFeatures: [],
         selectedDevices: [],
@@ -608,20 +608,20 @@
 
       var deviceLabel = function(device) {
         var name = ''
-        var district = device.get('district')
-        var rin_display = device.get('rin_display')
+        var district = device.get('district_display')
+        var callsign_display = device.get('callsign_display')
         var registration = device.get('registration')
-        if (!district || district == 'AV' || district == 'OTH'){
-            if (!rin_display){
+        if (!district || district == 'Aviation' || district == 'Other'){
+            if (!callsign_display){
                 name = registration
             } else {
-                name = rin_display +' '+ registration
+                name = callsign_display +' '+ registration
             }
         } else {
-            if (!rin_display){
+            if (!callsign_display){
                 name = district +' '+ registration
             } else {
-                name = district +' '+ rin_display +' '+ registration
+                name = callsign_display +' '+ registration
             }
         }
         return name
@@ -659,15 +659,13 @@
           var c_label = ''
           var u_label = ''
           var c_driver = ' ' + (device.get("current_driver") || '');
-          var c_callsign = ' ' + (device.get("current_callsign") || '');
           var u_driver = ' ' + (device.get("usual_driver") || '');
-          var u_callsign = ' ' + (device.get("usual_callsign") || '');
           var u_location = ' ' + (device.get("usual_location") || '');
           var contractor_label = "Contractor: " + (device.get("contractor_details") || '');
 
           // Set "Usual" Label
-          if (u_driver != ' ' || u_callsign != ' ') {
-              u_label += "Usual:" + u_driver + u_callsign
+          if (u_driver != ' ') {
+              u_label += "Usual driver:" + u_driver
               if (u_location != ' '){
                   u_label += ", Location:" + u_location
               }
@@ -676,8 +674,8 @@
           }
 
           // Set "Current" Label
-          if (c_driver != ' ' || c_callsign != ' ') {
-              c_label += "Current:" + c_driver + c_callsign
+          if (c_driver != ' ') {
+              c_label += "Current driver:" + c_driver
           }
 
           // Generate Full Label
