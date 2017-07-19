@@ -2363,10 +2363,12 @@
         var updateFeatureFilterFunc = function() {
             if (vm._filterType === 0) return
             //console.log("Filter: " + (((vm._filterType & 2) === 2)?"filterBySearch = true  ":"") + (((vm._filterType & 1) === 1)?"filterBySelected = true":""))
-            if (vm.selectedOnly && vm.selectedBushfires.length === 0) {
-                vm.selectedOnly = false
-            }
             var filteredFirenumbers = vm.filteredFirenumbers()
+            if (vm.selectedOnly && filteredFirenumbers.length === 0) {
+                vm.selectedOnly = false
+                //disable 'Show selected only' mode, need to enfore search filter
+                vm._filterType = vm._filterType | 2
+            }
             var list = (((vm._filterType & 2) === 2 || filteredFirenumbers.length === 0)?vm.features:vm._featurelist).getArray().filter(function(feat){
                 var result = ((vm._filterType & 2) === 2)?(vm.featureFilter(feat)):true
                 if (result && (vm._filterType & 1) === 1) {
