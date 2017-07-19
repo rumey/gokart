@@ -608,17 +608,19 @@
 
       var deviceLabel = function(device) {
         var name = ''
-        var district = device.get('district_display')
-        var callsign_display = device.get('callsign_display')
-        var registration = device.get('registration')
+        var rin_symbols = ['heavy_duty','gang_truck','dozer','loader','grader','tender','float'];
+        var symbol = device.get('symbol');
+        var district = device.get('district_display');
+        var callsign_display = device.get('callsign_display');
+        var registration = device.get('registration');
         if (!district || district == 'Aviation' || district == 'Other'){
-            if (!callsign_display){
+            if (!callsign_display || rin_symbols.indexOf(symbol) === -1){
                 name = registration
             } else {
                 name = callsign_display +' '+ registration
             }
         } else {
-            if (!callsign_display){
+            if (!callsign_display || rin_symbols.indexOf(symbol) === -1){
                 name = district +' '+ registration
             } else {
                 name = callsign_display +' '+ registration
@@ -655,13 +657,23 @@
       }
 
       var deviceExtraHoverLabel = function(device) {
+          var rin_symbols = ['heavy_duty','gang_truck','dozer','loader','grader','tender','float'];
+          var symbol = device.get('symbol');
           var return_label = ''
+          var callsign_label = ''
+          var callsign_display = device.get('callsign_display');
           var c_label = ''
           var u_label = ''
           var c_driver = ' ' + (device.get("current_driver") || '');
           var u_driver = ' ' + (device.get("usual_driver") || '');
           var u_location = ' ' + (device.get("usual_location") || '');
           var contractor_label = "Contractor: " + (device.get("contractor_details") || '');
+
+          // Set "Callsign" Label for "Light vehicles" (no RIN)
+          
+          if (!callsign_display || rin_symbols.indexOf(symbol) === -1) {
+              callsign_label = "Callsign: " + callsign_display
+          }
 
           // Set "Usual" Label
           if (u_driver != ' ') {
@@ -679,10 +691,15 @@
           }
 
           // Generate Full Label
-          if (c_label != ''){
+          if (callsign_label != ''){
+              return_label += callsign_label
+          }
+          if (callsign_label != '' & c_label != ''){
+              return_label += '<br>' + c_label
+          } else if (c_label != ''){
               return_label += c_label
           }
-          if (c_label != '' && u_label != ''){
+          if ((c_label != '' || callsign_label != '') && u_label != ''){
               return_label += '<br>' + u_label
           } else if (u_label != ''){
               return_label += u_label
