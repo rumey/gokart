@@ -167,8 +167,8 @@
                   <div class="small-12 expanded button-group">
                     <a title="Zoom to selected" class="button bfrsbutton" @click="zoomToSelected()" ><img style="width:13px;height:13px"src="dist/static/images/zoom-to-selected.svg"/><br>Zoom To<br>Selected</a>
                     <a title="Refresh bushfire list" class="button bfrsbutton" @click="refreshBushfires()" ><i class="fa fa-refresh" aria-hidden="true"></i><br>Refresh<br>Bushfires </a>
-                    <div v-show="canBatchUpload()">
-                        <label class="button bfrsbutton" for="uploadBushfires" title="Support GeoJSON(.geojson .json), GPS data(.gpx), GeoPackage(.gpkg), 7zip(.7z), TarFile(.tar.gz,tar.bz,tar.xz),ZipFile(.zip)" style="line-height:1;">
+                    <div v-show="canBatchUpload()" class="button bfrsbutton">
+                        <label for="uploadBushfires" title="Support GeoJSON(.geojson .json), GPS data(.gpx), GeoPackage(.gpkg), 7zip(.7z), TarFile(.tar.gz,tar.bz,tar.xz),ZipFile(.zip)" >
                             <i class="fa fa-upload"></i><br>Batch<br>Upload
                         </label>
                         <input type="file" id="uploadBushfires" class="show-for-sr" name="bushfiresfile" accept=".json,.geojson,.gpx,.gpkg,.7z,.tar,.tar.gz,.tar.bz,.tar.xz,.zip" v-el:bushfiresfile @change="importList()"/>
@@ -249,8 +249,8 @@
 }
 
 .button-group .bfrsbutton {
-    padding-left:10px;
-    padding-right:10px;
+    padding-left:5px;
+    padding-right:5px;
     font-size:0.8rem;
 }
 .actionicon {
