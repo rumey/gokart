@@ -105,7 +105,7 @@
                 <div v-if="showFilters">
                 <div class="row collapse">
                   <div class="small-6 columns">
-                    <select name="select" v-model="region" @change="updateCQLFilter('region',2000)">
+                    <select name="select" v-model="region">
                       <option value="" selected>All regions</option> 
                       <option v-for="r in regions"  value="{{r.region_id}}" track-by="region_id">
                         {{r.region}}
@@ -113,7 +113,7 @@
                     </select>
                   </div>
                   <div class="small-6 columns">
-                    <select name="select" v-model="district" @change="updateCQLFilter('district',500)">
+                    <select name="select" v-model="district" >
                       <option value="" selected>All districts</option> 
                       <option v-for="d in districts"  value="{{d.id}}" track-by="id">
                         {{d.district}}
@@ -123,15 +123,7 @@
                 </div>
     
                 <div class="row collapse">
-                  <div class="small-6 columns">
-                    <select name="select" v-model="statusFilter" @change="updateCQLFilter('bushfireStatus',500)">
-                      <option value="" selected>All Reports</option> 
-                      <option value="report_status = 1">Draft Incident</option>
-                      <option value="report_status = 2">Incident Submitted</option>
-                      <option value="report_status >= 3">Report Authorised</option>
-                    </select>
-                  </div>
-                  <div class="small-6">
+                  <div class="small-5">
                     <select name="select" v-model="dateRange" v-on:change="changeDateRange()">
                       <option value="" selected>Date range</option> 
                       <!-- values in milliseconds -->
@@ -143,24 +135,38 @@
                       <option value="-1">Other</option> 
                     </select>
                   </div>
+                  <div class="small-3">
+                      <input type="text" id="startDate" v-on:blur="changeEndDate($event)" v-model="startDate" placeholder="yyyy-mm-dd" v-bind:disabled="dateRange !== '-1'" style="padding-left:3px;padding-right:3px"></input>
+                  </div>
+                  <div class="small-1" style="text-align:center">
+                      <i class="fa fa-minus" style="margin-top:10px"></i>
+                  </div>
+                  <div class="small-3">
+                      <input type="text" id="endDate" v-on:blur="changeStartDate($event)" v-model="endDate" placeholder="yyyy-mm-dd"  v-bind:disabled="dateRange !== '-1'" style="padding-left:3px;padding-right:3px"></input>
+                  </div>
                 </div>
+
                 <div class="row collapse">
-                  <div class="small-5">
-                      <input type="text" id="startDate" v-on:blur="changeEndDate($event)" v-on:keyup="changeStartDate($event,2000)" v-model="startDate" placeholder="yyyy-mm-dd" v-bind:disabled="dateRange !== '-1'"></input>
+                  <div class="small-6 columns">
+                    <select name="select" v-model="statusFilter" >
+                      <option value="" selected>All Reports</option> 
+                      <option value="report_status = 1">Draft Incident</option>
+                      <option value="report_status = 2">Incident Submitted</option>
+                      <option value="report_status >= 3">Report Authorised</option>
+                    </select>
                   </div>
-                  <div class="small-2" style="text-align:center">
-                      To
-                  </div>
-                  <div class="small-5">
-                      <input type="text" id="endDate" v-on:blur="changeStartDate($event)" v-on:keyup="changeEndDate($event,2000)" v-model="endDate" placeholder="yyyy-mm-dd"  v-bind:disabled="dateRange !== '-1'"></input>
+                  <div class="small-6 expanded button-group">
+                    <a title="Search" class="button" style="height:38px;margin-left:10px;" @click="updateCQLFilter(0)">Search</a>
+                    <a title="Reset filters" class="button" style="height:38px;margin-left:10px;" @click="resetFilters()">Reset</a>
                   </div>
                 </div>
+
                 </div>
     
                 <div class="tool-slice row collapse">
                   <div class="small-12 expanded button-group">
                     <a title="Zoom to selected" class="button bfrsbutton" @click="zoomToSelected()" ><img style="width:13px;height:13px"src="dist/static/images/zoom-to-selected.svg"/><br>Zoom To<br>Selected</a>
-                    <a title="Refresh bushfire list" class="button bfrsbutton" @click="updateCQLFilter('refresh',200)" ><i class="fa fa-refresh" aria-hidden="true"></i><br>Refresh<br>Bushfires </a>
+                    <a title="Refresh bushfire list" class="button bfrsbutton" @click="refreshBushfires()" ><i class="fa fa-refresh" aria-hidden="true"></i><br>Refresh<br>Bushfires </a>
                     <div v-show="canBatchUpload()">
                         <label class="button bfrsbutton" for="uploadBushfires" title="Support GeoJSON(.geojson .json), GPS data(.gpx), GeoPackage(.gpkg), 7zip(.7z), TarFile(.tar.gz,tar.bz,tar.xz),ZipFile(.zip)" style="line-height:1;">
                             <i class="fa fa-upload"></i><br>Batch<br>Upload
@@ -563,31 +569,14 @@
             this.endDate = endDate.format("YYYY-MM-DD")
             this.startDate = endDate.subtract(27,"days").format("YYYY-MM-DD")
         }
-        this.updateCQLFilter('date',1000)
       },
-      changeStartDate:function(event,wait) {
-        var vm = this
-        wait = (wait == undefined)?1000:((wait === 0)?1:wait)
-        this._changeStartDate = this._changeStartDate || debounce(function(event){
-            if (utils.verifyDate(event,['YY-M-D','YYYY-M-D'],'YYYY-MM-DD')) {
-                vm.updateCQLFilter('date',1000)
-            }
-            vm.dateRange = "-1"
-        },wait)
-
-        this._changeStartDate.call({wait:wait},event)
+      changeStartDate:function(event) {
+        utils.verifyDate(event,['YY-M-D','YYYY-M-D'],'YYYY-MM-DD')
+        vm.dateRange = "-1"
       },
-      changeEndDate:function(event,wait) {
-        var vm = this
-        wait = (wait == undefined)?1000:((wait === 0)?1:wait)
-        this._changeEndDate = this._changeEndDate || debounce(function(event){
-            if (utils.verifyDate(event,['YY-M-D','YYYY-M-D'],'YYYY-MM-DD')) {
-                vm.updateCQLFilter('date',1000)
-            }
-            vm.dateRange = "-1"
-        },wait)
-
-        this._changeEndDate.call({wait:wait},event)
+      changeEndDate:function(event) {
+        utils.verifyDate(event,['YY-M-D','YYYY-M-D'],'YYYY-MM-DD')
+        vm.dateRange = "-1"
       },
       originpointCoordinate:function(feat){
         try {
@@ -721,7 +710,7 @@
                 this.endDate = ""
             }
             updateType = options["refresh"]?"refresh":updateType
-            this.updateCQLFilter(updateType,1,function(){
+            this.updateCQLFilter(1,function(){
                 if (options["bushfireid"] !== null && options["bushfireid"] !== undefined){
                     var feat = vm.features.getArray().find(function(o) {return o.get('fire_number') == options["bushfireid"]})
                     if (feat) {
@@ -1849,7 +1838,7 @@
                     vm.selectedFeatures.clear()
                     vm.selectedFeatures.extend(selectedFeatures)
                     if (importedFinalFeatures > 0) {
-                        vm.updateCQLFilter('refresh',1)
+                        vm.refreshBushfires()
                     }
                 }
             }
@@ -2277,16 +2266,29 @@
             }
         })
       },
-      updateCQLFilter: function (updateType,wait,callback) {
-        var vm = this
-        if (updateType === "region") {
-            this.district = ""
+      resetFilters:function() {
+        this.region = ""
+        this.district = ""
+        this.dateRange = ""
+        this.startDate = ""
+        this.endDate = ""
+        this.statusFilter = ""
+        this.updateCQLFilter()
+      },
+      refreshBushfires:function() {
+        this.bushfireMapLayer.getSource().loadSource("query")
+        this.refreshFinalFireboundaryLayer()
+        if (this.selectedBushfires.length >= 0) { 
+            this.refreshSelectedFinalFireboundaryLayer()
         }
+      },
+      updateCQLFilter: function (wait,callback) {
+        var vm = this
         if (!vm._updateCQLFilterFunc) {
-            vm._updateCQLFilterFunc = function(updateType,callback){
+            vm._updateCQLFilterFunc = function(callback){
                 try{
                     if (!vm.bushfireMapLayer) {
-                        vm._updateCQLFilter.call({wait:100},updateType)
+                        vm._updateCQLFilter.call({wait:100})
                         return
                     }
                     // CQL statement assembling logic
@@ -2299,20 +2301,14 @@
                     } else {
                       cql_filter = "(" + filters.join(") and (") + ")"
                     }
-                    if (updateType !== "refresh" && vm.bushfireLayer.cql_filter === cql_filter) {
+                    if (vm.bushfireLayer.cql_filter === cql_filter) {
                         //not changed
                         return 
                     } else {
-                      vm.bushfireLayer.cql_filter = cql_filter
+                        vm.bushfireLayer.cql_filter = cql_filter
                     }
                     //clear bushfire filter or change other filter
                     vm.bushfireMapLayer.getSource().loadSource("query",callback)
-                    if (updateType === "refresh") {
-                        vm.refreshFinalFireboundaryLayer()
-                        if (vm.selectedBushfires.length >= 0) { 
-                            vm.refreshSelectedFinalFireboundaryLayer()
-                        }
-                    }
                 } catch(ex) {
                     //ignore the exception
                 }
@@ -2320,16 +2316,16 @@
         }
 
         if (!vm._updateCQLFilter) {
-            vm._updateCQLFilter = debounce(function(updateType,callback){
-                vm._updateCQLFilterFunc(updateType,callback)
+            vm._updateCQLFilter = debounce(function(callback){
+                vm._updateCQLFilterFunc(callback)
             },2000)
         }
         if (wait === 0) {
-            vm._updateCQLFilterFunc(updateType,callback)
+            vm._updateCQLFilterFunc(callback)
         } else if (wait === undefined || wait === null) {
-            vm._updateCQLFilter(updateType,callback)
+            vm._updateCQLFilter(callback)
         } else {
-            vm._updateCQLFilter.call({wait:wait},updateType,callback)
+            vm._updateCQLFilter.call({wait:wait},callback)
         }
       },
       featureOrder: function (a, b) {
@@ -2520,7 +2516,7 @@
                     vm.region = vm.whoami["bushfire"]["profile"]["region_id"] || ""
                     vm.district = vm.whoami["bushfire"]["profile"]["district_id"] || ""
                     vm._bfrsStatus.phaseBegin("load_bushfires",20,"Load bushfires",false,true)
-                    vm.updateCQLFilter('district',0)
+                    vm.updateCQLFilter(0)
                     vm.bushfireLayer.initialLoad = true
                 }
                 vm._bfrsStatus.phaseEnd("load_profile")
@@ -2548,7 +2544,7 @@
                     vm.region = vm.whoami["bushfire"]["profile"]["region_id"] || ""
                     vm.district = vm.whoami["bushfire"]["profile"]["district_id"] || ""
                     vm._bfrsStatus.phaseBegin("load_bushfires",20,"Load bushfires",false,true)
-                    vm.updateCQLFilter('district',0)
+                    vm.updateCQLFilter(0)
                     vm.bushfireLayer.initialLoad = true
                 }
                 vm._bfrsStatus.phaseEnd("load_regions")
