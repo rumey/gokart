@@ -78,12 +78,17 @@
                     <div class="columns">
                       <div class="row">
                         <div class="switch tiny">
-                          <input class="switch-input" id="selectedBushfiresOnly" type="checkbox" v-bind:disabled="selectedOnlyDisabled" v-model="selectedOnly" @change="updateFeatureFilter(1)" />
-                          <label class="switch-paddle" for="selectedBushfiresOnly">
+                          <input class="switch-input" id="clippedFeaturesOnly" v-bind:disabled="clippedFeatures.length === 0" type="checkbox" v-model="clippedOnly"  @change="updateFeatureFilter(3)"/>
+                          <label class="switch-paddle" for="clippedFeaturesOnly">
                             <span class="show-for-sr">Show selected only</span>
                          </label>
                         </div>
-                        <label for="selectedBushfiresOnly" style="side-label" class="side-label">Show selected only ({{selectedBushfires.length}})</label>
+                        <label for="clippedFeaturesOnly" style="side-label" class="side-label">Show clipped only 
+                        </label>
+                        <a class="button tiny secondary" title="Clip to selected bushfires" style="margin-top:0px;margin-bottom:5px;margin-left:2px;margin-right:2px;padding-top:6px;padding-left:4px;padding-right:4px;padding-bottom:0px;border:0px;height:24px;font-size:0.7rem;background-color:#2199e8" @click="clipToSelection()" >
+                            <i class="fa fa-cut" aria-hidden="true"></i>Clip to Selection ({{selectedBushfires.length}})
+                        </a> 
+                        ({{clippedFeatures.length}}/{{features.getLength()}})
                       </div>
                     </div>
                   </div>
@@ -285,7 +290,7 @@
       var fill = '#ff6600'
       var stroke = '#7c3100'
       return {
-        selectedOnly: false,
+        clippedOnly: false,
         search: '',
         statusFilter: '',
         region:'',
@@ -297,6 +302,7 @@
         sortedFields:['region_id','district_id','name'],
         drawings:new ol.Collection(),
         features: new ol.Collection(),
+        clippedFeatures:[],
         showFilters:true,
         startDate:'',
         endDate:'',
@@ -305,7 +311,6 @@
         revision:1,
         profileRevision:1,
         extentFeatureSize:0,
-        featureSize:0,
         tints: {
           'new':[["#b43232","#c8c032e6"]],
           'new.textStroke':"#c8c032e6",
@@ -366,13 +371,6 @@
       },
       isReportMapLayerHidden:function() {
         return this.$root.active.isHidden(this.bushfireMapLayer)
-      },
-      selectedOnlyDisabled:function() {
-        try {
-            return (this.annotations.tool !== this.ui.panTool && this.annotations.tool !== this.ui.selectTool) || (this.selectedBushfires.length === 0 && !this.selectedOnly)
-        } catch (ex) {
-            return true
-        }
       },
       selectedFeatures: function () {
         return this.annotations.selectedFeatures
@@ -450,6 +448,13 @@
         } catch (ex) {
             return [];
         }
+      },
+      featureSize:function() {
+        try {
+            return this.revision && this._featurelist.getLength()
+        } catch (ex) {
+            return 0;
+        }
       }
     },
     watch:{
@@ -483,6 +488,13 @@
             }
         })       
       },
+      clippedFeatures:function(newValue,oldValue) {
+        if (!this.clippedOnly) return
+        if (newValue.length === 0) {
+            this.clippedOnly = false
+            this.updateFeatureFilter(3,0)
+        }
+      }
     },
     methods: {
       regionFilter:function() {
@@ -518,18 +530,6 @@
         } else {
             return null
         }
-      },
-      filteredFirenumbers:function() {
-        // filter by specific bushfires if "Show selected only" is enabled
-        if (this.selectedOnly && !this.selectedOnlyDisabled) {
-            this._filteredFirenumbers.length = 0
-            this._filteredFirenumbers.push.apply(this._filteredFirenumbers,this.selectedBushfires)
-        } else if (this.selectedOnly) {
-            //do nothing
-        } else {
-            this._filteredFirenumbers.length = 0
-        }
-        return this._filteredFirenumbers
       },
       districtFilter:function() {
         return this.district?("district_id=" + this.district) : null
@@ -682,11 +682,11 @@
                 this.selectedFeatures.clear()
             }
             if (this.search && this.search.trim().length > 0) {
-                if (this.selectedOnly) this.selectedOnly = false
+                if (this.clippedOnly) this.clippedOnly = false
                 this.search = ""
                 this.updateFeatureFilter(3,0)
-            } else if (this.selectedOnly) {
-                this.selectedOnly = false
+            } else if (this.clippedOnly) {
+                this.clippedOnly = false
                 this.updateFeatureFilter(1,0)
             }
         }
@@ -1359,9 +1359,9 @@
             })
         }
       },
-      newFireNumber:function(bushfireid) {
+      newFireNumber:function(bushfireid,prefix) {
         bushfireid = Math.abs(bushfireid)
-        return "New bushfire " + ((bushfireid < 10)?"00":(bushfireid < 100?"0":"")) + bushfireid
+        return (prefix || "New bushfire") + " " + ((bushfireid < 10)?"00":(bushfireid < 100?"0":"")) + bushfireid
       },
       newFeature:function(feat) {
         var vm = this
@@ -1381,7 +1381,6 @@
             feat.set('tint','new',true)
             feat.set('id',featId * -1,true) 
             feat.set('originalTint','new',true)
-            feat.set('name',"New bushfire report",true)
             feat.set('toolName','Bfrs Origin Point',true)
             feat.set('fillColour',this.tints["new.fillColour"],true)
             feat.set('colour',this.tints["new.colour"],true)
@@ -1397,7 +1396,6 @@
                 tint:'new',
                 id:this._bushfireSequence * -1, 
                 originalTint:'new',
-                name:"New bushfire report",
                 toolName:'Bfrs Origin Point',
                 fillColour:this.tints["new.fillColour"],
                 colour:this.tints["new.colour"],
@@ -1407,12 +1405,13 @@
         feat.setStyle(this.bushfireStyleFunc)
         feat.set('modifyType',3,true)
         feat.set('fire_number',this.newFireNumber(featId),true)
+        feat.set('name',this.newFireNumber(featId,"New bushfire report"),true)
         feat.set('report_status',99998,true)
         feat.icon = 'dist/static/symbols/fire/dashed-origin.svg'
 
-        vm._insertNewFeature = vm._insertNewFeature || function(features,feat){
+        vm._insertNewFeature = vm._insertNewFeature || function(features,feat,featId){
             var insertIndex = null
-            $.each(features.getArray(),function(index,f){
+            $.each(Array.isArray(features)?features:features.getArray(),function(index,f){
                 if (f.get('status') === 'new') {
                     if (featId < Math.abs(f.get('id'))) {
                         insertIndex = index
@@ -1424,15 +1423,22 @@
                 }
             })
             if (insertIndex != null) {
-                features.insertAt(insertIndex,feat)
+                if (Array.isArray(features)) {
+                    features.splice(insertIndex,0,feat)
+                } else {
+                    features.insertAt(insertIndex,feat)
+                }
             } else {
                 features.push(feat)
             }
         }
 
-        vm._insertNewFeature(this.features,feat)
+        vm._insertNewFeature(this.features,feat,featId)
         //add to the feature list and map
-        vm._insertNewFeature(this._featurelist,feat)
+        vm._insertNewFeature(this._featurelist,feat,featId)
+        if (vm.clippedFeatures.length > 0) {
+            vm._insertNewFeature(this.clippedFeatures,feat,featId)
+        }
         return feat
       },
       createFeature:function(feat) {
@@ -1463,6 +1469,8 @@
                 //console.log("Delete feature " + feat.get('label'))
                 vm.selectedFeatures.remove(feat)
                 //remove feature from list and map
+                var index = vm.clippedFeatures.findIndex(function(f) {return f === feat})
+                if (index >= 0) vm.clippedFeatures.splice(index,1)
                 vm._featurelist.remove(feat)
                 vm.features.remove(feat)
                 vm.revision += 1
@@ -1516,6 +1524,12 @@
                 vm.revision += 1
             }
 
+            index = vm.clippedFeatures.findIndex(function(f){return f.get('fire_number') === feat.get('fire_number')})
+            if (index >= 0) {
+                vm.clippedFeatures[index] = features[0]
+                vm.revision += 1
+            }
+
             index = vm.selectedFeatures.getArray().findIndex(function(f){return f.get('fire_number') === feat.get('fire_number')})
             if (index >= 0) {
                 vm.selectedFeatures.setAt(index,features[0])
@@ -1529,6 +1543,8 @@
             //feature does not exist or is invalid, remove it from bushfire list
             vm.selectedFeatures.remove(feat)
             vm._featurelist.remove(feat)
+            var index = vm.clippedFeatures.findIndex(function(f) {return f === feat})
+            if (index >= 0) vm.clippedFeatures.splice(index,1)
             vm.features.remove(feat)
 
             vm.revision += 1
@@ -1660,9 +1676,8 @@
         })
         if (downloadType === "listed") {
             cql_filter = vm.bushfireLayer.cql_filter || ""
-            var filteredFirenumbers = this.filteredFirenumbers()
-            if (filteredFirenumbers.length > 0) {
-                cql_filter = (cql_filter?(cql_filter + " and "):"") + 'fire_number in (\'' + filteredFirenumbers.join('\',\'') + '\')'
+            if (this.clippedOnly) {
+                cql_filter = (cql_filter?(cql_filter + " and "):"") + 'fire_number in (\'' + this.clippedFeatures.map(function(f){return f.get('fire_number')}).join('\',\'') + '\')'
             }
             if (this.search && this.search.trim().length > 0) {
                 cql_filter = (cql_filter?(cql_filter + " and (("):"((") +  this.fields.map(function(field) { return "strToLowerCase(" + field + ") like '%25" + vm.search.trim().toLowerCase() + "%25'"}).join(") or (") + "))"
@@ -2070,7 +2085,11 @@
 
                 if (vm.search && vm.search.trim().length > 0) {
                     vm.search = ""
+                    vm.clippedOnly = false
                     vm.updateFeatureFilter(3,0)
+                } else if (vm.clippedOnly) {
+                    vm.clippedOnly = false
+                    vm.updateFeatureFilter(1,0)
                 }
                 //var notFoundBushfires = null
                 //var noPermissionBushfires = null
@@ -2331,6 +2350,8 @@
         return 1
       },
       featureFilter: function (feat) {
+        if (feat.get('status') === 'new') return true
+
         var search = ('' + this.search).trim().toLowerCase()
         if (search && !this.fields.some(function (key) {
             return ('' + feat.get(key)).toLowerCase().indexOf(search) > -1
@@ -2352,10 +2373,36 @@
         })
         this.extentFeatureSize = size;
       },
+      clipToSelection:function() {
+        if (this.selectedFeatures.getLength() === 0) {
+            this.clippedFeatures.splice(0,this.clippedFeatures.length)
+            return
+        }
+        this.clippedFeatures.length = 0
+        for (var index = 0;index < this.features.getLength();index++) {
+            if (this.features.item(index).get('status') === 'new') {
+                this.clippedFeatures.push(this.features.item(index))
+            } else {
+                break
+            }
+        }
+        var vm = this
+        $.each(this.selectedFeatures.getArray().sort(this.featureOrder),function(index,feat){
+            if (feat.get('status') === 'new') {
+                //already added in the first step
+                return
+            }
+            vm.clippedFeatures.push(feat)
+            
+        })
+        if (this.clippedOnly) {
+            this.updateFeatureFilter(1,0)
+        }
+      },
       //filter the loaded features based on report name and fire number
       //called when refresh, input search criteria
       //filterType:
-      // 1: selected bushfire fires
+      // 1: clipped bushfire fires
       // 2: search
       updateFeatureFilter: function(filterType,wait) {
         var vm = this
@@ -2363,27 +2410,10 @@
         var updateFeatureFilterFunc = function() {
             if (vm._filterType === 0) return
             //console.log("Filter: " + (((vm._filterType & 2) === 2)?"filterBySearch = true  ":"") + (((vm._filterType & 1) === 1)?"filterBySelected = true":""))
-            var filteredFirenumbers = vm.filteredFirenumbers()
-            if (vm.selectedOnly && filteredFirenumbers.length === 0) {
-                vm.selectedOnly = false
-                //disable 'Show selected only' mode, need to enfore search filter
-                vm._filterType = vm._filterType | 2
+            var list = vm.clippedOnly?vm.clippedFeatures:vm.features.getArray()
+            if ((vm._filterType & 2) === 2) {
+                list = list.filter(vm.featureFilter)
             }
-            var list = (((vm._filterType & 2) === 2 || filteredFirenumbers.length === 0)?vm.features:vm._featurelist).getArray().filter(function(feat){
-                var result = ((vm._filterType & 2) === 2)?(vm.featureFilter(feat)):true
-                if (result && (vm._filterType & 1) === 1) {
-                    if (filteredFirenumbers.length > 0 && filteredFirenumbers.indexOf(feat.get('fire_number')) < 0) {
-                        result = false
-                    }
-                }
-                return result
-            })
-            if (vm._filterType === 2 && list.length === vm._featurelist.getLength()) {
-                //don't changed
-                //console.log("filter condition isn't changed")
-                return
-            }
-            vm.featureSize = list.length;
             vm._featurelist.clear()
             vm._featurelist.extend(list)
             vm._filterType = 0
@@ -2596,7 +2626,6 @@
     ready: function () {
       var vm = this
       this._changingDate = false
-      this._filteredFirenumbers = []
       this._featurelist =new ol.Collection()
       this._taskManager = utils.getFeatureTaskManager(function(){
         vm.revision++
@@ -3166,6 +3195,16 @@
                             vm.selectedFeatures.removeAt(index)
                         }
                     }
+
+                    for(var index = vm.clippedFeatures.length - 1;index >= 0;index--) {
+                        var f = vm.clippedFeatures[index]
+                        loadedFeature = features.find(function(f1){return f1.get('fire_number') === f.get('fire_number')})
+                        if (loadedFeature) {
+                            vm.clippedFeatures[index] = loadedFeature
+                        } else {
+                            vm.clippedFeatures.splice(index,1)
+                        }
+                    }
                 }
                 vm.features.clear()
                 vm.features.extend(features.sort(vm.featureOrder))
@@ -3203,9 +3242,6 @@
                 }
             }
             vm.refreshSelectedFinalFireboundaryLayer()
-            if (vm.selectedOnly && !vm.selectedOnlyDisabled) {  
-                vm.updateFeatureFilter(1)
-            }
             //vm.zoomToSelected(200)
           }
         })
@@ -3214,9 +3250,6 @@
             vm.selectedBushfires.$remove(event.element.get('fire_number'))
             vm.refreshSelectedFinalFireboundaryLayer()
             //vm.zoomToSelected(200)
-            if (vm.selectedOnly && !vm.selectedOnlyDisabled) {  
-                vm.updateFeatureFilter(1)
-            }
             if (vm.selectedBushfires.length !== 1) {
                 if (vm.annotations.tool === vm.ui.modifyTool) {
                     vm.annotations.setTool(vm.ui.panTool)

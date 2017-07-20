@@ -278,13 +278,20 @@ localforage.getItem('sssOfflineStore').then(function (store) {
       $('#dpi').remove();
       // get user info
       (function () {
-        var req = new window.XMLHttpRequest()
-        req.withCredentials = true
-        req.onload = function () {
-          $.extend(self.store.whoami,JSON.parse(this.responseText))
-        }
-        req.open('GET', self.env.ssoService + '/api/whoami')
-        req.send()
+        $.ajax({
+            url: "/sso/auth",
+            method:"GET",
+            dataType:"json",
+            success: function (response, stat, xhr) {
+                $.extend(self.store.whoami,response)
+            },
+            error: function (xhr,status,message) {
+                alert("Get user profile failed.  " + status + " : " + (xhr.responseText || message))
+            },
+            xhrFields: {
+              withCredentials: true
+            }
+        })
       })()
       // bind menu side-tabs to reveal the side pane
       var offCanvasLeft = $('#offCanvasLeft')
