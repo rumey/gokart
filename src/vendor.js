@@ -3,6 +3,7 @@
 // produce some terrifying CSS at runtime using browserify-css
 import 'tether-shepherd/dist/css/shepherd-theme-dark.css'
 import 'foundation-sites/dist/foundation-flex.css'
+import 'foundation-datepicker/css/foundation-datepicker.css'
 import 'openlayers/dist/ol-debug.css'
 import 'dragula/dist/dragula.css'
 
@@ -26,6 +27,7 @@ import Vue from 'vue'
 import VueStash from 'vue-stash'
 // Foundation 6 CSS framework
 import 'foundation-sites'
+import 'foundation-datepicker'
 // IE9+ support for SVG sprites
 import svg4everybody from 'svg4everybody'
 // QR code generator

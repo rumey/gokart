@@ -102,7 +102,7 @@
                     <span v-on:click="showFilters = !showFilters" style="cursor:pointer"><i class="fa {{showFilters?'fa-angle-double-up':'fa-angle-double-down'}}" aria-hidden="true"></i> Filters</span>
                   </div>
                 </div>
-                <div v-if="showFilters">
+                <div v-show="showFilters">
                 <div class="row collapse">
                   <div class="small-6 columns">
                     <select name="select" v-model="region">
@@ -136,13 +136,13 @@
                     </select>
                   </div>
                   <div class="small-3">
-                      <input type="text" id="startDate" v-on:blur="changeEndDate($event)" v-model="startDate" placeholder="yyyy-mm-dd" v-bind:disabled="dateRange !== '-1'" style="padding-left:3px;padding-right:3px"></input>
+                      <input type="text" id="bfrsStartDate" class="span2" v-model="startDate" placeholder="yyyy-mm-dd" v-bind:disabled="dateRange !== '-1'" style="padding-left:3px;padding-right:3px;cursor:pointer" readonly></input>
                   </div>
                   <div class="small-1" style="text-align:center">
                       <i class="fa fa-minus" style="margin-top:10px"></i>
                   </div>
                   <div class="small-3">
-                      <input type="text" id="endDate" v-on:blur="changeStartDate($event)" v-model="endDate" placeholder="yyyy-mm-dd"  v-bind:disabled="dateRange !== '-1'" style="padding-left:3px;padding-right:3px"></input>
+                      <input type="text" id="bfrsEndDate" class="span2" v-model="endDate" placeholder="yyyy-mm-dd"  v-bind:disabled="dateRange !== '-1'" style="padding-left:3px;padding-right:3px;cursor:pointer" readonly></input>
                   </div>
                 </div>
 
@@ -500,6 +500,28 @@
             this.clippedOnly = false
             this.updateFeatureFilter(3,0)
         }
+      },
+      startDate:function(newValue,oldValue) {
+        if (!this._endDatePicker) return
+        try {
+            if (newValue === "") {
+                this._endDatePicker.setStartDate(moment().subtract(13,"months").format("YYYY-MM-DD"))
+            } else {
+                this._endDatePicker.setStartDate(newValue)
+            }
+        } catch(ex) {
+        }
+      },
+      endDate:function(newValue,oldValue) {
+        if (!this._startDatePicker) return
+        try {
+            if (newValue === "") {
+                this._startDatePicker.setEndDate(moment().format("YYYY-MM-DD"))
+            } else {
+                this._startDatePicker.setEndDate(newValue)
+            }
+        } catch(ex) {
+        }
       }
     },
     methods: {
@@ -569,14 +591,6 @@
             this.endDate = endDate.format("YYYY-MM-DD")
             this.startDate = endDate.subtract(27,"days").format("YYYY-MM-DD")
         }
-      },
-      changeStartDate:function(event) {
-        utils.verifyDate(event,['YY-M-D','YYYY-M-D'],'YYYY-MM-DD')
-        vm.dateRange = "-1"
-      },
-      changeEndDate:function(event) {
-        utils.verifyDate(event,['YY-M-D','YYYY-M-D'],'YYYY-MM-DD')
-        vm.dateRange = "-1"
       },
       originpointCoordinate:function(feat){
         try {
@@ -2626,6 +2640,37 @@
       this._taskManager = utils.getFeatureTaskManager(function(){
         vm.revision++
       })
+
+      //init datepicket
+      $('#bfrsStartDate').fdatepicker({
+	format: 'yyyy-mm-dd',
+	disableDblClickSelection: true,
+	leftArrow:'<<',
+	rightArrow:'>>',
+        startDate:moment().subtract(13,"months").format("YYYY-MM-DD"),
+        endDate:moment().format("YYYY-MM-DD")
+      });
+      try {
+          this._startDatePicker = $("#bfrsStartDate").data().datepicker
+      } catch(ex) {
+          this._startDatePicker = null
+      }
+
+      $('#bfrsEndDate').fdatepicker({
+	format: 'yyyy-mm-dd',
+	disableDblClickSelection: true,
+	leftArrow:'<<',
+	rightArrow:'>>',
+        startDate:moment().subtract(13,"months").format("YYYY-MM-DD"),
+        endDate:moment().format("YYYY-MM-DD")
+      });
+
+      try {
+          this._endDatePicker = $("#bfrsEndDate").data().datepicker
+      } catch(ex) {
+          this._endDatePicker = null
+      }
+
       vm._bfrsStatus = this.loading.register("bfrs","Bushfire Report Component")
       vm._bfrsStatus.phaseBegin("initialize",10,"Initialize")
       var map = this.$root.map
