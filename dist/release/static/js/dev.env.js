@@ -4,7 +4,6 @@ var env = {
 
     cswService:"https://oim.dbca.wa.gov.au/catalogue/api/records/",
     catalogueAdminService:"https://oim.dbca.wa.gov.au",
-    ssoService:"https://oim.dbca.wa.gov.au",
 
     wmtsService:"https://kmi.dbca.wa.gov.au/geoserver/gwc/service/wmts",
     wmsService:"https://kmi.dbca.wa.gov.au/geoserver/wms",

@@ -4,7 +4,6 @@ var env = {
 
     cswService:"https://oim.dpaw.wa.gov.au/catalogue/api/records/",
     catalogueAdminService:"https://oim.dpaw.wa.gov.au",
-    ssoService:"https://oim.dpaw.wa.gov.au",
 
     wmtsService:"https://kmi.dpaw.wa.gov.au/geoserver/gwc/service/wmts",
     wfsService:"https://kmi.dpaw.wa.gov.au/geoserver/wfs",
