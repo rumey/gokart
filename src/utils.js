@@ -230,15 +230,33 @@ Utils.prototype.editResource = function(event,options,url,target) {
     }
     if (env.appType == "cordova") {
         window.open(url,"_system");
+    } else if (this.isMobile) {
+        window.open(url,target);
     } else {
-        var win = null;
-        if (this.isMobile) {
-            win = window.open(url,target);
-        } else {
-            options = options || "locationbar=yes,menubar=yes,statusbar=yes,toolbar=yes,personalbar=yes,centerscreen=true,width=" + Math.floor(window.innerWidth * 0.95) + ",height=" + Math.floor(window.innerHeight * 0.95)
-            win = window.open(url,target,options);
-        }
+        options = options || "locationbar=yes,menubar=yes,statusbar=yes,toolbar=yes,personalbar=yes,centerscreen=true,width=" + Math.floor(window.innerWidth * 0.95) + ",height=" + Math.floor(window.innerHeight * 0.95)
+        var  win = window.open(url,target,options);
         setTimeout(function(){win.focus()},500)
+    }
+}
+
+Utils.prototype.submitForm = function(formid,options) {
+    var form = $("#" + formid)
+
+    if (env.appType == "cordova") {
+        form.submit()
+    } else if (this.isMobile) {
+        form.submit()
+    } else {
+        var target = form.attr("target") || "_blank"
+        options = options || "locationbar=yes,menubar=yes,statusbar=yes,toolbar=yes,personalbar=yes,centerscreen=true,width=" + Math.floor(window.innerWidth * 0.95) + ",height=" + Math.floor(window.innerHeight * 0.95)
+        var win = null;
+        if (target !== "_blank" ) {
+            win = window.open("",target,options);
+        }
+        form.submit()
+        if (win) {
+            setTimeout(function(){win.focus()},500)
+        }
     }
 }
 

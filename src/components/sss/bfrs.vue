@@ -1463,7 +1463,7 @@
                 feat.set("modifyType",0,true)
                 feat.set("sss_id",feat.getGeometry().getGeometriesArray()[0].getCoordinates(),true)
                 $("#sss_create").val(JSON.stringify(spatialData))
-                $("#bushfire_create").submit()
+                utils.submitForm("bushfire_create")
                 task.setStatus(utils.SUCCEED)
                 vm._taskManager.clearTasks(feat)
             },
