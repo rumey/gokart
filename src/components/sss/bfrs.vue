@@ -731,7 +731,7 @@
                 }
             }
             updateType = options["refresh"]?"refresh":updateType
-            this.updateCQLFilter(1,function(){
+            this.updateCQLFilter(1,true,function(){
                 if (options["bushfireid"] !== null && options["bushfireid"] !== undefined){
                     var feat = vm.features.getArray().find(function(o) {return o.get('fire_number') == options["bushfireid"]})
                     if (feat) {
@@ -2294,7 +2294,7 @@
         this.startDate = ""
         this.endDate = ""
         this.statusFilter = ""
-        this.updateCQLFilter()
+        this.updateCQLFilter(0)
       },
       refreshBushfires:function() {
         this.bushfireMapLayer.getSource().loadSource("query")
@@ -2303,13 +2303,13 @@
             this.refreshSelectedFinalFireboundaryLayer()
         }
       },
-      updateCQLFilter: function (wait,callback) {
+      updateCQLFilter: function (wait,force,callback) {
         var vm = this
         if (!vm._updateCQLFilterFunc) {
-            vm._updateCQLFilterFunc = function(callback){
+            vm._updateCQLFilterFunc = function(force,callback){
                 try{
                     if (!vm.bushfireMapLayer) {
-                        vm._updateCQLFilter.call({wait:100})
+                        vm._updateCQLFilter.call({wait:100},force,callback)
                         return
                     }
                     // CQL statement assembling logic
@@ -2322,7 +2322,7 @@
                     } else {
                       cql_filter = "(" + filters.join(") and (") + ")"
                     }
-                    if (vm.bushfireLayer.cql_filter === cql_filter) {
+                    if (!force && vm.bushfireLayer.cql_filter === cql_filter) {
                         //not changed
                         return 
                     } else {
@@ -2337,16 +2337,16 @@
         }
 
         if (!vm._updateCQLFilter) {
-            vm._updateCQLFilter = debounce(function(callback){
-                vm._updateCQLFilterFunc(callback)
+            vm._updateCQLFilter = debounce(function(force,callback){
+                vm._updateCQLFilterFunc(force,callback)
             },2000)
         }
         if (wait === 0) {
-            vm._updateCQLFilterFunc(callback)
+            vm._updateCQLFilterFunc(force,callback)
         } else if (wait === undefined || wait === null) {
-            vm._updateCQLFilter(callback)
+            vm._updateCQLFilter(force,callback)
         } else {
-            vm._updateCQLFilter.call({wait:wait},callback)
+            vm._updateCQLFilter.call({wait:wait},force,callback)
         }
       },
       featureOrder: function (a, b) {
