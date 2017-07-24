@@ -80,6 +80,9 @@ GokartClient.prototype.call = function(method,options,module,ignoreIfNotOpen){
     var sendMessage = null
 
     var gokartWindowIsActive = function() {
+        if (!vm.gokartWindow) {
+            vm.gokartWindow = window.top.opener
+        }
         if (!vm.gokartWindow || vm.gokartWindow.closed) {
             return false
         } else if (vm.gokartWindow.location.origin === window.location.origin && vm.gokartWindow.location.pathname === "/" + vm.app) {

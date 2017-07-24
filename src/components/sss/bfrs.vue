@@ -4,7 +4,7 @@
       <div class="columns">
         <ul class="tabs" id="bfrs-tabs">
           <li class="tabs-title is-active">
-            <a class="label" aria-selected="true" ><span @click.stop.prevent="utils.editResource($event,env.bfrsService,env.bfrsService)" style="cursor:pointer;text-decoration:underline">Bushfire Report</span>
+            <a class="label" aria-selected="true" ><span @click.stop.prevent="utils.editResource($event,null,env.bfrsService,env.bfrsService)" style="cursor:pointer;text-decoration:underline">Bushfire Report</span>
                 <small v-if="active.layerRefreshStatus(bushfireMapLayer)" style="white-space:pre-wrap"><br>Updated: {{ active.layerRefreshStatus(bushfireMapLayer) }}</small>
             </a>
           </li>
@@ -672,13 +672,17 @@
         var updateType = null
         var action = options["action"] || "select"
         if (!options) {return}
-        if (this.region !== "" && (!("region" in options) || options["region"] !== this.region)) {
-            this.region = options["region"] || ""
-            updateType = "region"
+        if ("region" in options) {
+            if (this.region !== "" && options["region"] !== this.region) {
+                this.region = options["region"] || ""
+                updateType = "region"
+            }
         }
-        if (this.district !== "" && (!("district" in options) || options["district"] !== this.district)) {
-            this.district = options["district"] || ""
-            updateType = "district"
+        if ("district" in options) {
+            if (this.district !== "" && options["district"] !== this.district) {
+                this.district = options["district"] || ""
+                updateType = "district"
+            }
         }
         if (options["bushfireid"] !== null && options["bushfireid"] !== undefined){
             if (this.selectedFeatures.getLength() > 0) {
@@ -715,13 +719,16 @@
         }
 
         if (updateType || options["refresh"]) {
-            if (this.statusFilter !== "") {
-                this.statusFilter = ""
-            }
-            if (this.dateRange !== "") {
-                this.dateRange = ""
-                this.startDate = ""
-                this.endDate = ""
+            if (options["bushfireid"] !== null && options["bushfireid"] !== undefined){
+                //want to find some bushfire, clear other filters
+                if (this.statusFilter !== "") {
+                    this.statusFilter = ""
+                }
+                if (this.dateRange !== "") {
+                    this.dateRange = ""
+                    this.startDate = ""
+                    this.endDate = ""
+                }
             }
             updateType = options["refresh"]?"refresh":updateType
             this.updateCQLFilter(1,function(){
