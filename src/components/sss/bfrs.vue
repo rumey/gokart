@@ -522,6 +522,9 @@
             }
         } catch(ex) {
         }
+      },
+      region:function(newValue,oldValue) {
+        this.district = ""
       }
     },
     methods: {
