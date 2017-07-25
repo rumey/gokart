@@ -219,7 +219,7 @@ Utils.prototype.editResource = function(event,options,url,target) {
     if (env.appType == "cordova") {
         window.open(url,"_system");
     } else {
-        options = options || "locationbar=no,menubar=no,statusbar=yes,toolbar=no,personalbar=no,centerscreen=yes,width=" + Math.floor(window.innerWidth * 0.95) + ",height=" + Math.floor(window.innerHeight * 0.95)
+        options = options || "scrollbars=yes,locationbar=no,menubar=no,statusbar=yes,toolbar=no,personalbar=no,centerscreen=yes,width=" + Math.floor(window.innerWidth * 0.95) + ",height=" + Math.floor(window.innerHeight * 0.95)
         var  win = window.open(url,target,options);
         setTimeout(function(){win.focus()},500)
     }
@@ -232,7 +232,7 @@ Utils.prototype.submitForm = function(formid,options) {
         form.submit()
     } else {
         var target = form.attr("target") || "_blank"
-        options = options || "locationbar=no,menubar=no,statusbar=yes,toolbar=no,personalbar=no,centerscreen=yes,width=" + Math.floor(window.innerWidth * 0.95) + ",height=" + Math.floor(window.innerHeight * 0.95)
+        options = options || "scrollbars=yes,locationbar=no,menubar=no,statusbar=yes,toolbar=no,personalbar=no,centerscreen=yes,width=" + Math.floor(window.innerWidth * 0.95) + ",height=" + Math.floor(window.innerHeight * 0.95)
         var win = null;
         if (target !== "_blank" ) {
             win = window.open("",target,options);
