@@ -423,6 +423,19 @@
                     //show the fireboundary if showFireboudary is on or feat is selected
                     var boundaryStyle = ((vm.showFireboundary || feat.tint ) && (geometries.length > 1 || geometries[0] instanceof ol.geom.MultiPolygon))?boundaryStyleFunc.call(feat,res):null
 
+                    var selfIntersectionStyle = null
+                    if (boundaryStyle && feat.intersectionPoints) {
+                        selfIntersectionStyle = new ol.style.Style({
+                            geometry:feat.intersectionPoints,
+                            image : new ol.style.Circle({
+                                fill: new ol.style.Fill({
+                                    color: [255,0,0],
+                                }),
+                                radius:4
+                            })
+                        })
+                    }
+
                     var labelStyle = null
                     if (res < 0.003 && geometries.length > 0 && feat.get('fire_number') && vm.bushfireLabels && !vm.$root.active.isHidden(vm.map.getMapLayer(vm.env.bushfireLayer))) {
                       labelStyle = labelStyleFunc.call(feat,res)
@@ -430,8 +443,8 @@
                     }   
 
                     var style = null
-                    if ((pointStyle && 1) + (boundaryStyle && 1) + (labelStyle && 1) === 1) {
-                        return pointStyle || boundaryStyle || labelStyle
+                    if ((pointStyle && 1) + (boundaryStyle && 1) + (labelStyle && 1)  + (selfIntersectionStyle && 1) === 1) {
+                        return pointStyle || boundaryStyle || labelStyle || selfIntersectionStyle
                     } else {
                         if (!vm._bushfireStyle) {
                             vm._bushfireStyle = []
@@ -441,6 +454,7 @@
                         if (pointStyle) {vm._bushfireStyle.push.apply(vm._bushfireStyle,pointStyle)}
                         if (boundaryStyle) {vm._bushfireStyle.push.apply(vm._bushfireStyle,boundaryStyle)}
                         if (labelStyle) {vm._bushfireStyle.push(labelStyle)}
+                        if (selfIntersectionStyle) {vm._bushfireStyle.push(selfIntersectionStyle)}
                         return vm._bushfireStyle
                     }
                 }
@@ -837,6 +851,11 @@
         }
       },
       validateBushfire:function(feat,validateType,callback) {
+        if (feat.intersectionPoints) {
+            delete feat.intersectionPoints
+            feat.changed()
+        }
+
         var indexes = null
         this._validateBushfireCallback = this._validateBushfireCallback || function(error,callback) {
             if (callback) {
@@ -913,7 +932,9 @@
             if (fireboundary && fireboundary.getPolygons().length === 1) {
                 fireboundary = fireboundary.getCoordinates()
                 fireboundary[0] = turf.polygon(fireboundary[0])
-                if (turf.kinks(fireboundary[0]).features.length > 0) {
+                var kinks = turf.kinks(fireboundary[0])
+                if (kinks.features.length > 0) {
+                    feat.intersectionPoints = new ol.geom.MultiPoint(kinks.features.map(function(p) {return p.geometry.coordinates}))
                     if (indexes) indexes.push(0)
                     throw "The polygon is self intersection, please fix it."
                 }
@@ -927,10 +948,13 @@
                         try {
                             checkResult = turf.intersect(fireboundary[index],fireboundary[index2]) 
                         } catch(ex) {
-                            if (index === 0 && index2 === 1 && turf.kinks(fireboundary[index]).features.length > 0) {
+                            var kinks = null
+                            if (index === 0 && index2 === 1 && (kinks = turf.kinks(fireboundary[index])).features.length > 0) {
+                                feat.intersectionPoints = new ol.geom.MultiPoint(kinks.features.map(function(p) {return p.geometry.coordinates}))
                                 if (indexes) indexes.push(index)
                                 throw "Some fire boundary are self intersection, please fix it."
-                            } else if (index === 0 && turf.kinks(fireboundary[index2]).features.length > 0) {
+                            } else if (index === 0 && (kinks = turf.kinks(fireboundary[index2])).features.length > 0) {
+                                feat.intersectionPoints = new ol.geom.MultiPoint(kinks.features.map(function(p) {return p.geometry.coordinates}))
                                 if (indexes) indexes.push(index2)
                                 throw "Some fire boundary are self intersection, please fix it."
                             } else {
@@ -1899,7 +1923,9 @@
                         var mp = new ol.geom.MultiPolygon()
                         $.each(geom.getLineStrings(),function(index,linestring) {
                             coordinates = linestring.getCoordinates()
-                            coordinates.push(coordinates[0])
+                            if (coordinates[coordinates.length - 1][0] !== coordinates[0][0] || coordinates[coordinates.length - 1][1] !== coordinates[0][1]) {
+                                coordinates.push(coordinates[0])
+                            }
                             mp.appendPolygon(new ol.geom.Polygon([coordinates]))
                         })
                         feature.setGeometry(mp)
@@ -2931,15 +2957,24 @@
                 vm.ui.fireboundaryDraw.dispatchEvent(vm.map.createEvent(vm.ui.fireboundaryDraw,"addfeaturegeometry",{feature:f,indexes:indexes}))
             }
         } else {
-            f = vm.newFeature()
-            f.getGeometry().getGeometriesArray().splice(0,0,ev.element.getGeometry())
-            f.getGeometry().setGeometriesArray(f.getGeometry().getGeometriesArray())
-            f.getGeometry().changed()
+            var f = null
+            var selectedFeat = (vm.selectedFeatures.getLength() === 1)?vm.selectedFeatures.item(0):null
+            if (selectedFeat && selectedFeat.get('status') === 'new' && !selectedFeat.getGeometry().getGeometriesArray().find(function(g) {return g instanceof ol.geom.Point})) {
+                f = selectedFeat
+                f.getGeometry().getGeometriesArray().splice(0,0,ev.element.getGeometry())
+                f.getGeometry().setGeometriesArray(f.getGeometry().getGeometriesArray())
+                f.getGeometry().changed()
+            } else {
+                f = vm.newFeature()
+                f.getGeometry().getGeometriesArray().splice(0,0,ev.element.getGeometry())
+                f.getGeometry().setGeometriesArray(f.getGeometry().getGeometriesArray())
+                f.getGeometry().changed()
+                vm.selectedFeatures.clear()
+                vm.selectedFeatures.push(f)
+                vm.annotations.setTool("Bfrs Edit Geometry")
+                vm.scrollToSelected()
+            }
             vm.postModified(f,1)
-            vm.selectedFeatures.clear()
-            vm.selectedFeatures.push(f)
-            vm.annotations.setTool("Bfrs Edit Geometry")
-            vm.scrollToSelected()
             //vm.validateBushfire(f,"addOriginPoint")
 
             vm.ui.originPointDraw.dispatchEvent(vm.map.createEvent(vm.ui.originPointDraw,"addfeaturegeometry",{feature:f,indexes:[0]}))
@@ -3222,6 +3257,9 @@
                                 loadedFeature.set('fillColour',vm.tints[loadedFeature.get('tint') + ".fillColour"],true)
                                 loadedFeature.set('colour',vm.tints[loadedFeature.get('tint') + ".colour"],true)
                                 loadedFeature.set('modifyType',f.get('modifyType'),true)
+                                if (f.intersectionPoints) {
+                                    loadedFeature.intersectionPoints = f.intersectionPoints
+                                }
                             } 
                             if (f.tasks && f.tasks.length > 0) {
                                 loadedFeature.tasks = f.tasks
