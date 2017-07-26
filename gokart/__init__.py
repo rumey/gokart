@@ -51,7 +51,7 @@ ENV_TYPE = (os.environ.get("ENV_TYPE") or "prod").lower()
 
 gdalinfo = subprocess.check_output(["gdalinfo", "--version"])
 
-bottle.BaseRequest.MEMFILE_MAX = 5 * 1024 * 1024
+bottle.BaseRequest.MEMFILE_MAX = 20 * 1024 * 1024
 
 @bottle.route('/client')
 def server_static():
