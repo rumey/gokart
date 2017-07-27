@@ -608,7 +608,7 @@
 
       var deviceLabel = function(device) {
         var name = ''
-        var rin_symbols = ['heavy_duty','gang_truck','dozer','loader','grader','tender','float'];
+        var rin_symbols = ['heavy duty','gang truck','dozer','loader','grader','tender','float'];
         var symbol = device.get('symbol');
         var district = device.get('district_display');
         var callsign_display = device.get('callsign_display');
@@ -657,7 +657,7 @@
       }
 
       var deviceExtraHoverLabel = function(device) {
-          var rin_symbols = ['heavy_duty','gang_truck','dozer','loader','grader','tender','float'];
+          var rin_symbols = ['heavy duty','gang truck','dozer','loader','grader','tender','float'];
           var symbol = device.get('symbol');
           var return_label = ''
           var callsign_label = ''
@@ -671,7 +671,7 @@
 
           // Set "Callsign" Label for "Light vehicles" (no RIN)
           
-          if (!callsign_display || rin_symbols.indexOf(symbol) === -1) {
+          if (callsign_display && rin_symbols.indexOf(symbol) === -1) {
               callsign_label = "Callsign: " + callsign_display
           }
 
