@@ -131,6 +131,10 @@ FeatureTaskManager.prototype.allTasksFinished = function(feat,scope) {
     return feat.tasks.find(function(t) {return (!scope || t.scope === scope) && [FeatureTask.RUNNING,FeatureTask.WAITING].indexOf(t.status) >= 0 })?false:true;
 }
 
+FeatureTaskManager.prototype.errorMessages = function(feat,scope) {
+    return feat.tasks.filter(function(t) {return (!scope || t.scope === scope) && [FeatureTask.FAILED,FeatureTask.WARNING].indexOf(t.status) >= 0 && t.message }).map(function(t){return t.message;})
+}
+
 let Utils = function() {
 }
 

@@ -1064,7 +1064,11 @@
                 //console.log( JSON.stringify(spatialData ) )
                 callback(spatialData)
             } else if (vm._taskManager.allTasksFinished(feat,"getSpatialData")) {
-                if (failedCallback) failedCallback("")
+                if (failedCallback) {
+                    failedCallback("")
+                } else {
+                    alert(vm._taskManager.errorMessages(feat,"getSpatialData").join("\r\n"))
+                }
             }
         }
 
@@ -1329,11 +1333,12 @@
                     if (status === utils.SUCCEED){
                         vm._taskManager.clearTasks(feat)
                         vm.resetFeature(feat,false)
-                    } else if (status === utils.WARNING) {
-                        alert(msg)
-                        vm.resetFeature(feat,false)
-                    } else if (status === utils.ERROR){
-                        alert(msg)
+                    } else if (status === utils.WARNING || status === utils.FAILED)  {
+                        var msg = vm._taskManager.errorMessages(feat).join("\r\n")
+                        if (msg) alert(msg)
+                        if (status === utils.WARNING)  {
+                            vm.resetFeature(feat,false)
+                        }
                     }
                 }
             }
@@ -1495,7 +1500,9 @@
                 vm._taskManager.clearTasks(feat)
             },
             function(ex){
-                task.setStatus(utils.FAILED,ex.message || ex)
+                task.setStatus(utils.FAILED,"")
+                var msg = vm._taskManager.errorMessages(feat).join("\r\n")
+                if (msg) alert(msg)
             })
         }
       },
@@ -2207,8 +2214,9 @@
                                             importedFinalFeatures += 1
                                             selectedFeatures.push(feat)
                                         }
-                                        if (import_task && msg) {
-                                            alert(msg)
+                                        if (import_task) {
+                                            msg = vm._taskManager.errorMessages(feat).join("\r\n")
+                                            if (msg) alert(msg)
                                         }
                                         featureImported(status)
                                     })
