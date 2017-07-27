@@ -80,16 +80,20 @@ GokartClient.prototype.call = function(method,options,module,ignoreIfNotOpen){
     var sendMessage = null
 
     var gokartWindowIsActive = function() {
-        if (!vm.gokartWindow) {
-            vm.gokartWindow = window.top.opener
-        }
-        if (!vm.gokartWindow || vm.gokartWindow.closed) {
-            return false
-        } else if (vm.gokartWindow.location.origin === window.location.origin && vm.gokartWindow.location.pathname === "/" + vm.app) {
-            return true
-        } else if (!vm.gokartWindow.location || !vm.gokartWindow.location.origin || vm.gokartWindow.location.origin === "null" || vm.gokartWindow.location.origin === "") {
-            return null
-        } else {
+        try {
+            if (!vm.gokartWindow) {
+                vm.gokartWindow = window.top.opener
+            }
+            if (!vm.gokartWindow || vm.gokartWindow.closed) {
+                return false
+            } else if (vm.gokartWindow.location.origin === window.location.origin && vm.gokartWindow.location.pathname === "/" + vm.app) {
+                return true
+            } else if (!vm.gokartWindow.location || !vm.gokartWindow.location.origin || vm.gokartWindow.location.origin === "null" || vm.gokartWindow.location.origin === "") {
+                return null
+            } else {
+                return false
+            }
+        } catch(ex) {
             return false
         }
     }
