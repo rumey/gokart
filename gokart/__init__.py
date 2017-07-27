@@ -19,12 +19,14 @@ import pyproj
 import shapely
 import traceback
 import shapely.ops as ops
+import threading
 from shapely.geometry import shape
 from shapely.geometry.polygon import Polygon
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.collection import GeometryCollection
 from functools import partial
 from jinja2 import Template
+from logging import Logger
 try:
     from PIL import Image
 except:
@@ -1378,6 +1380,63 @@ def getGeometryArea(geometry,unit):
     else:
         return data
 
+class Loghandler(object):
+    instances = {}
+    def __new__(cls,level):
+        if level not in cls.instances:
+            instance = super(Loghandler,cls).__new__(cls)
+            instance.originHandler = getattr(Logger,level)
+            instance.key = "_{}_".format(level)
+            instance.enabledKey = "_{}_enabled_".format(level)
+            def _handler(log,msg,*args,**kwargs):
+                instance(log,msg,*args,**kwargs)
+            setattr(Logger,level,_handler)
+            cls.instances[level] = instance
+        return instance
+
+    @classmethod
+    def instance(cls,level):
+        if level in cls.instances:
+            return instance[level]
+        else:
+            return Loghandler(level)
+
+    @property
+    def enabled(self):
+        return getattr(threading.currentThread(),self.enabledKey,False)
+
+    def __call__(self,log,msg,*args,**kwargs):
+        if self.enabled:
+            message = (msg % args) if args else msg
+            if getattr(threading.currentThread(),self.key,None):
+                getattr(threading.currentThread(),self.key).append(message)
+            else:
+                setattr(threading.currentThread(),self.key,[message])
+
+        self.originHandler(log,msg,*args,**kwargs)
+
+    @property
+    def messages(self):
+        if self.enabled:
+            return getattr(threading.currentThread(),self.key,None)
+        else:
+            return None
+
+    def enable(self,enable):
+        if enable:
+            setattr(threading.currentThread(),self.enabledKey,enable)
+        elif hasattr(threading.currentThread(),self.enabledKey):
+            delattr(threading.currentThread(),self.enabledKey)
+
+        if hasattr(threading.currentThread(),self.key):
+            delattr(threading.currentThread(),self.key)
+
+loghandlers = [Loghandler("critical"),Loghandler("error"),Loghandler("warning")]
+#loghandlers = [Loghandler("critical"),Loghandler("error")]
+
+        
+
+
 def calculateArea(session_cookies,results,features,options):
     # needs gdal 1.10+
     layers = options["layers"]
@@ -1414,6 +1473,17 @@ def calculateArea(session_cookies,results,features,options):
 
         if not geometry or (not isinstance(geometry,Polygon) and not isinstance(geometry,MultiPolygon)):
             continue
+
+        try:
+            for handler in loghandlers:
+                handler.enable(True)
+            if not geometry.is_valid:
+                msg = "\r\n".join([message for handler in loghandlers if handler.messages for message in handler.messages])
+                raise Exception(msg)
+
+        finally:
+            for handler in loghandlers:
+                handler.enable(False)
 
         area_data = {"total_area":getGeometryArea(geometry,unit)}
         result[options.get("name","area")] = area_data
