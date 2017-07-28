@@ -738,9 +738,6 @@ def loadDatasource(session_cookie,workdir,loadedDatasources,options):
     if not options.get("srs") and options.get("default_srs"):
         options["srs"] = options["default_srs"]
 
-    if not options["srs"]:
-        raise Exception("Can't detect the srs for datasource({})".format(options["sourcename"]))
-
     if "format" not in options:
         options["format"] = SPATIAL_FORMATS.get(os.path.splitext(options["datasource"][1])[1].lower())
         if not options["format"]:
@@ -755,15 +752,15 @@ def loadDatasource(session_cookie,workdir,loadedDatasources,options):
         datasource = os.path.join(filterdir,"{}{}".format(options["sourcename"],options["format"]["fileext"]))
         if not os.path.exists(os.path.dirname(datasource)):
             os.makedirs(os.path.dirname(datasource))
+
         cmd = ["ogr2ogr","-overwrite","-preserve_fid" ,"-skipfailures",
-            "-t_srs",options["srs"],
-            "-s_srs",options["srs"],
             #"-where","\"{}\"".format(options["where"]),
             "-where",options["where"],
             "-f", options["format"]["format"],
             datasource, 
             options["datasource"][0],
         ]
+
         if "layer" in options:
             cmd.append(options["layer"])
 
@@ -783,9 +780,9 @@ def loadDatasource(session_cookie,workdir,loadedDatasources,options):
 
     if "meta" not in options:
         if options["format"]["multilayer"]:
-            metas = getLayers(options["datasource"][0],options.get("layer"),options.get("srs"),options.get("defaultSrs"))
+            metas = getLayers(options["datasource"][0],options.get("layer"),options.get("srs"),options.get("default_srs"))
         else:
-            metas = getLayers(options["datasource"][0],None,options.get("srs"),options.get("defaultSrs"))
+            metas = getLayers(options["datasource"][0],None,options.get("srs"),options.get("default_srs"))
         if len(metas) == 0:
             options["meta"] = None
             options["layer"] = None
@@ -874,7 +871,7 @@ def downloaod(fmt):
                 url: wfs url if sourcetype is "WFS",
                 parameter: http request parameter if sourcetype is"UPLOAD" or "FORM"
                 srs: srs optional
-                defautlSrs:default srs; optional
+                defautl_srs:default srs; optional
                 datasource: used if sourcetype is "UPLOAD" and uploaded file contains multiple datasources
                 layer: layer name,required if datasource include multiple layers
                 where: filter the features 
@@ -890,7 +887,7 @@ def downloaod(fmt):
             parameter: http request parameter if sourcetype is"UPLOAD" or "FORM"
             srs: srs optional
             default_geometry_type: The geometry type of the empty geometry 
-            defautlSrs:default srs; optional
+            defautl_srs:default srs; optional
             datasource: used if sourcetype is "UPLOAD" and uploaded file contains multiple datasources
             ignore_if_empty: empty layer will not be returned if true; default is false
         }
@@ -1200,8 +1197,12 @@ def downloaod(fmt):
                 layer["srs"] = outputSrs
                 srss[layer["sourcename"]] = layer["srs"]
             else:
-                layer["srs"] = layer["sourcelayers"][0]["meta"]["srs"]
-                srss[layer["sourcename"]] = layer["srs"]
+                layer["srs"] = None
+                for l in layer["sourcelayers"]:
+                    if l["meta"]["srs"]:
+                        layer["srs"] = l["meta"]["srs"]
+                        srss[layer["sourcename"]] = layer["srs"]
+                        break
         del srss
 
         #convert and union the layers
@@ -1368,7 +1369,8 @@ def getGeometryArea(geometry,unit):
         partial(
             pyproj.transform,
             pyproj.Proj(init="EPSG:4326"),
-            pyproj.Proj(proj="aea",lat1=geometry.bounds[1],lat2=geometry.bounds[3])
+            #pyproj.Proj(proj="aea",lat1=geometry.bounds[1],lat2=geometry.bounds[3])
+            pyproj.Proj("+proj=aea +lat_1=-17.5 +lat_2=-31.5 +lat_0=0 +lon_0=121 +x_0=5000000 +y_0=10000000 +ellps=GRS80 +units=m +no_defs ",lat1=geometry.bounds[1],lat2=geometry.bounds[3])
         ),
         geometry
     )

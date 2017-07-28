@@ -355,6 +355,7 @@
         var result = this.$root.geojson.writeFeatures(features)
         format = format || this.vectorFormat
         if (format === 'geojson') {
+          var blob = new window.Blob([result], {type: 'application/json;charset=utf-8'})
           saveAs(blob, name + '.geojson')
         } else {
           this.downloadVector(format,{
@@ -362,8 +363,7 @@
             datasources : {
                 parameter:"features",
                 default_geometry_type:"auto",
-                datafile:result,
-                defaultSrs:"EPSG:4326"
+                default_srs:"EPSG:4326"
             },
             features:result,
           })
@@ -392,7 +392,7 @@
             datasources : {
                 parameter:"datafile",
                 default_geometry_type:"auto",
-                defaultSrs:"EPSG:4326"
+                default_srs:"EPSG:4326"
             },
             files: {
                 datafile:files[0]
@@ -680,11 +680,12 @@
             var layers = {
                 default_geometry_type:"POINT",
                 layer:selectedLayer.layer,
+                srs:"EPSG:4326",
                 sourcelayers:{
                     parameter:"datasource",
                     datasource:datasource,
                     layer:selectedLayer.layer,
-                    defaultSrs:"EPSG:4326"
+                    //default_srs:"EPSG:4326"
                 }
             }
             this._importData.formData.append('layers', JSON.stringify(layers))
