@@ -941,12 +941,12 @@ def downloaod(fmt):
             for layer in layers:
                 if layer.get("fields") and not layer.get("fieldStrategy"):
                     layer["fieldStrategy"] = "Intersection"
-                layer["ignore_if_empty"] = layer.get("ignore_if_empty",False)
+                layer["ignore_if_empty"] = layer.get("ignore_if_empty") or False
 
         #set datasource's ignore_if_empty
         if datasources:
             for datasource in datasources:
-                datasource["ignore_if_empty"] = datasource.get("ignore_if_empty",False)
+                datasource["ignore_if_empty"] = datasource.get("ignore_if_empty") or False
 
     
         def setDatasourceType(ds):
@@ -1058,10 +1058,10 @@ def downloaod(fmt):
         #load data sources and add all layers in datasources to layers
         if datasources:
             for datasource in datasources:
-                datasource["datasource"] = datasource.get("datasource","*")
+                datasource["datasource"] = datasource.get("datasource") or "*"
                 loadDatasource(cookies,loaddir,loadedDatasources,datasource)
                 for dsfile in datasource["datasources"]:
-                    if datasource.get("datasource","*") != "*" and datasource.get("datasource","*") != dsfile[0]:
+                    if datasource.get("datasource") != "*" and datasource.get("datasource") != dsfile[0]:
                         continue
                     for metadata in getLayers(dsfile[0]):
                         sourcelayer = dict(datasource)
@@ -1240,9 +1240,9 @@ def downloaod(fmt):
             if fmt["multitype"]:
                 outputDatasource = getOutputDatasource(outputdir,fmt,layer)
                 if outputDatasource in outputFiles:
-                    cmd = ["ogr2ogr","-skipfailures","-update" ,"-t_srs",layer.get("srs","EPSG:4326"), "-f", fmt["format"],outputDatasource, vrtFile]
+                    cmd = ["ogr2ogr","-skipfailures","-update" ,"-t_srs",(layer.get("srs") or "EPSG:4326"), "-f", fmt["format"],outputDatasource, vrtFile]
                 else:
-                    cmd = ["ogr2ogr","-skipfailures","-overwrite" ,"-t_srs",layer.get("srs","EPSG:4326"), "-f", fmt["format"],outputDatasource, vrtFile] 
+                    cmd = ["ogr2ogr","-skipfailures","-overwrite" ,"-t_srs",(layer.get("srs") or "EPSG:4326"), "-f", fmt["format"],outputDatasource, vrtFile] 
                     outputFiles.append(outputDatasource)
                 #print " ".join(cmd)
                 subprocess.check_call(cmd) 
@@ -1296,9 +1296,9 @@ def downloaod(fmt):
                     #has only one geometry type
                     outputDatasource = getOutputDatasource(outputdir,fmt,layer)
                     if outputDatasource in outputFiles:
-                        cmd = ["ogr2ogr","-skipfailures","-update" ,"-t_srs",layer.get("srs","EPSG:4326"), "-f", fmt["format"],outputDatasource, vrtFile]
+                        cmd = ["ogr2ogr","-skipfailures","-update" ,"-t_srs",(layer.get("srs") or "EPSG:4326"), "-f", fmt["format"],outputDatasource, vrtFile]
                     else:
-                        cmd = ["ogr2ogr","-skipfailures","-overwrite" ,"-t_srs",layer.get("srs","EPSG:4326"), "-f", fmt["format"],outputDatasource, vrtFile]
+                        cmd = ["ogr2ogr","-skipfailures","-overwrite" ,"-t_srs",(layer.get("srs") or "EPSG:4326"), "-f", fmt["format"],outputDatasource, vrtFile]
                         outputFiles.append(outputDatasource)
                     #print " ".join(cmd)
                     subprocess.check_call(cmd) 
@@ -1307,9 +1307,9 @@ def downloaod(fmt):
                         where = ("OGR_GEOMETRY IS NULL" if t == "EMPTY" else ("OGR_GEOMETRY='{}' OR OGR_GEOMETRY IS NULL" if layer.get("default_geometry_type") == t else "OGR_GEOMETRY='{}'")).format(t)
                         outputDatasource = getOutputDatasource(outputdir,fmt,layer,t)
                         if outputDatasource in outputFiles:
-                            cmd = ["ogr2ogr","-skipfailures","-update","-where", where,"-t_srs",layer.get("srs","EPSG:4326"), "-f", fmt["format"],outputDatasource, vrtFile]
+                            cmd = ["ogr2ogr","-skipfailures","-update","-where", where,"-t_srs",(layer.get("srs") or "EPSG:4326"), "-f", fmt["format"],outputDatasource, vrtFile]
                         else:
-                            cmd = ["ogr2ogr","-skipfailures","-overwrite","-where", where,"-t_srs",layer.get("srs","EPSG:4326"), "-f", fmt["format"],outputDatasource, vrtFile]
+                            cmd = ["ogr2ogr","-skipfailures","-overwrite","-where", where,"-t_srs",(layer.get("srs") or "EPSG:4326"), "-f", fmt["format"],outputDatasource, vrtFile]
                             outputFiles.append(outputDatasource)
                         #print " ".join(cmd)
                         subprocess.check_call(cmd) 
@@ -1370,6 +1370,7 @@ def getGeometryArea(geometry,unit):
             pyproj.transform,
             pyproj.Proj(init="EPSG:4326"),
             #pyproj.Proj(proj="aea",lat1=geometry.bounds[1],lat2=geometry.bounds[3])
+            #use projection 'Albers Equal Conic Area for WA' to calcuate the area
             pyproj.Proj("+proj=aea +lat_1=-17.5 +lat_2=-31.5 +lat_0=0 +lon_0=121 +x_0=5000000 +y_0=10000000 +ellps=GRS80 +units=m +no_defs ",lat1=geometry.bounds[1],lat2=geometry.bounds[3])
         ),
         geometry
@@ -1381,7 +1382,8 @@ def getGeometryArea(geometry,unit):
         return data / 1000000.00 
     else:
         return data
-
+#extract error message from log
+#for example: shapely is_valid will print error message in logger and return false to indicate the geometry is invalid; This class is used to extract the error message from log and return to client
 class Loghandler(object):
     instances = {}
     def __new__(cls,level):
@@ -1475,7 +1477,8 @@ def calculateArea(session_cookies,results,features,options):
 
         if not geometry or (not isinstance(geometry,Polygon) and not isinstance(geometry,MultiPolygon)):
             continue
-
+        #before calculating area, check the polygon first.
+        #if polygon is invalid, throw exception
         try:
             for handler in loghandlers:
                 handler.enable(True)

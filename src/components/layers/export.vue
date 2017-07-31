@@ -366,6 +366,7 @@
                 default_srs:"EPSG:4326"
             },
             features:result,
+            srs:"EPSG:4326"
           })
         }
       },
@@ -373,14 +374,15 @@
         return this._fileformats.find(function(f){return filename.substring(filename.length - f[1].length).toLowerCase() === f[1]})
       },
       convertFormat:function(format,ev) {
-        var files = ev.currentTarget.files
-        if (files.length === 0) {
+        var file = (ev.currentTarget.files.length > 0)?ev.currentTarget.files[0]:null
+        ev.currentTarget.value = null
+        if (!file) {
             return
         }
         
-        var fileFormat = this.getFileFormat(files[0].name)
+        var fileFormat = this.getFileFormat(file.name)
         if (!fileFormat) {
-            alert("Not support file format(" + files[0].name + ")")
+            alert("Not support file format(" + file.name + ")")
             return
         }
         if (fileFormat[0] === format) {
@@ -392,11 +394,11 @@
             datasources : {
                 parameter:"datafile",
                 default_geometry_type:"auto",
-                default_srs:"EPSG:4326"
             },
             files: {
-                datafile:files[0]
-            }
+                datafile:file
+            },
+            srs:"EPSG:4326"
         })
       },
       downloadVector:function(format,options,callback) {
@@ -413,7 +415,6 @@
         }
         var sendRequest = function() {
             if (tasks > 0) {
-                callback(true)
                 return
             }
             try{
@@ -478,7 +479,7 @@
                             return function(e) {
                                 formData.append(parameter, new window.Blob([e.target.result],{type:fmt}), filename)
                                 tasks -= 1
-                                callback()
+                                sendRequest()
                             }
                         }()
                         reader.readAsArrayBuffer(file)
@@ -495,13 +496,14 @@
         }
       },
       getSpatialInfo: function(){
-        var files = this.$els.spatialinfofile.files
-        if (files.length === 0) {
+        var file = (this.$els.spatialinfofile.files.length > 0)?this.$els.spatialinfofile.files[0]:null
+        this.$els.spatialinfofile.value = null
+        if (!file) {
             return
         }
-        var fileFormat = this.getFileFormat(files[0].name)
+        var fileFormat = this.getFileFormat(file.name)
         if (!fileFormat) {
-            alert("Not support file format(" + filename + ")")
+            alert("Not support file format(" + file.name + ")")
             return
         }
         var vm = this
@@ -509,7 +511,7 @@
         reader.onload = function (e) {
             try{
                 var formData = new window.FormData()
-                formData.append('datasource', new window.Blob([e.target.result],{type:fileFormat[2]}), files[0].name)
+                formData.append('datasource', new window.Blob([e.target.result],{type:fileFormat[2]}), file.name)
                 var req = new window.XMLHttpRequest()
                 req.open('POST', vm.env.gokartService + '/ogrinfo')
                 req.responseType = 'blob'
@@ -537,7 +539,7 @@
                                     return
                                 } else {
                                     vm.spatialInfo = spatialInfo
-                                    vm.spatialInfo.title = files[0].name
+                                    vm.spatialInfo.title = file.name
                                     vm.spatialInfo.upload = false
                                     $("#spatialInfoDialog").foundation('open')
                                 }
@@ -552,7 +554,7 @@
                 alert(ex.message || ex)
             }
         }
-        reader.readAsArrayBuffer(files[0])
+        reader.readAsArrayBuffer(file)
       },
       importVector: function(file,callback,failedCallback) {
         // upload vector  
