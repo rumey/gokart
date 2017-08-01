@@ -84,10 +84,10 @@
         </div>
         <div class="small-9 columns">
           <div class="expanded button-group">
-            <label class="button expanded" for="spatialInfo" title="Support GeoJSON(.geojson .json), GPS data(.gpx), GeoPackage(.gpkg), 7zip(.7z), TarFile(.tar.gz,tar.bz,tar.xz),ZipFile(.zip)">
+            <label class="button expanded" for="spatialInfo" title="{{utils.importSpatialFileTypeDesc}}">
                 <i class="fa fa-info"></i> Spatial Info
             </label>
-            <input type="file" id="spatialInfo" class="show-for-sr" name="spatialinfofile" v-el:spatialinfofile @change="getSpatialInfo()" accept=".json,.geojson,.gpx,.gpkg,.7z,.tar,.tar.gz,.tar.bz,.tar.xz,.zip"/>
+            <input type="file" id="spatialInfo" class="show-for-sr" name="spatialinfofile" v-el:spatialinfofile @change="getSpatialInfo()" accept="{{utils.importSpatialFileTypes}}"/>
           </div>
         </div>
 
@@ -97,32 +97,32 @@
         <div class="small-9 columns">
           <div class="expanded button-group">
             <label class="button expanded convertbutton" for="togeojson" 
-                title="Support GeoJSON(.geojson .json), GPS data(.gpx), GeoPackage(.gpkg), 7zip(.7z), TarFile(.tar.gz,tar.bz,tar.xz),ZipFile(.zip)">
+                title="{{utils.importSpatialFileTypeDesc}}">
                 <i class="fa fa-exchange"></i><br>Transform<br>(geojson)
             </label>
             <input type="file" id="togeojson" class="show-for-sr" name="convertfile" v-el:togeojson @change="convertFormat('geojson',$event)" 
-                accept=".json,.geojson,.gpx,.gpkg,.7z,.tar,.tar.gz,.tar.bz,.tar.xz,.zip"/>
+                accept="{{utils.importSpatialFileTypes}}"/>
 
             <label class="button expanded convertbutton" for="togpkg" 
-                title="Support GeoJSON(.geojson .json), GPS data(.gpx), GeoPackage(.gpkg), 7zip(.7z), TarFile(.tar.gz,tar.bz,tar.xz),ZipFile(.zip)">
+                title="{{utils.importSpatialFileTypeDesc}}">
                 <i class="fa fa-exchange"></i><br>Transform<br>(gpkg)
             </label>
             <input type="file" id="togpkg" class="show-for-sr" name="convertfile" v-el:togpkg @change="convertFormat('gpkg',$event)" 
-                accept=".json,.geojson,.gpx,.gpkg,.7z,.tar,.tar.gz,.tar.bz,.tar.xz,.zip"/>
+                accept="{{utils.importSpatialFileTypes}}"/>
 
             <label class="button expanded convertbutton" for="toshp" 
-                title="Support GeoJSON(.geojson .json), GPS data(.gpx), GeoPackage(.gpkg), 7zip(.7z), TarFile(.tar.gz,tar.bz,tar.xz),ZipFile(.zip)">
+                title="{{utils.importSpatialFileTypeDesc}}">
             <i class="fa fa-exchange"></i><br>Transform<br>(shp)
             </label>
             <input type="file" id="toshp" class="show-for-sr" name="convertfile" v-el:toshp @change="convertFormat('shp',$event)" 
-                accept=".json,.geojson,.gpx,.gpkg,.7z,.tar,.tar.gz,.tar.bz,.tar.xz,.zip"/>
+                accept="{{utils.importSpatialFileTypes}}"/>
 
             <label class="button expanded convertbutton" for="tocsv" 
-                title="Support GeoJSON(.geojson .json), GPS data(.gpx), GeoPackage(.gpkg), 7zip(.7z), TarFile(.tar.gz,tar.bz,tar.xz),ZipFile(.zip)">
+                title="{{utils.importSpatialFileTypeDesc}}">
             <i class="fa fa-exchange"></i><br>Transform<br>(csv)
             </label>
             <input type="file" id="tocsv" class="show-for-sr" name="convertfile" v-el:tocsv @change="convertFormat('csv',$event)" 
-                accept=".json,.geojson,.gpx,.gpkg,.7z,.tar,.tar.gz,.tar.bz,.tar.xz,.zip"/>
+                accept="{{utils.importSpatialFileTypes}}"/>
 
           </div>
         </div>
@@ -289,6 +289,7 @@
       loading: function () { return this.$root.loading },
       env: function () { return this.$root.env },
       annotations: function () { return this.$root.annotations },
+      utils: function () { return this.$root.utils },
       layerlegends:function() {return this.$refs.layerlegends},
       map:function() {return this.$root.map},
       olmap: function () {

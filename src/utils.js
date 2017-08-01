@@ -138,6 +138,9 @@ FeatureTaskManager.prototype.errorMessages = function(feat,scope) {
 let Utils = function() {
 }
 
+Utils.prototype.importSpatialFileTypes = ".json,.geojson,.gpx,.gpkg"
+Utils.prototype.importSpatialFileTypeDesc = "Support GeoJSON(.geojson .json), GPS data(.gpx), GeoPackage(.gpkg), 7zip(.7z), TarFile(.tar.gz,tar.bz,tar.xz),ZipFile(.zip)"
+
 Utils.prototype.SUCCEED = FeatureTask.SUCCEED
 Utils.prototype.FAILED = FeatureTask.FAILED
 Utils.prototype.WAITING = FeatureTask.WAITING
