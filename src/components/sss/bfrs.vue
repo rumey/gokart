@@ -1319,17 +1319,21 @@
         }
 
         try {
-            var validate_task = vm._taskManager.addTask(feat,"getSpatialData","validate","Validate bushfire",utils.RUNNING)
-            this.validateBushfire(feat,"getSpatialData",function(error) {
-                if (error) {
-                    validate_task.setStatus(utils.FAILED,error)
-                    //alert(error)
-                    vm._getSpatialDataCallback(feat,callback,failedCallback,{})
-                } else {
-                    validate_task.setStatus(utils.SUCCEED)
-                    vm._getSpatialData(feat,callback,failedCallback)
-                }
-            })
+            if (this.isFireboundaryDrawable(feat) || ((feat.get('modifyType') & 2) !== 2 && feat.get('fire_boundary'))) {
+                var validate_task = vm._taskManager.addTask(feat,"getSpatialData","validate","Validate bushfire",utils.RUNNING)
+                this.validateBushfire(feat,"getSpatialData",function(error) {
+                    if (error) {
+                        validate_task.setStatus(utils.FAILED,error)
+                        //alert(error)
+                        vm._getSpatialDataCallback(feat,callback,failedCallback,{})
+                    } else {
+                        validate_task.setStatus(utils.SUCCEED)
+                        vm._getSpatialData(feat,callback,failedCallback)
+                    }
+                })
+            } else {
+                vm._getSpatialData(feat,callback,failedCallback)
+            }
         } catch(ex) {
             vm._getSpatialDataCallback(feat,callback,failedCallback,{})
         }
@@ -1367,7 +1371,7 @@
                             if ((feat.get('modifyType') & 2) === 2) {
                                 var originPoint = feat.getGeometry().getGeometries().find(function(g) {return g instanceof ol.geom.Point}) || null
                                 if (originPoint) {
-                                    var checkTask = vm._taskManager.addTask(feat,"postsave","check_originpoint","Check origin point",utils.RUNNING)
+                                    var checkTask = vm._taskManager.addTask(feat,"postsave","check_originpoint","Check origin within fire shape",utils.RUNNING)
                                     originPoint = originPoint.getCoordinates()
                                     $.ajax({
                                         url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetPropertyValue&valueReference=fire_number&typeNames=" + vm.env.finalFireboundaryLayer + "&cql_filter=(fire_number='" + feat.get('fire_number') + "')and (CONTAINS(fire_boundary,POINT(" + originPoint[1]  + " " + originPoint[0] + ")))",
@@ -2219,7 +2223,7 @@
                                     feature.tasks = feat.tasks
                                     vm.saveFeature(feature,function(f,status,msg){
                                         if (import_task) {
-                                            import_task.setStatus(status,msg)
+                                            import_task.setStatus(status)
                                         }
                                         if (status === utils.SUCCEED) {
                                             vm._taskManager.clearTasks(feat)
@@ -2308,7 +2312,7 @@
 
                 if (import_task && vm._taskManager.getTasks(targetFeature).length === 1) {
                     import_task.setStatus(utils.SUCCEED)
-                    vm._taskManager.clearTasks(feat)
+                    vm._taskManager.clearTasks(targetFeature)
                 }
                 /*
                 if (notFoundBushfires) {
