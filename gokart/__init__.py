@@ -1438,7 +1438,31 @@ class Loghandler(object):
 loghandlers = [Loghandler("critical"),Loghandler("error"),Loghandler("warning")]
 #loghandlers = [Loghandler("critical"),Loghandler("error")]
 
-        
+#return polygon or multipolygons if have, otherwise return None
+def extractPolygons(geom):
+    if isinstance(geom,Polygon) or isinstance(geom,MultiPolygon):
+        return geom
+    elif isinstance(geom,GeometryCollection):
+        result = None
+        for g in geom:
+            p = extractPolygons(g)
+            if not p:
+                continue
+            elif not result:
+                result = p
+            elif isinstance(result,MultiPolygon):
+                if isinstance(g,Polygon): 
+                    result = MultiPolygon(result.geoms + [g])
+                else:
+                    result = MultiPolygon(result.geoms + g.geoms)
+            else:
+                if isinstance(g,Polygon): 
+                    result = MultiPolygon([result,g])
+                else:
+                    result = MultiPolygon([result] + g.geoms)
+        return result
+    else:
+        return None
 
 
 def calculateArea(session_cookies,results,features,options):
@@ -1456,26 +1480,9 @@ def calculateArea(session_cookies,results,features,options):
         feature = features[index]
         result = results[index]
         index += 1
-        if isinstance(feature["geometry"],GeometryCollection):
-            for g in feature["geometry"].geoms:
-                if isinstance(g,Polygon) or isinstance(g,MultiPolygon):
-                    if geometry is None:
-                        geometry = g
-                    elif isinstance(geometry,Polygon):
-                        if isinstance(g,Polygon): 
-                            geometry = MultiPolygon([geometry,g])
-                        else:
-                            geometry = MultiPolygon(g.geoms + [geometry])
-                    else:
-                        if isinstance(g,Polygon): 
-                            geometry = MultiPolygon(geometry.geoms + [g])
-                        else:
-                            geometry = MultiPolygon(g.geoms + geometry.geoms)
+        geometry = extractPolygons(feature["geometry"])
 
-        else:
-            geometry = feature["geometry"]
-
-        if not geometry or (not isinstance(geometry,Polygon) and not isinstance(geometry,MultiPolygon)):
+        if not geometry :
             continue
         #before calculating area, check the polygon first.
         #if polygon is invalid, throw exception
@@ -1510,8 +1517,8 @@ def calculateArea(session_cookies,results,features,options):
                 layer_geometry = shape(layer_feature["geometry"])
                 if not isinstance(layer_geometry,Polygon) and not isinstance(layer_geometry,MultiPolygon):
                     continue
-                intersections = geometry.intersection(layer_geometry)
-                if not isinstance(intersections,Polygon) and not isinstance(intersections,MultiPolygon):
+                intersections = extractPolygons(geometry.intersection(layer_geometry))
+                if not intersections:
                     continue
 
                 layer_feature_area_data = {}
