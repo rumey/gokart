@@ -1,11 +1,11 @@
 <template>
   <div id="info" v-bind:style="css" v-show="features" v-cloak>
-    <div class="row collapse">
+    <!--div class="row collapse">
       <div class="columns title">
         <h5>{{ featuresLength }} {{ featuresLength | pluralize 'feature' }} <small>{{ coordinate }}</small></h5>
       </div>
       <button class="close-button float-right" aria-label="Dismiss info" type="button" v-on:click="features = false"><span aria-hidden="true">&times;</span></button>
-    </div>
+    </div-->
     <div class="row">
       <div class="columns content">
         <div v-for="f in features" class="row feature-row" v-bind:class="{'feature-selected': selected(f[0]) }" v-bind:key="f[0].get('id')">
