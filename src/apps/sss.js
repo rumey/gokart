@@ -56,6 +56,7 @@ var volatileData = {
   activeMenu:null,
   activeSubmenu:null,
   hints:null,
+  showHints:false,
   // filters for finding layers
   catalogueFilters: [
     ['basemap', 'Base Imagery'],
@@ -97,7 +98,6 @@ var systemSettings = {
   viewportOnly: false,
   rightHandTools: true,
   graticule:true,
-  showHints:true,
   bfrs:{
       bushfireLabels:true,
       viewportOnly: false,
@@ -254,11 +254,11 @@ if (result) {
               tour.start()
           },
           isShowHints:function(module) {
-              return this.store.settings.showHints && this.store.hints && (this.store.activeSubmenu || this.store.activeMenu) === module;
+              return this.store.showHints && this.store.hints && (this.store.activeSubmenu || this.store.activeMenu) === module;
           },
-          showHints:function() {
+          setHints:function() {
               this.store.hints = null
-              if (!this.store.settings.showHints) return
+              if (!this.store.showHints) return
               var module = this.store.activeSubmenu || this.store.activeMenu
               if (module && this[module]) {
                 if (arguments.length === 0 ) {

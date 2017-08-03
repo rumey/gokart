@@ -25,6 +25,7 @@
       </div>
     </div>
     <div class="row collapse scroller" id="layer-config-container">
+      <hr class="small-12"/>
       <div id="layer-config" class="columns">
         <h4 v-if="layer && mapLayer()">{{ layer.name }}</h4>
         <div class="tool-slice row" v-if="layerRefreshConfigable()">

@@ -54,16 +54,6 @@
 
             <div class="tool-slice row collapse">
               <div class="switch tiny">
-                <input class="switch-input" id="toggleShowHints" type="checkbox"  v-bind:checked="showHints" @change="toggleShowHints"/>
-                <label class="switch-paddle" for="toggleShowHints">
-                    <span class="show-for-sr">Show hints</span>
-                </label>
-              </div>
-              <label for="toggleShowHints" class="side-label">Show hints</label>
-            </div>
-
-            <div class="tool-slice row collapse">
-              <div class="switch tiny">
                 <input class="switch-input" id="toggleMeasureFeature" type="checkbox" v-bind:checked="measureFeature" @change="toggleMeasureFeature"/>
                 <label class="switch-paddle" for="toggleMeasureFeature">
                   <span class="show-for-sr">Measure feature</span>
@@ -165,7 +155,7 @@
       </div>
     </div>
 
-    <img src="dist/static/images/about.svg" id="about" data-open="aboutModal">
+    <img src="dist/static/images/about.svg" class="right-bottom-icon" data-open="aboutModal">
 
     <div class="reveal" id="aboutModal" data-reveal>
         <div class="about-pane row collapse about-pane">
@@ -195,14 +185,6 @@
     font-size: 12px;
 }
 
-#about{
-    position:absolute;
-    bottom:0;
-    right:0;
-    width:32px;
-    height:32px
-}
-
 </style>
 
 <script>
@@ -217,9 +199,10 @@
         areaUnit:'settings.areaUnit',
         rightHandTools: 'settings.rightHandTools',
         graticule:'settings.graticule',
-        showHints:'settings.showHints',
+        showHints:'showHints',
         tourVersion:'settings.tourVersion',
-        whoami:'whoami'
+        whoami:'whoami',
+
     },
     data: function () {
       return {
@@ -270,6 +253,9 @@
       },
       overviewMap:function(newValue,oldValue) {
         this.showOverviewMap(newValue)
+      },
+      showHints:function(newValue,oldValue) {
+        this.$root.setHintsHeight()
       }
     },
     methods: {
@@ -306,9 +292,9 @@
         this.graticule = ev.target.checked
         this.saveState()
       },
-      toggleShowHints: function (ev) {
-        this.showHints = ev.target.checked
-        this.saveState()
+      toggleShowHints: function () {
+        this.showHints = !this.showHints
+        //this.saveState()
       },
       toggleHoverInfo: function (ev) {
         this.info.hoverInfo = ev.target.checked

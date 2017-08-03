@@ -20,14 +20,8 @@
                 <div class="tool-slice row collapse">
                   <div class="small-12">
                     <div class="expanded button-group">
-                      <a v-for="t in tools | filterIf 'showName' undefined" class="button button-tool" v-bind:class="{'selected': t.name == annotations.tool.name}"
-                        @click="annotations.setTool(t)" v-bind:title="t.label">{{{ annotations.icon(t) }}}</a>
-                    </div>
-                    <div class="row resetmargin">
-                      <div v-for="t in tools | filterIf 'showName' true" class="small-6" v-bind:class="{'rightmargin': $index % 2 === 0}" >
-                        <a class="expanded button" v-bind:class="{'selected': t.name == annotations.tool.name}" @click="annotations.setTool(t)"
-                          v-bind:title="t.label">{{{ annotations.icon(t) }}} {{ t.label }}</a>
-                      </div>
+                      <a v-for="t in tools" class="button button-tool" v-bind:class="{'selected': t.name == annotations.tool.name}"
+                        @click="annotations.setTool(t)" v-bind:title="t.label" style="font-size: 0.9rem;">{{{ annotations.icon(t) }}} {{t.showName?t.label:""}}</a>
                     </div>
                   </div>
                 </div>
@@ -245,6 +239,8 @@
       </div>
     </div>
 
+    <img src="dist/static/images/question-mark.png" class="right-bottom-icon" @click="setting.toggleShowHints()">
+
     <form id="bushfire_create" name="bushfire_create" action="{{createUrl()}}" method="post" target="{{utils.getWindowTarget(env.bfrsService)}}">
         <input type="hidden" name="sss_create" id="sss_create">
     </form>
@@ -374,6 +370,7 @@
       map: function () { return this.$root.$refs.app.$refs.map },
       env: function () { return this.$root.env },
       annotations: function () { return this.$root.$refs.app.$refs.annotations },
+      setting: function () { return this.$root.setting },
       dialog: function () { return this.$root.dialog },
       active: function () { return this.$root.active},
       measure: function () { return this.$root.measure },
@@ -3056,6 +3053,7 @@
                   vm.ui.dragSelectInter.setMulti(true)
                   vm.ui.selectInter.setMulti(true)
               },
+              /*
               comments:[
                 {
                     name:"Tips",
@@ -3064,6 +3062,7 @@
                     ]
                 }
               ]
+              */
           },{
               name: 'Bfrs Edit Geometry',
               label: 'Edit Geometry',

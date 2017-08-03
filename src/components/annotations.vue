@@ -1059,7 +1059,7 @@
         }
 
         if (t.onSet) { t.onSet(this.tool) }
-        this.$root.showHints(t.comments)
+        this.$root.setHints(t.comments)
       },
       selectAll: function (features,selectedFeatures) {
         features = features || this.features
@@ -1660,6 +1660,7 @@
           map.keyboardPanInter,
           map.keyboardZoomInter
         ],
+        /*
         comments:[
           {
               name:"Tips",
@@ -1669,6 +1670,7 @@
               ]
           }
         ]
+        */
       }
       this.ui.editStyle = {
         name: 'Edit Style',
@@ -1705,6 +1707,7 @@
             vm.ui.dragSelectInter.setMulti(true)
             vm.ui.selectInter.setMulti(true)
         },
+        /*
         comments:[
           {
               name:"Tips",
@@ -1713,6 +1716,7 @@
               ]
           }
         ]
+        */
       }
       this.ui.defaultEdit = {
         name: 'Edit Geometry',

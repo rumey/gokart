@@ -421,7 +421,7 @@ input[type="range"] {
 /* Set height of internal layers to allow for bottom details */
 
 .layers-flexibleframe {
-    border-bottom: 1px solid rgba(37, 45, 51, 0.9);
+    /*border-bottom: 1px solid rgba(37, 45, 51, 0.9);*/
 }
 .scroller {
     overflow-y: auto;
@@ -586,3 +586,12 @@ input:disabled ~ .switch-paddle {
     line-height:1em;
     margin-left:2px;
 }
+.right-bottom-icon {
+    position:absolute;
+    bottom:0;
+    right:0;
+    width:32px;
+    height:32px;
+    cursor:pointer;
+}
+
