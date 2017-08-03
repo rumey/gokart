@@ -383,7 +383,7 @@
         
         var fileFormat = this.getFileFormat(file.name)
         if (!fileFormat) {
-            alert("Not support file format(" + file.name + ")")
+            alert("Unsupported file format(" + file.name + ")")
             return
         }
         if (fileFormat[0] === format) {
@@ -466,7 +466,7 @@
                         tasks += 1
                         var fileFormat = vm.getFileFormat(file.name)
                         if (!fileFormat) {
-                            throw ("Not support file format(" + file.name + ")")
+                            throw ("Unsupported file format(" + file.name + ")")
                         }
                         if (!defaultFileName) {
                             defaultFileName = file.name.substring(0,file.name.length - fileFormat[1].length) + "." + format
@@ -504,7 +504,7 @@
         }
         var fileFormat = this.getFileFormat(file.name)
         if (!fileFormat) {
-            alert("Not support file format(" + file.name + ")")
+            alert("Unsupported file format(" + file.name + ")")
             return
         }
         var vm = this
@@ -562,9 +562,9 @@
         var vm = this
         var fileFormat = this.getFileFormat(file.name)
         if (!fileFormat) {
-            var msg = "Not support file format(" + filename + ")"
+            var msg = "Unsupported file format(" + file.name + ")"
             if (failedCallback) {
-                faieldCallback(msg)
+                failedCallback(msg)
             } else {
                 alert(msg)
             }
@@ -657,7 +657,7 @@
             }
             fileFormat = this.getFileFormat(datasource)
             if (!fileFormat) {
-                var msg = "Not support file format(" + datasource + ")"
+                var msg = "Unsupported file format(" + datasource + ")"
                 if (this._importData.failedCallback) {
                     this._importData.failedCallback(msg)
                 } else {

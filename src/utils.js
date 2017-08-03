@@ -89,6 +89,9 @@ FeatureTaskManager.prototype.initTasks = function(feat) {
 FeatureTaskManager.prototype.clearTasks = function(feat) {
     var vm = this
     var tasks = feat.tasks
+    if (!tasks || tasks.length === 0) {
+        return
+    }
     var delay = 1000
     if (this.allTasksSucceed(feat)) {
         delay = 1000
@@ -105,10 +108,10 @@ FeatureTaskManager.prototype.clearTasks = function(feat) {
     },delay)
 }
 FeatureTaskManager.prototype.getTasks = function(feat) {
-    return feat.tasks
+    return feat.tasks || []
 }
 FeatureTaskManager.prototype.getTask = function(feat,scope,taskId) {
-    return feat.tasks.find(function(t) {return t.id === taskId && t.scope === scope})
+    return feat.tasks?(feat.tasks.find(function(t) {return t.id === taskId && t.scope === scope})):null
 }
 //status should be "waiting","running","succeed","failed"
 FeatureTaskManager.prototype.addTask = function(feat,scope,taskId,description,status) {

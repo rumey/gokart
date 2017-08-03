@@ -88,13 +88,13 @@
                         <div class="switch tiny">
                           <input class="switch-input" id="clippedFeaturesOnly" v-bind:disabled="clippedFeatures.length === 0" type="checkbox" v-model="clippedOnly"  @change="updateFeatureFilter(3)"/>
                           <label class="switch-paddle" for="clippedFeaturesOnly">
-                            <span class="show-for-sr">Show selected only</span>
+                            <span class="show-for-sr">Show saved selection</span>
                          </label>
                         </div>
-                        <label for="clippedFeaturesOnly" style="side-label" class="side-label">Show clipped only 
+                        <label for="clippedFeaturesOnly" style="side-label" class="side-label">Show saved selection
                         </label>
-                        <a class="button tiny secondary" title="Clip to selected bushfires" style="margin-top:0px;margin-bottom:5px;margin-left:2px;margin-right:2px;padding-top:6px;padding-left:4px;padding-right:4px;padding-bottom:0px;border:0px;height:24px;font-size:0.7rem;background-color:#2199e8" @click="clipToSelection()" >
-                            <i class="fa fa-cut" aria-hidden="true"></i>Clip to Selection ({{selectedBushfires.length}})
+                        <a class="button tiny secondary" title="Save selection" style="margin-top:0px;margin-bottom:5px;margin-left:2px;margin-right:2px;padding-top:6px;padding-left:4px;padding-right:4px;padding-bottom:0px;border:0px;height:24px;font-size:0.7rem;background-color:#2199e8" @click="clipToSelection()" >
+                            <i class="fa fa-cut" aria-hidden="true"></i>Save selection ({{selectedBushfires.length}})
                         </a> 
                         ({{clippedFeatures.length}}/{{features.getLength()}})
                       </div>
@@ -319,8 +319,8 @@
         drawings:new ol.Collection(),
         features: new ol.Collection(),
         clippedFeatures:[],
-        showFilters:true,
-        showToggles:true,
+        showFilters:false,
+        showToggles:false,
         startDate:'',
         endDate:'',
         dateRange:'',
@@ -1736,6 +1736,9 @@
             messages:"Downloading bushfires...",
             buttons:null
         })
+        var bbox = ""
+        var originpoint_filter = ""
+        var fireboundary_filter = ""
         if (downloadType === "listed") {
             cql_filter = vm.bushfireLayer.cql_filter || ""
             if (this.clippedOnly) {
@@ -1745,13 +1748,21 @@
                 cql_filter = (cql_filter?(cql_filter + " and (("):"((") +  this.fields.map(function(field) { return "strToLowerCase(" + field + ") like '%25" + vm.search.trim().toLowerCase() + "%25'"}).join(") or (") + "))"
             }
             if (cql_filter.length > 0) {
-                cql_filter = "&cql_filter=" + cql_filter
+                if (this.viewportOnly) {
+                    bbox = this.map.extent
+                    originpoint_filter = "&cql_filter=" + (cql_filter + " and BBOX(origin_point," + bbox[1] + "," + bbox[0] + "," + bbox[3] + "," + bbox[2] + ")")
+                    fireboundary_filter = "&cql_filter=" + (cql_filter + " and BBOX(fire_boundary," + bbox[1] + "," + bbox[0] + "," + bbox[3] + "," + bbox[2] + ")")
+                    bbox = ""
+                } else {
+                    originpoint_filter = "&cql_filter=" + cql_filter
+                    fireboundary_filter = originpoint_filter
+                }
+            } else {
+                if (this.viewportOnly) {
+                    bbox = this.map.extent
+                    bbox = "&bbox=" + bbox[1] + "," + bbox[0] + "," + bbox[3] + "," + bbox[2]
+                }
             }
-        }
-        var bbox = ""
-        if (this.viewportOnly && downloadType === "listed") {
-            bbox = this.map.extent
-            bbox = "&bbox=" + bbox[1] + "," + bbox[0] + "," + bbox[3] + "," + bbox[2]
         }
         var bushfireLayer = (downloadType === "listed")?vm.env.bushfireLayer:vm.env.allBushfireLayer
         var fireboundaryLayer = (downloadType === "listed")?vm.env.fireboundaryLayer:vm.env.allFireboundaryLayer
@@ -1762,28 +1773,28 @@
                 layer:"initial_bushfire_originpoint",
                 ignore_if_empty:true,
                 sourcelayers:{
-                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + bushfireLayer + cql_filter  + bbox,
+                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + bushfireLayer + originpoint_filter  + bbox,
                     where:"report_status=1",
                 }
             },{
                 layer:"final_bushfire_originpoint",
                 ignore_if_empty:true,
                 sourcelayers:{
-                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + bushfireLayer + cql_filter + bbox,
+                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + bushfireLayer + originpoint_filter + bbox,
                     where:"report_status>1",
                 }
             },{
                 layer:"initial_bushfire_fireboundary",
                 ignore_if_empty:true,
                 sourcelayers:{
-                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + cql_filter + bbox,
+                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
                     where:"report_status=1",
                 }
             },{
                 layer:"final_bushfire_fireboundary",
                 ignore_if_empty:true,
                 sourcelayers:{
-                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + cql_filter + bbox,
+                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
                     where:"report_status>1",
                 }
             }]
@@ -2146,14 +2157,15 @@
                         }
                     }
                 }
-
-                if (vm.search && vm.search.trim().length > 0) {
-                    vm.search = ""
-                    vm.clippedOnly = false
-                    vm.updateFeatureFilter(3,0)
-                } else if (vm.clippedOnly) {
-                    vm.clippedOnly = false
-                    vm.updateFeatureFilter(1,0)
+                if (!targetFeature) {
+                    if (vm.search && vm.search.trim().length > 0) {
+                        vm.search = ""
+                        vm.clippedOnly = false
+                        vm.updateFeatureFilter(3,0)
+                    } else if (vm.clippedOnly) {
+                        vm.clippedOnly = false
+                        vm.updateFeatureFilter(1,0)
+                    }
                 }
                 //var notFoundBushfires = null
                 //var noPermissionBushfires = null
