@@ -1509,9 +1509,11 @@
             }
             var task = vm._taskManager.addTask(feat,"create","create","Open bushfire report form",utils.RUNNING)
             this.getSpatialData(feat,function(spatialData,job) {
-                feat.set("saved",true,true)
                 feat.set("modifyType",0,true)
-                feat.set("sss_id",feat.getGeometry().getGeometriesArray()[0].getCoordinates(),true)
+                if (!feat.get("sss_id")) {
+                    feat.set("sss_id",hash.MD5(vm.whoami["email"] + "-" + Date.now() + "-" + feat.getGeometry().getGeometriesArray()[0].getCoordinates().join(",")),true)
+                }
+                spatialData["sss_id"] = feat.get("sss_id")
                 $("#sss_create").val(JSON.stringify(spatialData))
                 utils.submitForm("bushfire_create")
                 task.setStatus(utils.SUCCEED)
@@ -1630,7 +1632,7 @@
       postModified:function(bushfires,modifyType) {
         var vm = this
         this._bushfirePostModified = this._bushfirePostModified || function(bushfire,modifyType) {
-            if (bushfire.get('tint') !== "modified" && (bushfire.get('status') !== "new" || bushfire.get("saved"))) {
+            if (bushfire.get('tint') !== "modified" && (bushfire.get('status') !== "new" || bushfire.get("sss_id"))) {
                 bushfire.set('tint',"modified",true)
                 bushfire.set('fillColour',vm.tints[bushfire.get('tint') + ".fillColour"])
                 bushfire.set('colour',vm.tints[bushfire.get('tint') + ".colour"])
@@ -3247,13 +3249,10 @@
                     f = vm.features.item(index)
                     if (f.get('status') === 'new') {
                         //new features always are the begining and sorted.
-                        if (f.get('saved')) {
+                        if (f.get('sss_id')) {
                             //save before
                             loadedFeature = features.find(function(f2){
-                                var geometries = f2.getGeometry().getGeometriesArray()
-                                var originPoint = (geometries.length > 0 && geometries[0] instanceof ol.geom.Point)?geometries[0]:null
-                           
-                                return originPoint?vm.map.isGeometryEqual(new ol.geom.Point(f.get('sss_id')),originPoint,0.000000005):false
+                                return f.get('sss_id') === f2.get('sss_id')
                             })
                             if (!loadedFeature) {
                                 //still not save, keep the current new bushfire
