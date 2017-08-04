@@ -1852,7 +1852,7 @@
         })
       },
       uploadBushfire:function(targetFeature) {
-        this._uploadTargetFeature = targetFeature
+        this._uploadBushfireNumber = targetFeature.get('fire_number')
         this._uploadType = "fireboundary"
         this._uploadTargetOnly = true
         $("#uploadBushfires").click()
@@ -1864,8 +1864,16 @@
         var file = this.$els.bushfiresfile.files[0]
         this.$els.bushfiresfile.value = null
 
-        var targetFeature = this._uploadTargetFeature
-        delete this._uploadTargetFeature
+        var vm = this
+        var targetFeature = null
+        if (this._uploadBushfireNumber) {
+            targetFeature = this.features.getArray().find(function(f) {return f.get('fire_number') === vm._uploadBushfireNumber})
+            delete this._uploadBushfireNumber
+            if (!targetFeature) {
+                alert("Bushfire (" + this._uploadBushfireNumber + ") does not exist in the bushfire list.")
+                return
+            }
+        }
 
         var uploadType = this._uploadType
         delete this._uploadType
@@ -1880,9 +1888,16 @@
             }
             import_task = this._taskManager.addTask(targetFeature,"import","import","Import bushfire fire boundary",utils.RUNNING)
         }
-        var vm = this
-        this.export.importVector(file,function(features,fileFormat){
+        vm.export.importVector(file,function(features,fileFormat){
           try{
+            if (targetFeature) {
+                targetFeature = vm.features.getArray().find(function(f) {return f.get('fire_number') === targetFeature.get('fire_number')})
+                if (!targetFeature) {
+                    alert("Bushfire (" + targetFeature.get('fire_number') + ") does not exist in the bushfire list.")
+                    return
+                }
+            }
+
             var importedFinalFeatures = 0
             var importingFeatures = features.length
             var selectedFeatures = []

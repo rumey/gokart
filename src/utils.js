@@ -76,14 +76,13 @@ let FeatureTaskManager = function(changeCallback) {
 //return true if init succeed;otherwise return false
 FeatureTaskManager.prototype.initTasks = function(feat) {
     if (this.changeCallback) this.changeCallback()
-    feat.tasks = feat.tasks || []
-    if (feat.tasks.length > 0) {
+    if (feat.tasks && feat.tasks.length > 0) {
         if (feat.tasks.find(function(t){return t.status === FeatureTask.WAITING || t.status === FeatureTask.RUNNING})) {
             alert("Feature still has running jobs.")
             return false
         }
-        feat.tasks.length = 0
-    } 
+    }
+    feat.tasks = []
     return true
 }
 FeatureTaskManager.prototype.clearTasks = function(feat) {
@@ -306,7 +305,6 @@ Utils.prototype.proxy = function(classname,object,attrs){
                 this._objectPrototype = Object.getPrototypeOf(this._object)
                 for(var i = 0;i < properties.length;i++) {
                     key = properties[i]
-                    console.log("create property " + key)
                     eval("Object.defineProperty(this,\"" + key + "\",{ \
                         get:function(){return this._object[\"" + key + "\"]}, \
                         set:function(value){this._object[\"" + key + "\"] = value}, \
@@ -325,9 +323,7 @@ Utils.prototype.proxy = function(classname,object,attrs){
         }
         for (var key in Object.getPrototypeOf(object)) {
             if (["constructor"].indexOf(key) < 0 && (!attrs || !(key in attrs))) {
-                console.log("Create prototype method " + key)
                 eval("ProxyClass.prototype[\"" + key + "\"] = function() { \
-                    console.log(\"Invoke prototype method " + key + "\"); \
                     return this._objectPrototype[\"" + key + "\"].apply(this._object,arguments); \
                 }")
             }
@@ -335,16 +331,13 @@ Utils.prototype.proxy = function(classname,object,attrs){
 
         for(var i = 0;i < methods.length;i++) {
             key = methods[i]
-            console.log("create function " + key)
             eval("ProxyClass.prototype[\"" + key + "\"] = function() { \
-                console.log(\"Invoke instance method " + key + "\"); \
                 return this._object[\"" + key + "\"]?this._object[\"" + key + "\"].apply(this._object,arguments) : undefined; \
             }")
         }
 
         for (var key in attrs) {
             eval("ProxyClass.prototype[\"" + key + "\"] = function() { \
-                console.log(\"Invoke override method " + key + "\"); \
                 return attrs[\"" + key + "\"].apply(this._object,arguments); \
             }")
         }
