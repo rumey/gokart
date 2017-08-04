@@ -1486,56 +1486,69 @@ def calculateArea(session_cookies,results,features,options):
             continue
         #before calculating area, check the polygon first.
         #if polygon is invalid, throw exception
+        result["valid"] = True
+        result["valid_message"] = ""
         try:
             for handler in loghandlers:
                 handler.enable(True)
             if not geometry.is_valid:
-                msg = "\r\n".join([message for handler in loghandlers if handler.messages for message in handler.messages])
-                raise Exception(msg)
-
+                msg = [message.strip() for handler in loghandlers if handler.messages for message in handler.messages]
+                result["valid"] = False
+                result["valid_message"] = msg
         finally:
             for handler in loghandlers:
                 handler.enable(False)
 
-        area_data = {"total_area":getGeometryArea(geometry,unit)}
+        area_data = {}
         result[options.get("name","area")] = area_data
         if not layers:
             continue
+        try:
+            area_data["total_area"] = getGeometryArea(geometry,unit)
+        except:
+            traceback.print_exc()
+            result["valid_message"].append("Calculate total area failed.{}".format(traceback.format_exception_only(sys.exc_type,sys.exc_value)))
 
-        for layer in layers:
-            layer_area_data = []
-            total_layer_area = 0
-            area_data[layer["id"]] = {"areas":layer_area_data}
+        try:
+            for layer in layers:
+                layer_area_data = []
+                total_layer_area = 0
+                area_data[layer["id"]] = {"areas":layer_area_data}
+    
+                layer_features = json.loads(requests.get(
+                    "{}&outputFormat=json&bbox={},{},{},{}".format(layer["url"],geometry.bounds[1],geometry.bounds[0],geometry.bounds[3],geometry.bounds[2]),
+                    verify=False,
+                    cookies=session_cookies
+                ).content)
+    
+                for layer_feature in layer_features["features"]:
+                    layer_geometry = shape(layer_feature["geometry"])
+                    if not isinstance(layer_geometry,Polygon) and not isinstance(layer_geometry,MultiPolygon):
+                        continue
+                    intersections = extractPolygons(geometry.intersection(layer_geometry))
+                    if not intersections:
+                        continue
+    
+                    layer_feature_area_data = {}
+                    for key,value in layer["properties"].iteritems():
+                        layer_feature_area_data[key] = layer_feature["properties"][value]
+    
+                    layer_feature_area_data["area"] = getGeometryArea(intersections,unit)
+                    total_layer_area  += layer_feature_area_data["area"]
+                    layer_area_data.append(layer_feature_area_data)
+    
+                area_data[layer["id"]]["total_area"] = total_layer_area
+                total_area += total_layer_area
+                if not overlap and total_area >= area_data["total_area"] :
+                    break
+    
+            if not overlap and total_area < area_data["total_area"]:
+                area_data["other_area"] = area_data["total_area"] - total_area
+        except:
+            traceback.print_exc()
+            result["valid_message"].append("Calculate intersection area between fire boundary and layer 'P&W Estate' failed.{}".format(traceback.format_exception_only(sys.exc_type,sys.exc_value)))
+            #raise Exception( "Failed to calculate the area.{}".format(traceback.format_exception_only(sys.exc_type,sys.exc_value)))
 
-            layer_features = json.loads(requests.get(
-                "{}&outputFormat=json&bbox={},{},{},{}".format(layer["url"],geometry.bounds[1],geometry.bounds[0],geometry.bounds[3],geometry.bounds[2]),
-                verify=False,
-                cookies=session_cookies
-            ).content)
-
-            for layer_feature in layer_features["features"]:
-                layer_geometry = shape(layer_feature["geometry"])
-                if not isinstance(layer_geometry,Polygon) and not isinstance(layer_geometry,MultiPolygon):
-                    continue
-                intersections = extractPolygons(geometry.intersection(layer_geometry))
-                if not intersections:
-                    continue
-
-                layer_feature_area_data = {}
-                for key,value in layer["properties"].iteritems():
-                    layer_feature_area_data[key] = layer_feature["properties"][value]
-
-                layer_feature_area_data["area"] = getGeometryArea(intersections,unit)
-                total_layer_area  += layer_feature_area_data["area"]
-                layer_area_data.append(layer_feature_area_data)
-
-            area_data[layer["id"]]["total_area"] = total_layer_area
-            total_area += total_layer_area
-            if not overlap and total_area >= area_data["total_area"] :
-                break
-
-        if not overlap and total_area < area_data["total_area"]:
-            area_data["other_area"] = area_data["total_area"] - total_area
     
 @bottle.route("/spatial", method="POST")
 def spatial():
@@ -1566,7 +1579,8 @@ def spatial():
         bottle.response.set_header("Content-Type", "application/json")
         return {"total_features":len(results),"features":results}
     except:
-        bottle.response.status = 400
+        if bottle.response.status < 400 :
+            bottle.response.status = 400
         bottle.response.set_header("Content-Type","text/plain")
         traceback.print_exc()
         return traceback.format_exception_only(sys.exc_type,sys.exc_value)

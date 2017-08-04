@@ -13,6 +13,7 @@ let FeatureTask = function(manager,scope,taskId,description,status,message) {
 }
 
 FeatureTask.FAILED = -1
+FeatureTask.FAIL_CONFIRMED = -2
 FeatureTask.WAITING = 1
 FeatureTask.RUNNING = 2
 FeatureTask.SUCCEED = 3
@@ -21,7 +22,7 @@ FeatureTask.IGNORED =  5
 FeatureTask.MERGED =  6
 
 FeatureTask.prototype._getIcon = function() {
-    if (this.status === FeatureTask.FAILED) {
+    if (this.status === FeatureTask.FAILED || this.status === FeatureTask.FAIL_CONFIRMED) {
         return "fa-close"
     } else if (this.status === FeatureTask.WAITING) {
         return "fa-pause"
@@ -55,6 +56,8 @@ FeatureTask.prototype._getStatusText = function() {
         return "Ignored"
     } else if (this.status === FeatureTask.MERGED) {
         return "Merged"
+    } else if (this.status === FeatureTask.FAIL_CONFIRMED) {
+        return "Failed"
     }  else {
         return "Running"
     }
@@ -150,6 +153,7 @@ Utils.prototype.RUNNING = FeatureTask.RUNNING
 Utils.prototype.WARNING = FeatureTask.WARNING
 Utils.prototype.IGNORED = FeatureTask.IGNORED
 Utils.prototype.MERGED = FeatureTask.MERGED
+Utils.prototype.FAIL_CONFIRMED = FeatureTask.FAIL_CONFIRMED
 
 Utils.prototype.getFeatureTaskManager = function(changeCallback) {
     return new FeatureTaskManager(changeCallback)
@@ -274,7 +278,7 @@ Utils.prototype.checkVersion = function(profile,check) {
             }
         },
         error: function (xhr,status,message) {
-            alert(status + " : " + message)
+            alert(xhr.status + " : " + message)
         },
         xhrFields: {
             withCredentials: true

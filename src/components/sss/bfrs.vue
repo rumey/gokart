@@ -210,7 +210,7 @@
                       <a class="task_name">{{task.description}}</a>
                   </div>
                   <div v-if="revision && task.message" class="small-12 columns">
-                      <a class="task_message">{{revision && task.message}}</a>
+                      <p class="task_message">{{revision && task.message}}</p>
                   </div>
 
                 </template>
@@ -278,6 +278,7 @@
     font-weight:normal;
     color:red;
     font-size:12px;
+    white-space:pre-wrap;
 }
 .task_name {
     font-style:normal;
@@ -1027,7 +1028,8 @@
             vm._validateBushfireCallback(ex.message || ex,callback)
         }
       },
-      getSpatialData:function(feat,callback,failedCallback) {
+      getSpatialData:function(feat,caller,callback,failedCallback) {
+        caller = caller || "get"
         var vm = this
         vm._getSpatialDataCallback = vm._getSpatialDataCallback || function(feat,callback,failedCallback,spatialData) {
             if (vm._taskManager.allTasksSucceed(feat,"getSpatialData")) {
@@ -1078,12 +1080,19 @@
                 if (failedCallback) {
                     failedCallback("")
                 } else {
-                    alert(vm._taskManager.errorMessages(feat,"getSpatialData").join("\r\n"))
+                    var msg = vm._taskManager.errorMessages(feat,"getSpatialData").join("\r\n")
+                    if (msg) alert(msg)
                 }
             }
         }
 
-        vm._getSpatialData = vm._getSpatialData || function(feat,callback,failedCallback) {
+        vm._getValidationMessage = vm._getValidationMessage || function(message) {
+            return "Geometry check of the fire shape has found the following error: " +
+                   "\r\n\t" + (Array.isArray(message)?message.join("\r\n\t"):message) + 
+                   "\r\n\r\nPlease run a geometry check within ArcGIS before uploading" +
+                   "\r\nFor help contact the Fire Support Systems Team ";
+        }
+        vm._getSpatialData = vm._getSpatialData || function(feat,caller,callback,failedCallback) {
             try{
                 var spatialData = {}
                 var modifyType = (feat.get('status') === 'new')?3:(feat.get('modifyType') || 3)
@@ -1159,6 +1168,52 @@
                         method:"POST",
                         success: function (response, stat, xhr) {
                             if (response["total_features"] > 0) {
+                                var result = response["features"][0]
+                                if ("valid" in result && !result["valid"]) {
+                                    var msg = vm._getValidationMessage(result["valid_message"])
+                                    if (caller === "import") {
+                                        vm.dialog.show({
+                                            messages:msg,
+                                            defaultOption:false,
+                                            buttons:[[false,"Ok"],[true,"Overriden"]],
+                                            callback:function(option){
+                                                if (option) {
+                                                    setTimeout(function() {
+                                                        vm.dialog.show({
+                                                            messages:"I acknowledge a geometry check has been run and passed in ArcGIS Geometry Tool and this is a valid shape.",
+                                                            defaultOption:false,
+                                                            buttons:[[true,"Yes"],[false,"Cancel"]],
+                                                            callback:function(option){
+                                                                if (option) {
+                                                                    delete result["valid"]
+                                                                    delete result["valid_message"]
+                                                                    result["fb_validation_req"] = true
+                                                                    $.extend(spatialData,response["features"][0])
+                                                                    tenure_area_task.setStatus(utils.SUCCEED)
+                                                                } else {
+                                                                    tenure_area_task.setStatus(utils.FAIL_CONFIRMED,msg)
+                                                                }
+                                                                vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                                                            }
+                                                        })
+                                                    },1)
+                                                } else {
+                                                    tenure_area_task.setStatus(utils.FAIL_CONFIRMED,msg)
+                                                    vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                                                }
+                                            }
+                                        })
+                                        return
+                                    } else if (caller === "batchimport") {
+                                        delete result["valid"]
+                                        delete result["valid_message"]
+                                        result["fb_validation_req"] = true
+                                    } else {
+                                        tenure_area_task.setStatus(utils.FAILED,msg)
+                                        vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                                        return
+                                    }
+                                }
                                 $.extend(spatialData,response["features"][0])
                                 tenure_area_task.setStatus(utils.SUCCEED)
                             } else {
@@ -1168,7 +1223,11 @@
                             vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
                         },
                         error: function (xhr,status,message) {
-                            tenure_area_task.setStatus(utils.FAILED,status + " : " + (xhr.responseText || message))
+                            if (xhr.status === 490) {
+                                tenure_area_task.setStatus(utils.FAILED,vm._getValidationMessage(xhr.responseText || message))
+                            } else {
+                                tenure_area_task.setStatus(utils.FAILED,xhr.status + " : " + (xhr.responseText || message))
+                            }
                             //alert(tenure_area_task.message)
                             vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
                         },
@@ -1197,7 +1256,7 @@
                             vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
                         },
                         error: function (xhr,status,message) {
-                            tenure_origin_point_task.setStatus(utils.FAILED,status + " : " + (xhr.responseText || message))
+                            tenure_origin_point_task.setStatus(utils.FAILED,xhr.status + " : " + (xhr.responseText || message))
                             //alert(tenure_origin_point_task.message)
                             vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
                         },
@@ -1249,7 +1308,7 @@
                                 }
                             },
                             error: function (xhr,status,message) {
-                                fire_position_task.setStatus(utils.FAILED,status + " : " + (xhr.responseText || message))
+                                fire_position_task.setStatus(utils.FAILED,xhr.status + " : " + (xhr.responseText || message))
                                 //alert(fire_position_task.message)
                                 vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
                             },
@@ -1276,7 +1335,7 @@
                             vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
                         },
                         error: function (xhr,status,message) {
-                            region_task.setStatus(utils.FAILED,status + " : " + (xhr.responseText || message))
+                            region_task.setStatus(utils.FAILED,xhr.status + " : " + (xhr.responseText || message))
                             //alert(region_task.message)
                             vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
                         },
@@ -1301,7 +1360,7 @@
                             vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
                         },
                         error: function (xhr,status,message) {
-                            district_task.setStatus(utils.FAILED,status + " : " + (xhr.responseText || message))
+                            district_task.setStatus(utils.FAILED,xhr.status + " : " + (xhr.responseText || message))
                             //alert(district_task.message)
                             vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
                         },
@@ -1325,17 +1384,18 @@
                         vm._getSpatialDataCallback(feat,callback,failedCallback,{})
                     } else {
                         validate_task.setStatus(utils.SUCCEED)
-                        vm._getSpatialData(feat,callback,failedCallback)
+                        vm._getSpatialData(feat,caller,callback,failedCallback)
                     }
                 })
             } else {
-                vm._getSpatialData(feat,callback,failedCallback)
+                vm._getSpatialData(feat,caller,callback,failedCallback)
             }
         } catch(ex) {
             vm._getSpatialDataCallback(feat,callback,failedCallback,{})
         }
       },
-      saveFeature:function(feat,callback) {
+      saveFeature:function(feat,caller,callback) {
+        caller = caller || "save"
         if (this.canSave(feat)) {
             var vm = this
             //initialize feature tasks, if triggered by user
@@ -1357,7 +1417,7 @@
                     }
                 }
             }
-            vm.getSpatialData(feat,function(spatialData,job){
+            vm.getSpatialData(feat,caller,function(spatialData,job){
                 $.ajax({
                     url: vm.saveUrl(feat),
                     method:"PATCH",
@@ -1385,7 +1445,7 @@
                                             }
                                         },
                                         error: function (xhr,status,message) {
-                                            checkTask.setStatus(utils.FAILED,status + " : " + (xhr.responseText || message))
+                                            checkTask.setStatus(utils.FAILED,xhr.status + " : " + (xhr.responseText || message))
                                             task.setStatus(utils.WARNING)
                                             callback(feat,utils.WARNING,checkTask.message)
                                         },
@@ -1402,7 +1462,7 @@
                         callback(feat,utils.SUCCEED)
                     },
                     error: function (xhr,status,message) {
-                        task.setStatus(utils.FAILED,status + " : " + (xhr.responseText || message))
+                        task.setStatus(utils.FAILED,xhr.status + " : " + (xhr.responseText || message))
                         callback(feat,utils.FAILED,task.message)
                     },
                     xhrFields: {
@@ -1505,7 +1565,7 @@
                 return
             }
             var task = vm._taskManager.addTask(feat,"create","create","Open bushfire report form",utils.RUNNING)
-            this.getSpatialData(feat,function(spatialData,job) {
+            this.getSpatialData(feat,"create",function(spatialData,job) {
                 feat.set("modifyType",0,true)
                 if (!feat.get("sss_id")) {
                     feat.set("sss_id",hash.MD5(vm.whoami["email"] + "-" + Date.now() + "-" + feat.getGeometry().getGeometriesArray()[0].getCoordinates().join(",")),true)
@@ -1545,7 +1605,7 @@
                         vm._deleteFeature(feat)
                     },
                     error: function (xhr,status,message) {
-                        alert(status + " : " + (xhr.responseText || message))
+                        alert(xhr.status + " : " + (xhr.responseText || message))
                     },
                     xhrFields: {
                       withCredentials: true
@@ -2247,7 +2307,7 @@
                                         return
                                     }
                                     feature.tasks = feat.tasks
-                                    vm.saveFeature(feature,function(f,status,msg){
+                                    vm.saveFeature(feature,targetFeature?"import":"batchimport",function(f,status,msg){
                                         if (import_task) {
                                             import_task.setStatus(status)
                                         }
@@ -2624,8 +2684,8 @@
                 vm._bfrsStatus.phaseEnd("load_profile")
             },
             error: function (xhr,status,message) {
-                alert(status + " : " + (xhr.responseText || message))
-                vm._bfrsStatus.phaseFailed("load_profile","Failed to loading user profile data. status = " + status + " , message = " + (xhr.responseText || message))
+                alert(xhr.status + " : " + (xhr.responseText || message))
+                vm._bfrsStatus.phaseFailed("load_profile","Failed to loading user profile data. status = " + xhr.status + " , message = " + (xhr.responseText || message))
             },
             xhrFields: {
               withCredentials: true
@@ -2652,8 +2712,8 @@
                 vm._bfrsStatus.phaseEnd("load_regions")
             },
             error: function (xhr,status,message) {
-                alert(status + " : " + (xhr.responseText || message))
-                vm._bfrsStatus.phaseFailed("load_regions","Failed to loading regions data. status = " + status + " , message = " + (xhr.responseText || message))
+                alert(xhr.status + " : " + (xhr.responseText || message))
+                vm._bfrsStatus.phaseFailed("load_regions","Failed to loading regions data. status = " + xhr.status + " , message = " + (xhr.responseText || message))
             },
             xhrFields: {
               withCredentials: true

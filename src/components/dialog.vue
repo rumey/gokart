@@ -3,7 +3,7 @@
         <h3>{{title}}</h3>
         <div v-for="line in messages" class="row" track-by="$index" >
             <div v-for="message in line" class="small-{{message[1]}} columns {{message[2] || ''}}" track-by="$index">
-                 <pre>  {{message[0]}}</pre>
+                 <p style="white-space:pre-wrap;">{{message[0]}}</p>
             </div>
         </div>
 
