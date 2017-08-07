@@ -1213,6 +1213,8 @@
                                         vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
                                         return
                                     }
+                                } else {
+                                    result["fb_validation_req"] = null
                                 }
                                 $.extend(spatialData,response["features"][0])
                                 tenure_area_task.setStatus(utils.SUCCEED)
