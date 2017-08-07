@@ -1214,6 +1214,8 @@
                                         return
                                     }
                                 } else {
+                                    delete result["valid"]
+                                    delete result["valid_message"]
                                     result["fb_validation_req"] = null
                                 }
                                 $.extend(spatialData,response["features"][0])
