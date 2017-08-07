@@ -1507,10 +1507,15 @@ def calculateArea(session_cookies,results,features,options):
             area_data["total_area"] = getGeometryArea(geometry,unit)
         except:
             traceback.print_exc()
-            result["valid_message"].append("Calculate total area failed.{}".format(traceback.format_exception_only(sys.exc_type,sys.exc_value)))
+            bottle.response.status = 490
+            if not result["valid"] and result["valid_message"]:
+                raise Exception("Calculate total area failed.{}".format("\r\n".join(result["valid_message"])))
+            else:
+                raise Exception("Calculate total area failed.{}".format(traceback.format_exception_only(sys.exc_type,sys.exc_value)))
+            
 
-        try:
-            for layer in layers:
+        for layer in layers:
+            try:
                 layer_area_data = []
                 total_layer_area = 0
                 area_data[layer["id"]] = {"areas":layer_area_data}
@@ -1541,13 +1546,18 @@ def calculateArea(session_cookies,results,features,options):
                 total_area += total_layer_area
                 if not overlap and total_area >= area_data["total_area"] :
                     break
+
+
+            except:
+                traceback.print_exc()
+                bottle.response.status = 490
+                if not result["valid"] and result["valid_message"]:
+                    raise Exception("Calculate intersection area between fire boundary and layer '{}' failed.{}".format(typename(layer["url"]) or layer["id"],"\r\n".join(result["valid_message"])))
+                else:
+                    raise Exception("Calculate intersection area between fire boundary and layer '{}' failed.{}".format(typename(layer["url"]) or layer["id"],traceback.format_exception_only(sys.exc_type,sys.exc_value)))
     
             if not overlap and total_area < area_data["total_area"]:
                 area_data["other_area"] = area_data["total_area"] - total_area
-        except:
-            traceback.print_exc()
-            result["valid_message"].append("Calculate intersection area between fire boundary and layer 'P&W Estate' failed.{}".format(traceback.format_exception_only(sys.exc_type,sys.exc_value)))
-            #raise Exception( "Failed to calculate the area.{}".format(traceback.format_exception_only(sys.exc_type,sys.exc_value)))
 
     
 @bottle.route("/spatial", method="POST")
