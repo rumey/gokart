@@ -416,7 +416,7 @@ input[type="range"] {
 }
 
 .side-label {
-    margin-left: 1em;
+    margin-left: 9px;
 }
 /* Set height of internal layers to allow for bottom details */
 

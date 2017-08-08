@@ -87,8 +87,8 @@
                         </div>
                         <label for="clippedFeaturesOnly" style="side-label" class="side-label">Show saved selection
                         </label>
-                        <a class="button tiny secondary" title="Save selection" style="margin-top:0px;margin-bottom:5px;margin-left:2px;margin-right:2px;padding-top:6px;padding-left:4px;padding-right:4px;padding-bottom:0px;border:0px;height:24px;font-size:0.7rem;background-color:#2199e8" @click="clipToSelection()" >
-                            <i class="fa fa-cut" aria-hidden="true"></i>Save selection ({{selectedBushfires.length}})
+                        <a class="button tiny secondary" title="Save selection" style="margin-top:0px;margin-bottom:5px;padding-top:6px;padding-left:1px;padding-right:1px;padding-bottom:0px;border:0px;height:24px;font-size:0.73rem;background-color:#2199e8" @click="clipToSelection()" >
+                            Save selection ({{selectedBushfires.length}})
                         </a> 
                         ({{clippedFeatures.length}}/{{features.getLength()}})
                       </div>
