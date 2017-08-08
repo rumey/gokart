@@ -321,8 +321,7 @@
     methods: {
       adjustHeight:function() {
         if (this.activeMenu === "annotations") {
-            //$("#annotations-flexible-part").height(this.screenHeight - this.leftPanelHeadHeight - 16 - 16 - 16 - 5 - $("#annotations-fixed-part").height() - this.hintsHeight)
-            $("#annotations-flexible-part").height(this.screenHeight - this.leftPanelHeadHeight - 55 - $("#annotations-fixed-part").height() - this.hintsHeight)
+            $("#annotations-flexible-part").height(this.screenHeight - this.leftPanelHeadHeight - 41 - $("#annotations-fixed-part").height() - this.hintsHeight)
         }
       },
       restoreSelectedFeatures:function() {

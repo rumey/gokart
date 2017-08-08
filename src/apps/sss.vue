@@ -12,13 +12,13 @@
                     <gk-bfrs v-ref:bfrs></gk-bfrs>
                     <gk-dialog v-ref:dialog></gk-dialog>
                 </div>
-                <div class="tool-slice row collapse" id="hints" style="width:100%; margin-top:-16px" v-if="$root.hasHints">
-                  <div v-if="$root.isShowHints">
+                <div class="tool-slice row collapse" style="width:100%; margin-top:-32px" v-if="$root.hasHints" >
+                  <div v-if="$root.isShowHints" id="hints">
                       <hr class="small-12" style="margin-bottom:0; margin-top:0"/>
                       <template v-for="hint in hints">
                           <div class="small-12">{{hint.name}}:</div>
                           <div class="small-12">
-                            <ul>
+                            <ul style="margin-bottom:0px">
                             <template v-for="description in hint.description">
                                 <li>{{description}}</li>
                             </template>
@@ -26,7 +26,7 @@
                           </div>
                       </template>
                   </div>
-                  <div class="small-12 " style="text-align:right;margin-top:-15px">
+                  <div class="small-12 " style="text-align:right;">
                       <img src="dist/static/images/question-mark.png" style="height:32px;width:32px" @click="setting.toggleShowHints()">
                   </div>
                 </div>

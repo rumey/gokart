@@ -310,7 +310,7 @@
     methods: {
       adjustHeight:function() {
         if (this.activeMenu === "tracking") {
-            $("#tracking-list").height(this.screenHeight - this.leftPanelHeadHeight - 50 - $("#tracking-list-controller-container").height())
+            $("#tracking-list").height(this.screenHeight - this.leftPanelHeadHeight - 37 - $("#tracking-list-controller-container").height())
         }
       },
       ago: function (time) {

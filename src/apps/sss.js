@@ -245,7 +245,7 @@ if (result) {
         methods: {
           setHintsHeight:function() {
             if (this[this.activeModule]["adjustHeight"]) {
-                this.store.layout.hintsHeight = $("#hints").height()
+                this.store.layout.hintsHeight = (this.isShowHints?$("#hints").height():0) + (this.hasHints?32:0)
                 this[this.activeModule]["adjustHeight"]()
             }
           },

@@ -255,7 +255,10 @@
         this.showOverviewMap(newValue)
       },
       showHints:function(newValue,oldValue) {
-        this.$root.setHintsHeight()
+        var vm = this
+        this.$nextTick(function(){
+            vm.$root.setHintsHeight()
+        })
       }
     },
     methods: {
