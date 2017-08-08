@@ -312,6 +312,7 @@
                 this.colour = val.get('colour') || this.colour
             }
         }
+        this.adjustHeight()
       },
       tool:function(newValue,oldValue) {
         this.adjustHeight()
