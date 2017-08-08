@@ -217,29 +217,11 @@
               </div>
               </template>
             </div>
-
-            <div v-show="$root.isShowHints('bfrs')" class="tool-slice row collapse" id="bfrs-hints">
-              <hr class="small-12"/>
-              <template v-for="hint in hints">
-                  <div class="small-12">{{hint.name}}:</div>
-                  <div class="small-12">
-                    <ul>
-                    <template v-for="description in hint.description">
-                        <li>{{description}}</li>
-                    </template>
-                    </ul>
-                  </div>
-              </template>
-            </div>
-
-
           </div>
 
         </div>
       </div>
     </div>
-
-    <img src="dist/static/images/question-mark.png" class="right-bottom-icon" @click="setting.toggleShowHints()">
 
     <form id="bushfire_create" name="bushfire_create" action="{{createUrl()}}" method="post" target="{{utils.getWindowTarget(env.bfrsService)}}">
         <input type="hidden" name="sss_create" id="sss_create">

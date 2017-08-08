@@ -100,20 +100,6 @@
               </div>
             </div>
 
-            <div v-show="$root.isShowHints('annotations')" class="tool-slice row collapse" id="annotations-hints">
-              <hr class="small-12"/>
-              <template v-for="hint in hints">
-                  <div class="small-12">{{hint.name}}:</div>
-                  <div class="small-12">
-                    <ul>
-                    <template v-for="description in hint.description">
-                        <li>{{description}}</li>
-                    </template>
-                    </ul>
-                  </div>
-              </template>
-            </div>
-
           </div>
         </div>
 
@@ -334,8 +320,8 @@
     methods: {
       adjustHeight:function() {
         if (this.activeMenu === "annotations") {
-            //$("#annotations-flexible-part").height(this.screenHeight - this.leftPanelHeadHeight - 16 - 16 - 16 - 2 - $("#annotations-fixed-part").height() - this.hintsHeight)
-            $("#annotations-flexible-part").height(this.screenHeight - this.leftPanelHeadHeight - 50 - $("#annotations-fixed-part").height() - this.hintsHeight)
+            //$("#annotations-flexible-part").height(this.screenHeight - this.leftPanelHeadHeight - 16 - 16 - 16 - 5 - $("#annotations-fixed-part").height() - this.hintsHeight)
+            $("#annotations-flexible-part").height(this.screenHeight - this.leftPanelHeadHeight - 55 - $("#annotations-fixed-part").height() - this.hintsHeight)
         }
       },
       restoreSelectedFeatures:function() {

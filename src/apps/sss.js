@@ -207,7 +207,13 @@ if (result) {
           },
           activeModule:function() {
              return this.store.activeSubmenu || this.store.activeMenu
-          }
+          },
+          isShowHints:function() {
+              return this.store.showHints && this.store.hints
+          },
+          hasHints:function() {
+              return this.store.hints
+          },
         },
         watch: {
             tourVersion:function(newValue,oldValue) {
@@ -239,11 +245,7 @@ if (result) {
         methods: {
           setHintsHeight:function() {
             if (this[this.activeModule]["adjustHeight"]) {
-                if (this.isShowHints(this.activeModule)) {
-                    this.store.layout.hintsHeight = $("#" + this.activeModule + "-hints").height() + 5
-                } else {
-                    this.store.layout.hintsHeight = 0
-                }
+                this.store.layout.hintsHeight = $("#hints").height()
                 this[this.activeModule]["adjustHeight"]()
             }
           },
@@ -253,12 +255,9 @@ if (result) {
               this.touring = true
               tour.start()
           },
-          isShowHints:function(module) {
-              return this.store.showHints && this.store.hints && (this.store.activeSubmenu || this.store.activeMenu) === module;
-          },
           setHints:function() {
               this.store.hints = null
-              if (!this.store.showHints) return
+              this.store.showHints = false
               var module = this.store.activeSubmenu || this.store.activeMenu
               if (module && this[module]) {
                 if (arguments.length === 0 ) {

@@ -12,6 +12,24 @@
                     <gk-bfrs v-ref:bfrs></gk-bfrs>
                     <gk-dialog v-ref:dialog></gk-dialog>
                 </div>
+                <div class="tool-slice row collapse" id="hints" style="width:100%; margin-top:-16px" v-if="$root.hasHints">
+                  <div v-if="$root.isShowHints">
+                      <hr class="small-12" style="margin-bottom:0; margin-top:0"/>
+                      <template v-for="hint in hints">
+                          <div class="small-12">{{hint.name}}:</div>
+                          <div class="small-12">
+                            <ul>
+                            <template v-for="description in hint.description">
+                                <li>{{description}}</li>
+                            </template>
+                            </ul>
+                          </div>
+                      </template>
+                  </div>
+                  <div class="small-12 " style="text-align:right;margin-top:-15px">
+                      <img src="dist/static/images/question-mark.png" style="height:32px;width:32px" @click="setting.toggleShowHints()">
+                  </div>
+                </div>
             </div>
             <div class="off-canvas-content" data-off-canvas-content>
                 <ul class="tabs vertical map-widget" id="menu-tabs" data-tabs>
@@ -65,7 +83,8 @@
     export default { 
       store:{
         activeMenu:'activeMenu',
-        activeSubmenu:'activeSubmenu'
+        activeSubmenu:'activeSubmenu',
+        hints:'hints'
       },
       data: function() {
         return {
@@ -73,6 +92,7 @@
       },
       computed: {
           layers: function () { return this.$root.layers },
+          setting: function () { return this.$root.setting },
       },
       components: { gkMap, gkLayers, gkAnnotations, gkTracking, gkLoading,gkSetting , gkBfrs ,gkDialog},
       methods:{
