@@ -1514,6 +1514,7 @@
         if (!feat.get('created')) {
             feat.set('created',new Date().toISOString(),true)
         }
+        feat.set('fire_detected_or_created',feat.get('fire_detected_date') || feat.get('created'),true)
         feat.icon = 'dist/static/symbols/fire/dashed-origin.svg'
 
         vm._insertNewFeature = vm._insertNewFeature || function(features,feat){
