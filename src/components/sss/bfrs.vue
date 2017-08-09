@@ -294,7 +294,8 @@
         showFireboundary:false,
         tools: [],
         fields: ['fire_number', 'name'],
-        sortedFields:['region_id','district_id','name'],
+        //sorted fields list (column,true?ascend:descend)
+        sortedFields:[['fire_detected_or_created',false]],
         drawings:new ol.Collection(),
         features: new ol.Collection(),
         clippedFeatures:[],
@@ -560,12 +561,12 @@
 
         if (startDate) {
             if (endDate) {
-                return "created BETWEEN '" + startDate.utc().format("YYYY-MM-DDTHH:mm:ssZ") + "' AND '" + endDate.add(1,"days").utc().format("YYYY-MM-DDTHH:mm:ssZ") + "'"
+                return "fire_detected_or_created BETWEEN '" + startDate.utc().format("YYYY-MM-DDTHH:mm:ssZ") + "' AND '" + endDate.add(1,"days").utc().format("YYYY-MM-DDTHH:mm:ssZ") + "'"
             } else {
-                return "created >= '" + startDate.utc().format("YYYY-MM-DDTHH:mm:ssZ") + "'"
+                return "fire_detected_or_created >= '" + startDate.utc().format("YYYY-MM-DDTHH:mm:ssZ") + "'"
             }
         } else if (endDate) {
-            return "created < '" + endDate.add(1,"days").utc().format("YYYY-MM-DDTHH:mm:ssZ") + "'"
+            return "fire_detected_or_created < '" + endDate.add(1,"days").utc().format("YYYY-MM-DDTHH:mm:ssZ") + "'"
         } else {
             return null
         }
@@ -1510,17 +1511,15 @@
         feat.set('fire_number',this.newFireNumber(featId),true)
         feat.set('name',this.newFireNumber(featId,"New bushfire report"),true)
         feat.set('report_status',99998,true)
+        if (!feat.get('created')) {
+            feat.set('created',new Date().toISOString(),true)
+        }
         feat.icon = 'dist/static/symbols/fire/dashed-origin.svg'
 
-        vm._insertNewFeature = vm._insertNewFeature || function(features,feat,featId){
+        vm._insertNewFeature = vm._insertNewFeature || function(features,feat){
             var insertIndex = null
             $.each(Array.isArray(features)?features:features.getArray(),function(index,f){
-                if (f.get('status') === 'new') {
-                    if (featId < Math.abs(f.get('id'))) {
-                        insertIndex = index
-                        return false
-                    }
-                } else {
+                if (vm.featureOrder(feat,f) === -1) {
                     insertIndex = index
                     return false
                 }
@@ -1536,11 +1535,11 @@
             }
         }
 
-        vm._insertNewFeature(this.features,feat,featId)
+        vm._insertNewFeature(this.features,feat)
         //add to the feature list and map
-        vm._insertNewFeature(this._featurelist,feat,featId)
+        vm._insertNewFeature(this._featurelist,feat)
         if (vm.clippedFeatures.length > 0) {
-            vm._insertNewFeature(this.clippedFeatures,feat,featId)
+            vm._insertNewFeature(this.clippedFeatures,feat)
         }
         return feat
       },
@@ -2485,10 +2484,12 @@
             return 1
         }
         for(var index = 0;index < this.sortedFields.length;index++) {
-            if (a.get(this.sortedFields[index]) === b.get(this.sortedFields[index])) {
+            if (a.get(this.sortedFields[index][0]) === b.get(this.sortedFields[index][0])) {
                 continue
+            } else if (this.sortedFields[index][1]) {
+                return (a.get(this.sortedFields[index][0]) < b.get(this.sortedFields[index][0]))?-1:1
             } else {
-                return (a.get(this.sortedFields[index]) < b.get(this.sortedFields[index]))?-1:1
+                return (a.get(this.sortedFields[index][0]) < b.get(this.sortedFields[index][0]))?1:-1
             }
         }
         return 1
