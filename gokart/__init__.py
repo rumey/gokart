@@ -753,7 +753,7 @@ def loadDatasource(session_cookie,workdir,loadedDatasources,options):
         if not os.path.exists(os.path.dirname(datasource)):
             os.makedirs(os.path.dirname(datasource))
 
-        cmd = ["ogr2ogr","-overwrite","-preserve_fid" ,"-skipfailures",
+        cmd = ["ogr2ogr","-preserve_fid" ,"-skipfailures",
             #"-where","\"{}\"".format(options["where"]),
             "-where",options["where"],
             "-f", options["format"]["format"],
@@ -1242,7 +1242,7 @@ def downloaod(fmt):
                 if outputDatasource in outputFiles:
                     cmd = ["ogr2ogr","-skipfailures","-update" ,"-t_srs",(layer.get("srs") or "EPSG:4326"), "-f", fmt["format"],outputDatasource, vrtFile]
                 else:
-                    cmd = ["ogr2ogr","-skipfailures","-overwrite" ,"-t_srs",(layer.get("srs") or "EPSG:4326"), "-f", fmt["format"],outputDatasource, vrtFile] 
+                    cmd = ["ogr2ogr","-skipfailures" ,"-t_srs",(layer.get("srs") or "EPSG:4326"), "-f", fmt["format"],outputDatasource, vrtFile] 
                     outputFiles.append(outputDatasource)
                 #print " ".join(cmd)
                 subprocess.check_call(cmd) 
@@ -1298,7 +1298,7 @@ def downloaod(fmt):
                     if outputDatasource in outputFiles:
                         cmd = ["ogr2ogr","-skipfailures","-update" ,"-t_srs",(layer.get("srs") or "EPSG:4326"), "-f", fmt["format"],outputDatasource, vrtFile]
                     else:
-                        cmd = ["ogr2ogr","-skipfailures","-overwrite" ,"-t_srs",(layer.get("srs") or "EPSG:4326"), "-f", fmt["format"],outputDatasource, vrtFile]
+                        cmd = ["ogr2ogr","-skipfailures","-t_srs",(layer.get("srs") or "EPSG:4326"), "-f", fmt["format"],outputDatasource, vrtFile]
                         outputFiles.append(outputDatasource)
                     #print " ".join(cmd)
                     subprocess.check_call(cmd) 
@@ -1309,7 +1309,7 @@ def downloaod(fmt):
                         if outputDatasource in outputFiles:
                             cmd = ["ogr2ogr","-skipfailures","-update","-where", where,"-t_srs",(layer.get("srs") or "EPSG:4326"), "-f", fmt["format"],outputDatasource, vrtFile]
                         else:
-                            cmd = ["ogr2ogr","-skipfailures","-overwrite","-where", where,"-t_srs",(layer.get("srs") or "EPSG:4326"), "-f", fmt["format"],outputDatasource, vrtFile]
+                            cmd = ["ogr2ogr","-skipfailures","-where", where,"-t_srs",(layer.get("srs") or "EPSG:4326"), "-f", fmt["format"],outputDatasource, vrtFile]
                             outputFiles.append(outputDatasource)
                         #print " ".join(cmd)
                         subprocess.check_call(cmd) 
