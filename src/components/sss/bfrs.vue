@@ -881,7 +881,7 @@
                                     if (response.firstChild && response.firstChild.children && response.firstChild.children.length > 0) {
                                         vm._validateBushfireCallback(null,callback)
                                     } else if (callback) {
-                                        vm._validateBushfireCallback("Point of Origin is not inside fire boundary, please fix using the edit spatial data button",callback)
+                                        vm._validateBushfireCallback("Point of Origin is not inside fire boundary, please fix using the edit bushfire button",callback)
                                     }
                                 },
                                 error: function (xhr,status,message) {
@@ -896,7 +896,7 @@
                             if (ol.extent.containsCoordinate(feat.get('fire_boundary'),originPoint)) {
                                 vm._validateBushfireCallback(null,callback)
                             } else {
-                                vm._validateBushfireCallback("Point of Origin is not inside fire boundary, please fix using the edit spatial data button",callback)
+                                vm._validateBushfireCallback("Point of Origin is not inside fire boundary, please fix using the edit bushfire button",callback)
                             }
                         }
                     } else {
@@ -991,7 +991,7 @@
     
                 if (inFireboundary === false) {
                     indexes = [0]
-                    throw "Point of Origin is not inside fire boundary, please fix using the edit spatial data button"
+                    throw "Point of Origin is not inside fire boundary, please fix using the edit bushfire button"
                 }
                 convertedToTurf = true
             }
@@ -1422,7 +1422,7 @@
                                         dataType:"xml",
                                         success: function (response, stat, xhr) {
                                             if (!response.firstChild || !response.firstChild.children || response.firstChild.children.length === 0) {
-                                                checkTask.setStatus(utils.FAILED ,"Point of Origin is not inside fire boundary, please fix using the edit spatial data button")
+                                                checkTask.setStatus(utils.FAILED ,"Point of Origin is not inside fire boundary, please fix using the edit bushfire button")
                                                 task.setStatus(utils.WARNING)
                                                 callback(feat,utils.WARNING,checkTask.message)
                                             } else {
