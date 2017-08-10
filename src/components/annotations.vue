@@ -501,12 +501,18 @@
         return normal
       },
       snapToLineFactory: function(options) {
-        return new ol.interaction.Snap({
+        var inter = new ol.interaction.Snap({
             features: (options && options.features) || this.features,
             edge: (!options || options.edge === undefined)?true:options.edge,
             vertex: (!options || options.vertex == undefined)?false:options.vertex,
             pixelTolerance: (options && options.pixelTolerance) || 16
           })
+
+        inter.on('addtomap', function (ev) {
+            this.setActive(true)
+        })
+
+        return inter
       },
       linestringDrawFactory : function (options) {
         var vm = this
@@ -525,6 +531,10 @@
               ev.feature.set('createTime',Date.now())
             })
 
+            draw.on('addtomap', function (ev) {
+              this.setActive(true)
+            })
+
             draw.events = (options && options.events)||{}
             return draw
         }
@@ -541,6 +551,16 @@
                     draw.set(key,options.drawProperties[key],true)
                 }
             }
+            draw.drawing = false
+            draw.on('addtomap', function (ev) {
+              this.setActive(true)
+              this.drawing = false
+            })
+
+            draw.on('drawstart', function (ev) {
+              this.drawing = true
+              if (options && options.listeners && options.listeners.drawstart) options.listeners.drawstart(ev)
+            })
 
             draw.on('drawend', function (ev) {
               // set parameters
@@ -550,6 +570,8 @@
               ev.feature.setStyle(tool.style)
               ev.feature.set('author',vm.whoami.email)
               ev.feature.set('createTime',Date.now())
+              this.drawing = false
+              if (options && options.listeners && options.listeners.drawend) options.listeners.drawend(ev)
             })
 
             draw.events = (options && options.events)||{}
@@ -570,6 +592,10 @@
               features: (options && options.features) || (tool && tool.features) || vm.features,
               style: sketchStyle
             },(options && options.drawOptions)||{}))
+
+            draw.on('addtomap', function (ev) {
+              this.setActive(true)
+            })
 
             draw.on('drawend', function (ev) {
               // set parameters
@@ -597,6 +623,11 @@
             layers: (tool && tool.mapLayers) || [vm.featureOverlay],
             features: (tool && tool.selectedFeatures) || vm.selectedFeatures
           })
+
+          translateInter.on('addtomap', function (ev) {
+            this.setActive(true)
+          })
+
           translateInter.on("translateend",function(ev){
               ev.features.forEach(function(f){
                 if (f.get('toolName')) {
@@ -619,6 +650,11 @@
           // allow dragbox selection of features
           var dragSelectInter = new ol.interaction.DragBox()
           // modify selectedFeatures after dragging a box
+
+          dragSelectInter.on('addtomap', function (ev) {
+            this.setActive(true)
+          })
+
           dragSelectInter.on('boxend', function (event) {
             selectedFeatures.clear()
             var extent = event.target.getGeometry().getExtent()
@@ -802,6 +838,11 @@
             features: selectedFeatures,
             condition: (options && options.condition) || ol.events.condition.singleClick
           })
+
+          selectInter.on('addtomap', function (ev) {
+            this.setActive(true)
+          })
+
           selectInter.defaultHandleEvent = selectInter.defaultHandleEvent || selectInter.handleEvent
           selectInter.handleEvent = function(event) {
             if (this.condition_(event)) {
@@ -900,6 +941,11 @@
               return !stopEvent
             }
           })
+
+          keyboardInter.on('addtomap', function (ev) {
+            this.setActive(true)
+          })
+
           keyboardInter.events = (options && options.events)||{}
           
           return keyboardInter
@@ -912,6 +958,11 @@
           var modifyInter = new ol.interaction.Modify({
             features: (tool && tool.features) || vm.features
           })
+
+          modifyInter.on('addtomap', function (ev) {
+            this.setActive(true)
+          })
+
           modifyInter.on("modifystart",function(ev){
             ev.features.forEach(function(feature) {
                 //console.log("Modifystart : " + feature.get('label') + "\t" + feature.getGeometry().getRevision())
@@ -984,6 +1035,7 @@
         return (toolName)?this.tools.filter(function (t) {return t.name === toolName })[0]:null
       },
       setTool: function (t) {
+        var vm = this
         if (!t) {
             if (this._previousActiveMenu && this._previousActiveMenu !== this.activeMenu && this._previousTool) {
                 //before switching to other menu, if a non-pan tool was enabled, choose the 'pan' tool for the current menu to preseve the changes(for example, the selected features) made by the previous non-pan tool
@@ -1013,6 +1065,7 @@
         // add interactions for this tool
         t.interactions.forEach(function (inter) {
           map.olmap.addInteraction(inter)
+          inter.dispatchEvent(vm.map.createEvent(inter,"addtomap"))
         })
 
         // remove selections

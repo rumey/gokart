@@ -2994,7 +2994,11 @@
             var featGeometry = feat.getGeometry()
             if (vm.isModifiable(feat) && vm.isFireboundaryDrawable(feat)) {
                 if (vm.bushfireMapLayer) {
-                    return vm.bushfireMapLayer.getSource().getFeaturesAtCoordinate(ev.coordinate).findIndex(function(o) {return o === feat}) < 0
+                    if (vm.ui.fireboundaryDraw.drawing) {
+                        return true
+                    } else {
+                        return vm.bushfireMapLayer.getSource().getFeaturesAtCoordinate(ev.coordinate).findIndex(function(o) {return o === feat}) < 0
+                    }
                 } else {
                     return false
                 }
@@ -3010,6 +3014,22 @@
       vm.ui.fireboundaryDraw = vm.annotations.polygonDrawFactory({
         events: {
             addfeaturegeometry:true
+        },
+        listeners:{
+            drawstart: function() {
+                $.each(vm.ui.modifyTool.interactions,function(index,interaction) {
+                    if (interaction !== vm.ui.fireboundaryDraw) {
+                        interaction.setActive(false)
+                    }
+                })
+            },
+            drawend: function() {
+                $.each(vm.ui.modifyTool.interactions,function(index,interaction) {
+                    if (interaction !== vm.ui.fireboundaryDraw) {
+                        interaction.setActive(true)
+                    }
+                })
+            },
         },
         drawOptions:{
             freehandCondition:function(ev) {
