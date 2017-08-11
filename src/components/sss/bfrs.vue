@@ -153,10 +153,11 @@
                 <div class="row collapse">
                   <div class="small-6 columns">
                     <select name="select" v-model="statusFilter" >
-                      <option value="" selected>All Reports</option> 
-                      <option value="report_status = 1">Draft Incident</option>
-                      <option value="report_status = 2">Incident Submitted</option>
-                      <option value="report_status >= 3">Report Authorised</option>
+                      <option value="fire_not_found = 0" selected>All Reports</option> 
+                      <option value="(report_status = 1) and (fire_not_found = 0)">Draft Incident</option>
+                      <option value="(report_status = 2) and (fire_not_found = 0)">Incident Submitted</option>
+                      <option value="(report_status >= 3) and (fire_not_found = 0)">Report Authorised</option>
+                      <option value="fire_not_found = 1">File Not Found</option>
                     </select>
                   </div>
                   <div class="small-6 expanded button-group">
@@ -1785,30 +1786,44 @@
         var originpoint_filter = ""
         var fireboundary_filter = ""
         if (downloadType === "listed") {
-            cql_filter = vm.bushfireLayer.cql_filter || ""
-            if (this.clippedOnly) {
-                cql_filter = (cql_filter?(cql_filter + " and "):"") + 'fire_number in (\'' + this.clippedFeatures.map(function(f){return f.get('fire_number')}).join('\',\'') + '\')'
-            }
-            if (this.search && this.search.trim().length > 0) {
-                cql_filter = (cql_filter?(cql_filter + " and (("):"((") +  this.fields.map(function(field) { return "strToLowerCase(" + field + ") like '%25" + vm.search.trim().toLowerCase() + "%25'"}).join(") or (") + "))"
-            }
-            if (cql_filter.length > 0) {
-                if (this.viewportOnly) {
-                    bbox = this.map.extent
-                    originpoint_filter = "&cql_filter=" + (cql_filter + " and BBOX(origin_point," + bbox[1] + "," + bbox[0] + "," + bbox[3] + "," + bbox[2] + ")")
-                    fireboundary_filter = "&cql_filter=" + (cql_filter + " and BBOX(fire_boundary," + bbox[1] + "," + bbox[0] + "," + bbox[3] + "," + bbox[2] + ")")
-                    bbox = ""
-                } else {
-                    originpoint_filter = "&cql_filter=" + cql_filter
-                    fireboundary_filter = originpoint_filter
-                }
+            if (this.clippedOnly || ((vm.bushfireLayer.cql_filter || (this.search && this.search.trim().length > 0) || (this.viewportOnly && this.extentFeatureSize !== this.featureSize) && this.viewportOnly?this.extentFeatureSize:this.featureSize) <= 80)) {
+                var features = this._featurelist.getArray().filter(function(f) {
+                    if (f.get('status') === 'new') {
+                        return false
+                    }
+                    if (!vm.showFeature(f)) {
+                        return false
+                    }
+                    return true
+                })
+                cql_filter = 'fire_number in (\'' + features.map(function(f){return f.get('fire_number')}).join('\',\'') + '\')'
+                originpoint_filter = "&cql_filter=" + cql_filter
+                fireboundary_filter = originpoint_filter
             } else {
-                if (this.viewportOnly) {
-                    bbox = this.map.extent
-                    bbox = "&bbox=" + bbox[1] + "," + bbox[0] + "," + bbox[3] + "," + bbox[2]
+                cql_filter = vm.bushfireLayer.cql_filter || ""
+                if (this.search && this.search.trim().length > 0) {
+                    cql_filter = (cql_filter?(cql_filter + " and (("):"((") +  this.fields.map(function(field) { return "strToLowerCase(" + field + ") like '%25" + vm.search.trim().toLowerCase() + "%25'"}).join(") or (") + "))"
                 }
+                if (cql_filter.length > 0) {
+                    if (this.viewportOnly && this.extentFeatureSize !== this.featureSize) {
+                        bbox = this.map.extent
+                        originpoint_filter = "&cql_filter=" + (cql_filter + " and BBOX(origin_point," + bbox[1] + "," + bbox[0] + "," + bbox[3] + "," + bbox[2] + ")")
+                        fireboundary_filter = "&cql_filter=" + (cql_filter + " and BBOX(fire_boundary," + bbox[1] + "," + bbox[0] + "," + bbox[3] + "," + bbox[2] + ")")
+                        bbox = ""
+                    } else {
+                        originpoint_filter = "&cql_filter=" + cql_filter
+                        fireboundary_filter = originpoint_filter
+                    }
+                }
+
+            }
+            if (cql_filter.length === 0 && (this.viewportOnly && this.extentFeatureSize !== this.featureSize)) {
+                bbox = this.map.extent
+                bbox = "&bbox=" + bbox[1] + "," + bbox[0] + "," + bbox[3] + "," + bbox[2]
             }
         }
+        //console.log("originpoint filter = " + originpoint_filter)
+        //console.log("bbox = " + bbox)
         var bushfireLayer = (downloadType === "listed")?vm.env.bushfireLayer:vm.env.allBushfireLayer
         var fireboundaryLayer = (downloadType === "listed")?vm.env.fireboundaryLayer:vm.env.allFireboundaryLayer
         var options = {
