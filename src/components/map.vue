@@ -660,38 +660,35 @@
         } else if (coords[0] < -180 || coords[0] > 180 || coords[1] < -180 || coords[1] > 180) {
           return null
         }
-
-        //no one is explicitly defined, guarantee the order
-        // 1.if the first value is less than -90 or larger than 90, don't change the order
-        // 2.if the second value is less than -90 or larger than 90, reverse the order
-        // 3.reverse the order because most people use is northing, easting (opposite of EPSG:4326)
-        if (!groups[5] && !groups[10]) {
-            if (coords[0] < -90 || coords[0] > 90) {
-                //do nothing
-            } else if(coords[1] < -90 || coords[1] > 90) {
+        //try to guess the coordinate's order to fix some obvious input error
+        if (coords[0] < -90 || coords[0] > 90) {
+            // the first value is less than -90 or larger than 90, don't change the order
+        } else if(coords[1] < -90 || coords[1] > 90) {
+            // the second value is less than -90 or larger than 90, reverse the order
+            coords = coords.reverse()
+        } else if (!groups[5] && !groups[10]) {
+            // no one is explicitly defined, 
+            // reverse the order because most people use is northing, easting (opposite of EPSG:4326)
+            coords = coords.reverse()
+        } else if (!groups[5] || !groups[10]) {
+            // if only one is explicitly defined, swap if required
+            if (groups[5] && ('nNsS'.indexOf(groups[5]) >=0)) {
                 coords = coords.reverse()
-            } else {
+            } else if (groups[10] && ('wWeE'.indexOf(groups[10]) >=0)) {
+              coords = coords.reverse()
+            }
+        } else {
+            // both are explicitly defined
+            // bomb out if someone describes two of the same
+            if (('nNsS'.indexOf(groups[5]) >=0) && ('nNsS'.indexOf(groups[10]) >=0)) {
+                return null
+            } else if (('wWeE'.indexOf(groups[5]) >=0) && ('wWeE'.indexOf(groups[10]) >=0)) {
+                return null
+            }
+            // swap if defined around the other way
+            if (('nNsS'.indexOf(groups[5]) >=0) && ('wWeE'.indexOf(groups[10]) >=0)) {
                 coords = coords.reverse()
             }
-        // if only one is explicitly defined, swap if required
-        } else if (!groups[5] || !groups[10]) {
-          if (groups[5] && ('nNsS'.indexOf(groups[5]) >=0)) {
-            coords = coords.reverse()
-          } else if (groups[10] && ('wWeE'.indexOf(groups[10]) >=0)) {
-            coords = coords.reverse()
-          }
-        // both are explicitly defined
-        } else {
-          // bomb out if someone describes two of the same
-          if (('nNsS'.indexOf(groups[5]) >=0) && ('nNsS'.indexOf(groups[10]) >=0)) {
-            return null
-          } else if (('wWeE'.indexOf(groups[5]) >=0) && ('wWeE'.indexOf(groups[10]) >=0)) {
-            return null
-          }
-          // swap if defined around the other way
-          if (('nNsS'.indexOf(groups[5]) >=0) && ('wWeE'.indexOf(groups[10]) >=0)) {
-            coords = coords.reverse()
-          }
         }
         return coords 
       },
