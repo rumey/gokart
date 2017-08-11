@@ -654,11 +654,25 @@
         if ((!coords[0]) || (!coords[1])) {
           // one coordinate fails the sniff test
           return null
+        } else if ((coords[0] < -90 || coords[0] > 90) && (coords[1] < -90 || coords[1] > 90)) {
+          //coordinate is invalid
+          return null
+        } else if (coords[0] < -180 || coords[0] > 180 || coords[1] < -180 || coords[1] > 180) {
+          return null
         }
 
-        // order most people use is northing, easting (opposite of EPSG:4326)
+        //no one is explicitly defined, guarantee the order
+        // 1.if the first value is less than -90 or larger than 90, don't change the order
+        // 2.if the second value is less than -90 or larger than 90, reverse the order
+        // 3.reverse the order because most people use is northing, easting (opposite of EPSG:4326)
         if (!groups[5] && !groups[10]) {
-            coords = coords.reverse()
+            if (coords[0] < -90 || coords[0] > 90) {
+                //do nothing
+            } else if(coords[1] < -90 || coords[1] > 90) {
+                coords = coords.reverse()
+            } else {
+                coords = coords.reverse()
+            }
         // if only one is explicitly defined, swap if required
         } else if (!groups[5] || !groups[10]) {
           if (groups[5] && ('nNsS'.indexOf(groups[5]) >=0)) {
