@@ -1605,6 +1605,9 @@
         var vm = this
         manually = (manually === undefined)?true:manually
         var filter = 'fire_number=\'' + feat.get('fire_number') + '\''
+        if (this.bushfireLayer.cql_filter) {
+            filter = filter + " and " + this.bushfireLayer.cql_filter
+        }
         this.bushfireMapLayer.getSource().retrieveFeatures(filter,function(features){
           if (features && features.length) {
             vm.initBushfire(features[0])
