@@ -948,19 +948,19 @@
                             if (index === 0 && index2 === 1 && (kinks = turf.kinks(fireboundary[index])).features.length > 0) {
                                 feat.intersectionPoints = new ol.geom.MultiPoint(kinks.features.map(function(p) {return p.geometry.coordinates}))
                                 if (indexes) indexes.push(index)
-                                throw "Some fire boundary are self intersection, please fix it."
+                                throw "One or more fire boundaries are self intersecting, please remove self intersection"
                             } else if (index === 0 && (kinks = turf.kinks(fireboundary[index2])).features.length > 0) {
                                 feat.intersectionPoints = new ol.geom.MultiPoint(kinks.features.map(function(p) {return p.geometry.coordinates}))
                                 if (indexes) indexes.push(index2)
-                                throw "Some fire boundary are self intersection, please fix it."
+                                throw "One or more fire boundaries are self intersecting, please remove self intersection"
                             } else {
                                 if (indexes) indexes.push(index)
-                                throw "Some fire boundary are invalid, please fix it."
+                                throw "One or more fire boundaries are invalid, please fix it"
                             }
                         }
                         if (checkResult) {
                             if (indexes) indexes.push(index)
-                            throw "Some fire boundaries are intersect, please fix it."
+                            throw "One or more fire boundaries are intersecting, please remove intersection"
                         }
                     }
                 }
