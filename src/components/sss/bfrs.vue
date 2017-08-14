@@ -652,7 +652,7 @@
       featureExtent: function(feat) {
         if (feat.get('fire_boundary')) {
             if (feat.getGeometry()) {
-                return ol.extent.extend(feat.get('fire_boundary'),feat.getGeometry().getExtent())
+                return ol.extent.extend(feat.getGeometry().getExtent(),feat.get('fire_boundary'))
             } else {
                 return feat.get('fire_boundary')
             }
