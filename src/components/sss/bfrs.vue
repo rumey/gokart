@@ -932,7 +932,7 @@
                 if (kinks.features.length > 0) {
                     feat.intersectionPoints = new ol.geom.MultiPoint(kinks.features.map(function(p) {return p.geometry.coordinates}))
                     if (indexes) indexes.push(0)
-                    throw "The polygon is self intersection, please fix it."
+                    throw "The polygon is self intersecting, please remove intersection"
                 }
             } else if (fireboundary && fireboundary.getPolygons().length > 1) {
                 fireboundary = fireboundary.getCoordinates()
