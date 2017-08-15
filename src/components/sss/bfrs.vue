@@ -153,11 +153,11 @@
                 <div class="row collapse">
                   <div class="small-6 columns">
                     <select name="select" v-model="statusFilter" >
-                      <option value="fire_not_found = 0" selected>All Reports</option> 
-                      <option value="(report_status = 1) and (fire_not_found = 0)">Draft Incident</option>
-                      <option value="(report_status = 2) and (fire_not_found = 0)">Incident Submitted</option>
-                      <option value="(report_status >= 3) and (fire_not_found = 0)">Report Authorised</option>
-                      <option value="fire_not_found = 1">Fire Not Found</option>
+                      <option value="fire_not_found=0" selected>All Reports</option> 
+                      <option value="(report_status=1) and (fire_not_found=0)">Draft Incident</option>
+                      <option value="(report_status=2) and (fire_not_found=0)">Incident Submitted</option>
+                      <option value="(report_status>=3) and (fire_not_found=0)">Report Authorised</option>
+                      <option value="fire_not_found=1">Fire Not Found</option>
                     </select>
                   </div>
                   <div class="small-6 expanded button-group">
@@ -288,7 +288,7 @@
       return {
         clippedOnly: false,
         search: '',
-        statusFilter: '',
+        statusFilter: "fire_not_found=0",
         region:'',
         district:'',
         bushfireLabelsDisabled:false,
@@ -734,8 +734,8 @@
         if (updateType || options["refresh"]) {
             if (options["bushfireid"] !== null && options["bushfireid"] !== undefined){
                 //want to find some bushfire, clear other filters
-                if (this.statusFilter !== "") {
-                    this.statusFilter = ""
+                if (this.statusFilter !== "fire_not_found=0") {
+                    this.statusFilter = "fire_not_found=0"
                 }
                 if (this.dateRange !== "") {
                     this.dateRange = ""
@@ -2438,7 +2438,7 @@
         this.dateRange = ""
         this.startDate = ""
         this.endDate = ""
-        this.statusFilter = "fire_not_found = 0"
+        this.statusFilter = "fire_not_found=0"
         this.updateCQLFilter(0)
       },
       refreshBushfires:function() {
