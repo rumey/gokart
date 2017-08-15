@@ -2438,7 +2438,7 @@
         this.dateRange = ""
         this.startDate = ""
         this.endDate = ""
-        this.statusFilter = ""
+        this.statusFilter = "fire_not_found = 0"
         this.updateCQLFilter(0)
       },
       refreshBushfires:function() {
