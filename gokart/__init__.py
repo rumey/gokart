@@ -39,7 +39,6 @@ from email.mime.text import MIMEText
 dotenv.load_dotenv(dotenv.find_dotenv())
 
 from . import s3
-from .ftp import BomFTP
 
 bottle.TEMPLATE_PATH.append('./gokart')
 bottle.debug(True)
@@ -240,48 +239,6 @@ def getTimelineFromLayer(target,current_timeline):
             os.remove(localfile)
 
 
-def getTimelineFromFtp(target,current_timeline):
-    remotefile = bottle.request.query.get("datafile")
-    if not remotefile: 
-        return None
-
-    localfile = None
-    mdtm = None
-    try:
-        with BomFTP() as bomFTP:
-            mdtm = bomFTP.getMdtm(remotefile)
-
-            if not current_timeline or current_timeline["mdtm"] != mdtm:
-                #no cached timeline or timeline data is changed
-                remotefilename = os.path.split(remotefile)[1]
-                remotefile_ext = (lambda f,pos: (f[0:],"") if pos == -1 else (f[0:pos],f[pos:]))(remotefilename,remotefilename.index("."))
-
-                localfile = tempfile.NamedTemporaryFile(mode='w+b',delete=False,prefix=remotefile_ext[0],suffix=remotefile_ext[1]).name
-                bomFTP.get(remotefile,localfile)
-            else:
-                return current_timeline
-
-        if remotefile_ext[1][len(remotefile_ext[1]) - 3:] == ".gz":
-            subprocess.check_output(["gunzip","-f",localfile])
-            localfile = os.path.splitext(localfile)[0]
-
-        info = json.loads(subprocess.check_output(["gdalinfo","-json",localfile]))
-        layers = []
-        layertime = None
-        layerId = None
-        for layer in info["bands"]:
-            layertime = start_date + timedelta(seconds=int(layer["metadata"][""]["NETCDF_DIM_time"]))
-            layerId = (target + "{0:0>3}").format(layer["band"] - 1)
-
-            layers.append([layertime.strftime("%a %b %d %Y %H:%M:%S AWST"),layerId,None])
-
-        return {"refreshtime":datetime.now().strftime("%a %b %d %Y %H:%M:%S"),"layers":layers,"mdtm":mdtm,"updatetime":(start_date + timedelta(seconds=int(info["metadata"][""]["NC_GLOBAL#creationTime"]))).strftime("%a %b %d %Y %H:%M:%S AWST")}
-
-    finally:
-        if localfile:
-            os.remove(localfile)
-
-
 start_date = datetime(1970, 1, 1, 0, 0,tzinfo=pytz.timezone("UTC")).astimezone(pytz.timezone("Australia/Perth"))
 @bottle.route("/bom/<target>")
 def bom(target):
@@ -305,10 +262,9 @@ def bom(target):
 
 
     timeline = getTimelineFromLayer(target,current_timeline)
-    timeline = timeline or getTimelineFromFtp(target,current_timeline)
 
     if not timeline:
-        raise "Plase specify basetimelayer or remotefile to get timeline."
+        raise "Missing some of http parameters 'basetimelayer', 'timelinesize', 'layertimespan'."
 
     if not current_timeline or id(timeline) != id(current_timeline):
         uwsgi.cache_set(target, json.dumps(timeline), 0) 
