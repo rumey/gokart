@@ -3,8 +3,9 @@
     <div class="row collapse">
       <div class="columns">
         <ul class="tabs" id="bfrs-tabs">
-          <li class="tabs-title is-active">
-            <a class="label" aria-selected="true" ><span @click.stop.prevent="utils.editResource($event,null,env.bfrsService,env.bfrsService)" style="cursor:pointer;text-decoration:underline">Bushfire Report</span>
+          <li class="tabs-title is-active" >
+            <a class="label" aria-selected="true" style="cursor:pointer;background-color:#ec5840;color:#fefefe" @click.stop.prevent="utils.editResource($event,null,env.bfrsService,env.bfrsService)">
+                <span >Bushfire Reporting System</span>
                 <small v-if="active.layerRefreshStatus(bushfireMapLayer)" style="white-space:pre-wrap"><br>Updated: {{ active.layerRefreshStatus(bushfireMapLayer) }}</small>
             </a>
           </li>
