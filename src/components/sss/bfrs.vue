@@ -154,8 +154,8 @@
                   <div class="small-6 columns">
                     <select name="select" v-model="statusFilter" >
                       <option value="fire_not_found=0" selected>All Reports</option> 
-                      <option value="(report_status=1) and (fire_not_found=0)">Draft Incident</option>
-                      <option value="(report_status=2) and (fire_not_found=0)">Incident Submitted</option>
+                      <option value="(report_status=1) and (fire_not_found=0)">Initial Fire Report</option>
+                      <option value="(report_status=2) and (fire_not_found=0)">Notifications Submitted</option>
                       <option value="(report_status>=3) and (fire_not_found=0)">Report Authorised</option>
                       <option value="fire_not_found=1">Fire Not Found</option>
                     </select>
