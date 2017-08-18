@@ -1075,7 +1075,7 @@
             return "Geometry check of the fire shape has found the following error: " +
                    "\r\n\t" + (Array.isArray(message)?message.join("\r\n\t"):message) + 
                    "\r\n\r\nPlease run a geometry check within ArcGIS before uploading" +
-                   "\r\nFor help contact the Fire Support Systems Team ";
+                   "\r\nFor help contact the Fire Support Systems Team fire_systems_support@dbca.wa.gov.au";
         }
         vm._getSpatialData = vm._getSpatialData || function(feat,caller,callback,failedCallback) {
             try{
@@ -1160,7 +1160,7 @@
                                         vm.dialog.show({
                                             messages:msg,
                                             defaultOption:false,
-                                            buttons:[[false,"Ok"],[true,"Overriden"]],
+                                            buttons:[[false,"Ok"],[true,"Override"]],
                                             callback:function(option){
                                                 if (option) {
                                                     setTimeout(function() {
