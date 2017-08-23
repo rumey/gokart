@@ -1614,11 +1614,13 @@
                 vm.$root.catalogue.catalogue.push(fixedLayer)
             }
         })
+        vm._overviewLayer = vm._overviewLayer || $.extend({},vm.$root.catalogue.getLayer("dpaw:mapbox_outdoors"))
+
         //ignore the active layers which does not exist in the catalogue layers.
         activeLayers = activeLayers.filter(function(activeLayer){
             return vm.$root.catalogue.getLayer(activeLayer[0]) && true
         })
-        //create active open layers 
+        //merge custom options of active layer to catalogue layer
         var initialLayers = activeLayers.reverse().map(function (activeLayer) {
           return $.extend(vm.$root.catalogue.getLayer(activeLayer[0]), activeLayer[1])
         })
@@ -1627,7 +1629,6 @@
             vm.catalogue.onLayerChange(layer,true)
         })
         //enable controls
-        var overviewLayer = vm.$root.catalogue.getLayer("dpaw:mapbox_outdoors")
         vm.mapControls = {
             "zoom": {
                 enabled:false,
@@ -1651,7 +1652,8 @@
                 }),
                 preenable:function(enable){
                     if (enable) {
-                        this.controls.getOverviewMap().addLayer(vm['create' + overviewLayer.type](overviewLayer))
+                        this.controls.getOverviewMap().addLayer(vm['create' + vm._overviewLayer.type](vm._overviewLayer))
+                        vm._overviewLayer.mapLayer.postAdd()
                     } else {
                         if (this._interact) {
                             this._interact.unset()
