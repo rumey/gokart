@@ -124,7 +124,7 @@ def saveas():
 # Landgate tile servers, round robin
 FIREWATCH_SERVICE = "/mapproxy/firewatch/service"
 FIREWATCH_GETCAPS = FIREWATCH_SERVICE + "?service=wms&request=getcapabilities"
-FIREWATCH_HTTPS_VERIFY = getBool("FIREWATCH_HTTPS_VERIFY",True)
+FIREWATCH_HTTPS_VERIFY = Setting.getBool("FIREWATCH_HTTPS_VERIFY",True)
 
 @bottle.route("/hi8/<target>")
 def himawari8(target):
@@ -138,7 +138,7 @@ def himawari8(target):
     layernames = re.findall("\w+HI8\w+{}\.\w+".format(target), getcaps)
     layers = []
     for layer in layernames:
-        layers.append([DEFAULT_TIMEZONE.localize(datetime.strptime(re.findall("\w+_(\d+)_\w+", layer)[0], "%Y%m%d%H%M")).isoformat(), layer])
+        layers.append([PERTH_TIMEZONE.localize(datetime.strptime(re.findall("\w+_(\d+)_\w+", layer)[0], "%Y%m%d%H%M")).isoformat(), layer])
     result = {
         "servers": [baseUrl + FIREWATCH_SERVICE],
         "layers": layers

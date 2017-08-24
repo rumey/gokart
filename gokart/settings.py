@@ -19,15 +19,20 @@ BASE_PATH = os.path.dirname(__file__)
 BASE_DIST_PATH = os.path.join(os.path.dirname(BASE_PATH),"dist")
 ENV_TYPE = (os.environ.get("ENV_TYPE") or "prod").lower()
 
-DEFAULT_TIMEZONE = pytz.timezone('Australia/Perth')
+PERTH_TIMEZONE = pytz.timezone('Australia/Perth')
 
-def getBool(name,defaultValue=None):
-    value = os.environ.get(name)
-    if value is None:
-        return defaultValue
-    else:
-        return True if value in ["true","on","yes"] else False
+class Setting(object):
+    @staticmethod
+    def getBool(name,defaultValue=None):
+        value = os.environ.get(name)
+        if value is None:
+            return defaultValue
+        else:
+            return True if v
 
+    @staticmethod
+    def getString(name,defaultValue=None):
+        return os.environ.get(name,defaultValue)
 
 session_key_header = "X-Session-Key"
 sso_cookie_name = os.environ.get("SSO_COOKIE_NAME") or "dbca_wa_gov_au_sessionid"
