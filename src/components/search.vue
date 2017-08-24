@@ -28,9 +28,12 @@
 <script>
   import { $, ol } from 'src/vendor.js'
   export default {
-    store: ['defaultWFSSrc', 'gokartService', 'resolutions'],
+    store: ['resolutions'],
     data: function () {
       return {}
+    },
+    computed: {
+      env: function () { return this.$root.env }
     },
     methods: {
       searchKeyFix: function (ev) {
@@ -107,7 +110,7 @@
       queryFD: function(fdStr, victory, failure) {
         var vm = this
         $.ajax({
-          url: vm.defaultWFSSrc + '?' + $.param({
+          url: vm.env.wfsService + '?' + $.param({
             version: '1.1.0',
             service: 'WFS',
             request: 'GetFeature',
@@ -132,7 +135,7 @@
       queryPIL: function(pilStr, victory, failure) {
         var vm = this
         $.ajax({
-          url: vm.defaultWFSSrc + '?' + $.param({
+          url: vm.env.wfsService + '?' + $.param({
             version: '1.1.0',
             service: 'WFS',
             request: 'GetFeature',
@@ -157,8 +160,11 @@
       queryGeocode: function(geoStr, victory, failure) {
         var vm = this
         var center = this.$root.map.getCenter()
+        if (!ol.extent.containsCoordinate(this._wa_bbox,center)) {
+            center = this._wa_perth
+        }
         $.ajax({
-          url: vm.gokartService
+          url: vm.env.gokartService
             +'/mapbox/geocoding/v5/mapbox.places/'+encodeURIComponent(geoStr)+'.json?' + $.param({
             country: 'au',
             //types: 'country,region,postcode,place,locality,address',
@@ -170,7 +176,18 @@
           },
           success: function(data, status, xhr) {
             if (data.features.length) {
-              var feature = data.features[0]
+              var feature = null
+              //get the first place in wa bbox or get the first feature
+              $.each(data.features,function(index,f){
+                if (ol.extent.containsCoordinate(vm._wa_bbox,f.center)) {
+                    feature = f
+                    return false
+                    
+                } else if (!feature) {
+                    feature = f
+                }
+              })
+
               victory("GEOCODE",feature.center, feature.text, feature.place_name)
             } else {
               failure('No location match found for '+geoStr)
@@ -182,6 +199,8 @@
     ready: function () {
       var vm = this
       var map = this.$root.map
+      this._wa_bbox = [112.50,-36.0,129.00,-13.0]
+      this._wa_perth = [115.8605,-31.9527]
 
       this.style = function (feature, resolution) {
         return new ol.style.Style({

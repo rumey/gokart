@@ -416,12 +416,12 @@ input[type="range"] {
 }
 
 .side-label {
-    margin-left: 1em;
+    margin-left: 9px;
 }
 /* Set height of internal layers to allow for bottom details */
 
 .layers-flexibleframe {
-    border-bottom: 1px solid rgba(37, 45, 51, 0.9);
+    /*border-bottom: 1px solid rgba(37, 45, 51, 0.9);*/
 }
 .scroller {
     overflow-y: auto;
@@ -580,4 +580,17 @@ input:disabled ~ .switch-paddle {
 
 .default-name {
     color:#e2e3e5
+}
+
+.button.tiny{
+    line-height:1em;
+    margin-left:2px;
+}
+.right-bottom-icon {
+    position:absolute;
+    bottom:0;
+    right:0;
+    width:32px;
+    height:32px;
+    cursor:pointer;
 }

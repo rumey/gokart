@@ -5,8 +5,8 @@
       <div class="columns">
 
         <div id="layers-active-list">
-          <div v-for="l in olLayers.slice().reverse()" class="row feature-row status-row" v-bind:class="layerRefreshProgress(l)" data-id="{{ l.get('id') }}"
-            track-by="values_.id" @click="layer = getLayer(l.get('id'))">
+          <div v-for="l in olLayers" track-by="values_.id" class="row feature-row status-row" 
+            v-bind:class="layerRefreshProgress(l)" data-id="{{ l.get('id') }}" @click="layer = getLayer(l.get('id'))">
             <div class="small-9">
               <div class="layer-title">{{ l.get("name") || l.get("id") }} - {{ Math.round(l.getOpacity() * 100) }}%</div>
               <small v-if="layerRefreshStatus(l)" style="white-space:pre-wrap">Updated: {{ layerRefreshStatus(l) }}</small>
@@ -25,6 +25,7 @@
       </div>
     </div>
     <div class="row collapse scroller" id="layer-config-container">
+      <hr class="small-12"/>
       <div id="layer-config" class="columns">
         <h4 v-if="layer && mapLayer()">{{ layer.name }}</h4>
         <div class="tool-slice row" v-if="layerRefreshConfigable()">
@@ -67,12 +68,13 @@
         layer: {},
         layerRefreshStopped:false,
         refreshRevision:1,
-        olLayers: [],
+        allMapLayers: [],
         timeIndex:0
       }
     },
     // parts of the template to be computed live
     computed: {
+      map: function () { return this.$root.map },
       sliderTimeline: {
         get: function () {
           var mapLayer = this.mapLayer()
@@ -84,6 +86,14 @@
           this.refreshRevision += 1
           this.timeIndex = val
         }
+      },
+      olLayers:function() {
+        var layers = []
+        for (var index = this.allMapLayers.length - 1;index >= 0;index--) {
+            if (this.allMapLayers[index].dependentLayer === true) continue
+            layers.push(this.allMapLayers[index])
+        }
+        return layers
       },
       timelineTS: function () {
         var mapLayer = this.mapLayer()
@@ -106,7 +116,7 @@
         },
         set: function (val) {
           var vm = this
-          vm.layer.refresh = val
+          vm.map.setRefreshInterval(vm.layer,val)
           if (vm.layerRefreshStopped) {
             return
           }
@@ -137,9 +147,6 @@
       "layer": function() {
         this.layerRefreshStopped = this.layer.refresh?(this.layer.autoRefreshStopped || false):true
       },
-      "screenHeight":function(newValue,oldValue) {
-        this.adjustHeight()
-      }
     },
     // methods callable from inside the template
     methods: {
@@ -195,7 +202,7 @@
         return this.refreshRevision && (l.progress || "")
       },
       layerRefreshStatus: function(l) {
-        return this.refreshRevision && l.get("updated")
+        return this.refreshRevision && l && l.get("updated") || ""
       },
       activeLayers: function () {
         var catalogue = this.$root.catalogue
@@ -219,7 +226,7 @@
         if (!success) {
           return false
         }
-        return results.reverse()
+        return results
       },
       mapLayer: function (id) { 
         if (!this.$root.map) {
@@ -232,29 +239,33 @@
       },
       update: function () {
         var vm = this
-        vm.olLayers = []
+        vm.allMapLayers = []
         Vue.nextTick(function () {
-          vm.olLayers = vm.$root.map.olmap.getLayers().getArray()
+          vm.allMapLayers = vm.$root.map.olmap.getLayers().getArray()
         })
       },
       removeLayer: function (olLayer) {
-        if (olLayer.postRemove) olLayer.postRemove()
-        this.$root.map.olmap.removeLayer(olLayer)
+        var layer = olLayer.layer
+
+        this.map.olmap.removeLayer(olLayer)
+        this.map.olmap.dispatchEvent(this.map.createEvent(this.map,"removeLayer",{mapLayer:olLayer,layer:layer}))
       },
       // change order of OL layers based on "Map Layers" list order
       updateOrder: function (el) {
         var map = this.$root.map
         Array.prototype.slice.call(el.parentNode.children).reverse().forEach(function (row) {
-          var layer = map.getMapLayer(row.dataset.id)
-          map.olmap.removeLayer(layer)
-          map.olmap.addLayer(layer)
+          var mapLayer = map.getMapLayer(row.dataset.id)
+          map.olmap.removeLayer(mapLayer)
+          map.olmap.addLayer(mapLayer)
+
+          map.olmap.dispatchEvent(map.createEvent(map,"changeLayerOrder",{mapLayer:mapLayer}))
         })
       }
     },
     ready: function () {
-      dragula([document.querySelector('#layers-active-list')]).on('dragend', this.updateOrder)
+      dragula([document.querySelector('#layers-active-list')]).on('drop', this.updateOrder)
       this.$on('gk-init', function () {
-        this.olLayers = this.$root.map.olmap.getLayers().getArray()
+        this.allMapLayers = this.$root.map.olmap.getLayers().getArray()
       })
     }
   }

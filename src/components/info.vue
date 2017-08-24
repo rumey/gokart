@@ -1,11 +1,11 @@
 <template>
   <div id="info" v-bind:style="css" v-show="features" v-cloak>
-    <!--<div class="row collapse">
+    <!--div class="row collapse">
       <div class="columns title">
         <h5>{{ featuresLength }} {{ featuresLength | pluralize 'feature' }} <small>{{ coordinate }}</small></h5>
       </div>
       <button class="close-button float-right" aria-label="Dismiss info" type="button" v-on:click="features = false"><span aria-hidden="true">&times;</span></button>
-    </div>-->
+    </div-->
     <div class="row">
       <div class="columns content">
         <div v-for="f in features" class="row feature-row" v-bind:class="{'feature-selected': selected(f[0]) }" v-bind:key="f[0].get('id')">
@@ -46,6 +46,7 @@
     computed: {
       map: function () { return this.$root.$refs.app.$refs.map },
       catalogue: function () { return this.$root.catalogue },
+      annotations: function () { return this.$root.$refs.app.$refs.annotations },
       loading: function () { return this.$root.loading },
       featuresLength: function () {
         return Object.keys(this.features).length
@@ -83,13 +84,16 @@
     methods: {
       // update the panel content
       onPointerMove: function (event) {
+        var vm = this
         if (event.dragging || !this.enabled) {
           return
         }
         var pixel = this.$root.map.olmap.getEventPixel(event.originalEvent)
         var features = []
         this.$root.map.olmap.forEachFeatureAtPixel(pixel, function (f,layer) {
-          features.push([f,layer])
+          if (!vm.annotations.selectable || vm.annotations.selectable.indexOf(layer) >=0 ) {
+              features.push([f,layer])
+          }
         })
         if (features.length > 0) {
           this.features = features
@@ -121,13 +125,14 @@
     },
     ready: function () {
       var vm = this
-      var infoStatus = vm.loading.register("info","Info Component","Initialize")
-      infoStatus.wait(10,"Listen 'gk-init' event")
+      var infoStatus = vm.loading.register("info","Info Component")
+      infoStatus.phaseBegin("gk-init",80,"Listen 'gk-init' event",true,true)
       this.$on('gk-init', function () {
-        infoStatus.progress(80,"Process 'gk-init' event")
+        infoStatus.phaseEnd("gk-init")
+        infoStatus.phaseBegin("initialize",20,"Initialize",true,false)
         // display hover popups
         this.$root.map.olmap.on('pointermove', this.onPointerMove)
-        infoStatus.end()
+        infoStatus.phaseEnd("initialize")
       })
     }
   }

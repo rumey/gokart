@@ -2,558 +2,3527 @@
   <div class="tabs-panel" id="menu-tab-bfrs">
     <div class="row collapse">
       <div class="columns">
-        <ul class="tabs" data-tabs id="tracking-tabs">
-          <li class="tabs-title is-active"><a href="#bushfire-report-list-tab" aria-selected="true">Bushfire Report</a></li>
+        <ul class="tabs" id="bfrs-tabs">
+          <li class="tabs-title is-active" >
+            <a class="label" aria-selected="true" style="cursor:pointer;background-color:#ec5840;color:#fefefe" @click.stop.prevent="utils.editResource($event,null,env.bfrsService,env.bfrsService)">
+                <span >Bushfire Reporting System</span>
+                <small v-if="active.layerRefreshStatus(bushfireMapLayer)" style="white-space:pre-wrap"><br>Updated: {{ active.layerRefreshStatus(bushfireMapLayer) }}</small>
+            </a>
+          </li>
         </ul>
       </div>
     </div>
 
-    <div class="row collapse" id="bushfire-report-tab-panels">
+    <div class="row collapse" id="bfrs-tab-panels">
       <div class="columns">
-        <div class="tabs-content vertical" data-tabs-content="tracking-tabs">
-          <div id="bushfire-report-list-tab" class="tabs-panel is-active" v-cloak>
-            <div class="tool-slice row collapse">
-              <div class="small-12">
-                <div class="expanded button-group">
-                  <a v-for="t in tools | filterIf 'showName' undefined" class="button button-tool" v-bind:class="{'selected': t.name == annotations.tool.name}"
-                    @click="annotations.setTool(t)" v-bind:title="t.name">{{{ annotations.icon(t) }}}</a>
-                </div>
-                <div class="row resetmargin">
-                  <div class="small-6 rightmargin">
-                    <a v-for="t in tools | filterIf 'showName' true" v-if="$index % 2 === 0" class="expanded secondary button" v-bind:class="{'selected': t.name == annotations.tool.name}" @click="annotations.setTool(t)"
-                      v-bind:title="t.name">{{{ annotations.icon(t) }}} {{ t.name }}</a>
-                  </div>
-                  <div class="small-6">
-                    <a v-for="t in tools | filterIf 'showName' true" v-if="$index % 2 === 1" class="expanded secondary button" v-bind:class="{'selected': t.name == annotations.tool.name}" @click="annotations.setTool(t)"
-                      v-bind:title="t.name">{{{ annotations.icon(t) }}} {{ t.name }}</a>
+        <div class="tabs-content vertical" data-tabs-content="bfrs-tabs">
+          <div id="bfrs-list-tab" class="tabs-panel is-active" v-cloak>
+            <div id="bfrs-list-controller-container">
+                <div class="tool-slice row collapse">
+                  <div class="small-12">
+                    <div class="expanded button-group">
+                      <a v-for="t in tools" class="button button-tool" v-bind:class="{'selected': t.name == annotations.tool.name}"
+                        @click="annotations.setTool(t)" v-bind:title="t.label" style="font-size: 0.9rem;">{{{ annotations.icon(t) }}} {{t.showName?t.label:""}}</a>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-            <div class="row">
-              <div class="switch tiny">
-                <input class="switch-input" id="bushfireReportsInViewport" type="checkbox" v-model="viewportOnly" />
-                <label class="switch-paddle" for="bushfireReportsInViewport">
-                <span class="show-for-sr">Viewport resources only</span>
-              </label>
-              </div>
-              <label for="bushfireReportsInViewport" class="side-label">Restrict to viewport ({{ stats }})</label>
-            </div>
-            <div class="row collapse">
-              <div class="small-6 columns">
-                <select name="select" v-model="cql" >
-                  <option value="" selected>All Reports</option> 
-                </select>
-              </div>
-              <div class="small-6 columns">
-                <input type="search" v-model="search" placeholder="Find a report" @keyup="updateResourceFilter | debounce 700">
-              </div>
-            </div>
-            <div class="row">
-                <div class="small-2">
-                  <label for="bushfireReportFrom">From:</label>
-                </div>
-                <div class="small-5">
-                  <input type="text" v-on:blur="verifyDate($event,['YY-M-D','YYYY-M-D'],'YYYY-MM-DD')" v-model="reportFromDate" placeholder="yyyy-mm-dd"></input>
-                </div>
-                <div class="small-5">
-                  <select name="select" v-model="range" @change="reportRange = range">
-                  <option value="" selected>Date range</option> 
-                  <!-- values in milliseconds -->
-                  <option value="1">Last day</option> 
-                  <option value="7">Last week</option> 
-                  <option value="30">Last month</option> 
-                </select>
-              </div>
-
-              <div class="small-2">
-                <label for="bushfireReportTo">To:</label>
-              </div>
-              <div class="small-5">
-                <input type="text" v-on:blur="verifyDate($event,['YY-M-D','YYYY-M-D'],'YYYY-MM-DD')" v-model="reportToDate" placeholder="yyyy-mm-dd"></input>
-              </div>
-              <div class="small-5">
-                  <div class="float-right">
-                      <a class="button" @click="updateCQLFilter" >Go</a>
-                      <a title="Download list" class="button" @click="downloadList()" ><i class="fa fa-download"></i></a>
-                      <a title="Zoom to selected" class="button" @click="zoomToSelected()"><i class="fa fa-search"></i></a>
+                <div class="row">
+                  <div class="small-8 columns" >
+                    <div class="row">
+                      <div class="switch tiny">
+                        <input class="switch-input" id="bushfiresInViewport" type="checkbox" v-bind:checked="viewportOnly" @change="toggleViewportOnly" />
+                        <label class="switch-paddle" for="bushfiresInViewport">
+                          <span class="show-for-sr">Viewport bushfires only</span>
+                        </label>
+                      </div>
+                      <label for="bushfiresInViewport" class="side-label">Restrict to viewport ({{extentFeatureSize}}/{{featureSize}} )</label>
+                    </div>
                   </div>
-              </div>
-            </div>
-
-            <div id="bushfire-report-list">
-              <div v-for="f in features" class="row feature-row" v-bind:class="{'feature-selected': selected(f) }" 
-                @click="toggleSelect(f)" track-by="get('prk_id')">
-                <div class="columns">
-                  <span class="feature-title"><img class="feature-icon" id="report-icon-{{f.get(reportKey)}}" v-bind:Src="featureIconSrc(f)" /> {{ f.get('label') }} <i><small></small></i></span>
-                  <span class="float-right">
-                      <a @click.stop.prevent="map.editResource($event)" v-if="isModified(f)" class="button tiny secondary" href="{{editUrl(f)}}" target="_blank">
-                        <i class="fa fa-save"></i>
-                      </a>
-                      <a @click.stop.prevent="map.editResource($event)" href="{{editUrl(f)}}" target="_blank" class="button tiny secondary"><i class="fa {{editIcon(f)}}"></i></a>
-                  </span>
+                  <div class="small-4 columns" style="text-align:right;padding-right:0px">
+                    <span v-on:click="showToggles = !showToggles" style="cursor:pointer"><i class="fa {{showToggles?'fa-angle-double-up':'fa-angle-double-down'}}" aria-hidden="true"></i> Toggles</span>
+                  </div>
                 </div>
-              </div>
+                <div v-show="showToggles">
+                <div class="row">
+                  <div class="switch tiny">
+                    <input class="switch-input" id="toggleBushfireLabels" type="checkbox" v-bind:checked="bushfireLabels" @change="toggleBushfireLabels" v-bind:disabled="bushfireLabelsDisabled" />
+                    <label class="switch-paddle" for="toggleBushfireLabels">
+                      <span class="show-for-sr">Display bushfire labels</span>
+                    </label>
+                  </div>
+                  <label for="toggleBushfireLabels" class="side-label">Display bushfire labels</label>
+                </div>
+                <div class="row">
+                  <div class="switch tiny">
+                    <input class="switch-input" id="toggleReportInfo" type="checkbox" v-bind:disabled="!setting.hoverInfoSwitchable" v-bind:checked="setting.hoverInfo" @change="setting.toggleHoverInfo" />
+                    <label class="switch-paddle" for="toggleReportInfo">
+                      <span class="show-for-sr">Display hovering bushfire info</span>
+                    </label>
+                  </div>
+                  <label for="toggleReportInfo" class="side-label">Display hovering bushfire info</label>
+                </div>
+                <div class="row">
+                  <div class="small-12">
+                    <div class="columns">
+                      <div class="row">
+                        <div class="switch tiny">
+                          <input class="switch-input" id="showFireboundary" type="checkbox" v-model="showFireboundary" />
+                          <label class="switch-paddle" for="showFireboundary">
+                            <span class="show-for-sr">Show fire boundary</span>
+                         </label>
+                        </div>
+                        <label for="showFireboundary" style="side-label" class="side-label">Show fire boundary</label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="small-12">
+                    <div class="columns">
+                      <div class="row">
+                        <div class="switch tiny">
+                          <input class="switch-input" id="clippedFeaturesOnly" v-bind:disabled="clippedFeatures.length === 0" type="checkbox" v-model="clippedOnly"  @change="updateFeatureFilter(3)"/>
+                          <label class="switch-paddle" for="clippedFeaturesOnly">
+                            <span class="show-for-sr">Show saved selection</span>
+                         </label>
+                        </div>
+                        <label for="clippedFeaturesOnly" style="side-label" class="side-label">Show saved selection
+                        </label>
+                        <a class="button tiny secondary" title="Save selection" style="margin-top:0px;margin-bottom:5px;padding-top:6px;padding-left:1px;padding-right:1px;padding-bottom:0px;border:0px;height:24px;font-size:0.73rem;background-color:#2199e8" @click="clipToSelection()" >
+                            Save selection ({{selectedBushfires.length}})
+                        </a> 
+                        ({{clippedFeatures.length}}/{{features.getLength()}})
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                </div>
+
+                <div class="row collapse">
+                  <div class="small-8 columns">
+                    <input type="search" v-model="search" placeholder="Find a bushfire" @keyup="updateFeatureFilter(3)">
+                  </div>
+                  <div class="small-4 columns" style="text-align:right">
+                    <span v-on:click="showFilters = !showFilters" style="cursor:pointer"><i class="fa {{showFilters?'fa-angle-double-up':'fa-angle-double-down'}}" aria-hidden="true"></i> Filters</span>
+                  </div>
+                </div>
+                <div v-show="showFilters">
+                <div class="row collapse">
+                  <div class="small-6 columns">
+                    <select name="select" v-model="region">
+                      <option value="" selected>All regions</option> 
+                      <option v-for="r in regions"  value="{{r.region_id}}" track-by="region_id">
+                        {{r.region}}
+                      </option>
+                    </select>
+                  </div>
+                  <div class="small-6 columns">
+                    <select name="select" v-model="district" >
+                      <option value="" selected>All districts</option> 
+                      <option v-for="d in districts"  value="{{d.id}}" track-by="id">
+                        {{d.district}}
+                      </option>
+                    </select>
+                  </div>
+                </div>
+    
+                <div class="row collapse">
+                  <div class="small-5">
+                    <select name="select" v-model="dateRange" v-on:change="changeDateRange()">
+                      <option value="" selected>Date range</option> 
+                      <!-- values in milliseconds -->
+                      <option value="1">Today</option> 
+                      <option value="2">Current week</option> 
+                      <option value="3">Current month</option> 
+                      <option value="4">Last week</option> 
+                      <option value="5">Last 4 weeks</option> 
+                      <option value="-1">Other</option> 
+                    </select>
+                  </div>
+                  <div class="small-3">
+                      <input type="text" id="bfrsStartDate" class="span2" v-model="startDate" placeholder="yyyy-mm-dd" v-bind:disabled="dateRange !== '-1'" style="padding-left:3px;padding-right:3px;cursor:pointer" readonly></input>
+                  </div>
+                  <div class="small-1" style="text-align:center">
+                      <i class="fa fa-minus" style="margin-top:10px"></i>
+                  </div>
+                  <div class="small-3">
+                      <input type="text" id="bfrsEndDate" class="span2" v-model="endDate" placeholder="yyyy-mm-dd"  v-bind:disabled="dateRange !== '-1'" style="padding-left:3px;padding-right:3px;cursor:pointer" readonly></input>
+                  </div>
+                </div>
+
+                <div class="row collapse">
+                  <div class="small-6 columns">
+                    <select name="select" v-model="statusFilter" >
+                      <option value="fire_not_found=0" selected>All Reports</option> 
+                      <option value="(report_status=1) and (fire_not_found=0)">Initial Fire Report</option>
+                      <option value="(report_status=2) and (fire_not_found=0)">Notifications Submitted</option>
+                      <option value="(report_status>=3) and (fire_not_found=0)">Report Authorised</option>
+                      <option value="fire_not_found=1">Fire Not Found</option>
+                    </select>
+                  </div>
+                  <div class="small-6 expanded button-group">
+                    <a title="Search" class="button" style="height:38px;margin-left:10px;" @click="updateCQLFilter(0)">Search</a>
+                    <a title="Reset filters" class="button" style="height:38px;margin-left:10px;" @click="resetFilters()">Reset</a>
+                  </div>
+                </div>
+
+                </div>
+    
+                <div class="tool-slice row collapse">
+                  <div class="small-12 expanded button-group">
+                    <a title="Zoom to selected" class="button bfrsbutton" @click="zoomToSelected()" ><img style="width:13px;height:13px"src="dist/static/images/zoom-to-selected.svg"/><br>Zoom To<br>Selected</a>
+                    <a title="Refresh bushfire list" class="button bfrsbutton" @click="refreshBushfires()" ><i class="fa fa-refresh" aria-hidden="true"></i><br>Refresh<br>Bushfires </a>
+                    <div v-show="canBatchUpload()" class="button bfrsbutton">
+                        <label for="uploadBushfires" title="{{utils.importSpatialFileTypeDesc}}" >
+                            <i class="fa fa-upload"></i><br>Batch<br>Upload
+                        </label>
+                        <input type="file" id="uploadBushfires" class="show-for-sr" name="bushfiresfile" accept="{{utils.importSpatialFileTypes}}" v-el:bushfiresfile @change="importList()"/>
+                    </div>
+                    <a v-show="canDownloadAll()" class="button bfrsbutton" @click="downloadList('gpkg','all')" title="Export Bushfire as GeoPackage"><i class="fa fa-download" aria-hidden="true"></i><br><span style='white-space:nowrap'>Download All</span><br>(gpkg) </a>
+                    <a class="button bfrsbutton" @click="downloadList('gpkg','listed')" title="Export Bushfire as GeoPackage"><i class="fa fa-download" aria-hidden="true"></i><br>Download<br>(gpkg)</a>
+                  </div>
+                </div>
+    
             </div>
 
+            <div id="bfrs-list" class="layers-flexibleframe scroller" style="margin-left:-15px; margin-right:-15px;">
+              <template v-for="f in featurelist" track-by="get('id')">
+              <div v-if="showFeature(f)" class="row feature-row" v-bind:class="{'feature-selected': selected(f) }" @click="toggleSelect(f)">
+                <div class="small-12 columns">
+                  <a v-if="canReset(f)"  @click.stop.prevent="resetFeature(f)" title="Reset" class="button tiny secondary float-right acion" style="margin-left:2px"><i class="fa fa-undo actionicon"></i></a>
+                  <a v-if="canDelete(f)" @click.stop.prevent="deleteFeature(f)" title="Delete" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-trash actionicon"></i></a>
+                  <a v-if="canUpload(f)"  @click.stop.prevent="uploadBushfire(f)" title="Upload" class="button tiny secondary float-right acion" style="margin-left:2px"><i class="fa fa-upload actionicon"></i></a>
+                  <a v-if="canModify(f)" @click.stop.prevent="startEditFeature(f)" title="Edit Bushfire" class="button tiny secondary float-right action">
+                    <svg class="editicon"><use xlink:href="dist/static/images/iD-sprite.svg#icon-area"></use></svg>
+                  </a>
+                  <a v-if="canCreate(f)" @click.stop.prevent="createFeature(f)" title="Create" class="button tiny secondary float-right action" style="margin-left:2px;background-color:red"><i class="fa fa-save actionicon"></i></a>
+                  <a v-if="canEdit(f) " @click.stop.prevent="utils.editResource($event)" title="Open bushfire form" href="{{editUrl(f)}}" target="{{env.bfrsService}}" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-pencil-square-o actionicon"></i></a>
+                  <a v-if="canSave(f)" @click.stop.prevent="saveFeature(f)" title="Save" class="button tiny secondary float-right action" style="margin-left:2px;background-color:red">
+                    <i class="fa fa-save actionicon"></i>
+                  </a>
+                  <div class="feature-title"><img class="feature-icon" id="bushfire-icon-{{f.get('id')}}" v-bind:src="featureIconSrc(f)" /> {{ f.get('fire_number') }} <i><small></small></i></div>
+                </div>
+                <div class="small-12 columns">
+                      <div class="feature-title"><span class="reportname">{{f.get('name')}}</span> </div>
+                </div>
+                <template v-for="task in featureTasks(f)" track-by="$index">
+                  <div class="small-12 columns">
+                      <a class="task_status float-right" title="{{revision && task.statusText}}"> <i class="fa {{revision && task.icon}}"></i></a>
+                      <a class="task_name">{{task.description}}</a>
+                  </div>
+                  <div v-if="revision && task.message" class="small-12 columns">
+                      <p class="task_message">{{revision && task.message}}</p>
+                  </div>
+
+                </template>
+              </div>
+              </template>
+            </div>
           </div>
+
         </div>
       </div>
     </div>
-  </div>
-  <div id="bushfireReportEditOverlay" >
-    <a v-if="isModified()" @click.stop.prevent="map.editResource($event)" class="button tiny secondary" href="{{editUrl()}}" target="_blank">
-        <i class="fa fa-save"></i>
-    </a>
-    <a @click.stop.prevent="map.editResource($event)" class="button tiny secondary" href="{{editUrl()}}" target="_blank">
-        <i class="fa {{editIcon()}}"></i>
-    </a>
+
+    <form id="bushfire_create" name="bushfire_create" action="{{createUrl()}}" method="post" target="{{utils.getWindowTarget(env.bfrsService)}}">
+        <input type="hidden" name="sss_create" id="sss_create">
+    </form>
   </div>
 </template>
+<style>
+.reportname {
+    font-style:italic;
+    padding-left:24px;
+    color:#6dd8ef;
+    font-size:14px;
+}
+
+.button-group .bfrsbutton {
+    padding-left:5px;
+    padding-right:5px;
+    font-size:0.8rem;
+}
+.actionicon {
+    width:9px;
+    height:9px;
+}
+.editicon {
+    width:16px;
+    height:16px;
+    margin-top: -3px;
+    margin-bottom: -4px;
+    margin-left: -2px;
+    margin-right: -2px;
+}
+.task_status {
+}
+.task_message {
+    font-style:italic;
+    font-weight:normal;
+    color:red;
+    font-size:12px;
+    white-space:pre-wrap;
+}
+.task_name {
+    font-style:normal;
+    font-weight:bold;
+    font-size:14px;
+}
+</style>
 <script>
-  import { ol, moment,$ } from 'src/vendor.js'
+  import { ol, moment,hash,turf,utils } from 'src/vendor.js'
   export default {
-    store: ['bfrsService'],
+    store: {
+        bushfireLabels:'settings.bfrs.bushfireLabels',
+        viewportOnly:'settings.bfrs.viewportOnly',
+        screenHeight:'layout.screenHeight',
+        hintsHeight:'layout.hintsHeight',
+        leftPanelHeadHeight:'layout.leftPanelHeadHeight',
+        activeMenu:'activeMenu',
+        hints:'hints',
+        whoami:'whoami'
+    },
     data: function () {
+      var fill = '#ff6600'
+      var stroke = '#7c3100'
       return {
-        viewportOnly: true,
+        clippedOnly: false,
         search: '',
-        cql: '',
+        statusFilter: "fire_not_found=0",
+        region:'',
+        district:'',
+        bushfireLabelsDisabled:false,
+        showFireboundary:false,
         tools: [],
-        fields: ['prk_id', 'name'],
-        allFeatures: [],
-        extentFeatures: [],
-        selectedReports: [],
-        editableFeatures: new ol.Collection(),
-        droppinFeatures:new ol.Collection(),
-        modifiedFeatures:[],
-        reportFromDate: '',
-        reportToDate: '',
-        editRevision:0,
-        range:'',
-        reportRangeDays: 0,
+        fields: ['fire_number', 'name'],
+        //sorted fields list (column,true?ascend:descend)
+        sortedFields:[['fire_detected_or_created',false]],
+        drawings:new ol.Collection(),
+        features: new ol.Collection(),
+        clippedFeatures:[],
+        showFilters:false,
+        showToggles:false,
+        startDate:'',
+        endDate:'',
+        dateRange:'',
+        selectedBushfires: [],
+        revision:1,
+        profileRevision:1,
+        extentFeatureSize:0,
         tints: {
-          'draft': [['#ff4444','#008000']],
-          'modified': [['#ff4444', '#8a2be2']],
-          'selected': [['#ff4444', '#2199e8']],
-        },
+          'new':[["#b43232","#c8c032"]],
+          'new.textStroke':"#c8c032",
+          'new.textFill':"#333",
+          'new.fillColour':[0, 0, 0, 0.25],
+          'new.colour':"#c8c032",
+          'unknown': [['#b43232','#f90c25']],
+          'unknown.textStroke': '#f90c25',
+          'unknown.textFill': '#333',
+          'unknown.fillColour':[0, 0, 0, 0.25],
+          'unknown.colour': '#f90c25',
+          'initial': [['#b43232','#999999']],
+          'initial.textStroke': '#CCCCCC',
+          'initial.textFill': '#333',
+          'initial.fillColour':[0, 0, 0, 0.25],
+          'initial.colour': '#D3D3D3',
+          'draft_final': [['#b43232', '#8B0000']],
+          'draft_final.textStroke': '#8B0000',
+          'draft_final.textFill': '#FFFFFF',
+          'draft_final.fillColour':[0, 0, 0, 0.25],
+          'draft_final.colour': '#8B0000',
+          'final_authorised': [['#b43232', '#00FF00']],
+          'final_authorised.textStroke': '#00FF00',
+          'final_authorised.textFill': '#333',
+          'final_authorised.fillColour':[0, 0, 0, 0.25],
+          'final_authorised.colour': '#00FF00',
+          'reviewed': [['#b43232', '#00FF00']],
+          'reviewed.textStroke': '#00FF00',
+          'reviewed.textFill': '#333',
+          'reviewed.fillColour':[0, 0, 0, 0.25],
+          'reviewed.colour': '#00FF00',
+          'modified':[["#b43232","#f57900"]],
+          'modified.textStroke':"#f57900",
+          'modified.textFill':"#333",
+          'modified_authorised.fillColour':[0, 0, 0, 0.25],
+          'modified.colour':"#f57900",
+          'selected': [['#b43232', '#2199e8']],
+          'selected.textStroke': '#2199e8',
+          'selected.textFill': '#333',
+        }
       }
     },
     computed: {
       map: function () { return this.$root.$refs.app.$refs.map },
+      env: function () { return this.$root.env },
       annotations: function () { return this.$root.$refs.app.$refs.annotations },
+      setting: function () { return this.$root.setting },
+      dialog: function () { return this.$root.dialog },
+      active: function () { return this.$root.active},
+      measure: function () { return this.$root.measure },
+      info: function () { return this.$root.info },
+      setting: function () { return this.$root.setting },
+      catalogue: function () { return this.$root.catalogue },
+      export: function () { return this.$root.export },
       loading: function () { return this.$root.loading },
-      features: function () {
-        if (this.viewportOnly) {
-          return this.extentFeatures
-        } else {
-          return this.allFeatures
-        }
+      utils: function () { return this.$root.utils },
+      moduleStatus: function(){
+        return this._bfrsStatus || {}
+      },
+      isReportMapLayerHidden:function() {
+        return this.$root.active.isHidden(this.bushfireMapLayer)
       },
       selectedFeatures: function () {
-        return this.features.filter(this.selected)
+        return this.annotations.selectedFeatures
       },
-      stats: function () {
-        return Object.keys(this.extentFeatures).length + '/' + Object.keys(this.allFeatures).length
+      bushfireLayer: function() {
+        //console.log(this.env.bushfireLayer)
+        return this.$root.catalogue.getLayer(this.env.bushfireLayer)
       },
-      reportRange: {
-        get: function () {
-          return this.reportRangeDays
-        },
-        set: function (val) {
-          this.reportRangeDays = val
-          var currentDate = moment()
-          this.reportToDate = currentDate.format('YYYY-MM-DD')
-          var fromDate = currentDate.subtract(val, 'days')
-          this.reportFromDate = fromDate.format('YYYY-MM-DD')
+      bushfireMapLayer: function() {
+        return this.$root.map?this.$root.map.getMapLayer(this.bushfireLayer):undefined
+      },
+      finalFireboundaryMapLayer: function() {
+        return this.bushfireMapLayer?this.bushfireLayer.dependentLayers[0].mapLayer:null
+      },
+      selectedFinalFireboundaryMapLayer: function() {
+        return this.bushfireMapLayer?this.bushfireLayer.dependentLayers[1].mapLayer:null
+      },
+      regions:function() {
+        try{
+            return this.profileRevision && this.whoami["bushfire"]["regions"]
+        }catch(ex) {
+            return []
         }
       },
-      reportLayer: function() {
-        return this.$root.catalogue.getLayer('dpaw:ratis_rtv_web_parks')
+      districts:function() {
+        var vm = this
+        var r = null
+        if (this.region) {
+            r = this.regions.find(function(o) { return o.region_id === parseInt(vm.region)})
+        }
+        return r?r.districts:[]
       },
-      reportMapLayer: function() {
-        return this.$root.map.getMapLayer(this.reportLayer)
+      bushfireStyleFunc:function() {
+        if (!this._bushfireStyleFunc) {
+            this._bushfireStyleFunc = function () {
+                var vm = this
+                var pointStyleFunc = vm.annotations.getIconStyleFunction(vm.tints)
+                var boundaryStyleFunc = vm.annotations.getVectorStyleFunc(vm.tints)
+                var labelStyleFunc = vm.annotations.getLabelStyleFunc(vm.tints,'fire_number')
+                return function(res) {
+                    var feat = this
+                    var geometries = feat.getGeometry().getGeometriesArray()
+                    var pointStyle = (geometries.length > 0 || geometries[0] instanceof ol.geom.Point)?pointStyleFunc.call(feat,res):null
+                    //show the fireboundary if showFireboudary is on or feat is selected
+                    var boundaryStyle = ((vm.showFireboundary || feat.tint ) && (geometries.length > 1 || geometries[0] instanceof ol.geom.MultiPolygon))?boundaryStyleFunc.call(feat,res):null
+
+                    var selfIntersectionStyle = null
+                    if (boundaryStyle && feat.intersectionPoints) {
+                        selfIntersectionStyle = new ol.style.Style({
+                            geometry:feat.intersectionPoints,
+                            image : new ol.style.Circle({
+                                fill: new ol.style.Fill({
+                                    color: [255,0,0],
+                                }),
+                                radius:4
+                            })
+                        })
+                    }
+
+                    var labelStyle = null
+                    if (res < 0.003 && geometries.length > 0 && feat.get('fire_number') && vm.bushfireLabels && !vm.$root.active.isHidden(vm.map.getMapLayer(vm.env.bushfireLayer))) {
+                      labelStyle = labelStyleFunc.call(feat,res)
+                      labelStyle.setGeometry(geometries[0])
+                    }   
+
+                    var style = null
+                    if ((pointStyle && 1) + (boundaryStyle && 1) + (labelStyle && 1)  + (selfIntersectionStyle && 1) === 1) {
+                        return pointStyle || boundaryStyle || labelStyle || selfIntersectionStyle
+                    } else {
+                        if (!vm._bushfireStyle) {
+                            vm._bushfireStyle = []
+                        } else {
+                            vm._bushfireStyle.length = 0
+                        }
+                        if (pointStyle) {vm._bushfireStyle.push.apply(vm._bushfireStyle,pointStyle)}
+                        if (boundaryStyle) {vm._bushfireStyle.push.apply(vm._bushfireStyle,boundaryStyle)}
+                        if (labelStyle) {vm._bushfireStyle.push(labelStyle)}
+                        if (selfIntersectionStyle) {vm._bushfireStyle.push(selfIntersectionStyle)}
+                        return vm._bushfireStyle
+                    }
+                }
+            }.call(this)
+        }
+        return this._bushfireStyleFunc
       },
-      editingFeature:function() {
-        if (this.annotations.tool === this.droppinTool) {
-            return (this.droppinFeatures.getLength() > 0)?this.droppinFeatures.item(0):null
-        } else if(this.annotations.tool === this.editTool) {
-            return (this.annotations.selectedFeatures.getLength() > 0)?this.annotations.selectedFeatures.item(0):null
+      featurelist:function() {
+        try {
+            return this.revision && this._featurelist.getArray()
+        } catch (ex) {
+            return [];
+        }
+      },
+      featureSize:function() {
+        try {
+            return this.revision && this._featurelist.getLength()
+        } catch (ex) {
+            return 0;
+        }
+      }
+    },
+    watch:{
+      isReportMapLayerHidden:function(newValue,oldValue) {
+        if (newValue === undefined || oldValue === undefined) {
+            //layer is turned on or turned off
+            return
+        } else if (this.map.resolution >= 0.003) {
+            //label is turned on, but resolution is not less than 0.003
+            return
+        } else {
+            //label is enabled, hiding/showing bfrs layer requires resetting the style text.
+            this.bushfireMapLayer.changed() 
+        }
+      },
+      bushfireLabels:function(newValue,oldValue) {
+        this.showBushfireLabels()
+      },
+      tools:function(newValue,oldValue) {
+        this.adjustHeight()
+      },
+      showFilters:function(newValue,oldValue) {
+        this.adjustHeight()
+      },
+      showToggles:function(newValue,oldValue) {
+        this.adjustHeight()
+      },
+      showFireboundary:function(newValue,oldValue) {
+        var vm = this
+        this.map.enableDependentLayer(this.bushfireMapLayer,this.env.finalFireboundaryLayer,newValue)
+        $.each(this._featurelist.getArray(),function(index,feature){
+            if (vm.isFireboundaryDrawable(feature)) {
+                feature.getGeometry().changed()
+            }
+        })       
+      },
+      clippedFeatures:function(newValue,oldValue) {
+        if (!this.clippedOnly) return
+        if (newValue.length === 0) {
+            this.clippedOnly = false
+            this.updateFeatureFilter(3,0)
+        }
+      },
+      startDate:function(newValue,oldValue) {
+        if (!this._endDatePicker) return
+        try {
+            if (newValue === "") {
+                this._endDatePicker.setStartDate(moment().subtract(13,"months").format("YYYY-MM-DD"))
+            } else {
+                this._endDatePicker.setStartDate(newValue)
+            }
+        } catch(ex) {
+        }
+      },
+      endDate:function(newValue,oldValue) {
+        if (!this._startDatePicker) return
+        try {
+            if (newValue === "") {
+                this._startDatePicker.setEndDate(moment().format("YYYY-MM-DD"))
+            } else {
+                this._startDatePicker.setEndDate(newValue)
+            }
+        } catch(ex) {
+        }
+      },
+      region:function(newValue,oldValue) {
+        this.district = ""
+      }
+    },
+    methods: {
+      regionFilter:function() {
+        return this.region?("region_id=" + this.region) : null
+      },
+      dateFilter:function() {
+        if (this.endDate && this.endDate.length !== 10) {
+            throw "endDate is under changing."
+        }
+        if (this.startDate && this.startDate.length !== 10) {
+            throw "startDate is under changing."
+        }
+
+        var startDate = (this.startDate)?moment(this.startDate,"YYYY-MM-DD",true):null
+        if (startDate && !startDate.isValid()) {
+            throw "startDate is under changing."
+        }
+
+        var endDate = (this.endDate && this.endDate !== moment().format("YYYY-MM-DD"))?moment(this.endDate,"YYYY-MM-DD",true):null
+        if (endDate && !endDate.isValid()) {
+            throw "endDate is under changing."
+        }
+
+
+        if (startDate) {
+            if (endDate) {
+                return "fire_detected_or_created BETWEEN '" + startDate.utc().format("YYYY-MM-DDTHH:mm:ssZ") + "' AND '" + endDate.add(1,"days").utc().format("YYYY-MM-DDTHH:mm:ssZ") + "'"
+            } else {
+                return "fire_detected_or_created >= '" + startDate.utc().format("YYYY-MM-DDTHH:mm:ssZ") + "'"
+            }
+        } else if (endDate) {
+            return "fire_detected_or_created < '" + endDate.add(1,"days").utc().format("YYYY-MM-DDTHH:mm:ssZ") + "'"
         } else {
             return null
         }
       },
-      editingFeaturePosition:function() {
-        var feat = this.editingFeature
-        return (feat)?feat.getGeometry().getLastCoordinate():undefined
+      districtFilter:function() {
+        return this.district?("district_id=" + this.district) : null
       },
-    },
-    watch:{
-      'editingFeaturePosition': function(val,oldVal) {
-        this.editButtonOverlay.setPosition(val)
-      }
-    },
-    methods: {
-      verifyDate: function(event,inputPattern,pattern) {
-        var element = event.target;
-        element.value = element.value.trim()
-        if (element.value.length > 0) {
-            var m = moment(element.value,inputPattern,true)
-            if (!m.isValid()) {
-                setTimeout(function() {
-                    element.focus()
-                },10);
-            } else {
-                element.value = m.format(pattern)
-            }
+      changeDateRange:function() {
+        var endDate = moment().startOf('day')
+        if (this.dateRange === "-1") {
+            //customized
+            return
+        } else if (this.dateRange === "") {
+            this.endDate = ''
+            this.startDate = ''
+        } else if (this.dateRange === "1") {
+            //today
+            this.endDate = endDate.format("YYYY-MM-DD")
+            this.startDate = endDate.format("YYYY-MM-DD")
+        } else if (this.dateRange === "2") {
+            //current week
+            this.endDate = endDate.format("YYYY-MM-DD")
+            this.startDate = endDate.startOf('week').format("YYYY-MM-DD")
+        } else if (this.dateRange === "3") {
+            //current month
+            this.endDate = endDate.format("YYYY-MM-DD")
+            this.startDate = endDate.startOf('month').format("YYYY-MM-DD")
+        } else if (this.dateRange === "4") {
+            //last week
+            this.endDate = endDate.format("YYYY-MM-DD")
+            this.startDate = endDate.subtract(6,"days").format("YYYY-MM-DD")
+        } else if (this.dateRange === "5") {
+            //last 4 weeks
+            this.endDate = endDate.format("YYYY-MM-DD")
+            this.startDate = endDate.subtract(27,"days").format("YYYY-MM-DD")
         }
       },
-      isEditable: function(f) {
-        return ["draft","modified"].indexOf(f.get('baseTint')) >= 0
+      originpointCoordinate:function(feat){
+        try {
+            return feat.getGeometry().getGeometriesArray()[0].getCoordinates()
+        } catch (ex) {
+            return null
+        }
       },
-      isModified: function(f) {
-        var tmp = this.editRevision
-        var feat = f || this.editingFeature
-        return feat && feat.get('baseTint') === "modified"
+      featureTasks:function(feat) {
+        return this.revision && ((this._taskManager)?this._taskManager.getTasks(feat):null)
       },
-      editIcon:function(f) {
-        var tmp = this.editRevision
-        var feat = f || this.editingFeature
-        if (!feat) {
-            //no editing feature
-            return "fa-pencil"
-        } else if (feat.get(this.reportKey)) {
-            //has report key
-            if (this.isEditable(feat)) {
-                //edit
-                return "fa-pencil"
+      refreshFinalFireboundaryLayer: function(wait) {
+        var vm = this
+        wait = wait || 1000
+        this._refreshFinalFireboundaryLayer = this._refreshFinalFireboundaryLayer || debounce(function(){
+            if (vm.finalFireboundaryMapLayer && vm.finalFireboundaryMapLayer.show) {
+                vm.finalFireboundaryMapLayer.refresh()   
+            }
+        },wait)
+
+        this._refreshFinalFireboundaryLayer.call({wait:wait})
+      },
+      refreshSelectedFinalFireboundaryLayer: function(wait) {
+        var vm = this
+        wait = wait || 1000
+        this._refreshSelectedFinalFireboundaryLayer = this._refreshSelectedFinalFireboundaryLayer || debounce(function(){
+          if (!vm.selectedFinalFireboundaryMapLayer) return
+
+          var selectedFinalBushfires = selectedFeatures.getArray().filter(function(f) {return !vm.isFireboundaryDrawable(f)})
+          if (selectedFinalBushfires.length === 0) {
+            if (vm.selectedFinalFireboundaryMapLayer.show) {
+                vm.map.enableDependentLayer(vm.bushfireMapLayer,vm.env.finalFireboundaryLayer + "_selected",false)
+            }
+          } else {
+            vm.selectedFinalFireboundaryMapLayer.setParams({
+                cql_filter:"fire_number in ('" + selectedFinalBushfires.map(function(f){return f.get('fire_number')}).join("','") +  "')"
+            })
+            if (!vm.selectedFinalFireboundaryMapLayer.show) {
+                vm.map.enableDependentLayer(vm.bushfireMapLayer,vm.env.finalFireboundaryLayer + "_selected",true)
+            }
+          }
+        },wait)
+
+        this._refreshSelectedFinalFireboundaryLayer.call({wait:wait})
+      },
+      featureExtent: function(feat) {
+        if (feat.get('fire_boundary')) {
+            if (feat.getGeometry()) {
+                return ol.extent.extend(feat.getGeometry().getExtent(),feat.get('fire_boundary'))
             } else {
-                //view
-                return "fa-eye"
+                return feat.get('fire_boundary')
             }
         } else {
-            //no report key,create
-            return "fa-pencil"
+            return feat.getGeometry().getExtent()
         }
       },
-      editUrl:function(f) {
-        var feat = f || this.editingFeature
-        if (!feat) {
-            //no editing feature
-            return ""
-        } else if (feat.get(this.reportKey)) {
-            //has report key
-            if (this.isEditable(feat)) {        
-                //edit
-                return this.bfrsService + "/reports/" + feat.get(this.reportKey) + "?point=" 
+      zoomToSelected:function(wait) {
+        var vm = this
+        wait = wait || 0
+        vm._zoomToSelected = vm._zoomToSelectedFunc || debounce(function() {
+            vm.map.zoomToSelected(125,vm.featureExtent)
+        },wait)
+        if (wait === 0) {
+            vm._zoomToSelected.call({wait:1})
+        } else {
+            vm._zoomToSelected.call({wait:wait})
+        }
+      },
+      open:function(options) {
+        //active bfrs module
+        if (this.activeMenu !== "bfrs") {
+            $("#menu-tab-bfrs-label").trigger("click")
+        } else if(!$('#offCanvasLeft').hasClass('reveal-responsive')){
+            $('#offCanvasLeft').toggleClass('reveal-responsive')
+            self.map.olmap.updateSize()
+        }
+
+        var vm = this
+        var updateType = null
+        var action = options["action"] || "select"
+        if (!options) {return}
+        if ("region" in options) {
+            if (this.region !== "" && options["region"] !== this.region) {
+                this.region = options["region"] || ""
+                updateType = "region"
+            }
+        }
+        if ("district" in options) {
+            if (this.district !== "" && options["district"] !== this.district) {
+                this.district = options["district"] || ""
+                updateType = "district"
+            }
+        }
+        if (options["bushfireid"] !== null && options["bushfireid"] !== undefined){
+            if (this.selectedFeatures.getLength() > 0) {
+                this.selectedFeatures.clear()
+            }
+            if (this.search && this.search.trim().length > 0) {
+                if (this.clippedOnly) this.clippedOnly = false
+                this.search = ""
+                this.updateFeatureFilter(3,0)
+            } else if (this.clippedOnly) {
+                this.clippedOnly = false
+                this.updateFeatureFilter(1,0)
+            }
+        }
+
+        updateType = updateType || ((action === "create")?"query":null)
+        if (!updateType && options["bushfireid"] !== null && options["bushfireid"] !== undefined){
+            var bushfire = this.features.getArray().find(function(f) {return f.get('fire_number') === options["bushfireid"]})
+            if (bushfire) {
+                this.selectedFeatures.push(bushfire)
+                if (options["refresh"] || action === "update") {
+                    this.resetFeature(bushfire,false,function() {
+                        vm.zoomToSelected()
+                        vm.scrollToSelected()
+                    })
+                } else {
+                    this.zoomToSelected()
+                    this.scrollToSelected()
+                }
+                return
             } else {
-                //view
-                return this.bfrsService + "/reports/" + feat.get(this.reportKey) + "?point=" 
+                updateType = "query"
+            }
+        }
+
+        if (updateType || options["refresh"]) {
+            if (options["bushfireid"] !== null && options["bushfireid"] !== undefined){
+                //want to find some bushfire, clear other filters
+                if (this.statusFilter !== "fire_not_found=0") {
+                    this.statusFilter = "fire_not_found=0"
+                }
+                if (this.dateRange !== "") {
+                    this.dateRange = ""
+                    this.startDate = ""
+                    this.endDate = ""
+                }
+            }
+            updateType = options["refresh"]?"refresh":updateType
+            this.updateCQLFilter(1,true,function(){
+                if (options["bushfireid"] !== null && options["bushfireid"] !== undefined){
+                    var feat = vm.features.getArray().find(function(o) {return o.get('fire_number') == options["bushfireid"]})
+                    if (feat) {
+                        vm.selectedFeatures.push(feat)
+                        vm.zoomToSelected()
+                        vm.scrollToSelected()
+                    }
+                }
+
+            })
+        }
+
+      },
+      isModifiable:function(bushfire) {
+        try{
+            return this.whoami["bushfire"]["permission"][bushfire.get('status') + ".modify"]
+        } catch(ex){
+            return false
+        }
+      },
+      isFireboundaryDrawable:function(bushfire) {
+        return bushfire.get('status') === "new" || (bushfire.get('report_status') === 1)
+      },
+      isEditable:function(bushfire) {
+        try{
+            return this.whoami["bushfire"]["permission"][bushfire.get('status') + ".edit"]
+        } catch(ex){
+            return false
+        }
+      },
+      isDeletable:function(bushfire) {
+        return bushfire.get('status') === "new"
+      },
+      isCreatable:function() {
+        try {
+            return this.revision && this.whoami["bushfire"]["permission"]["create"] 
+        } catch(ex) {
+            return false
+        }
+      },
+      canBatchUpload:function() {
+        try{
+            return this.revision && this.whoami["bushfire"]["permission"]["final_authorised.modify"]
+        } catch(ex) {
+            return false
+        }
+      },
+      canDownloadAll:function() {
+        try{
+            return this.revision && this.whoami["bushfire"]["permission"]["final_authorised.modify"]
+        } catch(ex) {
+            return false
+        }
+      },
+      canEdit:function(bushfire) {
+        return this.revision && bushfire.get('status') !== "new" && this.isEditable(bushfire) && bushfire.get('tint') !== "modified"
+      },
+      canUpload:function(bushfire) {
+        return this.revision && this.isModifiable(bushfire)
+      },
+      canModify:function(bushfire) {
+        return this.revision && this.isModifiable(bushfire)
+      },
+      canReset:function(bushfire) {
+        return this.revision && bushfire.get('status') !== "new" // && this.isEditable(bushfire) && bushfire.get('tint') === "modified"
+      },
+      canSave:function(bushfire) {
+        return this.revision && bushfire.get('status') !== "new" && this.isModifiable(bushfire) && bushfire.get('tint') === "modified"
+      },
+      canCreate:function(bushfire) {
+        return this.revision && bushfire.get('status') === "new" && bushfire.getGeometry().getGeometriesArray().find(function(g) {return g instanceof ol.geom.Point})
+      },
+      canDelete:function(bushfire) {
+        return this.revision && this.isDeletable(bushfire)
+      },
+      createUrl:function() {
+        return this.env.bfrsService + "/bfrs/create/" 
+      },
+      editUrl:function(feat) {
+        var status = feat.get('report_status')
+        if (status === 1) {
+            return this.env.bfrsService + "/bfrs/initial/" + feat.get('id') + "/"
+        } else {
+            return this.env.bfrsService + "/bfrs/final/" + feat.get('id') + "/"
+        }
+      },
+      saveUrl:function(feat) {
+        return this.env.bfrsService + "/api/v1/bushfire/" + feat.get('id') + "/?format=json" 
+      },
+      deleteUrl:function(feat) {
+        return this.env.bfrsService + "/delete/" + feat.get('id')
+      },
+      startEditFeature:function(feat) {
+        if (this.selectedFeatures.getLength() !== 1 || this.selectedFeatures.item(0) !== feat) {
+            if (this.selectedFeatures.getLength() > 0) this.selectedFeatures.clear()
+            this.selectedFeatures.push(feat)
+        }
+        if (this.annotations.tool !== this.ui.modifyTool) {
+            this.annotations.setTool(this.ui.modifyTool)
+        }
+      },
+      validateBushfire:function(feat,validateType,callback) {
+        if (feat.intersectionPoints) {
+            delete feat.intersectionPoints
+            feat.changed()
+        }
+
+        var indexes = null
+        this._validateBushfireCallback = this._validateBushfireCallback || function(error,callback) {
+            if (callback) {
+                callback(error)
+            } else if (error) {
+                alert(error)
+            }
+        }
+        var vm = this
+        try {
+            var geometries = feat.getGeometry().getGeometries()
+            var originPoint = geometries.find(function(g) {return g instanceof ol.geom.Point}) || null
+    
+            if (!originPoint) {
+                throw "No origin point placed"
+            }
+            if (!this.isFireboundaryDrawable(feat)) {
+                if ((feat.get('modifyType') & 2) !== 2) {
+                    if (feat.get('fire_boundary')) {
+                        //only move  the original point
+                        originPoint = originPoint.getCoordinates()
+                        if (validateType === "getSpatialData") {
+                            //during saving, check agaist the fire boundary
+                            $.ajax({
+                                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetPropertyValue&valueReference=fire_number&typeNames=" + vm.env.finalFireboundaryLayer + "&cql_filter=(fire_number='" + feat.get('fire_number') + "')and (CONTAINS(fire_boundary,POINT(" + originPoint[1]  + " " + originPoint[0] + ")))",
+                                dataType:"xml",
+                                success: function (response, stat, xhr) {
+                                    if (response.firstChild && response.firstChild.children && response.firstChild.children.length > 0) {
+                                        vm._validateBushfireCallback(null,callback)
+                                    } else if (callback) {
+                                        vm._validateBushfireCallback("Point of Origin is not inside fire boundary, please fix using the edit bushfire button",callback)
+                                    }
+                                },
+                                error: function (xhr,status,message) {
+                                    vm._validateBushfireCallback(xhr.responseText || message,callback)
+                                },
+                                xhrFields: {
+                                    withCredentials: true
+                                }
+                            })
+                        } else {
+                            //during modifing,check agaist the bbox of fire boundary
+                            if (ol.extent.containsCoordinate(feat.get('fire_boundary'),originPoint)) {
+                                vm._validateBushfireCallback(null,callback)
+                            } else {
+                                vm._validateBushfireCallback("Point of Origin is not inside fire boundary, please fix using the edit bushfire button",callback)
+                            }
+                        }
+                    } else {
+                        vm._validateBushfireCallback(null,callback)
+                    }
+                } else {
+                    vm._validateBushfireCallback(null,callback)
+                }
+                return
+            }
+    
+            var fireboundary = null
+            indexes = geometries.findIndex(function(g) {return g instanceof ol.geom.MultiPolygon})
+            if (indexes >= 0) {
+                fireboundary = geometries[indexes]
+                indexes = [indexes]
+            } else {
+                fireboundary = null
+                indexes = null
+            }
+    
+            var polygon = null
+            var polygonIndex = -1
+            var convertedToTurf = true
+            var checkResult = false
+            //check self-intersect and polygon intersect.
+            //during checking, polygons are converted into turf polygon and cached in the local variable
+            if (fireboundary && fireboundary.getPolygons().length === 1) {
+                fireboundary = fireboundary.getCoordinates()
+                fireboundary[0] = turf.polygon(fireboundary[0])
+                var kinks = turf.kinks(fireboundary[0])
+                if (kinks.features.length > 0) {
+                    feat.intersectionPoints = new ol.geom.MultiPoint(kinks.features.map(function(p) {return p.geometry.coordinates}))
+                    if (indexes) indexes.push(0)
+                    throw "The polygon is self intersecting, please remove intersection"
+                }
+            } else if (fireboundary && fireboundary.getPolygons().length > 1) {
+                fireboundary = fireboundary.getCoordinates()
+                //validate whether any existed polygons are intersect
+                for(index = 0;index < fireboundary.length;index++) {
+                    if (index === 0) {fireboundary[index] = turf.polygon(fireboundary[index])}
+                    for(index2 = index + 1;index2 < fireboundary.length;index2++) {
+                        if (index === 0) {fireboundary[index2] = turf.polygon(fireboundary[index2])}
+                        try {
+                            checkResult = turf.intersect(fireboundary[index],fireboundary[index2]) 
+                        } catch(ex) {
+                            var kinks = null
+                            if (index === 0 && index2 === 1 && (kinks = turf.kinks(fireboundary[index])).features.length > 0) {
+                                feat.intersectionPoints = new ol.geom.MultiPoint(kinks.features.map(function(p) {return p.geometry.coordinates}))
+                                if (indexes) indexes.push(index)
+                                throw "One or more fire boundaries are self intersecting, please remove self intersection"
+                            } else if (index === 0 && (kinks = turf.kinks(fireboundary[index2])).features.length > 0) {
+                                feat.intersectionPoints = new ol.geom.MultiPoint(kinks.features.map(function(p) {return p.geometry.coordinates}))
+                                if (indexes) indexes.push(index2)
+                                throw "One or more fire boundaries are self intersecting, please remove self intersection"
+                            } else {
+                                if (indexes) indexes.push(index)
+                                throw "One or more fire boundaries are invalid, please fix it"
+                            }
+                        }
+                        if (checkResult) {
+                            if (indexes) indexes.push(index)
+                            throw "One or more fire boundaries are intersecting, please remove intersection"
+                        }
+                    }
+                }
+            }
+    
+            if (originPoint) {
+                inFireboundary = null
+                originPoint = turf.point(originPoint.getCoordinates())
+                //checking whether origin point is in a existing fireboundary
+                if (fireboundary && fireboundary.length > 0) {
+                    inFireboundary = false
+                    for(index = 0;index < fireboundary.length;index++) {
+                        if (!convertedToTurf) {
+                            fireboundary[index] = turf.polygon(fireboundary[index])
+                        }
+                        if (turf.inside(originPoint,fireboundary[index])) {
+                            inFireboundary = true
+                            break;
+                        }
+                    }
+                }
+                //checking whether origin point is in new fireboundary
+                if (inFireboundary !== true && polygon && validateType !== "deleteFireboundary" && polygonIndex === -1) {
+                    inFireboundary = false
+                    if (turf.inside(originPoint,polygon)) {
+                        inFireboundary = true
+                    }
+                }
+    
+                if (inFireboundary === false) {
+                    indexes = [0]
+                    throw "Point of Origin is not inside fire boundary, please fix using the edit bushfire button"
+                }
+                convertedToTurf = true
+            }
+            vm._validateBushfireCallback(null,callback)
+        }catch(ex) {
+            if (!feat.get('external_feature')) {
+                if (indexes) {feat['selectedIndex'] = indexes}
+                if (this.annotations.selectedFeatures.length !== 1 || this.annotations.selectedFeatures.item(0) !== feat) {
+                    this.annotations.selectedFeatures.clear()
+                    this.annotations.selectedFeatures.push(feat)
+                }
+                if (this.annotations.tool !== this.ui.modifyTool) {
+                    this.annotations.setTool(this.ui.modifyTool)
+                }
+            }
+
+            vm._validateBushfireCallback(ex.message || ex,callback)
+        }
+      },
+      getSpatialData:function(feat,caller,callback,failedCallback) {
+        caller = caller || "get"
+        var vm = this
+        vm._getSpatialDataCallback = vm._getSpatialDataCallback || function(feat,callback,failedCallback,spatialData) {
+            if (vm._taskManager.allTasksSucceed(feat,"getSpatialData")) {
+                if ("region" in spatialData && "district" in spatialData) {
+                    var region = null
+                    var district = null
+                    spatialData["region_id"] = null
+                    spatialData["district_id"] = null
+
+                    var name = spatialData["region"]
+                    delete spatialData["region"]
+                    if (name) {
+                        name = name.toLowerCase()
+                        region = vm.whoami.bushfire.regions.find(function(o) {return o.region.toLowerCase() === name})
+                        if (region) {
+                            spatialData["region_id"] = region.region_id
+                        } else {
+                            if (failedCallback) {
+                                failedCallback("Region '" + name + "' is not found")
+                            } else {
+                                alert("Region '" + name + "' is not found")
+                            }
+                            return
+                        }
+                    }
+
+                    name = spatialData["district"]
+                    delete spatialData["district"]
+                    if (name && region) {
+                        name = name.toLowerCase()
+                        district = region.districts.find(function(o) {return o.district.toLowerCase() === name})
+                        if (district) {
+                            spatialData["district_id"] = district.id
+                        } else {
+                            if (failedCallback) {
+                                failedCallback("District '" + name + "' is not found in region '" + region.region + "'.")
+                            } else {
+                                alert("District '" + name + "' is not found in region '" + region.region + "'.")
+                            }
+                            return
+                        }
+                    }
+                }
+
+                //console.log( JSON.stringify(spatialData ) )
+                callback(spatialData)
+            } else if (vm._taskManager.allTasksFinished(feat,"getSpatialData")) {
+                if (failedCallback) {
+                    failedCallback("")
+                } else {
+                    var msg = vm._taskManager.errorMessages(feat,"getSpatialData").join("\r\n")
+                    if (msg) alert(msg)
+                }
+            }
+        }
+
+        vm._getValidationMessage = vm._getValidationMessage || function(message) {
+            return "Geometry check of the fire shape has found the following error: " +
+                   "\r\n\t" + (Array.isArray(message)?message.join("\r\n\t"):message) + 
+                   "\r\n\r\nPlease run a geometry check within ArcGIS before uploading" +
+                   "\r\nFor help contact the Fire Support Systems Team fire_systems_support@dbca.wa.gov.au";
+        }
+        vm._getSpatialData = vm._getSpatialData || function(feat,caller,callback,failedCallback) {
+            try{
+                var spatialData = {}
+                var modifyType = (feat.get('status') === 'new')?3:(feat.get('modifyType') || 3)
+        
+                var geometries = feat.getGeometry().getGeometriesArray()
+                var originPoint = geometries.find(function(g){return g instanceof ol.geom.Point}) || null
+                originPoint = originPoint?originPoint.getCoordinates():null
+        
+                var fireboundary = null
+                var bbox = null
+                var area = 0
+        
+                if ((modifyType & 1) === 1) {
+                    spatialData["origin_point"] = originPoint
+                    spatialData["origin_point_mga"] = vm.map.getMGA(originPoint)
+                    spatialData["tenure_ignition_point"]  = null
+                    spatialData["fire_position"]  = null
+                }
+        
+                if ((modifyType & 2) === 2) {
+                    fireboundary = geometries.find(function(g) {return g instanceof ol.geom.MultiPolygon}) || null
+                    bbox = (fireboundary && fireboundary.getPolygons().length > 0)?fireboundary.getExtent():null
+                    fireboundary = (fireboundary && fireboundary.getPolygons().length > 0)?fireboundary.getCoordinates():null
+        
+                    spatialData["fire_boundary"] = fireboundary
+                }
+        
+                var tenure_area_task = null
+                if (fireboundary && (modifyType & 2) === 2) {
+                    tenure_area_task = vm._taskManager.addTask(feat,"getSpatialData","tenure_area","Calculate fire boundary areas",utils.WAITING)
+                }
+                var tenure_origin_point_task = null
+                var fire_position_task = null
+                var region_task = null
+                var district_task = null
+                if (originPoint && (modifyType & 1) === 1) {
+                    tenure_origin_point_task = vm._taskManager.addTask(feat,"getSpatialData","tenure_origin_point","Locate bushfire's dpaw tenure",utils.WAITING)
+                    fire_position_task = vm._taskManager.addTask(feat,"getSpatialData","fire_position","Get the fire position",utils.WAITING)
+                    if (["new","initial"].indexOf(feat.get('status')) >= 0) {
+                        region_task = vm._taskManager.addTask(feat,"getSpatialData","region","Locate bushfire's region",utils.WAITING)
+                        district_task = vm._taskManager.addTask(feat,"getSpatialData","district","Locate bushfire's district",utils.WAITING)
+                    }
+                }
+                //need to call the callback first because the callback will not be called if no tasks are required.
+                vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                if (tenure_area_task) {
+                    tenure_area_task.setStatus(utils.RUNNING)
+                    $.ajax({
+                        url:vm.env.gokartService + "/spatial",
+                        dataType:"json",
+        
+                        data:{
+                                features:vm.$root.geojson.writeFeatures([feat]),
+                                options:JSON.stringify({
+                                    area: {
+                                        name:"area",
+                                        layer_overlap:false,
+                                        unit:"ha",
+                                        layers:[
+                                            {
+                                                id:"tenure_area",
+                                                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:dpaw_tenure",
+                                                properties:{
+                                                    id:"ogc_fid",
+                                                    name:"name",
+                                                    category:"category"
+                                                }
+                                            }
+                                        ],
+                                    }
+                                })
+                        },
+                        method:"POST",
+                        success: function (response, stat, xhr) {
+                            if (response["total_features"] > 0) {
+                                var result = response["features"][0]
+                                if ("valid" in result && !result["valid"]) {
+                                    var msg = vm._getValidationMessage(result["valid_message"])
+                                    if (caller === "import") {
+                                        vm.dialog.show({
+                                            messages:msg,
+                                            defaultOption:false,
+                                            buttons:[[false,"Ok"],[true,"Override"]],
+                                            callback:function(option){
+                                                if (option) {
+                                                    setTimeout(function() {
+                                                        vm.dialog.show({
+                                                            messages:"I acknowledge a geometry check has been run and passed in ArcGIS Geometry Tool and this is a valid shape.",
+                                                            defaultOption:false,
+                                                            buttons:[[true,"Yes"],[false,"Cancel"]],
+                                                            callback:function(option){
+                                                                if (option) {
+                                                                    delete result["valid"]
+                                                                    delete result["valid_message"]
+                                                                    result["fb_validation_req"] = true
+                                                                    $.extend(spatialData,response["features"][0])
+                                                                    tenure_area_task.setStatus(utils.SUCCEED)
+                                                                } else {
+                                                                    tenure_area_task.setStatus(utils.FAIL_CONFIRMED,msg)
+                                                                }
+                                                                vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                                                            }
+                                                        })
+                                                    },1)
+                                                } else {
+                                                    tenure_area_task.setStatus(utils.FAIL_CONFIRMED,msg)
+                                                    vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                                                }
+                                            }
+                                        })
+                                        return
+                                    } else if (caller === "batchimport") {
+                                        delete result["valid"]
+                                        delete result["valid_message"]
+                                        result["fb_validation_req"] = true
+                                    } else {
+                                        tenure_area_task.setStatus(utils.FAILED,msg)
+                                        vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                                        return
+                                    }
+                                } else {
+                                    delete result["valid"]
+                                    delete result["valid_message"]
+                                    result["fb_validation_req"] = null
+                                }
+                                $.extend(spatialData,response["features"][0])
+                                tenure_area_task.setStatus(utils.SUCCEED)
+                            } else {
+                                tenure_area_task.setStatus(utils.FAILED,"Calculate area failed.")
+                                //alert(tenure_area_task.message)
+                            }
+                            vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                        },
+                        error: function (xhr,status,message) {
+                            if (xhr.status === 490) {
+                                tenure_area_task.setStatus(utils.FAILED,vm._getValidationMessage(xhr.responseText || message))
+                            } else {
+                                tenure_area_task.setStatus(utils.FAILED,xhr.status + " : " + (xhr.responseText || message))
+                            }
+                            //alert(tenure_area_task.message)
+                            vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                        },
+                        xhrFields: {
+                            withCredentials: true
+                        }
+                    })
+                }
+        
+                if (tenure_origin_point_task) {
+                    tenure_origin_point_task.setStatus(utils.RUNNING)
+                    $.ajax({
+                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:dpaw_tenure&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
+                        dataType:"json",
+                        success: function (response, stat, xhr) {
+                            if (response.totalFeatures === 0) {
+                                spatialData["tenure_ignition_point"] = null
+                            } else {
+                                spatialData["tenure_ignition_point"] = {
+                                    id: response.features[0].properties["ogc_fid"],
+                                    name: response.features[0].properties["name"],
+                                    category: response.features[0].properties["category"]
+                                }
+                            }
+                            tenure_origin_point_task.setStatus(utils.SUCCEED)
+                            vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                        },
+                        error: function (xhr,status,message) {
+                            tenure_origin_point_task.setStatus(utils.FAILED,xhr.status + " : " + (xhr.responseText || message))
+                            //alert(tenure_origin_point_task.message)
+                            vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                        },
+                        xhrFields: {
+                            withCredentials: true
+                        }
+                    })
+                }
+        
+                if (fire_position_task) {
+                    fire_position_task.setStatus(utils.RUNNING)
+                    var buffers = [50,100,150,200,300,400,1000,2000,100000]
+                    var getFirePosition = function(index) {
+                        var buffered = turf.bbox(turf.buffer(turf.point(originPoint),buffers[index],"kilometers"))
+                        $.ajax({
+                            url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:townsite_points&outputFormat=json&bbox=" + buffered[1] + "," + buffered[0] + "," + buffered[3] + "," + buffered[2],
+                            dataType:"json",
+                            success: function (response, stat, xhr) {
+                                if (response.totalFeatures === 0) {
+                                    getFirePosition(index + 1)
+                                } else {
+                                    var nearestTown = null
+                                    var nearestDistance = null
+                                    var distance = null
+                                    $.each(response.features,function(index,feature){
+                                        if (nearestTown === null) {
+                                            nearestTown = feature
+                                            nearestDistance = vm.measure.getLength([feature.geometry.coordinates,originPoint])
+                                        } else {
+                                            distance = vm.measure.getLength([feature.geometry.coordinates,originPoint])
+                                            if (distance < nearestDistance) {
+                                                nearestTown = feature
+                                                nearestDistance = distance
+                                            }
+                                        }
+                                    })
+                                    nearestDistance = vm.measure.formatLength(nearestDistance,"km")
+                                    var bearing = null
+                                    if (nearestDistance === 0) {
+                                        spatialData["fire_position"] = "0m of " + nearestTown.properties["name"]
+                                    } else {
+                                        bearing = vm.measure.getBearing(nearestTown.geometry.coordinates,originPoint)
+                                        spatialData["fire_position"] = nearestDistance + " " + vm.measure.getDirection(bearing,16) + " of " + nearestTown.properties["name"]
+                                    }
+            
+                                    fire_position_task.setStatus(utils.SUCCEED)
+                                    vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+            
+                                }
+                            },
+                            error: function (xhr,status,message) {
+                                fire_position_task.setStatus(utils.FAILED,xhr.status + " : " + (xhr.responseText || message))
+                                //alert(fire_position_task.message)
+                                vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                            },
+                            xhrFields: {
+                                withCredentials: true
+                            }
+                        })
+                    }
+                    getFirePosition(0)
+                }
+        
+                if (region_task) {
+                    region_task.setStatus(utils.RUNNING)
+                    $.ajax({
+                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:dpaw_regions&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
+                        dataType:"json",
+                        success: function (response, stat, xhr) {
+                            if (response.totalFeatures === 0) {
+                                spatialData["region"] = null
+                            } else {
+                                spatialData["region"] = response.features[0].properties["region"]
+                            }
+                            region_task.setStatus(utils.SUCCEED)
+                            vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                        },
+                        error: function (xhr,status,message) {
+                            region_task.setStatus(utils.FAILED,xhr.status + " : " + (xhr.responseText || message))
+                            //alert(region_task.message)
+                            vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                        },
+                        xhrFields: {
+                            withCredentials: true
+                        }
+                    })
+                }
+        
+                if (district_task) {
+                    district_task.setStatus(utils.RUNNING)
+                    $.ajax({
+                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=dpaw:pw_districts_fssvers&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
+                        dataType:"json",
+                        success: function (response, stat, xhr) {
+                            if (response.totalFeatures === 0) {
+                                spatialData["district"] = null
+                            } else {
+                                spatialData["district"] = response.features[0].properties["district"]
+                            }
+                            district_task.setStatus(utils.SUCCEED)
+                            vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                        },
+                        error: function (xhr,status,message) {
+                            district_task.setStatus(utils.FAILED,xhr.status + " : " + (xhr.responseText || message))
+                            //alert(district_task.message)
+                            vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                        },
+                        xhrFields: {
+                            withCredentials: true
+                        }
+                    })
+                }
+            } catch(ex) {
+                vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+            }
+        }
+
+        try {
+            if (this.isFireboundaryDrawable(feat) || ((feat.get('modifyType') & 2) !== 2 && feat.get('fire_boundary'))) {
+                var validate_task = vm._taskManager.addTask(feat,"getSpatialData","validate","Validate bushfire",utils.RUNNING)
+                this.validateBushfire(feat,"getSpatialData",function(error) {
+                    if (error) {
+                        validate_task.setStatus(utils.FAILED,error)
+                        //alert(error)
+                        vm._getSpatialDataCallback(feat,callback,failedCallback,{})
+                    } else {
+                        validate_task.setStatus(utils.SUCCEED)
+                        vm._getSpatialData(feat,caller,callback,failedCallback)
+                    }
+                })
+            } else {
+                vm._getSpatialData(feat,caller,callback,failedCallback)
+            }
+        } catch(ex) {
+            vm._getSpatialDataCallback(feat,callback,failedCallback,{})
+        }
+      },
+      saveFeature:function(feat,caller,callback) {
+        caller = caller || "save"
+        if (this.canSave(feat)) {
+            var vm = this
+            //initialize feature tasks, if triggered by user
+            if (!callback && !vm._taskManager.initTasks(feat)) {
+                return
+            }
+            var task = vm._taskManager.addTask(feat,"save","save","Save spatial data",utils.RUNNING)
+            if (!callback) {
+                callback = function(feat,status,msg) {
+                    if (status === utils.SUCCEED){
+                        vm._taskManager.clearTasks(feat)
+                        vm.resetFeature(feat,false)
+                    } else if (status === utils.WARNING || status === utils.FAILED)  {
+                        var msg = vm._taskManager.errorMessages(feat).join("\r\n")
+                        if (msg) alert(msg)
+                        if (status === utils.WARNING)  {
+                            vm.resetFeature(feat,false)
+                        }
+                    }
+                }
+            }
+            vm.getSpatialData(feat,caller,function(spatialData,job){
+                $.ajax({
+                    url: vm.saveUrl(feat),
+                    method:"PATCH",
+                    data:JSON.stringify(spatialData),
+                    contentType:"application/json",
+                    success: function (response, stat, xhr) {
+                        if (!vm.isFireboundaryDrawable(feat)) {
+                            if ((feat.get('modifyType') & 2) === 2) {
+                                var originPoint = feat.getGeometry().getGeometries().find(function(g) {return g instanceof ol.geom.Point}) || null
+                                if (originPoint) {
+                                    var checkTask = vm._taskManager.addTask(feat,"postsave","check_originpoint","Check origin within fire shape",utils.RUNNING)
+                                    originPoint = originPoint.getCoordinates()
+                                    $.ajax({
+                                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetPropertyValue&valueReference=fire_number&typeNames=" + vm.env.finalFireboundaryLayer + "&cql_filter=(fire_number='" + feat.get('fire_number') + "')and (CONTAINS(fire_boundary,POINT(" + originPoint[1]  + " " + originPoint[0] + ")))",
+                                        dataType:"xml",
+                                        success: function (response, stat, xhr) {
+                                            if (!response.firstChild || !response.firstChild.children || response.firstChild.children.length === 0) {
+                                                checkTask.setStatus(utils.FAILED ,"Point of Origin is not inside fire boundary, please fix using the edit bushfire button")
+                                                task.setStatus(utils.WARNING)
+                                                callback(feat,utils.WARNING,checkTask.message)
+                                            } else {
+                                                checkTask.setStatus(utils.SUCCEED)
+                                                task.setStatus(utils.SUCCEED)
+                                                callback(feat,utils.SUCCEED)
+                                            }
+                                        },
+                                        error: function (xhr,status,message) {
+                                            checkTask.setStatus(utils.FAILED,xhr.status + " : " + (xhr.responseText || message))
+                                            task.setStatus(utils.WARNING)
+                                            callback(feat,utils.WARNING,checkTask.message)
+                                        },
+                                        xhrFields: {
+                                            withCredentials: true
+                                        }
+                                    })
+                                    return
+                                }
+                            }
+                        }
+
+                        task.setStatus(utils.SUCCEED)
+                        callback(feat,utils.SUCCEED)
+                    },
+                    error: function (xhr,status,message) {
+                        task.setStatus(utils.FAILED,xhr.status + " : " + (xhr.responseText || message))
+                        callback(feat,utils.FAILED,task.message)
+                    },
+                    xhrFields: {
+                        withCredentials: true
+                    }
+                })
+            },
+            function(ex) {
+                task.setStatus(utils.FAILED,ex.message || ex)
+                callback(feat,utils.FAILED,task.message)
+            })
+        }
+      },
+      newFireNumber:function(bushfireid,prefix) {
+        bushfireid = Math.abs(bushfireid)
+        return (prefix || "New bushfire") + " " + ((bushfireid < 10)?"00":(bushfireid < 100?"0":"")) + bushfireid
+      },
+      newFeature:function(feat) {
+        var vm = this
+        this._bushfireSequence = (this._bushfireSequence || 0) 
+        var featId = 0
+        if (feat && feat.get('id')) {
+            if (Math.abs(feat.get('id')) > this._bushfireSequence) {
+                this._bushfireSequence = Math.abs(feat.get('id'))
+            }
+            featId = Math.abs(feat.get('id'))
+        } else {
+            this._bushfireSequence += 1
+            featId = this._bushfireSequence 
+        }
+        if (feat) {
+            feat.set('status','new',true)
+            feat.set('tint','new',true)
+            feat.set('id',featId * -1,true) 
+            feat.set('originalTint','new',true)
+            feat.set('toolName','Bfrs Origin Point',true)
+            feat.set('fillColour',this.tints["new.fillColour"],true)
+            feat.set('colour',this.tints["new.colour"],true)
+            if (feat.getGeometry()) {
+                feat.inViewport = ol.extent.containsCoordinate(vm.map.extent,vm.originpointCoordinate(feat))
+            } else {
+                feat.inViewport = false
             }
         } else {
-            //no report key,create
-            return this.bfrsService + "/reports" + "?point=" 
+            feat = new ol.Feature({
+                geometry:new ol.geom.GeometryCollection([]),
+                status:'new',
+                tint:'new',
+                id:this._bushfireSequence * -1, 
+                originalTint:'new',
+                toolName:'Bfrs Origin Point',
+                fillColour:this.tints["new.fillColour"],
+                colour:this.tints["new.colour"],
+            })
+            feat.inViewport = true
         }
+        feat.setStyle(this.bushfireStyleFunc)
+        feat.set('modifyType',3,true)
+        feat.set('fire_number',this.newFireNumber(featId),true)
+        feat.set('name',this.newFireNumber(featId,"New bushfire report"),true)
+        feat.set('report_status',99998,true)
+        if (!feat.get('created')) {
+            feat.set('created',new Date().toISOString(),true)
+        }
+        feat.set('fire_detected_or_created',feat.get('fire_detected_date') || feat.get('created'),true)
+        feat.icon = 'dist/static/symbols/fire/dashed-origin.svg'
+
+        vm._insertNewFeature = vm._insertNewFeature || function(features,feat){
+            var insertIndex = null
+            $.each(Array.isArray(features)?features:features.getArray(),function(index,f){
+                if (vm.featureOrder(feat,f) === -1) {
+                    insertIndex = index
+                    return false
+                }
+            })
+            if (insertIndex != null) {
+                if (Array.isArray(features)) {
+                    features.splice(insertIndex,0,feat)
+                } else {
+                    features.insertAt(insertIndex,feat)
+                }
+            } else {
+                features.push(feat)
+            }
+        }
+
+        vm._insertNewFeature(this.features,feat)
+        //add to the feature list and map
+        vm._insertNewFeature(this._featurelist,feat)
+        if (vm.clippedFeatures.length > 0) {
+            vm._insertNewFeature(this.clippedFeatures,feat)
+        }
+        return feat
+      },
+      createFeature:function(feat) {
+        if (this.canCreate(feat)) {
+            var vm = this
+            if (!vm._taskManager.initTasks(feat)) {
+                return
+            }
+            var task = vm._taskManager.addTask(feat,"create","create","Open bushfire report form",utils.RUNNING)
+            this.getSpatialData(feat,"create",function(spatialData,job) {
+                feat.set("modifyType",0,true)
+                if (!feat.get("sss_id")) {
+                    feat.set("sss_id",hash.MD5(vm.whoami["email"] + "-" + Date.now() + "-" + feat.getGeometry().getGeometriesArray()[0].getCoordinates().join(",")),true)
+                }
+                spatialData["sss_id"] = feat.get("sss_id")
+                $("#sss_create").val(JSON.stringify(spatialData))
+                utils.submitForm("bushfire_create")
+                task.setStatus(utils.SUCCEED)
+                vm._taskManager.clearTasks(feat)
+            },
+            function(ex){
+                task.setStatus(utils.FAILED,"")
+                var msg = vm._taskManager.errorMessages(feat).join("\r\n")
+                if (msg) alert(msg)
+            })
+        }
+      },
+      deleteFeature:function(feat) {
+         var vm = this
+         if (this.canDelete(feat)) {
+            vm._deleteFeature = vm._deleteFeature || function(feat) {
+                //console.log("Delete feature " + feat.get('label'))
+                vm.selectedFeatures.remove(feat)
+                //remove feature from list and map
+                var index = vm.clippedFeatures.findIndex(function(f) {return f === feat})
+                if (index >= 0) vm.clippedFeatures.splice(index,1)
+                vm._featurelist.remove(feat)
+                vm.features.remove(feat)
+                vm.revision += 1
+            }
+            if (feat.get('status') === 'new') {
+                vm._deleteFeature(feat)
+            } else if (window.confirm('The bushfire (' + feat.get('label') + ' will be deleted. Are you sure?')) {
+                $.ajax({
+                    url: vm.deleteUrl(feat),
+                    success: function (response, stat, xhr) {
+                        vm._deleteFeature(feat)
+                    },
+                    error: function (xhr,status,message) {
+                        alert(xhr.status + " : " + (xhr.responseText || message))
+                    },
+                    xhrFields: {
+                      withCredentials: true
+                    }
+                })
+            }
+        }
+      },
+      resetFeature:function(feat,manually,callback) {
+        var vm = this
+        manually = (manually === undefined)?true:manually
+        var filter = 'fire_number=\'' + feat.get('fire_number') + '\''
+        if (this.bushfireLayer.cql_filter) {
+            filter = filter + " and " + this.bushfireLayer.cql_filter
+        }
+        this.bushfireMapLayer.getSource().retrieveFeatures(filter,function(features){
+          if (features && features.length) {
+            vm.initBushfire(features[0])
+            features[0].inViewport = ol.extent.containsCoordinate(vm.map.extent,vm.originpointCoordinate(features[0]))
+            if (feat.selectedIndex !== undefined) {
+                if (vm.annotations.getSelectedGeometry(features[0],feat.selectedIndex)) {
+                    features[0].selectedIndex = feat.selectedIndex
+                } else {
+                    vm.selectDefaultGeometry(features[0])
+                }
+            }
+
+            var index = vm.features.getArray().findIndex(function(f){return f.get('fire_number') === feat.get('fire_number')})
+            if (index >= 0) {
+                if (!manually && vm.features.item(index).tasks && vm.features.item(index).tasks.length > 0) {
+                    features[0].tasks = vm.features.item(index).tasks
+                }
+                vm.features.setAt(index,features[0])
+            }
+
+            //features in layer's source is synchronized with _featurelist
+            index = vm._featurelist.getArray().findIndex(function(f){return f.get('fire_number') === feat.get('fire_number')})
+            if (index >= 0) {
+                vm._featurelist.setAt(index,features[0])
+                vm.revision += 1
+            }
+
+            index = vm.clippedFeatures.findIndex(function(f){return f.get('fire_number') === feat.get('fire_number')})
+            if (index >= 0) {
+                vm.clippedFeatures[index] = features[0]
+                vm.revision += 1
+            }
+
+            index = vm.selectedFeatures.getArray().findIndex(function(f){return f.get('fire_number') === feat.get('fire_number')})
+            if (index >= 0) {
+                vm.selectedFeatures.setAt(index,features[0])
+            }
+              
+            if (callback) {
+                callback(features[0])
+            }
+            vm._checkPermission(features)
+          } else {
+            //feature does not exist or is invalid, remove it from bushfire list
+            vm.selectedFeatures.remove(feat)
+            vm._featurelist.remove(feat)
+            var index = vm.clippedFeatures.findIndex(function(f) {return f === feat})
+            if (index >= 0) vm.clippedFeatures.splice(index,1)
+            vm.features.remove(feat)
+
+            vm.revision += 1
+            if (callback) {
+                callback(null)
+            }
+          }
+          vm.refreshFinalFireboundaryLayer()
+        })
+      },  
+      adjustHeight:function() {
+        if (this.activeMenu === "bfrs") {
+            //$("#bfrs-list").height(this.screenHeight - this.leftPanelHeadHeight - 16 - 16 - 5 - $("#bfrs-list-controller-container").height() - this.hintsHeight)
+            $("#bfrs-list").height(this.screenHeight - this.leftPanelHeadHeight - 37 - $("#bfrs-list-controller-container").height() - this.hintsHeight)
+        }
+      },
+      //modifyType(bit value): 
+      //    first bit:  origin point modified; 
+      //    second bit: fire boundary modified.
+      //    -1: feature is drawed ,can't figure out which part of spatial data was modified  
+      postModified:function(bushfires,modifyType) {
+        var vm = this
+        this._bushfirePostModified = this._bushfirePostModified || function(bushfire,modifyType) {
+            if (bushfire.get('tint') !== "modified" && (bushfire.get('status') !== "new" || bushfire.get("sss_id"))) {
+                bushfire.set('tint',"modified",true)
+                bushfire.set('fillColour',vm.tints[bushfire.get('tint') + ".fillColour"])
+                bushfire.set('colour',vm.tints[bushfire.get('tint') + ".colour"])
+            }
+            if (modifyType === -1) {
+                if (vm.isFireboundaryDrawable(bushfire)) {
+                    //both fireboundary and point can be changed, don't which part of spatial data was changed,
+                    modifyType = 3
+                } else {
+                    //only point can be changed.
+                    modifyType = 1
+                }
+            }
+            bushfire.set('modifyType',(bushfire.get('modifyType') || 0) | modifyType,true)
+        }
+        if (Array.isArray(bushfires)) {
+            $.each(bushfires,function(index,bushfire){
+                vm._bushfirePostModified(bushfire,modifyType)
+            })
+        } else {
+            vm._bushfirePostModified(bushfires,modifyType)
+        }
+        vm.revision += 1
+      },
+      isModified:function(feat){
+        return feat.get('tint') === 'modified'
       },
       toggleSelect: function (f) {
         if (this.selected(f)) {
-          this.annotations.selectedFeatures.remove(f)
+          this.selectedFeatures.remove(f)
         } else {
-          this.annotations.selectedFeatures.push(f)
+          if (["Bfrs Origin Point","Bfrs Edit Geometry","Bfrs Fire Boundary"].indexOf(this.annotations.tool.name) >= 0) {
+              //Only one bushfire can be choosed in edit mode
+              this.selectedFeatures.clear()
+          }
+          this.selectedFeatures.push(f)
+        }
+        //this.zoomToSelected(200)
+      },
+      toggleViewportOnly: function () {
+        this.viewportOnly = !this.viewportOnly
+        this.export.saveState()
+      },
+      toggleBushfireLabels: function () {
+        var vm = this
+        this.bushfireLabels = !this.bushfireLabels
+        this.export.saveState()
+      },
+      initBushfire:function(feature) {
+        feature.set('status',this._reportStatus[feature.get('report_status') || 99999],true)
+
+        var geometries = feature.getGeometry()?[feature.getGeometry()]:[]
+        if (feature.get("fire_boundary")) {
+            var fire_boundary = JSON.parse(feature.get("fire_boundary"))
+            if (fire_boundary.coordinates) {
+                if (!this.isFireboundaryDrawable(feature)) {
+                    feature.set("fire_boundary",new ol.geom.Polygon(fire_boundary.coordinates).getExtent(),true)
+                } else {
+                    geometries.push(new ol.geom.MultiPolygon(fire_boundary.coordinates))
+                    feature.unset("fire_boundary",true)
+                }
+            } else {
+                feature.unset("fire_boundary",true)
+            }
+        } else {
+            feature.unset("fire_boundary",true)
+        }
+        feature.setGeometry(new ol.geom.GeometryCollection(geometries),true)
+        var now = moment()
+        var timestamp = moment(feature.get('created'))
+
+        feature.set('status',this._reportStatus[feature.get('report_status') || 99999],true)
+
+        feature.set('toolName','Bfrs Origin Point',true)
+        feature.set('tint',feature.get('status'),true)
+        feature.set('originalTint', feature.get('tint'),true)
+        feature.set('fillColour',this.tints[feature.get('tint') + ".fillColour"])
+        feature.set('colour',this.tints[feature.get('tint') + ".colour"])
+        feature.setStyle(this.bushfireStyleFunc)
+        if (feature.get('status') === 'initial') {
+            feature.icon = 'dist/static/symbols/fire/dashed-origin.svg' 
+        }
+      },
+      showBushfireLabels:function() {
+        if (this.bushfireMapLayer && !this.$root.active.isHidden(this.bushfireMapLayer)) {
+            this.bushfireMapLayer.changed()
         }
       },
       featureIconSrc:function(f) {
         var vm = this
         //trigger dynamic binding
-        var tmp = this.selectedReports
-        return this.map.getBlob(f, ['icon', 'tint'],this.tints,function(){
-            $("#report-icon-" + f.get(vm.reportKey)).attr("src", vm.featureIconSrc(f))
+        return this.map.getBlob(f, ['icon', 'originalTint'],this.tints,function(){
+            $("#bushfire-icon-" + f.get('id')).attr("src", vm.featureIconSrc(f))
         })
       },
       selected: function (f) {
-        return f.get(this.reportKey) && (this.selectedReports.indexOf(f.get(this.reportKey)) > -1)
+        return f.get('fire_number') && (this.selectedBushfires.indexOf(f.get('fire_number')) > -1)
       },
-      downloadList: function () {
-        this.$root.export.exportVector(this.features.filter(this.resourceFilter).sort(this.resourceOrder), 'bushfirereport')
-      },
-      updateCQLFilter: function () {
-        var filters = []
-        if(this.cql.trim()) {filter.push(this.cql.trim())}
-        var reportFilter = ''
-        // filter by specific reports if "Show selected only" is enabled
-        if (this.reportFromDate && this.reportToDate) {
-            filters.push( "seen between '" + this.reportFromDate + ' ' + "00:00:00' and '" + this.reportToDate + ' ' + "23:59:00'")
+      downloadList: function (fmt,downloadType) {
+        var vm = this
+        var cql_filter = ""
+        this.dialog.show({
+            messages:"Downloading bushfires...",
+            buttons:null
+        })
+        var bbox = ""
+        var originpoint_filter = ""
+        var fireboundary_filter = ""
+        if (downloadType === "listed") {
+            if (this.clippedOnly || ((vm.bushfireLayer.cql_filter || (this.search && this.search.trim().length > 0) || (this.viewportOnly && this.extentFeatureSize !== this.featureSize) && this.viewportOnly?this.extentFeatureSize:this.featureSize) <= 80)) {
+                var features = this._featurelist.getArray().filter(function(f) {
+                    if (f.get('status') === 'new') {
+                        return false
+                    }
+                    if (!vm.showFeature(f)) {
+                        return false
+                    }
+                    return true
+                })
+                cql_filter = 'fire_number in (\'' + features.map(function(f){return f.get('fire_number')}).join('\',\'') + '\')'
+                originpoint_filter = "&cql_filter=" + cql_filter
+                fireboundary_filter = originpoint_filter
+            } else {
+                cql_filter = vm.bushfireLayer.cql_filter || ""
+                if (this.search && this.search.trim().length > 0) {
+                    cql_filter = (cql_filter?(cql_filter + " and (("):"((") +  this.fields.map(function(field) { return "strToLowerCase(" + field + ") like '%25" + vm.search.trim().toLowerCase() + "%25'"}).join(") or (") + "))"
+                }
+                if (cql_filter.length > 0) {
+                    if (this.viewportOnly && this.extentFeatureSize !== this.featureSize) {
+                        bbox = this.map.extent
+                        originpoint_filter = "&cql_filter=" + (cql_filter + " and BBOX(origin_point," + bbox[1] + "," + bbox[0] + "," + bbox[3] + "," + bbox[2] + ")")
+                        fireboundary_filter = "&cql_filter=" + (cql_filter + " and BBOX(fire_boundary," + bbox[1] + "," + bbox[0] + "," + bbox[3] + "," + bbox[2] + ")")
+                        bbox = ""
+                    } else {
+                        originpoint_filter = "&cql_filter=" + cql_filter
+                        fireboundary_filter = originpoint_filter
+                    }
+                }
+
+            }
+            if (cql_filter.length === 0 && (this.viewportOnly && this.extentFeatureSize !== this.featureSize)) {
+                bbox = this.map.extent
+                bbox = "&bbox=" + bbox[1] + "," + bbox[0] + "," + bbox[3] + "," + bbox[2]
+            }
+        }
+        //console.log("originpoint filter = " + originpoint_filter)
+        //console.log("bbox = " + bbox)
+        var bushfireLayer = (downloadType === "listed")?vm.env.bushfireLayer:vm.env.allBushfireLayer
+        var fireboundaryLayer = (downloadType === "listed")?vm.env.fireboundaryLayer:vm.env.allFireboundaryLayer
+        var options = {
+            filename:"bushfires_" + downloadType + "_" + moment().format('YYYY-MM-DD-HHmm'),
+            srs:"EPSG:4326",
+            layers:[{
+                layer:"initial_bushfire_originpoint",
+                ignore_if_empty:true,
+                sourcelayers:{
+                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + bushfireLayer + originpoint_filter  + bbox,
+                    where:"report_status=1",
+                }
+            },{
+                layer:"final_bushfire_originpoint",
+                ignore_if_empty:true,
+                sourcelayers:{
+                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + bushfireLayer + originpoint_filter + bbox,
+                    where:"report_status>1",
+                }
+            },{
+                layer:"initial_bushfire_fireboundary",
+                ignore_if_empty:true,
+                sourcelayers:{
+                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
+                    where:"report_status=1",
+                }
+            },{
+                layer:"final_bushfire_fireboundary",
+                ignore_if_empty:true,
+                sourcelayers:{
+                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
+                    where:"report_status>1",
+                }
+            }]
         }
 
-        // CQL statement assembling logic
-        if (filters.length == 0) {
-          this.reportLayer.cql_filter = ""
-        } else if(filters.length == 1) {
-          this.reportLayer.cql_filter = filters[0]
-        } else {
-          this.reportLayer.cql_filter = "(" + filters.join(") and (") + ")"
+        if (downloadType === 'listed') {
+            var geometries = null
+            var feature = null
+            var id = 0
+            var newBushfiresPoint = []
+            var newBushfiresBoundary = []
+            $.each(this._featurelist.getArray(),function(index,f){
+                if (vm.showFeature(f) && f.get('status') == 'new') {
+                    geometries = f.getGeometry().getGeometriesArray()
+
+                    feature = vm.map.cloneFeature(f,false,['toolName','tint','originalTint','fillColour','colour','status','label','measurement','fire_boundary','modifyType'])
+                    feature.setGeometry( geometries.find(function(g) {return g instanceof ol.geom.Point}) || null)
+                    feature.setId(++id)
+                    newBushfiresPoint.push(feature)
+
+                    feature = vm.map.cloneFeature(feature,false)
+                    feature.setGeometry(geometries.find(function(g){ return g instanceof ol.geom.MultiPolygon}) || new ol.geom.MultiPolygon())
+                    feature.setId(++id)
+                    newBushfiresBoundary.push(feature)
+                }
+            })
+            if (newBushfiresPoint.length > 0 ) {
+                options["newBushfiresOriginPoint"] = this.$root.geojson.writeFeatures(newBushfiresPoint)
+                options["layers"].push({
+                    layer:"new_bushfire_point",
+                    ignore_if_empty:true,
+                    sourcelayers:{
+                        parameter:"newBushfiresOriginPoint",
+                        srs:"EPSG:4326"
+                    }
+                })
+            }
+            if (newBushfiresBoundary.length > 0 ) {
+                options["newBushfiresFireboundary"] = this.$root.geojson.writeFeatures(newBushfiresBoundary)
+                options["layers"].push({
+                    layer:"new_bushfire_fireboundary",
+                    ignore_if_empty:true,
+                    sourcelayers:{
+                        parameter:"newBushfiresFireboundary",
+                        srs:"EPSG:4326"
+                    }
+                })
+            }
         }
-    
-        this.reportMapLayer.set('updated', moment().toLocaleString())
-        this.reportMapLayer.getSource().loadSource("query")
-      },
-      updateResourceFilter: function () {
-        var mapLayer = this.reportMapLayer
-        // update vue list for filtered features in the current extent
-        this.extentFeatures = mapLayer.getSource().getFeaturesInExtent(this.$root.export.mapLayout.extent).filter(this.resourceFilter)
-        this.extentFeatures.sort(this.resourceOrder)
-        // update vue list for filtered features
-        this.allFeatures = mapLayer.getSource().getFeatures().filter(this.resourceFilter)
-        this.allFeatures.sort(this.resourceOrder)
-      },
-      resourceFilter: function (f) {
-        var search = ('' + this.search).toLowerCase()
-        var found = !search || this.fields.some(function (key) {
-          return ('' + f.get(key)).toLowerCase().indexOf(search) > -1
+        this.$root.export.downloadVector(fmt,options,function(status,msg){
+            if (status) {
+                vm.dialog.close()
+            } else {
+                vm.dialog.addMessage(msg)
+            }
         })
-        return found
       },
-      zoomToSelected: function () {
-        var extent = ol.extent.createEmpty()
-        this.selectedFeatures.forEach(function (f) {
-          ol.extent.extend(extent, f.getGeometry().getExtent())
-        })
-        var map = this.$root.map.olmap
-        map.getView().fit(extent, map.getSize())
+      uploadBushfire:function(targetFeature) {
+        this._uploadBushfireNumber = targetFeature.get('fire_number')
+        this._uploadType = "fireboundary"
+        this._uploadTargetOnly = true
+        $("#uploadBushfires").click()
       },
-      updateReport: function() {
+      importList: function () {
+        if (this.$els.bushfiresfile.files.length === 0) {
+            return
+        }
+        var file = this.$els.bushfiresfile.files[0]
+        this.$els.bushfiresfile.value = null
+
         var vm = this
-        // syncing of Resource Tracking features between Vue state and OL source
-        var mapLayer = vm.reportMapLayer
-        if (!mapLayer) { return }
-        var feats = mapLayer.getSource().getFeatures()
-        // update the contents of the selectedFeatures group
-        if (vm.annotations.selectable === vm.selectable) {
-            var reportIds = vm.selectedReports.slice()
-            for(var i = vm.annotations.selectedFeatures.getLength() - 1;i >= 0; i--) {
-                if (!vm.isModified(vm.annotations.selectedFeatures.item(i))) {
-                    //element is not modified,remote it and readd it later
-                    vm.annotations.selectedFeatures.removeAt(i)
+        var targetFeature = null
+        if (this._uploadBushfireNumber) {
+            targetFeature = this.features.getArray().find(function(f) {return f.get('fire_number') === vm._uploadBushfireNumber})
+            delete this._uploadBushfireNumber
+            if (!targetFeature) {
+                alert("Bushfire (" + this._uploadBushfireNumber + ") does not exist in the bushfire list.")
+                return
+            }
+        }
+
+        var uploadType = this._uploadType
+        delete this._uploadType
+
+        var targetOnly = (targetFeature && this._uploadTargetOnly)?true:false
+        delete this._uploadTargetOnly
+
+        var import_task = null
+        if (targetFeature) {
+            if (!this._taskManager.initTasks(targetFeature)) {
+                return
+            }
+            import_task = this._taskManager.addTask(targetFeature,"import","import","Import bushfire fire boundary",utils.RUNNING)
+        }
+        vm.export.importVector(file,function(features,fileFormat){
+          try{
+            if (targetFeature) {
+                targetFeature = vm.features.getArray().find(function(f) {return f.get('fire_number') === targetFeature.get('fire_number')})
+                if (!targetFeature) {
+                    alert("Bushfire (" + targetFeature.get('fire_number') + ") does not exist in the bushfire list.")
+                    return
                 }
             }
-            feats.filter(function(el, index, arr) {
-              var id = el.get(vm.reportKey)
-              if (!id) return false
-              if (reportIds.indexOf(id) < 0) return false
-              //feature is modified, and is kept in selected features, no need to add it again
-              if (vm.isModified(el)) return false 
-              return true
-            }).forEach(function (el) {
-              vm.annotations.selectedFeatures.push(el)
-            })
-        }
 
-        // update vue list for filtered features in the current extent
-        vm.extentFeatures = mapLayer.getSource().getFeaturesInExtent(vm.$root.export.mapLayout.extent).filter(vm.resourceFilter)
-        vm.extentFeatures.sort(vm.resourceOrder)
-        // update vue list for filtered features
-        vm.allFeatures = feats.filter(vm.resourceFilter)
-        vm.allFeatures.sort(vm.resourceOrder)
+            var importedFinalFeatures = 0
+            var importingFeatures = features.length
+            var selectedFeatures = []
+            if (!import_task && features.length > 0) {
+                vm.dialog.show({
+                    messages:"Importing bushfires...",
+                    tasks: features.length,
+                    buttons:null
+                })
+            }
+            var featureImported = function(status,message) {
+                if (!import_task) {
+                    if (status === utils.SUCCEED) {
+                        vm.dialog.addSucceedTask()
+                    } else if (status === utils.WARNING) {
+                        vm.dialog.addWarningTask()
+                    } else if (status === utils.IGNORED) {
+                        vm.dialog.addIgnoredTask()
+                    } else if (status === utils.MERGED) {
+                        vm.dialog.addMergedTask()
+                    } else {
+                        vm.dialog.addFailedTask()
+                    }
+                    if (message) {
+                        vm.dialog.addMessage(message)
+                    }
+                    if (vm.dialog.tasks <= vm.dialog.succeedTasks) {
+                        setTimeout(function(){vm.dialog.close()},1000);
+                    }
+                } else if(message) {
+                    alert(message)
+                }
+
+                importingFeatures -= 1
+                if (importingFeatures <= 0) {
+                    vm.selectedFeatures.clear()
+                    vm.selectedFeatures.extend(selectedFeatures)
+                    if (importedFinalFeatures > 0) {
+                        vm.refreshBushfires()
+                    }
+                }
+            }
+
+            var f = null
+            //initialize the loaded features
+            if (fileFormat === "gpx") {
+                //gpx file
+                if (uploadType === "originpoint") {
+                    features.length = 0
+                }
+                for(var i = features.length - 1;i >= 0;i--) {
+                    feature = features[i]
+                    if (targetFeature) {
+                        feature.set('fire_number',targetFeature.get('fire_number'),true)
+                        feature.set('id',targetFeature.get('id'),true)
+                    }
+                    if (uploadType === "originpoint") {
+                        features.splice(i,1)
+                        featureImported(utils.IGNORED)
+                        continue
+                    }
+                    if (feature.getGeometry() instanceof ol.geom.Point) {
+                        //feature.set('toolName','Spot Fire')
+                        featureImported(utils.IGNORED)
+                        features.splice(i,1)
+                    } else if(feature.getGeometry() instanceof ol.geom.LineString) {
+                        var coordinates = feature.getGeometry().getCoordinates()
+                        coordinates.push(coordinates[0])
+                        feature.setGeometry(new ol.geom.Polygon([coordinates]))
+                    } else if(feature.getGeometry() instanceof ol.geom.MultiLineString) {
+                        var geom = feature.getGeometry()
+                        var coordinates = null
+                        var mp = new ol.geom.MultiPolygon()
+                        $.each(geom.getLineStrings(),function(index,linestring) {
+                            coordinates = linestring.getCoordinates()
+                            if (coordinates[coordinates.length - 1][0] !== coordinates[0][0] || coordinates[coordinates.length - 1][1] !== coordinates[0][1]) {
+                                coordinates.push(coordinates[0])
+                            }
+                            mp.appendPolygon(new ol.geom.Polygon([coordinates]))
+                        })
+                        feature.setGeometry(mp)
+                    } else {
+                        featureImported(utils.IGNORED)
+                        features.splice(i,1)
+                    }
+                }
+            } else {
+                //geo json file
+                //try to figure out the property name of 'fire_number' in imported files
+                var fire_number_property = null
+                for(var i = "fire_number".length;i >= 8;i--) {
+                    var name = "fire_number".substring(0,i)
+                    for (var j = 0;j < features.length;j++) {
+                        if (features[j].get(name) !== undefined) {
+                            fire_number_property = name
+                            break
+                        }
+                    }
+                    if (fire_number_property) {
+                        break
+                    }
+                }
+                fire_number_property = fire_number_property || "fire_number"
+                if (fire_number_property !== "fire_number") {
+                    //for some reason, the name of fire_number property is not 'fire_number', change the name of fire_number property to 'fire_number'
+                    //for example, in shape file, the name of fire_number property is 'fire_numbe' because of the property length limit
+                    for (var j = 0;j < features.length;j++) {
+                        if (features[j].get(fire_number_property) !== undefined) {
+                            features[j].set('fire_number',features[j].get(fire_number_property),true)
+                            features[j].unset(fire_number_property)
+                        }
+                    }
+                }
+
+                for(var i = features.length - 1;i >= 0;i--) {
+                    feature = features[i]
+                    if (targetFeature && (feature.get('fire_number') === undefined || feature.get('fire_number') === null)) {
+                        feature.set('fire_number',targetFeature.get('fire_number'),true)
+                        feature.set('id',targetFeature.get('id'),true)
+                    }
+                    if (targetOnly && feature.get('fire_number') !== targetFeature.get('fire_number')) { 
+                        //not target feature, ignore
+                        features.splice(i,1)
+                        featureImported(utils.IGNORED)
+                        continue
+                    } 
+                    if (feature.getGeometry() instanceof ol.geom.Point) {
+                        if (uploadType === "fireboundary") {
+                            featureImported(utils.IGNORED)
+                            features.splice(i,1)
+                        }
+                    } else if (feature.getGeometry() instanceof ol.geom.Polygon) {
+                        if (uploadType === "originpoint") {
+                            featureImported(utils.IGNORED)
+                            features.splice(i,1)
+                        }
+                    } else if (feature.getGeometry() instanceof ol.geom.MultiPolygon) {
+                        if (uploadType === "originpoint") {
+                           featureImported(utils.IGNORED)
+                            features.splice(i,1)
+                        }
+                    } else if (feature.getGeometry() instanceof ol.geom.GeometryCollection) {
+                        //remove the MultiPoint feature
+                        features.splice(i,1)
+                        //split the gemoetry collection into mutiple features
+                        var geometries = null
+                        geometries = feature.getGeometry().getGeometries()
+                                   
+                        //split MultiPoint to multiple point feature
+                        $.each(geometries,function(index,geometry){
+                            f = new ol.Feature({ geometry:geometry}) 
+                            features.splice(i,0,f)
+                            i += 1
+                        })
+                        vm.dialog.addTasks(geometries.length - 1)
+                    } else {
+                        featureImported(utils.IGNORED)
+                        features.splice(i,1)
+                    }  
+                }
+            }
+            if (features && features.length == 0) {
+                if (targetFeature) {
+                    import_task.setStatus(utils.WARNING,"Bushfire(" + targetFeature.get('fire_number') + ") not found")
+                    vm._taskManager.clearTasks(targetFeature)
+                } else {
+                    alert("No bushfire to import")
+                }
+            } else {
+                //Combine multile features of bushfire into one feature.
+                features.sort(function(f1,f2){
+                    var id1 = f1.get('fire_number')
+                    var id2 = f2.get('fire_number')
+                    if (id1) {
+                        if (id2) {
+                            return (id1 === id2)?0:(id1 < id2 ?-1:1)
+                        } else {
+                            return 1
+                        }
+                    } else if(id2) {
+                        reurn -1
+                    } else {
+                        return 0
+                    }
+                })
+
+                var feat = null
+                for(var i = features.length - 1;i >= 0;i--) {
+                    if (feat &&
+                        (
+                            feat.get('fire_number') === features[i].get('fire_number') && features[i].get('fire_number') !== undefined && features[i].get('fire_number') !== null
+                        )
+                    ) {
+                        if (features[i].getGeometry() instanceof ol.geom.Point) {
+                            if (feat.getGeometry() instanceof ol.geom.MultiPolygon) {
+                                feat.setGeometry(new ol.geom.GeometryCollection([features[i].getGeometry(),feat.getGeometry()]))
+                                features.splice(i,1)
+                                featureImported(utils.MERGED)
+                            } else {
+                                //already have a point, ignore the point
+                                features.splice(i,1)
+                                featureImported(utils.IGNORED)
+                            }
+                        } else if (features[i].getGeometry() instanceof ol.geom.Polygon) {
+                            if (feat.getGeometry() instanceof ol.geom.MultiPolygon) {
+                                feat.getGeometry().appendPolygon(features[i].getGeometry())
+                                features.splice(i,1)
+                            } else if (feat.getGeometry() instanceof ol.geom.Point) {
+                                feat.setGeometry(new ol.geom.GeometryCollection([feat.getGeometry(),new ol.geom.MultiPolygon([features[i].getGeometry().getCoordinates()])]))
+                                features.splice(i,1)
+                            } else if (feat.getGeometry() instanceof ol.geom.GeometryCollection) {
+                                feat.getGeometry().getGeometriesArray()[1].appendPolygon(features[i].getGeometry())
+                                features.splice(i,1)
+                            }
+                            featureImported(utils.MERGED)
+                        } else if (features[i].getGeometry() instanceof ol.geom.MultiPolygon) {
+                            if (feat.getGeometry() instanceof ol.geom.MultiPolygon) {
+                                $.each(features[i].getGeometry().getPolygons(),function(index,p) {
+                                    feat.getGeometry().appendPolygon(p)
+                                })
+                                features.splice(i,1)
+                            } else if (feat.getGeometry() instanceof ol.geom.Point) {
+                                feat.setGeometry(new ol.geom.GeometryCollection([feat.getGeometry(),features[i].getGeometry()]))
+                                features.splice(i,1)
+                            } else if (feat.getGeometry() instanceof ol.geom.GeometryCollection) {
+                                $.each(features[i].getGeometry().getPolygons(),function(index,p) {
+                                    feat.getGeometry().appendPolygon(p)
+                                    feat.getGeometry().getGeometriesArray()[1].appendPolygon(p)
+                                })
+                                features.splice(i,1)
+                            }
+                            featureImported(utils.MERGED)
+                        }
+                    } else {
+                        feat = features[i]
+                        if (feat.getGeometry() instanceof ol.geom.Polygon) {
+                            feat.setGeometry(new ol.geom.MultiPolygon([feat.getGeometry().getCoordinates()]))
+                        }
+                    }
+                    
+                }
+                
+                //after merged, loaded feature can have geometryCollection,  point or multipolygon
+                //update existing bushfires
+
+                var canUpload = function(uploadedFeature,feature) {
+                    if (feature && !vm.isFireboundaryDrawable(feature)) {
+                        return
+                    }
+                    var uploadedFireboundary = null
+                    if(uploadedFeature.getGeometry() instanceof ol.geom.GeometryCollection) {
+                        uploadedFireboundary = uploadedFeature.getGeometry().getGeometriesArray()[1]
+                    } else if(uploadedFeature.getGeometry() instanceof ol.geom.MultiPolygon) {
+                        uploadedFireboundary = uploadedFeature.getGeometry()
+                    } 
+                    if (!uploadedFireboundary) {
+                        return
+                    }
+                    uploadedFireboundary = uploadedFireboundary.getCoordinates()
+                    var points = 0
+                    for (var pIndex = 0;pIndex < uploadedFireboundary.length;pIndex++) {
+                        for(var rIndex = 0;rIndex < uploadedFireboundary[pIndex].length;rIndex++) {
+                            points += uploadedFireboundary[pIndex][rIndex].length
+                        }
+                    }
+                    if (points > 5000) {
+                        if (feature) {
+                            throw "The initial bushfire(" + uploadedFeature.get('fire_number') + ") has more than 5000 vertex points."
+                        } else {
+                            throw "A uploaded new bushfire has more than 5000 vertex points."
+                        }
+                    }
+                }
+                if (!targetFeature) {
+                    if (vm.search && vm.search.trim().length > 0) {
+                        vm.search = ""
+                        vm.clippedOnly = false
+                        vm.updateFeatureFilter(3,0)
+                    } else if (vm.clippedOnly) {
+                        vm.clippedOnly = false
+                        vm.updateFeatureFilter(1,0)
+                    }
+                }
+                //var notFoundBushfires = null
+                //var noPermissionBushfires = null
+                var geometries = null
+                $.each(features,function(index,feature){
+                    if (feature.get('fire_number') !== undefined) {
+                        //existed bushfire report
+                        try {
+                            var feat = vm.features.getArray().find(function(f) {return f.get('fire_number') === feature.get('fire_number')})
+                            canUpload(feature,feat)
+                            if (feat) {
+                                if (!vm.isModifiable(feat)) {
+                                    featureImported(utils.IGNORED)
+                                    return
+                                }
+                                changed = false
+                                geometries = feat.getGeometry().getGeometriesArray()
+                                featurePoint = geometries.find(function(g){return g instanceof ol.geom.Point}) || null
+                                if (vm.isFireboundaryDrawable(feat)) {
+                                    featureFireboundary = geometries.find(function(g){return g instanceof ol.geom.MultiPolygon}) || null
+                                } else {
+                                    featureFireboundary = feat.get('fire_boundary')
+                                }
+                                var uploadedPoint = null
+                                var uploadedFireboundary = null
+                                if (feature.getGeometry() instanceof ol.geom.Point) {
+                                    uploadedPoint = feature.getGeometry()
+                                } else if(feature.getGeometry() instanceof ol.geom.GeometryCollection) {
+                                    uploadedPoint = feature.getGeometry().getGeometriesArray()[0]
+                                    uploadedFireboundary = feature.getGeometry().getGeometriesArray()[1]
+                                } else if(feature.getGeometry() instanceof ol.geom.MultiPolygon) {
+                                    uploadedFireboundary = feature.getGeometry()
+                                } 
+                                var modifyType = 0
+                                if (uploadedPoint && !vm.map.isGeometryEqual(uploadedPoint,featurePoint,0.000000005)) {
+                                    modifyType = modifyType | 1
+                                }
+                                if (uploadedFireboundary && (!vm.isFireboundaryDrawable(feat) || !vm.map.isGeometryEqual(uploadedFireboundary,featureFireboundary,0.000000005))) {
+                                    modifyType = modifyType | 2
+                                }
+    
+                                if (!vm.isFireboundaryDrawable(feat) && (modifyType & 2) === 2) {
+                                    //save to the database directly
+                                    feature.set('id',feat.get('id'),true)
+                                    feature.set('status',feat.get('status'),true)
+                                    feature.set('report_status',feat.get('report_status'),true)
+                                    feature.set('fire_number',feat.get('fire_number'),true)
+                                    feature.set('modifyType',modifyType | (feat.get('modifyType') || 0),true)
+                                    feature.set('tint','modified',true)
+                                    feature.set('fire_boundary',uploadedFireboundary.getExtent(),true)
+                                    feature.set('external_feature',true)
+                                    newGeometries = []
+                                    if ((modifyType & 1) === 1) {
+                                        //both fireboundary and origin point are changed
+                                        feature.setGeometry(new ol.geom.GeometryCollection([uploadedPoint,uploadedFireboundary]))
+                                    } else if (featurePoint) {
+                                        //only fire boundary is changed, feature already has a valid origin point
+                                        feature.setGeometry(new ol.geom.GeometryCollection([featurePoint,uploadedFireboundary]))
+                                    } else {
+                                        //only fire boundary is changed, feature does not have a valid origin point
+                                        feature.setGeometry(new ol.geom.GeometryCollection([uploadedFireboundary]))
+                                    }
+                                    if (!targetFeature && !vm._taskManager.initTasks(feat)) {
+                                        featureImported(utils.IGNORED)
+                                        return
+                                    }
+                                    feature.tasks = feat.tasks
+                                    vm.saveFeature(feature,targetFeature?"import":"batchimport",function(f,status,msg){
+                                        if (import_task) {
+                                            import_task.setStatus(status)
+                                        }
+                                        if (status === utils.SUCCEED) {
+                                            vm._taskManager.clearTasks(feat)
+                                        }
+                                        if (status === utils.SUCCEED || status === utils.WARNING) {
+                                            importedFinalFeatures += 1
+                                            selectedFeatures.push(feat)
+                                        }
+                                        if (import_task) {
+                                            msg = vm._taskManager.errorMessages(feat).join("\r\n")
+                                            if (msg) alert(msg)
+                                        }
+                                        featureImported(status)
+                                    })
+                                } else {
+                                    if ((modifyType & 1) === 1) {
+                                        if (featurePoint) {
+                                            geometries[0] = uploadedPoint
+                                        } else {
+                                            geometries.splice(0,0,uploadedPoint)
+                                        }
+                                    }
+                                    if ((modifyType & 2) === 2) {
+                                        if (featureFireboundary){
+                                            geometries[1] = uploadedFireboundary
+                                        } else {
+                                            geometries.push(uploadedFireboundary)
+                                        }
+                                    }
+                                    selectedFeatures.push(feat)
+                                    if (modifyType > 0) {
+                                        feat.getGeometry().setGeometriesArray(geometries)
+                                        vm.postModified(feat,modifyType)
+                                    }
+                                    if (import_task) {
+                                        import_task.setStatus(utils.SUCCEED)
+                                        vm._taskManager.clearTasks(feat)
+                                    }
+                                    featureImported(utils.SUCCEED)
+                                }
+                            } else if(feature.get('id') < 0 && vm.newFireNumber(feature.get('id')) === feature.get('fire_number') && vm.isCreatable()) {
+                                if (vm.isCreatable()) {
+                                    //new feature,
+                                    if (feature.getGeometry() instanceof ol.geom.Point || feature.getGeometry() instanceof ol.geom.MultiPolygon) {
+                                        feature.setGeometry(new ol.geom.GeometryCollection([feature.getGeometry()]))
+                                    }
+                                    vm.newFeature(feature)
+                                    vm.measure.remeasureFeature(feature)
+                                    selectedFeatures.push(feature)
+                                    featureImported(utils.SUCCEED)
+                                } else {
+                                    featureImported(utils.IGNORED)
+                                }
+                            } else {
+                                //notFoundBushfires = notFoundBushfires || []
+                                //notFoundBushfires.push(feature)
+                                featureImported(utils.IGNORED)
+                            }
+                        } catch(ex) {
+                            featureImported(utils.FAILED,ex.message || ex)
+                        }
+                    }
+                }) 
+                //add non existing bushfires
+                $.each(features,function(index,feature){
+                    if (feature.get('fire_number') === undefined) {
+                        if (vm.isCreatable()) {
+                            //non existed bushfire report
+                            try {
+                                canUpload(feature,null)
+                                if (feature.getGeometry() instanceof ol.geom.Point || feature.getGeometry() instanceof ol.geom.MultiPolygon) {
+                                    feature.setGeometry(new ol.geom.GeometryCollection([feature.getGeometry()]))
+                                }
+                                vm.newFeature(feature)
+                                vm.measure.remeasureFeature(feature)
+                                selectedFeatures.push(feature)
+                                featureImported(utils.SUCCEED)
+                            } catch(ex) {
+                                featureImported(utils.FAILED,ex.message || ex)
+                            }
+                        } else {
+                            featureImported(utils.IGNORED)
+                        }
+                    }
+                }) 
+
+                if (import_task && vm._taskManager.getTasks(targetFeature).length === 1) {
+                    import_task.setStatus(utils.SUCCEED)
+                    vm._taskManager.clearTasks(targetFeature)
+                }
+                /*
+                if (notFoundBushfires) {
+                    alert("Some bushfires are not found." + JSON.stringify(notFoundBushfires.map(function(o) {return {id:o.get('id'),name:o.get('name')}})))
+                }
+                */
+            }
+          }catch(ex) {
+            if (import_task) {
+                import_task.setStatus(utils.FAILED,ex.message || ex)
+            }
+            if (targetFeature) {
+                vm._taskManager.clearTasks(targetFeature)
+            }
+            vm.dialog.addMessage(ex.message||ex)
+          }
+        },
+        function(ex) {
+            if (ex !== "Cancelled") {
+                alert(ex)
+            }
+            if (import_task) {
+                import_task.setStatus(utils.FAILED,ex.message || ex)
+            }
+            if (targetFeature) {
+                vm._taskManager.clearTasks(targetFeature)
+            }
+        })
       },
-      setup: function() {
-        // enable bushfire report layer, if disabled
-        var catalogue = this.$root.catalogue
-        if (!this.reportMapLayer) {
-          catalogue.onLayerChange(this.reportLayer, true)
+      resetFilters:function() {
+        this.region = ""
+        this.district = ""
+        this.dateRange = ""
+        this.startDate = ""
+        this.endDate = ""
+        this.statusFilter = "fire_not_found=0"
+        this.updateCQLFilter(0)
+      },
+      refreshBushfires:function() {
+        this.bushfireMapLayer.getSource().loadSource("query")
+        this.refreshFinalFireboundaryLayer()
+        if (this.selectedBushfires.length >= 0) { 
+            this.refreshSelectedFinalFireboundaryLayer()
+        }
+      },
+      updateCQLFilter: function (wait,force,callback) {
+        var vm = this
+        if (!vm._updateCQLFilterFunc) {
+            vm._updateCQLFilterFunc = function(force,callback){
+                try{
+                    if (!vm.bushfireMapLayer) {
+                        vm._updateCQLFilter.call({wait:100},force,callback)
+                        return
+                    }
+                    // CQL statement assembling logic
+                    var filters = [vm.statusFilter, vm.regionFilter(), vm.districtFilter(),vm.dateFilter()].filter(function(f){return (f || false) && true})
+                    var cql_filter = ''
+                    if (filters.length === 0) {
+                      cql_filter = ''
+                    } else if (filters.length === 1) {
+                      cql_filter = filters[0]
+                    } else {
+                      cql_filter = "(" + filters.join(") and (") + ")"
+                    }
+                    if (!force && vm.bushfireLayer.cql_filter === cql_filter) {
+                        //not changed
+                        return 
+                    } else {
+                        vm.bushfireLayer.cql_filter = cql_filter
+                    }
+                    //clear bushfire filter or change other filter
+                    vm.bushfireMapLayer.getSource().loadSource("query",callback)
+                } catch(ex) {
+                    //ignore the exception
+                }
+            }
         }
 
-        this.selectable = [this.reportMapLayer]
-        this.annotations.selectable = this.selectable
-        this.annotations.setTool('Pan')
+        if (!vm._updateCQLFilter) {
+            vm._updateCQLFilter = debounce(function(force,callback){
+                vm._updateCQLFilterFunc(force,callback)
+            },2000)
+        }
+        if (wait === 0) {
+            vm._updateCQLFilterFunc(force,callback)
+        } else if (wait === undefined || wait === null) {
+            vm._updateCQLFilter(force,callback)
+        } else {
+            vm._updateCQLFilter.call({wait:wait},force,callback)
+        }
+      },
+      featureOrder: function (a, b) {
+        if (a.get('status') === "new") {
+            if  (b.get('status') !== 'new') {
+                return -1
+            }
+        } else if(b.get('status') === 'new') {
+            return 1
+        }
+        for(var index = 0;index < this.sortedFields.length;index++) {
+            if (a.get(this.sortedFields[index][0]) === b.get(this.sortedFields[index][0])) {
+                continue
+            } else if (this.sortedFields[index][1]) {
+                return (a.get(this.sortedFields[index][0]) < b.get(this.sortedFields[index][0]))?-1:1
+            } else {
+                return (a.get(this.sortedFields[index][0]) < b.get(this.sortedFields[index][0]))?1:-1
+            }
+        }
+        return 1
+      },
+      featureFilter: function (feat) {
+        if (feat.get('status') === 'new') return true
+
+        var search = ('' + this.search).trim().toLowerCase()
+        if (search && !this.fields.some(function (key) {
+            return ('' + feat.get(key)).toLowerCase().indexOf(search) > -1
+        })){
+            return false
+        }
+        return true
+      },
+      showFeature:function(feat) {
+        return this.revision && (!this.viewportOnly || feat.inViewport)
+      },
+      setExtentFeatureSize:function() {
+        var vm = this
+        var size = 0
+        this._featurelist.forEach(function(feat){
+            if (feat.inViewport) {
+                ++size
+            }
+        })
+        this.extentFeatureSize = size;
+      },
+      clipToSelection:function() {
+        if (this.selectedFeatures.getLength() === 0) {
+            this.clippedFeatures.splice(0,this.clippedFeatures.length)
+            return
+        }
+        this.clippedFeatures.length = 0
+        for (var index = 0;index < this.features.getLength();index++) {
+            if (this.features.item(index).get('status') === 'new') {
+                this.clippedFeatures.push(this.features.item(index))
+            } else {
+                break
+            }
+        }
+        var vm = this
+        $.each(this.selectedFeatures.getArray().sort(this.featureOrder),function(index,feat){
+            if (feat.get('status') === 'new') {
+                //already added in the first step
+                return
+            }
+            vm.clippedFeatures.push(feat)
+            
+        })
+        if (this.clippedOnly) {
+            this.updateFeatureFilter(1,0)
+        }
+      },
+      //filter the loaded features based on report name and fire number
+      //called when refresh, input search criteria
+      //filterType:
+      // 1: clipped bushfire fires
+      // 2: search
+      updateFeatureFilter: function(filterType,wait) {
+        var vm = this
+        this._filterType = ((this._filterType === undefined || this._filterType === null)?0:this._filterType) | filterType
+        var updateFeatureFilterFunc = function() {
+            if (vm._filterType === 0) return
+            //console.log("Filter: " + (((vm._filterType & 2) === 2)?"filterBySearch = true  ":"") + (((vm._filterType & 1) === 1)?"filterBySelected = true":""))
+            var list = vm.clippedOnly?vm.clippedFeatures:vm.features.getArray()
+            if ((vm._filterType & 2) === 2) {
+                list = list.filter(vm.featureFilter)
+            }
+            vm._featurelist.clear()
+            vm._featurelist.extend(list)
+            vm._filterType = 0
+            vm.setExtentFeatureSize()
+            if (vm.selectedFeatures.getLength() > 0) {
+                if (list.length === 0) {
+                    vm.selectedFeatures.clear()
+                } else {
+                    for(var index = vm.selectedFeatures.getLength() - 1;index >= 0;index--) {
+                        if (!list.find(function(f){return f === vm.selectedFeatures.item(index)})) {
+                            vm.selectedFeatures.removeAt(index)
+                        }
+                    }
+                }
+            }
+            vm.revision += 1;
+        }
+    
+        if (!vm._updateFeatureFilter) {
+            vm._updateFeatureFilter = debounce(function(){
+                updateFeatureFilterFunc()
+            },500)
+        }
+
+        if (wait === 0) {
+            updateFeatureFilterFunc()
+        } else if (wait === undefined || wait === null){
+            vm._updateFeatureFilter()
+        } else {
+            vm._updateFeatureFilter.call({wait:wait})
+        }
+      },
+      updateViewport: function(runNow) {
+        var vm = this
+        var updateViewportFunc = function() {
+            var viewportExtent = vm.map.extent
+            vm.features.forEach(function(feat) {
+                feat.inViewport = ol.extent.containsCoordinate(viewportExtent,vm.originpointCoordinate(feat))
+            })
+            vm.setExtentFeatureSize()
+            if (vm.viewportOnly) {
+                vm.revision += 1;
+            }
+        }
+        if (runNow) {
+            updateViewportFunc()
+        } else {
+            if (!vm._updateViewport) {
+                vm._updateViewport = debounce(function(){
+                    updateViewportFunc()
+                },500)
+            }
+            vm._updateViewport()
+        }
+      },
+      scrollToSelected:function() {
+        if (this.selectedFeatures.getLength() === 0) return
+        var index = -1
+
+        for (var i = 0;i < this._featurelist.getLength() ;i++) {
+            if (this.showFeature(this._featurelist.item(i))) {
+                index += 1
+                if (this._featurelist.item(i) === this.selectedFeatures.item(0)) {
+                    break
+                }
+            }
+        }
+        if (index >= 0) {
+            var listElement = document.getElementById("bfrs-list")
+            if (index < listElement.children.length) {
+                listElement.scrollTop += listElement.children[index].getBoundingClientRect().top - listElement.getBoundingClientRect().top
+            }
+        }
+      },
+      selectDefaultGeometry:function(feature) {
+        var geometries = feature.getGeometry().getGeometriesArray()
+        if (geometries.length > 1) {
+            if (geometries[1].getPolygons().length === 0){
+                feature["selectedIndex"] = [0]
+            } else {
+                feature["selectedIndex"] = [1,0]
+            }
+        } else if (geometries.length === 0) {
+            delete feature["selectedIndex"]
+        } else if (geometries[0] instanceof ol.geom.Point){
+            feature["selectedIndex"] = [0]
+        } else if (geometries[0].getPolygons().length === 0){
+            delete feature["selectedIndex"]
+        } else {
+            feature["selectedIndex"] = [0,0]
+        }
+      },
+      loadUserProfile:function() {
+        var vm = this
+        vm._bfrsStatus.phaseBegin("load_profile",20,"Load profile")
+        $.ajax({
+            url: vm.env.bfrsService + "/api/v1/profile/?format=json",
+            method:"GET",
+            dataType:"json",
+            success: function (response, stat, xhr) {
+                vm.whoami["bushfire"]["profile"] = response
+                vm.profileRevision += 1
+                if (vm.whoami["bushfire"]["regions"]) {
+                    vm.region = vm.whoami["bushfire"]["profile"]["region_id"] || ""
+                    vm.district = vm.whoami["bushfire"]["profile"]["district_id"] || ""
+                    vm._bfrsStatus.phaseBegin("load_bushfires",20,"Load bushfires",false,true)
+                    vm.updateCQLFilter(0)
+                    vm.bushfireLayer.initialLoad = true
+                }
+                vm._bfrsStatus.phaseEnd("load_profile")
+            },
+            error: function (xhr,status,message) {
+                alert(xhr.status + " : " + (xhr.responseText || message))
+                vm._bfrsStatus.phaseFailed("load_profile","Failed to loading user profile data. status = " + xhr.status + " , message = " + (xhr.responseText || message))
+            },
+            xhrFields: {
+              withCredentials: true
+            }
+        })
+      },
+      loadRegions:function() {
+        var vm = this
+        vm._bfrsStatus.phaseBegin("load_regions",20,"Load regions")
+        $.ajax({
+            url: vm.env.bfrsService + "/api/v1/region/?format=json",
+            method:"GET",
+            dataType:"json",
+            success: function (response, stat, xhr) {
+                vm.whoami["bushfire"]["regions"] = response
+                vm.profileRevision += 1
+                if (vm.whoami["bushfire"]["profile"]) {
+                    vm.region = vm.whoami["bushfire"]["profile"]["region_id"] || ""
+                    vm.district = vm.whoami["bushfire"]["profile"]["district_id"] || ""
+                    vm._bfrsStatus.phaseBegin("load_bushfires",20,"Load bushfires",false,true)
+                    vm.updateCQLFilter(0)
+                    vm.bushfireLayer.initialLoad = true
+                }
+                vm._bfrsStatus.phaseEnd("load_regions")
+            },
+            error: function (xhr,status,message) {
+                alert(xhr.status + " : " + (xhr.responseText || message))
+                vm._bfrsStatus.phaseFailed("load_regions","Failed to loading regions data. status = " + xhr.status + " , message = " + (xhr.responseText || message))
+            },
+            xhrFields: {
+              withCredentials: true
+            }
+        })
+      },
+
+      setup: function() {
+        var vm = this
+        //restore the selected features
+        this.annotations.restoreSelectedFeatures()
+
+        // enable resource bfrs layer, if disabled
+        if (!this.bushfireMapLayer) {
+          this.catalogue.onLayerChange(this.bushfireLayer, true)
+        } else if (this.active.isHidden(this.bushfireMapLayer)) {
+            this.active.toggleHidden(this.bushfireMapLayer)
+        }
+
+        this.$root.annotations.selectable = [this.bushfireMapLayer]
+        this.annotations.setTool()
+
+        //add feature to place an point based on coordinate
+        this.$root.search.setSearchPointFunc(function(searchMethod,coords,name){
+            if (["DMS","MGA"].indexOf(searchMethod) < 0) {
+                return false
+            }
+            if (vm.annotations.tool && vm.annotations.tool.name === "Bfrs Edit Geometry") {
+                var feat = vm.selectedFeatures.getLength() === 1?vm.selectedFeatures.item(0):null
+                if (!feat) {return false}
+                if (!vm.isModifiable(feat)) {
+                    alert("Can't modify " + feat.get('status') + " report")
+                    return true
+                }
+
+                var hasPoint = feat.getGeometry().getGeometriesArray().length > 0 && feat.getGeometry().getGeometriesArray()[0] instanceof ol.geom.Point
+
+                if (hasPoint) {
+                    feat.getGeometry().getGeometriesArray()[0] = new ol.geom.Point(coords)
+                } else {
+                    feat.getGeometry().getGeometriesArray().splice(0,0,new ol.geom.Point(coords))
+                }
+                feat.getGeometry().setGeometriesArray(feat.getGeometry().getGeometriesArray())
+                vm.postModified(feat,1)
+                
+                feat.getGeometry().changed()
+
+                return true
+            } else if (vm.annotations.tool && vm.annotations.tool.name === "Bfrs Origin Point") {
+                var feat = vm.newFeature()
+                feat.getGeometry().getGeometriesArray().splice(0,0,new ol.geom.Point(coords))
+                feat.getGeometry().setGeometriesArray(feat.getGeometry().getGeometriesArray())
+                feat.getGeometry().changed()
+                vm.selectedFeatures.clear()
+                vm.selectedFeatures.push(feat)
+                vm.annotations.setTool("Bfrs Edit Geometry")
+                vm.postModified(feat,1)
+                return true
+            }
+        })
+
+        this.$nextTick(this.adjustHeight)
+      },
+      tearDown:function() {
+        this.selectable = null
       }
     },
     ready: function () {
       var vm = this
-      var bfrsStatus = vm.loading.register("bfrs","Bushfire Report Component","Initialize")
+      this._changingDate = false
+      this._featurelist =new ol.Collection()
+      this._taskManager = utils.getFeatureTaskManager(function(){
+        vm.revision++
+      })
+
+      //init datepicket
+      $('#bfrsStartDate').fdatepicker({
+	format: 'yyyy-mm-dd',
+	disableDblClickSelection: true,
+	leftArrow:'<<',
+	rightArrow:'>>',
+        startDate:moment().subtract(13,"months").format("YYYY-MM-DD"),
+        endDate:moment().format("YYYY-MM-DD")
+      });
+      try {
+          this._startDatePicker = $("#bfrsStartDate").data().datepicker
+      } catch(ex) {
+          this._startDatePicker = null
+      }
+
+      $('#bfrsEndDate').fdatepicker({
+	format: 'yyyy-mm-dd',
+	disableDblClickSelection: true,
+	leftArrow:'<<',
+	rightArrow:'>>',
+        startDate:moment().subtract(13,"months").format("YYYY-MM-DD"),
+        endDate:moment().format("YYYY-MM-DD")
+      });
+
+      try {
+          this._endDatePicker = $("#bfrsEndDate").data().datepicker
+      } catch(ex) {
+          this._endDatePicker = null
+      }
+
+      vm._bfrsStatus = this.loading.register("bfrs","Bushfire Report Component")
+      vm._bfrsStatus.phaseBegin("initialize",10,"Initialize")
       var map = this.$root.map
-      this.reportKey = "prk_id"
 
-      var addReport = function (f) {
-        if (f.get('tint')) {
-            //not reloaded for some reason, no need to set again
-            return
-        }
-        var tint = 'draft'
-        if (f.get(vm.reportKey) % 2 == 0) {
-            tint = 'draft'
-        } else {
-            tint = 'final'
-        }
-        f.set('tint', tint)
-        f.set('baseTint', tint)
-        f.set('label', f.get('name'))
-        f.set('icon','dist/static/symbols/fire/fire.svg')
-        f.set('selectId', f.get(vm.reportKey))
-        f.setStyle(reportStyle)
+      vm._reportStatus = {
+       99999: "unknown",
+       99998: "new",
+        1: "initial",
+        2: "draft_final",
+        3: "final_authorised",
+        4: "reviewed"
+      }
+      vm._reportStatusName = {
+       99999: "Unknown",
+       99998: "New Draft Incident",
+        1: "Draft Incident",
+        2: "Incident Submitted",
+        3: "Report Authorised",
+        4: "Report Reviewed"
+      }
+      
+      
+      vm.whoami["bushfire"] = vm.whoami["bushfire"] || {}
+      vm.whoami["bushfire"]["permission"] = vm.whoami["bushfire"]["permission"] || {
+          "create":null,
+          "new.edit":false,
+          "new.modify":true,
+          "new.delete":true,
+          "unknown.edit":false,
+          "unknown.modify":false,
+          "unknown.delete":false,
+          "initial.edit":null,
+          "initial.modify":null,
+          "initial.delete":false,
+          "draft_final.edit":null,
+          "draft_final.modify":null,
+          "draft_final.delete":false,
+          "final_authorised.edit":null,
+          "final_authorised.modify":null,
+          "final_authorised.delete":false,
+          "reviewed.edit":null,
+          "reviewed.modify":null,
+          "reviewed.delete":false,
+          "_checked_":0
       }
 
-      var reportStyle = function(res) {
-        
-        var feat = this
-        var style = vm.map.cacheStyle(function (feat) {
-          var src = vm.map.getBlob(feat, ['icon', 'tint'],vm.tints)
-          if (!src) { return false }
-          return new ol.style.Style({
-            image: new ol.style.Icon({
-              src: src,
-              scale: 0.5
-            })
-          })
-        }, feat, ['icon', 'tint'])
-        return style
+      var permissionConfig = [
+          ["create",vm.createUrl(),"GET",null,function(hasPermission){
+             if (hasPermission) {
+                 if (vm.tools && !vm.tools.find(function(t){return t === vm.ui.originPointTool})) {
+                  vm.tools.push(vm.ui.originPointTool)
+                 }
+             }
+          }],
+          ["initial.edit",vm.editUrl,"GET",function(f){return f.get('status') === "initial"},null],
+          ["initial.modify",vm.saveUrl,"PATCH",function(f){return f.get('status') === "initial"},null],
+          ["draft_final.edit",vm.editUrl,"GET",function(f) {return f.get('status') === "draft_final"},null],
+          ["draft_final.modify",vm.saveUrl,"PATCH",function(f) {return f.get('status') === "draft_final"},null],
+          ["final_authorised.edit",vm.editUrl,"GET",function(f) {return f.get('status') === "final_authorised"},null],
+          ["final_authorised.modify",vm.saveUrl,"PATCH",function(f) {return f.get('status') === "final_authorised"},null],
+          ["reviewed.edit",vm.editUrl,"GET",function(f) {return f.get('status') === "reviewed"},null],
+          ["reviewed.modify",vm.saveUrl,"PATCH",function(f) {return f.get('status') === "reviewed"},null],
+      ]
+      vm._checkPermission = function(features,callback){
+          if (vm.whoami['bushfire']['permission']['_checked_'] === permissionConfig.length) {
+              //All permission checks are done
+              if (callback) callback()
+              return
+          }
+
+          var taskCounter = 0
+
+          vm._checkPermissionCallback = vm._checkPermissionCallback || function(callback) {
+              if (vm.whoami['bushfire']["permission"]["changed"]) {
+                  delete vm.whoami['bushfire']["permission"]["changed"]
+                  vm.revision += 1
+              }
+              if (callback) callback()
+          }
+
+          taskCounter += 1
+          for (var index = 0;index < permissionConfig.length;index++) {
+              var p = permissionConfig[index]
+              var url = null
+              if (vm.whoami['bushfire']["permission"][p[0]] === null || vm.whoami['bushfire']["permission"][p[0]] === undefined){
+                  if (p[1] === null) {
+                      //always have the permission
+                      vm.whoami['bushfire']["permission"][p[0]] = true
+                      vm.whoami['bushfire']["permission"]["changed"] = true
+                      vm.whoami['bushfire']['permission']['_checked_'] = vm.whoami['bushfire']['permission']['_checked_'] + 1
+                  } else {
+                      if (typeof p[1] === "string") {
+                          //url is a constant string
+                          url = p[1]
+                      } else {
+                          //url is a function with a bushfire argument.
+                          var f = (Array.isArray(features))?features.find(p[3]):(p[3](features)?features:null)
+                          if (f) {
+                              //get the test url
+                              url = p[1](f)
+                          } else {
+                              //can't find a bushfire to test
+                              url = null
+                              vm.whoami['bushfire']["permission"][p[0]] = null
+                          }
+                      }
+                  }
+              }
+              if (url) {
+                  taskCounter += 1
+                  
+                  vm.utils.checkPermission(url,p[2],function(hasPermission,permission){
+                      vm.whoami['bushfire']['permission']['_checked_'] = vm.whoami['bushfire']['permission']['_checked_'] + 1
+                      vm.whoami['bushfire']["permission"][permission[0]] = hasPermission
+                      vm.whoami['bushfire']["permission"]["changed"] = true
+                      if (permission[4]) {
+                          permission[4](hasPermission)
+                      }
+                      if (--taskCounter <= 0) vm._checkPermissionCallback(callback)
+                  },p)
+              }
+          }
+          if (--taskCounter <= 0) vm._checkPermissionCallback(callback)
       }
 
-      vm.reports = new ol.Collection()
-      vm.$root.fixedLayers.push({
-        type: 'WFSLayer',
-        name: 'Bushfire Report',
-        id: 'dpaw:ratis_rtv_web_parks',
-        onadd: addReport,
-        refresh: 120,
-        min_interval:30,
-        max_interval:600,
-        interval_step:30,
-        cql_filter: false,
-        onload:function(loadType,source,features,defaultFunc) {
-            if (loadType == "auto" ) {
-                if (vm.modifiedFeatures.length > 0) {
-                    //remote all unmodified features
-                    source.clear(true)
-                    source.addFeatures(vm.modifiedFeatures)
-                    source.addFeatures(features.filter(function(f){
-                        return !vm.modifiedFeatures.some(function(modifiedFeature) {
-                            return modifiedFeature.get(vm.reportKey) === f.get(vm.reportKey)
-                        })
-                    }))
+      vm.loadRegions()
+
+      vm.ui = {}
+      var toolConfig = {features:vm.features,mapLayers:function(layer){return layer.get("id") === vm.env.bushfireLayer }}
+      /*
+      vm.ui.translateInter = vm.annotations.translateInterFactory()(toolConfig)
+      vm.ui.translateInter.on("translateend",function(ev){
+          vm.postModified(ev.features.getArray())
+      })
+      */
+      vm.ui.dragSelectInter = vm.annotations.dragSelectInterFactory({
+        listeners: {
+            selected:function(selectedFeatures) {   
+                vm.scrollToSelected()
+            }
+        }
+      })(toolConfig)
+      vm.ui.selectInter = vm.annotations.selectInterFactory({
+        listeners: {
+            selected:function(selectedFeatures) {   
+                vm.scrollToSelected()
+            }
+        }
+      })(toolConfig)
+      vm.ui.geometrySelectInter = vm.annotations.selectInterFactory({
+        condition: function(event) {
+            var result = ol.events.condition.singleClick(event)
+            if (result) {
+                if (vm.bushfireMapLayer && vm.selectedFeatures.getLength() === 1) {
+                    result = vm.bushfireMapLayer.getSource().getFeaturesAtCoordinate(event.coordinate).findIndex(function(o) {return o === vm.selectedFeatures.item(0)}) >= 0
                 } else {
-                    vm.modifiedFeatures = []
-                    defaultFunc(loadType,source,features)
+                    result = false
+                }
+            }
+            return result
+        }
+      })($.extend({selectMode:"geometry"},toolConfig))
+
+      vm.ui.modifyInter = vm.annotations.modifyInterFactory()({features:vm.selectedFeatures,mapLayers:function(layer){return layer.get("id") === vm.env.bushfireLayer }})
+      vm.ui.modifyInter.on("featuresmodified",function(ev){
+          if (ev.features.getLength() === 1 ) {
+            vm.validateBushfire(ev.features.item(0),"modifyBushfire")
+          }
+          vm.postModified(ev.features.getArray(),-1)
+      })    
+
+      vm.ui.originPointDraw = vm.annotations.pointDrawFactory({
+        events: {
+            addfeaturegeometry:true
+        },
+        drawOptions:{
+        }
+      })({
+        features:vm.drawings
+      })
+
+      var canDrawFireboundary = function(ev) {
+        var feat = (vm.selectedFeatures.getLength() == 1)?vm.selectedFeatures.item(0):null
+        if (feat) {
+            var featGeometry = feat.getGeometry()
+            if (vm.isModifiable(feat) && vm.isFireboundaryDrawable(feat)) {
+                if (vm.bushfireMapLayer) {
+                    if (vm.ui.fireboundaryDraw.drawing) {
+                        return true
+                    } else {
+                        return vm.bushfireMapLayer.getSource().getFeaturesAtCoordinate(ev.coordinate).findIndex(function(o) {return o === feat}) < 0
+                    }
+                } else {
+                    return false
                 }
             } else {
-                vm.modifiedFeatures = []
-                defaultFunc(loadType,source,features)
+                return false
             }
+        } else {
+            //alert("Plase choose a bushfire to draw a fire boundary.")
+            return false
         }
-      })
+      }
 
-      vm.editButtonOverlay = new ol.Overlay({
-        id: "bushfireReportEditOverlay",
-        element: $("#bushfireReportEditOverlay")[0],
-        positioning: "bottom-left",
-        stopEvent:true,
-      })
-
-      vm.droppinOverlay = new ol.layer.Vector({
-        source: new ol.source.Vector({
-          features: vm.droppinFeatures
-        })
-      })
-      var droppinDraw = vm.annotations.iconDrawFactory({
-        icon: 'dist/static/images/droppin.svg',
-        features:  vm.droppinFeatures,
-        tint: 'default',
-      })
-      droppinDraw.on("drawend",function(ev) {
-        var feature = ev.feature
-        feature.set('tint', vm.annotations.tool.tint || 'default')
-        feature.setStyle(vm.annotations.tool.style || null)
-        vm.droppinFeatures.clear()
-      })
-
-      vm.droppinTool = {
-        name: 'Drop Pin',
-        icon: 'dist/static/images/droppin.svg',
-        interactions: [droppinDraw],
-        selectedTint: 'selectedPoint',
-        style: vm.annotations.getIconStyleFunction(),
-        scope:["bushfirereport"],
-        onSet:function() {
-          vm.droppinOverlay.setMap(vm.map.olmap)
+      vm.ui.fireboundaryDraw = vm.annotations.polygonDrawFactory({
+        events: {
+            addfeaturegeometry:true
         },
-        onUnset: function() {
-          vm.droppinOverlay.setMap(null)
-        }
-      }
-
-      vm.modifyInter = new ol.interaction.Modify({
-        features: vm.editableFeatures,
-        deleteCondition: function(event) {return false}
-      })
-      vm.modifyInter.on("modifystart",function(ev){
-        ev.features.item(0).set('baseTint','modified')
-        vm.modifiedFeatures.push(ev.features.item(0))
-        vm.editButtonOverlay.setPosition(undefined)
-        vm.editRevision += 1
-      })
-      vm.modifyInter.on("modifyend",function(ev){
-        vm.editButtonOverlay.setPosition(ev.features.item(0).getGeometry().getLastCoordinate())
-      })
-
-      vm.editTool = {
-        name: 'Edit',
-        icon: 'fa-pencil',
-        scope:["bushfirereport"],
-        interactions: [
-          vm.annotations.ui.keyboardInter,
-          vm.annotations.ui.selectInter,
-          vm.annotations.ui.dragSelectInter,
-          vm.modifyInter
-        ],
-        onSet: function() {
-          vm.annotations.ui.dragSelectInter.setMulti(false)
-          vm.annotations.ui.selectInter.setMulti(false)
-        }
-      }
-
-      vm.annotations.tools.push(vm.editTool)
-      vm.annotations.tools.push(vm.droppinTool)
-
-      bfrsStatus.wait(40,"Listen 'gk-init' event")
-      // post init event hookup
-      vm.$on('gk-init', function () {
-        bfrsStatus.progress(80,"Process 'gk-init' event")
-        var viewChanged = global.debounce(function () {
-          vm.updateReport()
-        }, 100)
-        map.olmap.getView().on('propertychange', viewChanged)
-        viewChanged()
-
-        var layersAdded = global.debounce(function () {
-          var mapLayer = vm.reportMapLayer
-          if (!mapLayer) { return }
-          if (!mapLayer.get('tracking')) {
-            mapLayer.set('tracking', mapLayer.getSource().on('loadsource', viewChanged))
-          }
-        }, 100)
-        map.olmap.getLayerGroup().on('change', layersAdded)
-        layersAdded()
-
-        vm.annotations.selectedFeatures.on('add', function (event) {
-          if (vm.annotations.selectable === vm.selectable) {
-            vm.selectedReports.push(event.element.get(vm.reportKey))
-            if (vm.isEditable(event.element)) {
-                vm.editableFeatures.push(event.element)
+        listeners:{
+            drawstart: function() {
+                $.each(vm.ui.modifyTool.interactions,function(index,interaction) {
+                    if (interaction !== vm.ui.fireboundaryDraw) {
+                        interaction.setActive(false)
+                    }
+                })
+            },
+            drawend: function() {
+                $.each(vm.ui.modifyTool.interactions,function(index,interaction) {
+                    if (interaction !== vm.ui.fireboundaryDraw) {
+                        interaction.setActive(true)
+                    }
+                })
+            },
+        },
+        drawOptions:{
+            freehandCondition:function(ev) {
+                var result = ol.events.condition.shiftKeyOnly(ev)
+                if (result) {
+                    return canDrawFireboundary(ev)
+                }
+                return result
+            },
+            condition:function(ev) {
+                var result = ol.events.condition.noModifierKeys(ev)
+                if (result) {
+                    return canDrawFireboundary(ev)
+                }
+                return result
             }
+        },
+        drawProperties:{
+            minDistance:20,
+            freehandSnapTolerance:12,
+        }
+      })({
+        features:vm.drawings
+      })
+      vm.drawings.on("add",function(ev){
+        if (vm.annotations.tool.name === "Bfrs Edit Geometry") {
+            if (vm.selectedFeatures.getLength() === 1){
+                var f = vm.selectedFeatures.item(0)
+                var indexes = null
+
+                var index = f.getGeometry().getGeometriesArray().findIndex(function(g){return g instanceof ol.geom.MultiPolygon})
+                if (index >= 0) {
+                    indexes = [index,f.getGeometry().getGeometriesArray()[index].getPolygons().length]
+                    f.getGeometry().getGeometriesArray()[index].appendPolygon(ev.element.getGeometry())
+                } else {
+                    index = f.getGeometry().getGeometriesArray().length
+                    indexes = [index,0]
+                    f.getGeometry().getGeometriesArray().push(new ol.geom.MultiPolygon([ev.element.getGeometry().getCoordinates()]))
+                }
+                f.getGeometry().setGeometriesArray(f.getGeometry().getGeometriesArray())
+                f.getGeometry().changed()
+                vm.postModified(f,2)
+                vm.validateBushfire(f,"addFireboundary")
+
+                vm.ui.fireboundaryDraw.dispatchEvent(vm.map.createEvent(vm.ui.fireboundaryDraw,"addfeaturegeometry",{feature:f,indexes:indexes}))
+            }
+        } else {
+            var f = null
+            var selectedFeat = (vm.selectedFeatures.getLength() === 1)?vm.selectedFeatures.item(0):null
+            if (selectedFeat && selectedFeat.get('status') === 'new' && !selectedFeat.getGeometry().getGeometriesArray().find(function(g) {return g instanceof ol.geom.Point})) {
+                f = selectedFeat
+                f.getGeometry().getGeometriesArray().splice(0,0,ev.element.getGeometry())
+                f.getGeometry().setGeometriesArray(f.getGeometry().getGeometriesArray())
+                f.getGeometry().changed()
+            } else {
+                f = vm.newFeature()
+                f.getGeometry().getGeometriesArray().splice(0,0,ev.element.getGeometry())
+                f.getGeometry().setGeometriesArray(f.getGeometry().getGeometriesArray())
+                f.getGeometry().changed()
+                vm.selectedFeatures.clear()
+                vm.selectedFeatures.push(f)
+                vm.annotations.setTool("Bfrs Edit Geometry")
+                vm.scrollToSelected()
+            }
+            vm.postModified(f,1)
+            //vm.validateBushfire(f,"addOriginPoint")
+
+            vm.ui.originPointDraw.dispatchEvent(vm.map.createEvent(vm.ui.originPointDraw,"addfeaturegeometry",{feature:f,indexes:[0]}))
+        }
+        vm.drawings.clear()
+      })
+
+      //add tools
+      var tools = [
+          {
+              name: 'Bfrs Select',
+              label: 'Select',
+              icon: 'fa-mouse-pointer',
+              scope:["bfrs"],
+              interactions: [
+                  vm.ui.dragSelectInter,
+                  vm.ui.selectInter,
+                  //vm.ui.translateInter,
+                  vm.annotations.keyboardInterFactory({
+                    selectEnabled:false,
+                    events: {
+                        deleteallgeometries:true
+                    },
+                    deleteSelected:function(features,selectedFeatures) {
+                        var feature = null
+                        for(i = selectedFeatures.getLength() - 1;i >= 0;i--) {
+                            feature = selectedFeatures.item(i)
+                            if (vm.isDeletable(feature)) {
+                                vm.deleteFeature(feature)
+                            } else {
+                                alert("Can't delete a existing bushfire.")
+                            }
+                        }
+                    }
+                  }),
+              ],
+              keepSelection:true,
+              onSet: function() {
+                  vm.ui.dragSelectInter.setMulti(true)
+                  vm.ui.selectInter.setMulti(true)
+              },
+              /*
+              comments:[
+                {
+                    name:"Tips",
+                    description:[
+                        "Select bushfires using keyboard or mouse",
+                    ]
+                }
+              ]
+              */
+          },{
+              name: 'Bfrs Edit Geometry',
+              label: 'Edit Geometry',
+              icon: 'fa-pencil',
+              scope:[],
+              interactions: [
+                  vm.ui.geometrySelectInter,
+                  vm.annotations.keyboardInterFactory({
+                    selectEnabled:false,
+                    events:{ 
+                        deletefeaturegeometry:true
+                    },
+                    deleteSelected:function(features,selectedFeatures) {
+                        selectedFeatures.forEach(function (feature) {
+                            if (vm.isModifiable(feature) && feature["selectedIndex"] !== undefined) {
+                                var geom = vm.annotations.getSelectedGeometry(feature)
+                                if (geom instanceof ol.geom.Point) {
+                                    if (feature.get('status') === "new") {
+                                        vm.deleteFeature(feature)
+                                    } else {
+                                        alert("Can't delete existing bushfire's orgin point.")
+                                    }
+                                    return
+                                }
+                                vm.annotations.deleteSelectedGeometry(feature,this)
+                                vm.selectDefaultGeometry(feature)
+                                vm.postModified(feature,2)
+                                vm.validateBushfire(feature,"deleteFireboundary")
+                            }
+                        },this)
+                    }
+                  }),
+                  vm.ui.modifyInter,
+                  this.ui.fireboundaryDraw
+              ],
+              selectMode:"geometry",
+              keepSelection:true,
+              onUnset: function() {
+                  vm.selectedFeatures.forEach(function(f){
+                      f.getGeometry().changed()
+                  })
+              },
+              onSet: function() {
+                  vm.ui.geometrySelectInter.setMulti(false)
+                  if (vm.selectedFeatures.getLength() > 1) {
+                      vm.selectedFeatures.clear()
+                  } else if (vm.selectedFeatures.getLength() == 1) {
+                    var selectedFeature = vm.selectedFeatures.item(0)
+                    if (selectedFeature["selectedIndex"] === undefined ) {
+                        vm.selectDefaultGeometry(selectedFeature)
+                    } 
+                    var currentScale = vm.map.getScale()
+                 }
+              },
+              comments:[
+                {
+                    name:"Tips",
+                    description:[
+                        "Click on the map to start drawing a bushfire",
+                        "Hold down the 'SHIFT' key during drawing to enable freehand mode",
+                        "To delete a fire boundary click inside the fire boundary to be deleted and press the 'DELETE' key",
+                        "To modify the boundary or origin click and drag to adjust"
+                    ]
+                }
+              ]
+          },{
+              name: 'Bfrs Origin Point',
+              label: 'Add Bushfire',
+              icon: 'dist/static/symbols/fire/origin.svg',
+              tints: vm.tints,
+              selectedFillColour:[0, 0, 0, 0.25],
+              fillColour:[0, 0, 0, 0.25],
+              labelStyle:{
+                offsetX:17,
+                strokeWidth:8,
+                font: "Bold 12px Helvetica,Roboto,Arial,sans-serif"
+              },
+              size:2,
+              interactions: [
+                  vm.ui.originPointDraw
+              ],
+              sketchStyle: vm.annotations.getIconStyleFunction(vm.tints),
+              scope:[],
+              measureLength:true,
+              measureArea:true,
+              keepSelection:true,
+              showName: true,
+              getMeasureGeometry:function() {
+                if (vm.isFireboundaryDrawable(this)) {
+                    return this.getGeometry()
+                } else {
+                    return null
+                }
+              },
+              onSet: function() {
+                  /*
+                  if (vm.selectedFeatures.getLength() > 1) {
+                      vm.selectedFeatures.clear()
+                  } else {
+                      var currentScale = vm.map.getScale()
+                  }
+                  */
+              },
+              comments:[
+                {
+                    name:"Tips",
+                    description:[
+                        "Click on the map or search a point to create a new bushfire in SSS."
+                    ]
+                }
+              ]
+          }
+      ]
+
+      tools.forEach(function (tool) {
+        vm.annotations.tools.push(tool)
+      })
+
+      vm.ui.modifyTool = vm.annotations.tools.find(function(tool){return tool.name === "Bfrs Edit Geometry"})
+      vm.ui.originPointTool = vm.annotations.tools.find(function(tool){return tool.name === "Bfrs Origin Point"})
+      vm.ui.panTool = vm.annotations.tools.find(function(tool){return tool.name === "Pan"})
+      vm.ui.selectTool = vm.annotations.tools.find(function(tool){return tool.name === "Bfrs Select"})
+
+      this.$root.fixedLayers.push({
+        type: 'WFSLayer',
+        name: 'Bushfire Report',
+        id: vm.env.bushfireLayer,
+        getFeatureInfo:function (f) {
+            return {name:f.get("fire_number"), img:map.getBlob(f, ['icon', 'tint']), comments:f.get('name') + "(" + (vm._reportStatusName[f.get('report_status')] || vm._reportStatusName[99999]) + ")"}
+        },
+        initialLoad:false,
+        refresh: 300,
+        features:vm._featurelist,
+        min_interval:60,
+        max_interval:600,
+        dependentLayers:[
+            {
+                type: 'TileLayer',
+                name: 'Fire Boundary of Bushfire Final Report',
+                id: vm.env.finalFireboundaryLayer,
+                autoAdd:false,
+                inheritRefresh: true
+            },
+            {
+                type: 'ImageLayer',
+                name: 'Fire Boundary of Selected Bushfire Final Report',
+                id: vm.env.finalFireboundaryLayer,
+                style: vm.env.finalFireboundaryLayer + ".selected",
+                mapLayerId:vm.env.finalFireboundaryLayer + "_selected",
+                autoAdd:false,
+                inheritRefresh: true
+            }
+        ],
+        /*
+        getUpdatedTime:function(features) {
+            var updatedTime = null
+            $.each(features,function(index,f){
+                if (f.get('status') !== 'new') {
+                    var featureModifiedDate = moment(new Date(f.get('modified')))
+                    if (updatedTime === null) {
+                        updatedTime =  featureModifiedDate
+                    } else if(updatedTime < featureModifiedDate) {
+                        updatedTime =  featureModifiedDate
+                    }
+                }
+            })
+            return updatedTime
+        },
+        */
+        onerror:function(status,message) {
+            vm._bfrsStatus.phaseFailed("load_bushfires",status + " : " + message)
+        },
+        onload: function(loadType,vectorSource,features,defaultOnload) {
+            //combine the two spatial columns into one
+            $.each(features,function(index,feature){
+                vm.initBushfire(feature)
+            })
+            function processResources() {
+                //merge the current changes with the new features
+                var insertPosition = 0
+                var loadedFeature = null
+                for(var index = vm.features.getLength() - 1;index >= 0;index--) {
+                    f = vm.features.item(index)
+                    if (f.get('status') === 'new') {
+                        //new features always are the begining and sorted.
+                        if (f.get('sss_id')) {
+                            //save before
+                            loadedFeature = features.find(function(f2){
+                                return f.get('sss_id') === f2.get('sss_id')
+                            })
+                            if (!loadedFeature) {
+                                //still not save, keep the current new bushfire
+                                features.splice(insertPosition,0,f)
+                                insertPosition += 1
+                            } else{
+                                if (f.get('tint') === 'modified'){
+                                    //feature was changed after saving
+                                    //replace the loadedFeature's geometry with the modified version
+                                    loadedFeature.setGeometry(f.getGeometry())
+                                    loadedFeature.set('tint','modified',true)
+                                    loadedFeature.set('fillColour',vm.tints[loadedFeature.get('tint') + ".fillColour"],true)
+                                    loadedFeature.set('colour',vm.tints[loadedFeature.get('tint') + ".colour"],true)
+                                    loadedFeature.set('modifyType',f.get('modifyType'),true)
+                                } else {
+                                    //already saved into the database, and not change after saving, ignore it
+                                }
+                                if (f.tasks && f.tasks.length > 0) {
+                                    loadedFeature.tasks = f.tasks
+                                }
+                                var i = vm.selectedFeatures.getArray().findIndex(function(o) {return o.get('fire_number') === f.get('fire_number')})
+                                if (i >= 0) {
+                                    vm.selectedFeatures.removeAt(i)
+                                    vm.selectedFeatures.push(loadedFeature)
+                                }
+                            }
+                        } else {
+                            //not save before
+                            features.splice(insertPosition,0,f)
+                            insertPosition += 1
+                        }
+                    } else if (f.get('tint') === 'modified' || f.tasks) {
+                        loadedFeature = features.find(function(f2){return f.get('id') === f2.get('id')})
+                        if (loadedFeature) {
+                            if (f.get('tint') === 'modified') {
+                                //replace the loadedFeature's geometry with the modified version
+                                loadedFeature.setGeometry(f.getGeometry())
+                                loadedFeature.set('tint','modified',true)
+                                loadedFeature.set('fillColour',vm.tints[loadedFeature.get('tint') + ".fillColour"],true)
+                                loadedFeature.set('colour',vm.tints[loadedFeature.get('tint') + ".colour"],true)
+                                loadedFeature.set('modifyType',f.get('modifyType'),true)
+                                if (f.intersectionPoints) {
+                                    loadedFeature.intersectionPoints = f.intersectionPoints
+                                }
+                            } 
+                            if (f.tasks && f.tasks.length > 0) {
+                                loadedFeature.tasks = f.tasks
+                            }
+                        }
+                    }
+                }
+                if (vm.annotations.isFeaturesSelectedFromModule("bfrs") && vm.selectedFeatures.getLength() > 0) {
+                    for(var index = vm.selectedFeatures.getLength() - 1;index >= 0;index--) {
+                        var f = vm.selectedFeatures.item(index)
+                        loadedFeature = features.find(function(f1){return f1.get('fire_number') === f.get('fire_number')})
+                        if (loadedFeature) {
+                            if (f.selectedIndex !== undefined) {
+                                if (vm.annotations.getSelectedGeometry(loadedFeature,f.selectedIndex)) {
+                                    loadedFeature.selectedIndex = f.selectedIndex
+                                } else {
+                                    vm.selectDefaultGeometry(loadedFeature)
+                                }
+                            }
+                            vm.selectedFeatures.setAt(index,loadedFeature)
+                        } else {
+                            vm.selectedFeatures.removeAt(index)
+                        }
+                    }
+
+                    for(var index = vm.clippedFeatures.length - 1;index >= 0;index--) {
+                        var f = vm.clippedFeatures[index]
+                        loadedFeature = features.find(function(f1){return f1.get('fire_number') === f.get('fire_number')})
+                        if (loadedFeature) {
+                            vm.clippedFeatures[index] = loadedFeature
+                        } else {
+                            vm.clippedFeatures.splice(index,1)
+                        }
+                    }
+                }
+                vm.features.clear()
+                vm.features.extend(features.sort(vm.featureOrder))
+                vm.updateViewport(true)
+
+                vm.updateFeatureFilter(3,0)
+
+                if (vm.whoami['bushfire']["permission"]["changed"]) {
+                    delete vm.whoami['bushfire']["permission"]["changed"]
+                    vm.revision += 1
+                }
+                vm._bfrsStatus.phaseEnd("load_bushfires")
+            }
+            vm._checkPermission(features,processResources)
+        }
+      })
+
+      this.measure.register(vm.env.bushfireLayer,this.features)
+      vm._bfrsStatus.phaseEnd("initialize")
+
+      vm._bfrsStatus.phaseBegin("gk-init",20,"Listen 'gk-init' event",true,true)
+      // post init event hookup
+      this.$on('gk-init', function () {
+        vm._bfrsStatus.phaseEnd("gk-init")
+
+        vm._bfrsStatus.phaseBegin("attach_event",10,"Attach events")
+        map.olmap.getView().on('propertychange', function() {vm.updateViewport()})
+
+        vm.selectedFeatures.on('add', function (event) {
+          if (event.element.get('toolName') === "Bfrs Origin Point") {
+            vm.selectedBushfires.push(event.element.get('fire_number'))
+            if (vm.annotations.tool.selectMode === "geometry") {
+                if (event.element["selectedIndex"] === undefined) {
+                    vm.selectDefaultGeometry(event.element)
+                }
+            }
+            vm.refreshSelectedFinalFireboundaryLayer()
+            //vm.zoomToSelected(200)
           }
         })
-        vm.annotations.selectedFeatures.on('remove', function (event) {
-          if (vm.annotations.selectable === vm.selectable) {
-            vm.selectedReports.$remove(event.element.get(vm.reportKey))
-            vm.editableFeatures.remove(event.element)
+        vm.selectedFeatures.on('remove', function (event) {
+          if (event.element.get('toolName') === "Bfrs Origin Point") {
+            vm.selectedBushfires.$remove(event.element.get('fire_number'))
+            vm.refreshSelectedFinalFireboundaryLayer()
+            //vm.zoomToSelected(200)
+            if (vm.selectedBushfires.length !== 1) {
+                if (vm.annotations.tool === vm.ui.modifyTool) {
+                    vm.annotations.setTool(vm.ui.panTool)
+                }
+            }
+
           }
+          //remove the index of the selected geometry in geometry collection
+          //delete event.element['selectedIndex']
+        })
+        // enable resource bfrs layer, if disabled
+        //vm.annotations.setDefaultTool('bfrs','Pan')
+        $.each([vm.annotations.ui.defaultPan],function(index,t) {
+            t.scope = t.scope || []
+            t.scope.push("bfrs")
         })
 
-        vm.editButtonOverlay.setMap(vm.map.olmap)
 
-        vm.tools = vm.annotations.tools.filter(function (t) {
-          return t.scope && t.scope.indexOf("bushfirereport") >= 0
+        $.each(vm.annotations.tools.filter(function (t) {
+          return t.scope && t.scope.indexOf("bfrs") >= 0
+        }),function(index,t){
+            vm.tools.splice(index,0,t)
         })
-        bfrsStatis.end()
+
+
+        vm.map.olmap.on("removeLayer",function(ev){
+            if (ev.mapLayer.get('id') === vm.env.bushfireLayer) {
+                vm.features.clear()
+                vm._featurelist.clear()
+            }
+        })
+
+        vm._resolutionChanged = debounce(function(ev){
+            vm.bushfireLabelsDisabled = (vm.map.olmap.getView().getResolution() > 0.003)
+        },200)
+
+        vm._resolutionChanged()
+
+        vm.map.olmap.getView().on("change:resolution",function(){
+            vm._resolutionChanged()
+        })
+
+        vm._bfrsStatus.phaseEnd("attach_event")
+        //load user profile
+        vm.loadUserProfile()
+
       })
     }
   }

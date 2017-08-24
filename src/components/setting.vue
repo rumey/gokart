@@ -54,12 +54,12 @@
 
             <div class="tool-slice row collapse">
               <div class="switch tiny">
-                <input class="switch-input" id="toggleMeasureAnnotation" type="checkbox" v-bind:checked="measureAnnotation" @change="toggleMeasureAnnotation"/>
-                <label class="switch-paddle" for="toggleMeasureAnnotation">
-                  <span class="show-for-sr">Measure annotation</span>
+                <input class="switch-input" id="toggleMeasureFeature" type="checkbox" v-bind:checked="measureFeature" @change="toggleMeasureFeature"/>
+                <label class="switch-paddle" for="toggleMeasureFeature">
+                  <span class="show-for-sr">Measure feature</span>
                 </label>
               </div>
-              <label for="toggleMeasureAnnotation" class="side-label">Measure annotation</label>
+              <label for="toggleMeasureFeature" class="side-label">Measure feature</label>
             </div>
 
             <div class="tool-slice row collapse">
@@ -89,7 +89,7 @@
 
             <div class="tool-slice row collapse">
               <div class="columns small-4"><label class="tool-label">Undo limit:<br/>{{ undoLimitDesc }}</label></div>
-              <div class="columns small-7"><input class="layer-opacity" type="range" min="0" max="1000" step="10" v-model="undoLimitInSetting" v-bind:disabled="!undoEnabled"></div>
+              <div class="columns small-7"><input class="layer-opacity" type="range" min="0" max="1000" step="10" v-model="configuringUndoLimit" v-bind:disabled="!undoEnabled"></div>
               <div class="columns small-1">
                 <a title="Disable undo feature" v-if="undoEnabled" class="button tiny secondary float-right" @click="enableUndo(false)" ><i class="fa fa-stop"></i></a>
                 <a title="Enable undo feature" v-if="!undoEnabled"class="button tiny secondary float-right" @click="enableUndo(true)" ><i class="fa fa-play"></i></a>
@@ -123,6 +123,24 @@
                     <a id="take-tour" class="button" title="Take a tour of the new SSS interface" @click="$root.takeTour()"><i class="fa fa-book"></i> Take Tour</a>
                   </div>
                </div>
+
+               <div class="small-3">
+                   <label class="tool-label">Version:</label>
+               </div>
+               <div class="small-9">
+                  <div class="expanded button-group">
+                    <a id="take-tour" class="button" title="Check new version" @click="$root.utils.checkVersion($root.profile,true)"> Check New Version</a>
+                  </div>
+               </div>
+
+               <div class="small-3">
+                   <label class="tool-label">Logout:</label>
+               </div>
+               <div class="small-9">
+                  <div class="expanded button-group">
+                    <a id="take-tour" class="button" title="Logout" @click="logout()"><i class="fa fa-sign-out"></i> {{whoami.email}}</a>
+                  </div>
+               </div>
             </div>
             
 
@@ -137,7 +155,7 @@
       </div>
     </div>
 
-    <img src="dist/static/images/about.svg" id="about" data-open="aboutModal">
+    <img src="dist/static/images/about.svg" class="right-bottom-icon" data-open="aboutModal">
 
     <div class="reveal" id="aboutModal" data-reveal>
         <div class="about-pane row collapse about-pane">
@@ -167,14 +185,6 @@
     font-size: 12px;
 }
 
-#about{
-    position:absolute;
-    bottom:0;
-    right:0;
-    width:32px;
-    height:32px
-}
-
 </style>
 
 <script>
@@ -184,17 +194,19 @@
         settings:'settings',
         overviewMap:'settings.overviewMap',
         undoLimit:'settings.undoLimit',
-        measureAnnotation:'settings.measureAnnotation',
+        measureFeature:'settings.measureFeature',
         lengthUnit:'settings.lengthUnit',
         areaUnit:'settings.areaUnit',
         rightHandTools: 'settings.rightHandTools',
         graticule:'settings.graticule',
-        tourVersion:'settings.tourVersion'
+        showHints:'showHints',
+        tourVersion:'settings.tourVersion',
+        whoami:'whoami',
+
     },
     data: function () {
       return {
-        undoLimit:0,
-        undoEnabled:true,
+        configuredUndoLimit:0
       }
     },
     computed: {
@@ -207,26 +219,26 @@
       drawinglogs: function () { return this.$root.annotations.drawinglogs },
       map: function () { return this.$root.map },
       undoLimitDesc:function() {
-        return (this.undoEnabled?(this.undoLimit === 0?"Unlimited":this.undoLimit):"Off") + "/" + (this.undoLimit < 0?"Off":(this.undoLimit === 0?"Unlimited":this.undoLimit))
+        return (this.configuredUndoLimit < 0?"Off":(this.configuredUndoLimit === 0?"Unlimited":this.configuredUndoLimit)) + "/" + (this.undoLimit < 0?"Off":(this.undoLimit === 0?"Unlimited":this.undoLimit))
       },
-      undoLimitInSetting:{
+      configuringUndoLimit:{
         get: function() {
-            return this.undoLimit
+            return this.configuredUndoLimit
         },
         set: function(val) {
             var vm = this
             if (val < 0) {
-                this.undoEnabled = false
-            } else {
-                this.undoLimit =  val
-                this.undoEnabled = true
+                val = -1
             }
+            this.configuredUndoLimit = val
             this._changeUndoLimit = vm._changeUndoLimit || global.debounce(function () {
-                //console.log("Change undo limit from " +  (vm.undoLimit < 0?"Off":(vm.undoLimit === 0?"Unlimited":vm.undoLimit)) + " to " + (vm.undoEnabled?(vm.undoLimit === 0?"Unlimited":vm.undoLimit):"off"))
-                vm.drawinglogs.size = vm.undoEnabled?vm.undoLimit:-1
+                vm.drawinglogs.size = this.configuredUndoLimit
             }, 5000)
             this._changeUndoLimit()
         }
+      },
+      undoEnabled:function() {
+        return this.configuredUndoLimit >= 0
       },
       hoverInfoSwitchable: function () {
         return this.$root.annotations.tool && this.$root.annotations.tool.name === "Pan"
@@ -241,9 +253,18 @@
       },
       overviewMap:function(newValue,oldValue) {
         this.showOverviewMap(newValue)
+      },
+      showHints:function(newValue,oldValue) {
+        var vm = this
+        this.$nextTick(function(){
+            vm.$root.setHintsHeight()
+        })
       }
     },
     methods: {
+      logout:function() {
+        document.location = '/logout'
+      },
       setup: function() {
         this.annotations.setTool()
       },
@@ -252,9 +273,9 @@
       },
       enableUndo:function(enable) {
         if (enable) {
-            this.undoLimitInSetting = this.undoLimit
+            this.configuringUndoLimit = (this.undoLimit < 0)?0:this.undoLimit
         } else {
-            this.undoLimitInSetting = -1
+            this.configuringUndoLimit = -1
         }
       },
       toggleRightHandTools: function (ev) {
@@ -274,12 +295,16 @@
         this.graticule = ev.target.checked
         this.saveState()
       },
+      toggleShowHints: function () {
+        this.showHints = !this.showHints
+        //this.saveState()
+      },
       toggleHoverInfo: function (ev) {
         this.info.hoverInfo = ev.target.checked
         this.saveState()
       },
-      toggleMeasureAnnotation:function(ev) {
-        this.measureAnnotation = ev.target.checked
+      toggleMeasureFeature:function(ev) {
+        this.measureFeature = ev.target.checked
         this.export.saveState()
       },
       toggleOverviewMap:function(ev) {
@@ -308,24 +333,19 @@
       },
     },
     ready: function () {
-        var vm = this
-        var settingStatus = this.loading.register("setting","Setting Component", "Initialize")
-        if (this.undoLimit < 0) {
-            this.undoLimit = 0
-            this.undoEnabled = false
-        } else {
-            this.undoLimit = this.undoLimit
-            this.undoEnabled = true
-        }
-
-      settingStatus.wait(30,"Listen 'gk-init' event")
+      var vm = this
+      var settingStatus = this.loading.register("setting","Setting Component")
+      this.configuredUndoLimit = this.undoLimit
+     
+      settingStatus.phaseBegin("gk-init",80,"Listen 'gk-init' event",true,true)
       this.$on('gk-init', function() {
-        settingStatus.progress(80,"Process 'gk-init' event")
+        settingStatus.phaseEnd("gk-init")
 
+        settingStatus.phaseBegin("initialize",20,"Initialize",true,false)
         vm.showOverviewMap(vm.overviewMap)
         vm.showRightHandTools(vm.rightHandTools)
 
-        settingStatus.end()
+        settingStatus.phaseEnd("initialize")
       })
         
     }

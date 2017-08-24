@@ -16,12 +16,12 @@
               <div class="small-12">
                 <div class="expanded button-group">
                   <a v-for="t in tools | filterIf 'showName' undefined" class="button button-tool" v-bind:class="{'selected': t.name == annotations.tool.name}"
-                    @click="annotations.setTool(t)" v-bind:title="t.name">{{{ annotations.icon(t) }}}</a>
+                    @click="annotations.setTool(t)" v-bind:title="t.label">{{{ annotations.icon(t) }}}</a>
                 </div>
                 <div class="row resetmargin">
                   <div v-for="t in tools | filterIf 'showName' true" class="small-6" v-bind:class="{'rightmargin': $index % 2 === 0}" >
                     <a class="expanded secondary button" v-bind:class="{'selected': t.name == annotations.tool.name}" @click="annotations.setTool(t)"
-                      v-bind:title="t.name">{{{ annotations.icon(t) }}} {{ t.name }}</a>
+                      v-bind:title="t.label">{{{ annotations.icon(t) }}} {{ t.label }}</a>
                   </div>
                 </div>
               </div>
@@ -77,7 +77,7 @@
                 </select>
               </div>
               <div class="small-6 columns">
-                <input type="search" v-model="search" placeholder="Find a resource" @keyup="updateResourceFilter">
+                <input type="search" v-model="search" placeholder="Find a resource" @keyup="updateFeatureFilter()">
               </div>
             </div>
             <div class="row">
@@ -85,12 +85,12 @@
                 <div class="columns">
                   <div class="row">
                     <div class="switch tiny">
-                      <input class="switch-input" id="selectedOnly" type="checkbox" v-model="selectedOnly" @change="updateCQLFilter('selectedDevice')" />
-                      <label class="switch-paddle" for="selectedOnly">
+                      <input class="switch-input" id="selectedResourcesOnly" type="checkbox" v-bind:disabled="selectedOnlyDisabled" v-model="selectedOnly" @change="updateCQLFilter('selectedDevice')" />
+                      <label class="switch-paddle" for="selectedResourcesOnly">
                     <span class="show-for-sr">Show selected only</span>
                  </label>
                     </div>
-                    <label for="selectedOnly" class="side-label">Show selected only</label>
+                    <label for="selectedResourcesOnly" class="side-label">Show selected only</label>
                   </div>
                 </div>
                 <div class="columns">
@@ -106,9 +106,9 @@
                 </div>
               </div>
               <div class="small-5">
-                <a title="Zoom to selected" class="button" @click="zoomToSelected()" ><i class="fa fa-search"></i></a>
+                <a title="Zoom to selected" class="button" @click="map.zoomToSelected()" ><i class="fa fa-search"></i></a>
                 <a title="Download list as geoJSON" class="button" @click="downloadList()" ><i class="fa fa-download"></i></a>
-                <a title="Download all or selected as CSV" class="button" href="{{sssService}}/devices.csv?{{downloadSelectedCSV()}}" target="_blank" ><i class="fa fa-table"></i></a>
+                <a title="Download all or selected as CSV" class="button" href="{{env.resourceTrackingService}}/devices.csv?{{downloadSelectedCSV()}}" target="_blank" ><i class="fa fa-table"></i></a>
               </div>
             </div>
             <div id="history-panel" v-if="toggleHistory">
@@ -117,10 +117,10 @@
                   <label for="historyFrom">From:</label>
                 </div>
                 <div class="small-4">
-                  <input type="text" v-on:blur="verifyDate($event,['YY-M-D','YYYY-M-D'],'YYYY-MM-DD')" v-model="historyFromDate" placeholder="yyyy-mm-dd"></input>
+                  <input type="text" v-on:blur="utils.verifyDate($event,['YY-M-D','YYYY-M-D'],'YYYY-MM-DD')" v-model="historyFromDate" placeholder="yyyy-mm-dd"></input>
                 </div>
                 <div class="small-2">
-                  <input type="text" v-on:blur="verifyDate($event,'H:m','HH:mm')" v-model="historyFromTime" placeholder="24:00"></input>
+                  <input type="text" v-on:blur="utils.verifyDate($event,'H:m','HH:mm')" v-model="historyFromTime" placeholder="24:00"></input>
                 </div>
                 <div class="small-4">
                   <select name="select" v-model="history" @change="historyRange = history">
@@ -139,10 +139,10 @@
                   <label for="historyTo">To:</label>
                 </div>
                 <div class="small-4">
-                  <input type="text" v-on:blur="verifyDate($event,['YY-M-D','YYYY-M-D'],'YYYY-MM-DD')" v-model="historyToDate" placeholder="yyyy-mm-dd"></input>
+                  <input type="text" v-on:blur="utils.verifyDate($event,['YY-M-D','YYYY-M-D'],'YYYY-MM-DD')" v-model="historyToDate" placeholder="yyyy-mm-dd"></input>
                 </div>
                 <div class="small-2">
-                  <input type="text" v-on:blur="verifyDate($event,'H:m','HH:mm')" v-model="historyToTime" placeholder="24:00"></input>
+                  <input type="text" v-on:blur="utils.verifyDate($event,'H:m','HH:mm')" v-model="historyToTime" placeholder="24:00"></input>
                 </div>
                 <div class="small-2"></div>
                 <div class="small-2">
@@ -157,7 +157,7 @@
               <div v-for="f in features" class="row feature-row" v-bind:class="{'feature-selected': selected(f) }"
                 @click="toggleSelect(f)" track-by="get('id')">
                 <div class="columns">
-                  <a v-if="whoami.editVehicle && f.get('source_device_type') != 'tracplus'" @click.stop.prevent="map.editResource($event)" title="Edit resource" href="{{sssService}}/sss_admin/tracking/device/{{ f.get('id') }}/change/" target="_blank" class="button tiny secondary float-right"><i class="fa fa-pencil"></i></a>
+                  <a v-if="whoami.editVehicle && f.get('source_device_type') != 'tracplus'" @click.stop.prevent="utils.editResource($event)" title="Edit resource" href="{{env.resourceTrackingService}}/sss_admin/tracking/device/{{ f.get('id') }}/change/" target="{{env.resourceTrackingService}}" class="button tiny secondary float-right"><i class="fa fa-pencil"></i></a>
                   <div class="feature-title"><img class="feature-icon" id="device-icon-{{f.get('id')}}" v-bind:src="featureIconSrc(f)" /> {{ f.get('label') }} <i><small>({{ ago(f.get('seen')) }})</small></i></div>
                 </div>
               </div>
@@ -173,7 +173,6 @@
   import { ol, moment,utils } from 'src/vendor.js'
   export default {
     store: {
-        sssService:'sssService',
         resourceLabels:'settings.resourceLabels',
         resourceDirections:'settings.resourceDirections',
         viewportOnly:'settings.viewportOnly',
@@ -186,7 +185,6 @@
       var fill = '#ff6600'
       var stroke = '#7c3100'
       return {
-        viewportOnly: true,
         toggleHistory: false,
         selectedOnly: false,
         search: '',
@@ -212,19 +210,25 @@
       }
     },
     computed: {
-      map: function () { return this.$root.$refs.app.$refs.map },
+      map: function () { return this.$root.map },
+      env: function () { return this.$root.env },
+      active: function () { return this.$root.active },
       annotations: function () { return this.$root.$refs.app.$refs.annotations },
       info: function () { return this.$root.info },
       setting: function () { return this.$root.setting },
       catalogue: function () { return this.$root.catalogue },
       export: function () { return this.$root.export },
       loading: function () { return this.$root.loading },
+      utils: function () { return this.$root.utils },
       features: function () {
         if (this.viewportOnly) {
           return this.extentFeatures
         } else {
           return this.allFeatures
         }
+      },
+      selectedOnlyDisabled:function() {
+        return this.selectedDevices.length === 0 && !this.selectedOnly
       },
       isTrackingMapLayerHidden:function() {
         return this.$root.active.isHidden(this.trackingMapLayer)
@@ -233,13 +237,13 @@
         return this.$root.active.isHidden(this.historyMapLayer)
       },
       selectedFeatures: function () {
-        return this.features.filter(this.selected)
+        return this.annotations.selectedFeatures
       },
       stats: function () {
         return Object.keys(this.extentFeatures).length + '/' + Object.keys(this.allFeatures).length
       },
       queryHistoryDisabled: function() {
-        return !(this.selectedFeatures && this.selectedFeatures.length && this.historyFromDate && this.historyFromTime && this.historyToDate && this.historyToTime)
+        return !(this.selectedFeatures && this.selectedFeatures.getLength() && this.historyFromDate && this.historyFromTime && this.historyToDate && this.historyToTime)
       },
       historyRange: {
         get: function () {
@@ -299,9 +303,6 @@
       resourceDirections:function(newValue,oldValue) {
         this.showResourceLabelsOrDirections()
       },
-      "screenHeight":function(newValue,oldvalue) {
-        this.adjustHeight()
-      },
       "toggleHistory":function() {
         this.adjustHeight()
       }
@@ -309,21 +310,7 @@
     methods: {
       adjustHeight:function() {
         if (this.activeMenu === "tracking") {
-            $("#tracking-list").height(this.screenHeight - this.leftPanelHeadHeight - $("#tracking-list-controller-container").height())
-        }
-      },
-      verifyDate: function(event,inputPattern,pattern) {
-        var element = event.target;
-        element.value = element.value.trim()
-        if (element.value.length > 0) {
-            var m = moment(element.value,inputPattern,true)
-            if (!m.isValid()) {
-                setTimeout(function() {
-                    element.focus()
-                },10);
-            } else {
-                element.value = m.format(pattern)
-            }
+            $("#tracking-list").height(this.screenHeight - this.leftPanelHeadHeight - 37 - $("#tracking-list-controller-container").height())
         }
       },
       ago: function (time) {
@@ -346,9 +333,9 @@
       },
       toggleSelect: function (f) {
         if (this.selected(f)) {
-          this.$root.annotations.selectedFeatures.remove(f)
+          this.selectedFeatures.remove(f)
         } else {
-          this.$root.annotations.selectedFeatures.push(f)
+          this.selectedFeatures.push(f)
         }
       },
       toggleViewportOnly: function () {
@@ -385,7 +372,7 @@
         return f.get('deviceid') && (this.selectedDevices.indexOf(f.get('deviceid')) > -1)
       },
       downloadList: function () {
-        this.$root.export.exportVector(this.features.filter(this.resourceFilter).sort(this.resourceOrder), 'trackingdata')
+        this.$root.export.exportVector(this.features.filter(this.featureFilter).sort(this.featureOrder), 'trackingdata')
       },
       downloadSelectedCSV: function () {
           var deviceFilter = ''
@@ -403,6 +390,10 @@
       },
       updateCQLFilter: function (updateType) {
         var vm = this
+        if (updateType === "selectedDevice" && this.selectedDevices === 0 && vm.selectedOnly === true) {
+            vm.selectedOnly = false
+            return
+        }
         if (!vm._updateCQLFilter) {
             vm._updateCQLFilter = debounce(function(updateType){
                 var groupFilter = vm.cql
@@ -432,7 +423,7 @@
                     $.each(filteredFeatures,function(index,feature){
                         vm.annotations.tintSelectedFeature(feature)
                     })
-                    vm.updateResourceFilter(true)
+                    vm.updateFeatureFilter(true)
                 } else {
                     //clear device filter or change other filter
                     vm.trackingMapLayer.set('updated', moment().toLocaleString())
@@ -453,17 +444,17 @@
             source.loadSource("query")
         }
       },
-      resourceFilter: function (f) {
+      featureFilter: function (f) {
         var search = ('' + this.search).toLowerCase()
         var found = !search || this.fields.some(function (key) {
           return ('' + f.get(key)).toLowerCase().indexOf(search) > -1
         })
-        if (this.selectedOnly && this.selectedFeatures.length) {
+        if (this.selectedOnly && this.selectedFeatures.getLength()) {
           return this.selected(f) && found
         };
         return found
       },
-      resourceOrder: function (a, b) {
+      featureOrder: function (a, b) {
         var as = a.get('seen')
         var bs = b.get('seen')
         if (as < bs) {
@@ -473,36 +464,28 @@
         }
         return 0
       },
-      zoomToSelected: function () {
-        var extent = ol.extent.createEmpty()
-        this.selectedFeatures.forEach(function (f) {
-          ol.extent.extend(extent, f.getGeometry().getExtent())
-        })
-        var map = this.$root.map.olmap
-        map.getView().fit(extent, map.getSize())
-      },
-      updateResourceFilter: function(runNow) {
+      updateFeatureFilter: function(runNow) {
         var vm = this
-        var updateResourceFilterFunc = function() {
+        var updateFeatureFilterFunc = function() {
             // syncing of Resource Tracking features between Vue state and OL source
             var mapLayer = vm.trackingMapLayer
             if (!mapLayer) { return }
             // update vue list for filtered features in the current extent
-            vm.extentFeatures = mapLayer.getSource().getFeaturesInExtent(vm.$root.map.extent).filter(vm.resourceFilter)
-            vm.extentFeatures.sort(vm.resourceOrder)
+            vm.extentFeatures = mapLayer.getSource().getFeaturesInExtent(vm.$root.map.extent).filter(vm.featureFilter)
+            vm.extentFeatures.sort(vm.featureOrder)
             // update vue list for filtered features
-            vm.allFeatures = mapLayer.getSource().getFeatures().filter(vm.resourceFilter)
-            vm.allFeatures.sort(vm.resourceOrder)
+            vm.allFeatures = mapLayer.getSource().getFeatures().filter(vm.featureFilter)
+            vm.allFeatures.sort(vm.featureOrder)
         }
         if (runNow) {
-            updateResourceFilterFunc()
+            updateFeatureFilterFunc()
         } else {
-            if (!vm._updateResourceFilter) {
-                vm._updateResourceFilter = debounce(function(){
-                    updateResourceFilterFunc()
-                },700)
+            if (!vm._updateFeatureFilter) {
+                vm._updateFeatureFilter = debounce(function(){
+                    updateFeatureFilterFunc()
+                },500)
             }
-            vm._updateResourceFilter()
+            vm._updateFeatureFilter()
         }
       },
       updateViewport: function(runNow) {
@@ -513,8 +496,8 @@
             if (!mapLayer) { return }
             var feats = mapLayer.getSource().getFeatures()
             // update vue list for filtered features in the current extent
-            vm.extentFeatures = mapLayer.getSource().getFeaturesInExtent(vm.$root.map.extent).filter(vm.resourceFilter)
-            vm.extentFeatures.sort(vm.resourceOrder)
+            vm.extentFeatures = mapLayer.getSource().getFeaturesInExtent(vm.$root.map.extent).filter(vm.featureFilter)
+            vm.extentFeatures.sort(vm.featureOrder)
         }
         if (runNow) {
             updateViewportFunc()
@@ -522,29 +505,37 @@
             if (!vm._updateViewport) {
                 vm._updateViewport = debounce(function(){
                     updateViewportFunc()
-                },100)
+                },200)
             }
             vm._updateViewport()
         }
       },
       setup: function() {
+        //restore the selected features
+        this.annotations.restoreSelectedFeatures()
+
         // enable resource tracking layer, if disabled
-        var catalogue = this.$root.catalogue
         if (!this.trackingMapLayer) {
-          catalogue.onLayerChange(this.trackingLayer, true)
+            this.catalogue.onLayerChange(this.trackingLayer, true)
+        } else if (this.active.isHidden(this.trackingMapLayer)) {
+            this.active.toggleHidden(this.trackingMapLayer)
         }
 
-        this.$root.annotations.selectable = [this.trackingMapLayer]
+        this.annotations.selectable = [this.trackingMapLayer]
         this.annotations.setTool()
 
         this.$nextTick(this.adjustHeight)
+      },
+      tearDown:function() {
+        this.selectable = null
       }
     },
     ready: function () {
       var vm = this
-      var trackingStatus = this.loading.register("tracking","Resource Tracking Component","Initialize")
+      var trackingStatus = this.loading.register("tracking","Resource Tracking Component")
       var map = this.$root.map
 
+      trackingStatus.phaseBegin("initialize",20,"Initialize")
       var resourceTrackingStyleFunc = function(layerId){
         return function (res) {
             var feat = this
@@ -573,11 +564,11 @@
                 })
               })
             }, feat, ['icon', 'tint'])
-            if (style.getText) {
+            if (style[0].getText && style[0].getText()) {
               if (res < 0.003 && vm.resourceLabels && !vm.$root.active.isHidden(vm.map.getMapLayer(layerId))) {
-                style.getText().setText(feat.get('label'))
+                style[0].getText().setText(feat.get('label'))
               } else {
-                style.getText().setText('')
+                style[0].getText().setText('')
               }
             }
             if (res < 0.003 && vm.resourceDirections) {
@@ -585,21 +576,19 @@
               var speed = feat.get('velocity')
               if (heading !== undefined && (heading !== 0 || speed !== 0)) {
                   //style.getImage().setRotation( (heading + 90) / 180 * Math.PI )
-                  if (!vm.directionStyle) {
-                      vm.directionStyle = new ol.style.Style({
+                  if (!vm.styleWithDirection) {
+                      vm.styleWithDirection = style.concat([new ol.style.Style({
                           image: new ol.style.Icon({
                               src: "/dist/static/symbols/device/direction.svg",
                               scale:1,
                               snapToPixel:true
                           })
-                      })
-                  }
-                  vm.directionStyle.getImage().setRotation(heading / 180 * Math.PI)
-                  if (Array.isArray(style)) {
-                      style.splice(0,0,vm.directionStyle)
+                      })])
                   } else {
-                      style =  [vm.directionStyle,style]
+                    vm.styleWithDirection[0] = style[0]
                   }
+                  vm.styleWithDirection[1].getImage().setRotation(heading / 180 * Math.PI)
+                  return vm.styleWithDirection
               }
             }
             return style
@@ -608,19 +597,19 @@
 
       var deviceLabel = function(device) {
         var name = ''
-        var rin_symbols = ['heavy duty','gang truck','dozer','loader','grader','tender','float'];
+	var rin_symbols = ['heavy duty','gang truck','dozer','loader','grader','tender','float'];
         var symbol = device.get('symbol');
         var district = device.get('district_display');
         var callsign_display = device.get('callsign_display');
         var registration = device.get('registration');
         if (!district || district == 'Aviation' || district == 'Other'){
-            if (!callsign_display || rin_symbols.indexOf(symbol) === -1){
+	    if (!callsign_display || rin_symbols.indexOf(symbol) === -1){
                 name = registration
             } else {
                 name = callsign_display +' '+ registration
             }
         } else {
-            if (!callsign_display || rin_symbols.indexOf(symbol) === -1){
+	    if (!callsign_display || rin_symbols.indexOf(symbol) === -1){
                 name = district +' '+ registration
             } else {
                 name = callsign_display +' '+ registration
@@ -657,7 +646,7 @@
       }
 
       var deviceExtraHoverLabel = function(device) {
-          var rin_symbols = ['heavy duty','gang truck','dozer','loader','grader','tender','float'];
+	  var rin_symbols = ['heavy duty','gang truck','dozer','loader','grader','tender','float'];
           var symbol = device.get('symbol');
           var return_label = ''
           var callsign_label = ''
@@ -671,7 +660,7 @@
 
           // Set "Callsign" Label for "Light vehicles" (no RIN)
           
-          if (callsign_display && rin_symbols.indexOf(symbol) === -1) {
+	  if (callsign_display && rin_symbols.indexOf(symbol) === -1) {
               callsign_label = "Callsign: " + callsign_display
           }
 
@@ -699,7 +688,7 @@
           } else if (c_label != ''){
               return_label += c_label
           }
-          if ((c_label != '' || callsign_label != '') && u_label != ''){
+	  if ((c_label != '' || callsign_label != '') && u_label != ''){
               return_label += '<br>' + u_label
           } else if (u_label != ''){
               return_label += u_label
@@ -713,6 +702,7 @@
           return return_label
       }
 
+      trackingStatus.phaseBegin("load_resources",30,"Load resources",false,true)
       this.$root.fixedLayers.push({
         type: 'WFSLayer',
         name: 'Resource Tracking',
@@ -725,36 +715,38 @@
                     extra_device_label}
         },
         refresh: 60,
+        onerror: function(status,message) {
+            trackingStatus.phaseFailed("load_resources",status + " : " + message)
+        },
         onload: function(loadType,vectorSource,features,defaultOnload) {
             function processResources() {
                 defaultOnload(loadType,vectorSource,features)
-                if (vm.selectedDevices.length > 0) {
-                    var deviceIds = vm.selectedDevices.slice()
-                    vm.$root.annotations.selectedFeatures.clear()
-                    features.filter(function(el, index, arr) {
-                      var id = el.get('deviceid')
-                      if (!id) return false
-                      if (deviceIds.indexOf(id) < 0) return false
-                      return true
-                    }).forEach(function (el) {
-                      vm.$root.annotations.selectedFeatures.push(el)
-                    })
+                if (vm.annotations.isFeaturesSelectedFromModule("tracking") && vm.selectedFeatures.getLength() > 0) {
+                    var loadedFeature = null
+                    for(var index = vm.selectedFeatures.getLength() - 1;index >= 0;index--) {
+                        var f = vm.selectedFeatures.item(index)
+                        loadedFeature = features.find(function(f1){return f1.get('deviceid') === f.get('deviceid')})
+                        if (loadedFeature) {
+                            vm.selectedFeatures.setAt(index,loadedFeature)
+                        } else {
+                            vm.selectedFeatures.removeAt(index)
+                        }
+                    }
                 }
-                vm.updateResourceFilter(true)
+                vm.updateFeatureFilter(true)
+                trackingStatus.phaseEnd("load_resources")
             }
-            if (features.length > 0) {
+            if ((vm.whoami.editVehicle === null || vm.whoami.editVehicle === undefined ) && features.length > 0) {
                 var f = features.find(function(f) {return f.get('source_device_type') != "tracplus"})
                 if (f){
-                    utils.checkPermission(vm.sssService + "/sss_admin/tracking/device/" + f.get('id') + "/change/",function(allowed){
+                    utils.checkPermission(vm.env.resourceTrackingService + "/sss_admin/tracking/device/" + f.get('id') + "/change/","GET",function(allowed){
                         vm.whoami.editVehicle = allowed
                         processResources()
                     })
                 } else {
-                    vm.whoami.editVehicle = false
                     processResources()
                 }
             } else {
-                vm.whoami.editVehicle = false
                 processResources()
             }
         }
@@ -795,7 +787,7 @@
             })
             Object.keys(devices).forEach(function (device) {
                 // sort by timestamp
-                devices[device].sort(vm.resourceOrder)
+                devices[device].sort(vm.featureOrder)
                 // pull the coordinates
                 var coords = devices[device].map(function (point) {
                     point.set('label', moment(point.get('seen')).format('MMM DD HH:mm')) 
@@ -818,11 +810,15 @@
 
       })
 
-      trackingStatus.wait(40,"Listen 'gk-init' event")
+      trackingStatus.phaseEnd("initialize")
+
+      trackingStatus.phaseBegin("gk-init",30,"Listen 'gk-init' event")
       // post init event hookup
       this.$on('gk-init', function () {
-        trackingStatus.progress(80,"Process 'gk-init' event")
-        map.olmap.getView().on('propertychange', vm.updateViewport)
+        trackingStatus.phaseEnd("gk-init")
+
+        trackingStatus.phaseBegin("attach_events",10,"Attach events")
+        map.olmap.getView().on('propertychange', function() {vm.updateViewport()})
 
         /*var layersAdded = global.debounce(function () {
           var mapLayer = vm.trackingMapLayer
@@ -834,27 +830,39 @@
         map.olmap.getLayerGroup().on('change', layersAdded)
         layersAdded()*/
 
-        this.$root.annotations.selectedFeatures.on('add', function (event) {
+        vm.selectedFeatures.on('add', function (event) {
           if (event.element.get('deviceid')) {
             vm.selectedDevices.push(event.element.get('deviceid'))
-            if (vm.selectedOnly) {
-                vm.updateCQLFilter('selectedDevice')
-            }
           }
         })
-        this.$root.annotations.selectedFeatures.on('remove', function (event) {
+        vm.selectedFeatures.on('remove', function (event) {
           if (event.element.get('deviceid')) {
             vm.selectedDevices.$remove(event.element.get('deviceid'))
-            if (vm.selectedOnly) {
-                vm.updateCQLFilter('selectedDevice')
-            }
           }
         })
+
+        vm.map.olmap.on("removeLayer",function(ev){
+            if (ev.mapLayer.get('id') === "dpaw:resource_tracking_live") {
+                vm.allFeatures = []
+                vm.extentFeatures = []
+            }
+        })
+
+        trackingStatus.phaseEnd("attach_events")
+
+        trackingStatus.phaseBegin("init_tools",10,"Initialize tools")
         //vm.annotations.setDefaultTool('tracking','Pan')
+        
+        $.each([vm.annotations.ui.defaultPan,vm.annotations.ui.defaultSelect],function(index,t) {
+            t.scope = t.scope || []
+            t.scope.push("resourcetracking")
+        })
+
         vm.tools = vm.annotations.tools.filter(function (t) {
           return t.scope && t.scope.indexOf("resourcetracking") >= 0
         })
-        trackingStatus.end()
+
+        trackingStatus.phaseEnd("init_tools")
       })
     }
   }

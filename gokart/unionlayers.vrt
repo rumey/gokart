@@ -1,0 +1,20 @@
+<OGRVRTDataSource>
+    <OGRVRTUnionLayer name="{{layer}}">
+    {%- for layer in sourcelayers %}
+        <OGRVRTLayer name="{{layer.layer}}">
+            <SrcDataSource>{{layer.datasource[0]}}</SrcDataSource>
+            <SrcLayer>{{layer.layer}}</SrcLayer>
+            {%- if layer.srs %}
+            <LayerSRS>{{layer.srs}}</LayerSRS>
+            {%- endif %}
+        </OGRVRTLayer>
+    {%- endfor %}
+    {%- if fieldStrategy %}
+        <FieldStrategy>{{fieldStrategy}}</FieldStrategy>
+    {%- elif fields %}
+        {%- for field in fields %}
+        <Field name="{{field[0]}}"/>
+        {%- endfor %}
+    {%- endif %}
+    </OGRVRTUnionLayer>
+</OGRVRTDataSource>

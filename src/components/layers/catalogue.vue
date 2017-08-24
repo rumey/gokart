@@ -41,9 +41,9 @@
     <div class="layers-flexibleframe scroller row collapse" id="catalogue-list-container">
       <div class="columns">
         <div id="layers-catalogue-list">
-          <div v-for="l in catalogue.getArray() | filterBy search in searchAttrs | orderBy 'name'" class="row layer-row" @mouseover="preview(l)" track-by="id" @mouseleave="preview(false)" style="margin-left:0px;margin-right:0px">
+          <div v-for="l in catalogue.getArray() | filterBy search in searchAttrs | orderBy 'name'" class="row layer-row" @mouseover="preview(l)" track-by="mapLayerId" @mouseleave="preview(false)" style="margin-left:0px;margin-right:0px">
             <div class="small-10">
-              <a v-if="editable(l)" @click.stop.prevent="map.editResource($event)" title="Edit catalogue entry" href="{{oimService}}/django-admin/catalogue/record/{{l.systemid}}/change/" target="_blank" class="button tiny secondary float-right short"><i class="fa fa-pencil"></i></a>
+              <a v-if="editable(l)" @click.stop.prevent="utils.editResource($event)" title="Edit catalogue entry" href="{{env.catalogueAdminService}}/django-admin/catalogue/record/{{l.systemid}}/change/" target="{{env.catalogueAdminService}}" class="button tiny secondary float-right short"><i class="fa fa-pencil"></i></a>
               <div class="layer-title">{{ l.name || l.id }}</div>
             </div>
             <div class="small-2">
@@ -138,8 +138,6 @@ div.ol-previewmap.ol-uncollapsible {
   export default {
     store: {
         catalogueFilters:'catalogueFilters', 
-        defaultLegendSrc:'defaultLegendSrc',
-        oimService:'oimService',
         screenHeight:'layout.screenHeight',
         leftPanelHeadHeight:'layout.leftPanelHeadHeight',
         activeMenu:'activeMenu',
@@ -159,12 +157,12 @@ div.ol-previewmap.ol-uncollapsible {
     },
     computed: {
       map: function () { return this.$root.$refs.app.$refs.map },
+      app: function () { return this.$root.app },
+      env: function () { return this.$root.env },
+      utils: function () { return this.$root.utils},
       loading: function () { return this.$root.loading },
     },
     watch:{
-      "screenHeight":function(newValue,oldvalue) {
-        this.adjustHeight()
-      },
       "search":function(newValue,oldvalue) {
         this.adjustHeight()
       }
@@ -241,6 +239,7 @@ div.ol-previewmap.ol-uncollapsible {
             // all other layers with the "base" option set.
             if (this.swapBaseLayers) {
               active.olLayers.forEach(function (mapLayer) {
+                if (mapLayer.get('dependentLayer')) return
                 if (vm.getLayer(mapLayer).base) {
                   active.removeLayer(mapLayer)
                 }
@@ -251,13 +250,14 @@ div.ol-previewmap.ol-uncollapsible {
           } else {
             map.olmap.addLayer(olLayer)
           }
+          this.map.olmap.dispatchEvent(this.map.createEvent(this.map,"addLayer",{mapLayer:olLayer}))
         } else {
           active.removeLayer(map.getMapLayer(layer))
         }
         return true
       },
       // helper to populate the catalogue from a remote service
-      loadRemoteCatalogue: function (url, callback,failedCallback) {
+      loadRemoteCatalogue: function (callback,failedCallback) {
         var vm = this
         var req = new window.XMLHttpRequest()
         req.withCredentials = true
@@ -292,7 +292,7 @@ div.ol-previewmap.ol-uncollapsible {
             layers.push(l)
           })
           if (checkingLayer) { 
-              utils.checkPermission(vm.oimService + "/django-admin/catalogue/record/" + checkingLayer.systemid + "/change/",function(allowed){
+              utils.checkPermission(vm.env.catalogueAdminService + "/django-admin/catalogue/record/" + checkingLayer.systemid + "/change/","GET",function(allowed){
                 vm.whoami.editLayer = allowed
                 vm.catalogue.extend(layers)
                 callback()
@@ -311,14 +311,14 @@ div.ol-previewmap.ol-uncollapsible {
             console.error(msg)
           }
         }
-        req.open('GET', url)
+        req.open('GET', vm.env.cswService + "?format=json&application__name=" + this.app.toLowerCase())
         req.send()
       },
       getLayer: function (id) {
         // handle openlayers layers as well as raw ids
         if (id && id.get) { id = id.get('id') }
         return this.catalogue.getArray().find(function (layer) {
-          return layer.id === id
+          return layer.mapLayerId === id
         })
       },
       getMapLayer: function (id) {
@@ -327,24 +327,35 @@ div.ol-previewmap.ol-uncollapsible {
     },
     ready: function () {
       var vm = this
-      var catalogueStatus = vm.loading.register("catalogue","Catalogue Component","Initialize")
+      var catalogueStatus = vm.loading.register("catalogue","Catalogue Component")
       this.catalogue.on('add', function (event) {
         var l = event.element
         l.id = l.id || l.identifier
         l.name = l.name || l.title
         l.type = l.type || 'TileLayer'
         if (l.type === 'TileLayer') {
-          l.legend = (l.legend && (vm.oimService + l.legend))|| ((l.service_type === "WFS")?(vm.defaultLegendSrc + l.id):null)
+          l.legend = (l.legend && (vm.env.catalogueAdminService + l.legend))|| ((l.service_type === "WFS")?(vm.env.legendSrc + l.id):null)
+        }
+        l.mapLayerId = l.mapLayerId || l.id
+        if (l.dependentLayers) {
+            $.each(l.dependentLayers,function(index,layer){
+                layer.mapLayerId = layer.mapLayerId || layer.id
+            })
+        }
+
+        if (l.refresh) {
+            vm.map.setRefreshInterval(l,l.refresh)
         }
       })
-      catalogueStatus.wait(30,"Listen 'gk-init' event")
+      catalogueStatus.phaseBegin("gk-init",80,"Listen 'gk-init' event",true,true)
       this.$on('gk-init', function() {
-        catalogueStatus.progress(80,"Process 'gk-init' event")
-        vm.loading.componentRevision += 1
+        catalogueStatus.phaseEnd("gk-init")
+
+        catalogueStatus.phaseBegin("initialize",20,"Initialize",true,false)
         $(this.$root.map.olmap.getTargetElement()).on('mouseleave', '.ol-previewmap', function() {
             vm.preview(false)
         })
-        catalogueStatus.end()
+        catalogueStatus.phaseEnd("initialize")
       })
     }
   }

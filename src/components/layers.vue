@@ -36,24 +36,25 @@
         setup: function() {
             this.$root.annotations.setTool()
         },
+        switchMenu:function(menu) {
+            if ((this.activeSubmenu === menu) || (!this.activeSubmenu && !menu)) {
+                //new active submenu is equal to current active submenu, do nothing
+                return
+            }
+            if (this.activeSubmenu && this.$root[this.activeSubmenu].teardown) {
+                this.$root[this.activeSubmenu].teardown()
+            }
+            this.activeSubmenu = menu || null
+            if (this.activeSubmenu && this.$root[this.activeSubmenu].setup) {
+                this.$root[this.activeSubmenu].setup()
+            }
+        }
     }, 
     ready: function () {
       var vm = this
       $("#layers-tabs").on("change.zf.tabs",function(target,selectedTab){
           var menu = selectedTab.attr('menu')
-          if (vm.activeSubmenu && vm.activeSubmenu === menu) {
-              //click on the active menu, do nothing
-              return
-          } else {
-              if (vm.activeSubmenu && vm.$root[vm.activeSubmenu].teardown) {
-                vm.$root[vm.activeSubmenu].teardown()
-              }
-              vm.activeSubmenu = menu
-              if (vm.activeSubmenu && vm.$root[vm.activeSubmenu].setup) {
-                vm.$root[vm.activeSubmenu].setup()
-              }
-          }
-          
+          vm.switchMenu(menu)
       })
     }
   }

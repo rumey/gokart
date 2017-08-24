@@ -9,7 +9,26 @@
                     <gk-layers v-ref:layers></gk-layers>
                     <gk-annotations v-ref:annotations></gk-annotations>
                     <gk-tracking v-ref:tracking></gk-tracking>
-                    <!--gk-bfrs v-ref:bfrs></gk-bfrs-->
+                    <gk-bfrs v-ref:bfrs></gk-bfrs>
+                    <gk-dialog v-ref:dialog></gk-dialog>
+                </div>
+                <div class="tool-slice row collapse" style="width:100%; margin-top:-32px" v-if="$root.hasHints" >
+                  <div v-if="$root.isShowHints" id="hints">
+                      <hr class="small-12" style="margin-bottom:0; margin-top:0"/>
+                      <template v-for="hint in hints">
+                          <div class="small-12">{{hint.name}}:</div>
+                          <div class="small-12">
+                            <ul style="margin-bottom:0px">
+                            <template v-for="description in hint.description">
+                                <li>{{description}}</li>
+                            </template>
+                            </ul>
+                          </div>
+                      </template>
+                  </div>
+                  <div class="small-12 " style="text-align:right;">
+                      <img src="dist/static/images/question-mark.png" style="height:32px;width:32px" @click="setting.toggleShowHints()">
+                  </div>
                 </div>
             </div>
             <div class="off-canvas-content" data-off-canvas-content>
@@ -31,11 +50,11 @@
                             <i class="fa fa-truck" aria-hidden="true"></i>
                         </a>
                     </li>
-                    <!--li class="tabs-title side-button" menu="bfrs">
+                    <li class="tabs-title side-button" menu="bfrs">
                         <a href="#menu-tab-bfrs" title="Bushfire Report System">
                             <i class="fa fa-fire" aria-hidden="true"></i>
                         </a>
-                    </li-->
+                    </li>
                     <li class="tabs-title side-button" menu="setting">
                         <a href="#menu-tab-setting" title="System Settings">
                             <i class="fa fa-cog" aria-hidden="true"></i>
@@ -56,36 +75,55 @@
     import gkTracking from '../components/sss/tracking.vue'
     import gkLoading from '../components/loading.vue'
     import gkSetting from '../components/setting.vue'
-    //import gkBfrs from '../components/sss/bfrs.vue'
+    import gkBfrs from '../components/sss/bfrs.vue'
+    import gkDialog from '../components/dialog.vue'
     import { ol } from 'src/vendor.js'
 
 
     export default { 
       store:{
-        activeMenu:'activeMenu'
+        activeMenu:'activeMenu',
+        activeSubmenu:'activeSubmenu',
+        hints:'hints'
       },
       data: function() {
         return {
         }
       },
-      components: { gkMap, gkLayers, gkAnnotations, gkTracking, gkLoading,gkSetting },//, gkBfrs },
+      computed: {
+          layers: function () { return this.$root.layers },
+          setting: function () { return this.$root.setting },
+      },
+      components: { gkMap, gkLayers, gkAnnotations, gkTracking, gkLoading,gkSetting , gkBfrs ,gkDialog},
+      methods:{
+        switchMenu:function(menu) {
+            if ((this.activeMenu === menu) || (!this.activeMenu && !menu)) {
+                //new active menu is equal to current active menu, do nothing
+                return
+            }
+            if (this.activeMenu && this.$root[this.activeMenu].teardown) {
+                this.$root[this.activeMenu].teardown()
+            }
+            if (this.activeMenu === "layers" && menu !== "layers") {
+                this._activeSubmenu = this.activeSubmenu
+                this.layers.switchMenu(null)
+            }
+            this.activeMenu = menu || null
+
+            if (this.activeMenu && this.$root[this.activeMenu].setup) {
+                this.$root[this.activeMenu].setup()
+            }
+            if (menu === "layers") {
+                this.layers.switchMenu(this._activeSubmenu)
+                this._activeSubmenu = null
+            }
+        }
+      },
       ready: function () {
         var vm = this
         $("#menu-tabs").on("change.zf.tabs",function(target,selectedTab){
             var menu = selectedTab.attr('menu')
-            if (vm.activeMenu && vm.activeMenu == menu) {
-                //click on the active menu, do nothing
-                return
-            } else {
-                if (vm.activeMenu && vm.$root[vm.activeMenu].teardown) {
-                  vm.$root[vm.activeMenu].teardown()
-                }
-                vm.activeMenu = menu
-                if (vm.activeMenu && vm.$root[vm.activeMenu].setup) {
-                  vm.$root[vm.activeMenu].setup()
-                }
-            }
-            
+            vm.switchMenu(menu)
         })
       }
     }
