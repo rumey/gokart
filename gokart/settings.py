@@ -28,7 +28,7 @@ class Setting(object):
         if value is None:
             return defaultValue
         else:
-            return True if v
+            return True if value.lower() in ("true","yes","t","y") else False
 
     @staticmethod
     def getString(name,defaultValue=None):

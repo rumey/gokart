@@ -20,6 +20,7 @@ import bottle
 from .settings import *
 from .spatial import *
 from .gdal import *
+from .raster import *
 
 
 @bottle.route('/client')
