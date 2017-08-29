@@ -117,6 +117,7 @@ body {
 
 .ol-zoom button,
 #map-measure button,
+#spotforecast button,
 .ol-full-screen button {
     width: 48px;
     height: 48px;
@@ -170,7 +171,7 @@ body {
 }
 
 
-#map-measure {
+#spotforecast {
     position: absolute;
     top: 180px;
     left: auto;
@@ -179,7 +180,19 @@ body {
     padding: 0;
 }
 
+#map-measure {
+    position: absolute;
+    top: 237px;
+    left: auto;
+    right: 16px;
+    bottom: auto;
+    padding: 0;
+}
+
 #map-measure .selected{
+    background-color: #2199E8;
+}
+#spotforecast .selected{
     background-color: #2199E8;
 }
 .tooltip-measure {

@@ -171,6 +171,7 @@ if (result) {
           scales: function () { return this.$refs.app.$refs.map.$refs.scales },
           search: function () { return this.$refs.app.$refs.map.$refs.search },
           measure: function () { return this.$refs.app.$refs.map.$refs.measure },
+          spotforecast: function () { return this.$refs.app.$refs.map.$refs.spotforecast },
           info: function() { return this.$refs.app.$refs.map.$refs.info},
           active: function () { return this.$refs.app.$refs.layers.$refs.active },
           layers: function () { return this.$refs.app.$refs.layers },

@@ -5,6 +5,7 @@
   <gk-scales v-ref:scales></gk-scales>
   <gk-search v-ref:search></gk-search>
   <gk-measure v-ref:measure></gk-measure>
+  <gk-spotforecast v-ref:spotforecast></gk-spotforecast>
 </template>
 <style>
     .ol-custom-overviewmap,
@@ -44,6 +45,7 @@
   import gkScales from './scales.vue'
   import gkSearch from './search.vue'
   import gkMeasure from './measure.vue'
+  import gkSpotforecast from './spotforecast.vue'
   export default {
     store: {
         fixedScales:'fixedScales', 
@@ -54,7 +56,7 @@
         displayGraticule:'settings.graticule',
         displayResolution:'displayResolution'
     },
-    components: { gkInfo, gkScales, gkSearch, gkMeasure },
+    components: { gkInfo, gkScales, gkSearch, gkMeasure, gkSpotforecast},
     data: function () {
       return {
         scale: 0,
@@ -90,6 +92,7 @@
       annotations: function () { return this.$root.annotations    },
       active: function () { return this.$root.active    },
       measure: function () { return this.$root.measure    },
+      spotforecast: function () { return this.$root.spotforecast    },
       // because the viewport size changes when the tab pane opens, don't cache the map width and height
       width: {
         cache: false,
@@ -1761,6 +1764,11 @@
                 enabled:false,
                 autoenable:false,
                 controls:vm.measure.mapControl
+            },
+            "spotforecast": {
+                enabled:false,
+                autoenable:false,
+                controls:vm.spotforecast.mapControl
             }
         }
         $.each(vm.mapControls,function(key,control){

@@ -379,6 +379,55 @@ Utils.prototype.verifyDate = function(event,inputPattern,pattern) {
     }
 }
 
+//Return a list of moment object whose time is specified in timesInDay array
+//timesInDay: specify the time part in format "HH:mm:ss" ,required
+//size: the number of the datetimes , required
+//stragegy: the way to get the first datetime, default is 2
+//  1: The first datetime is consisted with current date and first time in timesInDay
+//  2: The first datetime is consisted with current date and the nearest time before current time in timesInDay 
+//  3: The first datetime is consisted with current date and the nearest time after current time in timesInDay 
+//startDate: the start datetime of the forecast,if missing, current datetime will be used
+Utils.prototype.getDatetimes = function(timesInDay,size,strategy,startDate) {
+    startDate = startDate || moment().tz("Australia/Perth");
+    var currentDate = startDate.format("YYYY-MM-DD");
+    strategy = strategy || 2;
+
+    var result = [];
+    var timeIndex = -1;
+    if (strategy === 2 || strategy === 3) {
+        $.each(timesInDay,function(index,time){
+            if (strategy === 2 && startDate < moment.tz(currentDate + " " + time,"Australia/Perth") ) {
+                if (index === 0) {
+                    timeIndex = timesInDay.length - 1;
+                    startDate.date(startDate.date() - 1);
+                } else {
+                    timeIndex = index - 1;
+                }
+                return false;
+            } else if (strategy === 3 && startDate < moment.tz(currentDate + " " + time,"Australia/Perth") ) {
+                furstIndex = index;
+                return false;
+            }
+        })
+        if (strategy === 3 && timeIndex === -1) {
+            timeIndex = 0;
+            startDate.date(startDate.date() + 1);
+        }
+    } else {
+        timeIndex = 0;
+    }
+    var result = [];
+    while (result.length < size) {
+        result.push( moment.tz(startDate.format("YYYY-MM-DD") + " " + timesInDay[timeIndex],"Australia/Perth") );
+        timeIndex += 1;
+        if (timeIndex >= timesInDay.length) {
+            timeIndex = 0;
+            startDate.date(startDate.date() + 1);
+        }
+    }
+    return result
+}
+
 var utils = new Utils()
 
 export default utils
