@@ -199,8 +199,11 @@ def getRasterData(options):
                     else:
                         band = ds.GetRasterBand(index)
                         structval = band.ReadRaster(options["pixel"][0], options["pixel"][1], 1, 1, buf_type=gdal.GDT_Float32)
-                        data = struct.unpack('f', structval)[0]
-                        if data == band.GetNoDataValue():
+                        if structval:
+                            data = struct.unpack('f', structval)[0]
+                            if data == band.GetNoDataValue():
+                                data = None
+                        else:
                             data = None
                     datas.append(data)
                 #import ipdb;ipdb.set_trace()
