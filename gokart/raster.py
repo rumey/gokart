@@ -11,9 +11,6 @@ import bottle
 
 from .settings import *
 
-def getBandMetadata(band,name):
-    return band.GetMetadata().get(name)
-
 def convertEpochTimeToDatetime(t):
     """
     Convert the epoch time to the datetime with perth timezone
@@ -25,15 +22,37 @@ def convertEpochTimeToDatetime(t):
         else:
             raise "Invalid epoch time '{}'".format(t)
 
-def getEpochTimeId(band,name):
-    return convertEpochTimeToDatetime(getBandMetadata(band,name)).strftime("%Y/%m/%d %H:%M:%S")
+def getEpochTime(name,f=None,defaultBand=None):
+    """
+    Get the meta data whose type is epoch time
+    if f is not None, then return formated string; otherwise return date time
+    """
+    def _func(ds,band=None):
+        """
+        Get the data from datasource's metadata if both band and defaultBand are None; otherwise get the data from datasource's band
+        """
+        try:
+            if band is not None:
+                dt = convertEpochTimeToDatetime(ds.GetRasterBand(band).GetMetadata().get(name))
+            elif defaultBand is not None:
+                dt = convertEpochTimeToDatetime(ds.GetRasterBand(defaultBand).GetMetadata().get(name))
+            else:
+                dt = convertEpochTimeToDatetime(ds.GetMetadata().get(name))
+
+            if f is None:
+                return dt
+            else:
+                return dt.strftime(f)
+        except:
+            return None
+    return _func
 
 def getEpsgSrs(srsid):
     srs = srsid.split(":")
     if len(srs) != 2 or srs[0] != "EPSG":
         raise Exception("Srs '{}' is not a invalid epsg srs".format(srsid))
     result = osr.SpatialReference()
-    result.ImportFromEPSG(srs[1])
+    result.ImportFromEPSG(int(srs[1]))
     return result
 
 def loadDatasource(datasource):
@@ -55,15 +74,16 @@ def loadDatasource(datasource):
             datasource["bands"] = {}
         index = 1
         while index <= ds.RasterCount:
-            band = ds.GetRasterBand(index)
-            bandid= datasource["bandid_f"](band,datasource["bandid"])
+            bandid= datasource["bandid_f"](ds,index)
             datasource["bands"][bandid] = index
             #print "Band {} = {}".format(index,bandid)
             index+=1
+        datasource["refresh_time"] = datasource["refresh_time_f"](ds)
         datasource["status"] = "loaded"
         #print "End to load raster datasource: ".format(datasource["datasource"])
     except:
         datasource["status"] = "loadfailed"
+        datasource["refresh_time"] = None
         datasource["bands"].clear()
         datasource["message"] = traceback.format_exception_only(sys.exc_type,sys.exc_value)
         traceback.print_exc()
@@ -81,14 +101,14 @@ def loadAllDatasources():
 raster_datasources={
     "bom":{
         "IDW71000_WA_T_SFC":{
-            "datasource":os.path.join(Setting.getString("bom_home","/var/www/bom_data/adfd"),"IDW71000_WA_T_SFC.grb"),
-            "bandid":"GRIB_VALID_TIME",
-            "bandid_f":getEpochTimeId
+            "datasource":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71000_WA_T_SFC.grb"),
+            "bandid_f":getEpochTime("GRIB_VALID_TIME"),
+            'refresh_time_f':getEpochTime("GRIB_VALID_TIME",None,1)
         },
         "IDW71001_WA_Td_SFC":{
-            "datasource":os.path.join(Setting.getString("bom_home","/var/www/bom_data/adfd"),"IDW71001_WA_Td_SFC.grb"),
-            "bandid":"GRIB_VALID_TIME",
-            "bandid_f":getEpochTimeId
+            "datasource":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71001_WA_Td_SFC.grb"),
+            "bandid_f":getEpochTime("GRIB_VALID_TIME"),
+            'refresh_time_f':getEpochTime("GRIB_VALID_TIME",None,1)
         }
     }
 }
@@ -122,9 +142,6 @@ def getRasterData(options):
         elif not raster_datasources[options["workspace"]].get(options["datasource"]):
             raise Exception("Datasource '{}:{}' is not found".format(options["workspace"],options["datasource"]))
 
-        if not options.get("bands"):
-            raise Exception("Bands is missing in the options")
-
         if not options.get("pixel") and not options.get("point"):
             raise Exception("Either pixel or point must be present in the options")
 
@@ -133,12 +150,13 @@ def getRasterData(options):
 
         datasource = raster_datasources[options["workspace"]][options["datasource"]]
 
-        runtimes = 1
-
+        runtimes = 0
+        #import ipdb;ipdb.set_trace()
         while True:
+            runtimes += 1
             ds = gdal.Open(datasource["datasource"])
             if datasource.get('status') == 'loaded':
-                if ds.RasterCount > 0 and datasource["bands"][1] != datasource["bandid_f"](ds.GetRasterBand(1),datasource["bandid"]):
+                if ds.RasterCount > 0 and datasource["bands"].get(datasource["bandid_f"](ds,1),-1) != 1:
                     datasource["status"]="outdated"
 
             #try to reload datasource if required
@@ -153,7 +171,7 @@ def getRasterData(options):
 
             if not options.get("band_indexes"):
                 options["band_indexes"] = []
-                for bandid in bandids:
+                for bandid in options["bandids"]:
                     options["band_indexes"].append(datasource["bands"].get(bandid,-1))
 
             try:
@@ -175,7 +193,7 @@ def getRasterData(options):
 
                 # Extract pixel value
                 datas = []
-                for index in options["bands"]:
+                for index in options["band_indexes"]:
                     if index < 1 or index > ds.RasterCount:
                         data = None
                     elif not options["pixel"]:
@@ -187,13 +205,18 @@ def getRasterData(options):
                         if data == band.GetNoDataValue():
                             data = None
                     datas.append(data)
-                return {
+                result = {
                     "status":True,
+                    "refresh_time":datasource["refresh_time"],
+                    "band_indexes":options["band_indexes"],
                     "datas":datas
                 }
+                if options.get("bandids"):
+                    result["bandids"] = options["bandids"]
+                return result
             except:
                 #retrieve data failed, maybe be caused by ftp sync process; retrieved it again
-                if runTimes == 1:
+                if runtimes == 1:
                     ds = None
                     ds = gdal.Open(datasource["datasource"])
                 else:
@@ -207,8 +230,8 @@ def getRasterData(options):
     finally:
         ds = None
 
-@bottle.route('/raster')
-def raster():
+@bottle.route('/raster/<fmt>',method="POST")
+def raster(fmt):
     """
     Get data from raster datasources
     Request datas
@@ -221,7 +244,7 @@ def raster():
                 datasource : bands(a band identity or a array of band identities; its value dependents on workspace).
             }
           {
-    Response: json
+    Response: json or html
         {
             workspace: 
             {
@@ -235,40 +258,52 @@ def raster():
 
         }
     """
+    fmt = (fmt or "json").lower()
     try:
-        point = bottle.request.forms.get("coordinate")
-        point_srs = (bottle.request.forms.get("srs") or "EPSG:4326").strip().upper()
-        datasources = bottle.request.forms.get("datasources")
-        if point:
-            point = json.loads(point)
+        requestData = bottle.request.forms.get("data")
+        if requestData:
+            requestData = json.loads(requestData)
         else:
+            requestData = {}
+
+        requestData["srs"] = (requestData.get("srs") or "EPSG:4326").strip().upper()
+
+        if not requestData.get("point"):
             raise Exception("Point, whose corresponding data will be retrieved from raster datasource, is missing.")
-    
-        if datasources:
-            datasources = json.loads(datasources)
+
+        if requestData.get("datasources"):
             #change the bands to a list if it is not a list(shoule be a string)
-            for workspace in datasources:
-                for datasource in datasources[workspace]:
-                    if datasources[workspace][datasource] and not isinstance(datasources[workspace][datasource],list):
-                        datasources[workspace][datasource] = [datasources[workspace][datasource]]
+            for workspace in requestData["datasources"]:
+                for datasource in requestData["datasources"][workspace]:
+                    if requestData["datasources"][workspace][datasource] and not isinstance(requestData["datasources"][workspace][datasource],list):
+                        requestData["datasources"][workspace][datasource] = [requestData["datasources"][workspace][datasource]]
+                    requestData["datasources"][workspace][datasource] = [datetime.strptime(dt,"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE)  for dt in requestData["datasources"][workspace][datasource]]
         else:
             raise Exception("Raster datasources is missing.")
-        result = {}
-        for workspace in datasources:
-            result[workspace] = result[workspace] or {}
-            for datasource in datasources[workspace]:
+
+
+        result = {"point":requestData["point"]}
+        for workspace in requestData["datasources"]:
+            result[workspace] = result.get(workspace,{})
+            for datasource in requestData["datasources"][workspace]:
                 result[workspace][datasource] = getRasterData({
                     "workspace":workspace,
                     "datasource":datasource,
-                    "point":point,
-                    "srs":point_srs,
-                    "bands":datasources[workspace][datasource]
+                    "point":requestData["point"],
+                    "srs":requestData["srs"],
+                    "bandids":requestData["datasources"][workspace][datasource]
     
                 })
     
     
-        bottle.response.set_header("Content-Type", "application/json")
-        return result
+        if fmt == "json":
+            bottle.response.set_header("Content-Type", "application/json")
+            return result
+        else:
+            #html
+            bottle.response.set_header("Content-Type", "text/html")
+            return result
+
     except:
         bottle.response.status = 400
         bottle.response.set_header("Content-Type","text/plain")

@@ -7,6 +7,8 @@ import subprocess
 import re
 import hashlib
 import base64
+import json
+from datetime import datetime
 
 
 dotenv.load_dotenv(dotenv.find_dotenv())
@@ -19,7 +21,7 @@ BASE_PATH = os.path.dirname(__file__)
 BASE_DIST_PATH = os.path.join(os.path.dirname(BASE_PATH),"dist")
 ENV_TYPE = (os.environ.get("ENV_TYPE") or "prod").lower()
 
-PERTH_TIMEZONE = pytz.timezone('Australia/Perth')
+PERTH_TIMEZONE = datetime.now(pytz.timezone('Australia/Perth')).tzinfo
 
 class Setting(object):
     @staticmethod
@@ -80,3 +82,12 @@ typename_re = re.compile("typenames?=\s*(?P<name>[a-zA-Z0-9_\-\:\%]+)\s*",re.DOT
 def typename(url):
     m = typename_re.search(url.lower())
     return m.group('name').replace("%3a",":") if m else None
+
+
+
+def datetime_encoder(self,o):
+    if isinstance(o,datetime):
+        return o.strftime("%Y-%m-%d %H:%M:%S")
+    else:
+        raise TypeError("Unknown type {}".format(type(o)))
+json.JSONEncoder.default = datetime_encoder
