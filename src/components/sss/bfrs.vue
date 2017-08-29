@@ -1139,7 +1139,7 @@
                                         layers:[
                                             {
                                                 id:"tenure_area",
-                                                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:dpaw_tenure",
+                                                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:legislated_lands_and_waters",
                                                 properties:{
                                                     id:"ogc_fid",
                                                     name:"name",
