@@ -62,16 +62,25 @@
             this.annotations.setTool(this._spotforecastTool)
         }
       },
-      getBomSpotForecast:function(coordinate) {
+      getSpotforecast:function(coordinate) {
         var vm = this
         var requestData = {
             point:coordinate,
-            datasources:{
-                bom:{
-                    IDW71000_WA_T_SFC:utils.getDatetimes(["00:00:00","06:00:00","12:00:00","18:00:00"],16,2).map(function(dt) {return dt.format("YYYY-MM-DD HH:mm:ss")}),
-                    IDW71001_WA_Td_SFC:utils.getDatetimes(["00:00:00","06:00:00","12:00:00","18:00:00"],16,2).map(function(dt) {return dt.format("YYYY-MM-DD HH:mm:ss")})
+            forecasts:[
+                {
+                    times:utils.getDatetimes(["00:00:00","06:00:00","12:00:00","18:00:00"],16,2).map(function(dt) {return dt.format("YYYY-MM-DD HH:mm:ss")}),
+                    datasources:[
+                        {
+                            workspace:"bom",
+                            id:"IDW71000_WA_T_SFC"
+                        },
+                        {
+                            workspace:"bom",
+                            id:"IDW71001_WA_Td_SFC"
+                        }
+                    ]
                 }
-            }
+            ]
         }
         if (this.format === "json") {
             $.ajax({
@@ -107,7 +116,7 @@
 
       this._features = new ol.Collection()
       this._features.on("add",function(event){
-        vm.getBomSpotForecast(event.element.getGeometry().getCoordinates())
+        vm.getSpotforecast(event.element.getGeometry().getCoordinates())
       })
       this._style =  new ol.style.Style({
           image: new ol.style.Icon({

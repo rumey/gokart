@@ -116,7 +116,6 @@ raster_datasources={
 def getRasterData(options):
     """
     options: a dictionary
-        workspace: the workspace
         datasource: the raster datasource
         point: the point whose data will retrieved from datasource bands, optional
         srs: point srs  optional
@@ -132,15 +131,14 @@ def getRasterData(options):
 
     ds = None
     try:
-        if not options.get("workspace"):
-            raise Exception("Workspace is missing in the options")
-        elif not raster_datasources.get(options["workspace"]):
-            raise Exception("Workspace '{}' is not found".format(options["workspace"]))
-
         if not options.get("datasource"):
             raise Exception("Datasource is missing in the options")
-        elif not raster_datasources[options["workspace"]].get(options["datasource"]):
-            raise Exception("Datasource '{}:{}' is not found".format(options["workspace"],options["datasource"]))
+
+        if not raster_datasources.get(options["datasource"]["workspace"]):
+            raise Exception("Workspace '{}' is not found".format(options["datasource"]["workspace"]))
+
+        if not raster_datasources[options["datasource"]["workspace"]].get(options["datasource"]["id"]):
+            raise Exception("Datasource '{}:{}' is not found".format(options["datasource"]["workspace"],options["datasource"]["id"]))
 
         if not options.get("pixel") and not options.get("point"):
             raise Exception("Either pixel or point must be present in the options")
@@ -148,7 +146,7 @@ def getRasterData(options):
         if not options.get("band_indexes") and not options.get("bandids"):
             raise Exception("Either band_indexes or bandids must be present in the options")
 
-        datasource = raster_datasources[options["workspace"]][options["datasource"]]
+        datasource = raster_datasources[options["datasource"]["workspace"]][options["datasource"]["id"]]
 
         runtimes = 0
         #import ipdb;ipdb.set_trace()
@@ -205,15 +203,11 @@ def getRasterData(options):
                         if data == band.GetNoDataValue():
                             data = None
                     datas.append(data)
-                result = {
-                    "status":True,
-                    "refresh_time":datasource["refresh_time"],
-                    "band_indexes":options["band_indexes"],
-                    "datas":datas
-                }
-                if options.get("bandids"):
-                    result["bandids"] = options["bandids"]
-                return result
+                #import ipdb;ipdb.set_trace()
+                options["datasource"]["status"] = True
+                options["datasource"]["refresh_time"] = datasource["refresh_time"]
+                options["datasource"]["data"] = datas
+                return options["datasource"]
             except:
                 #retrieve data failed, maybe be caused by ftp sync process; retrieved it again
                 if runtimes == 1:
@@ -223,10 +217,9 @@ def getRasterData(options):
                     raise
     except:
         traceback.print_exc()
-        return {
-            "status":False,
-            "message":traceback.format_exception_only(sys.exc_type,sys.exc_value)
-        }
+        options["datasource"]["status"] = False
+        options["datasource"]["message"] = traceback.format_exception_only(sys.exc_type,sys.exc_value)
+        return options["datasource"]
     finally:
         ds = None
 
@@ -268,32 +261,42 @@ def raster(fmt):
 
         requestData["srs"] = (requestData.get("srs") or "EPSG:4326").strip().upper()
 
+        if not requestData.get("forecasts"):
+            raise Exception("Parameter 'forecasts' is missing")
+
         if not requestData.get("point"):
-            raise Exception("Point, whose corresponding data will be retrieved from raster datasource, is missing.")
+            raise Exception("Parameter 'point' is missing.")
 
-        if requestData.get("datasources"):
-            #change the bands to a list if it is not a list(shoule be a string)
-            for workspace in requestData["datasources"]:
-                for datasource in requestData["datasources"][workspace]:
-                    if requestData["datasources"][workspace][datasource] and not isinstance(requestData["datasources"][workspace][datasource],list):
-                        requestData["datasources"][workspace][datasource] = [requestData["datasources"][workspace][datasource]]
-                    requestData["datasources"][workspace][datasource] = [datetime.strptime(dt,"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE)  for dt in requestData["datasources"][workspace][datasource]]
-        else:
-            raise Exception("Raster datasources is missing.")
+        for forecast in requestData["forecasts"]:
+            if not forecast.get("times"):
+                raise Exception("Property 'times' within forecast is missing.")
+            elif not isinstance(forecast["times"],list):
+                forecast["times"] = [forecast["times"]]
+            forecast["times"] = [datetime.strptime(dt,"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE)  for dt in forecast["times"]]
+
+            if forecast.get("datasources"):
+                #change the bands to a list if it is not a list(shoule be a string)
+                for datasource in forecast["datasources"]:
+                    if not datasource.get("workspace"):
+                        raise Exception("Property 'workspace' within datasource is missing.")
+                    if not datasource.get("id"):
+                        raise Exception("Property 'id' within datasource is missing.")
+            else:
+                raise Exception("Property 'datasources' within forecast is missing.")
 
 
-        result = {"point":requestData["point"]}
-        for workspace in requestData["datasources"]:
-            result[workspace] = result.get(workspace,{})
-            for datasource in requestData["datasources"][workspace]:
-                result[workspace][datasource] = getRasterData({
-                    "workspace":workspace,
+        result = {"point":requestData["point"],"forecasts":[]}
+
+        for forecast in requestData["forecasts"]:
+            forecastResult = {"times":forecast["times"],"datasources":[]}
+            result["forecasts"].append(forecastResult)
+            for datasource in forecast["datasources"]:
+                forecastResult["datasources"].append(getRasterData({
                     "datasource":datasource,
                     "point":requestData["point"],
                     "srs":requestData["srs"],
-                    "bandids":requestData["datasources"][workspace][datasource]
-    
-                })
+                    "bandids":forecast["times"]
+                }))
     
     
         if fmt == "json":
