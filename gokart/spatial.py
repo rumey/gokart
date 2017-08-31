@@ -150,7 +150,7 @@ def calculateArea(session_cookies,results,features,options):
             for handler in loghandlers:
                 handler.enable(False)
 
-        area_data = {}
+        area_data = {"layers":{}}
         result[options.get("name","area")] = area_data
         if not layers:
             continue
@@ -169,7 +169,7 @@ def calculateArea(session_cookies,results,features,options):
             try:
                 layer_area_data = []
                 total_layer_area = 0
-                area_data[layer["id"]] = {"areas":layer_area_data}
+                area_data["layers"][layer["id"]] = {"areas":layer_area_data}
     
                 layer_features = json.loads(requests.get(
                     "{}&outputFormat=json&bbox={},{},{},{}".format(layer["url"],geometry.bounds[1],geometry.bounds[0],geometry.bounds[3],geometry.bounds[2]),
@@ -193,7 +193,7 @@ def calculateArea(session_cookies,results,features,options):
                     total_layer_area  += layer_feature_area_data["area"]
                     layer_area_data.append(layer_feature_area_data)
     
-                area_data[layer["id"]]["total_area"] = total_layer_area
+                area_data["layers"][layer["id"]]["total_area"] = total_layer_area
                 total_area += total_layer_area
                 if not overlap and total_area >= area_data["total_area"] :
                     break
