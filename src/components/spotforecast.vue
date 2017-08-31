@@ -4,7 +4,7 @@
       <button type="button" title="Bom sport forecast" @click="toggleSpotForecast()" v-bind:class="{'selected':isSelected}"><img src="dist/static/images/spot-forecast.svg"></button>
   </div>
   </div>
-  <form id="spotforecast" name="spotforecast" action="{{env.gokartService + '/raster/html'}}" method="post" target="spotforecast">
+  <form id="spotforecast" name="spotforecast" action="{{env.gokartService + '/spotforecast/html'}}" method="post" target="spotforecast">
       <input type="hidden" name="data" id="spotforecast_data">
   </form>
 </template>
@@ -66,17 +66,43 @@
         var vm = this
         var requestData = {
             point:coordinate,
+            no_data:"-",
+            datetime_pattern:"%d/%m/%Y %H:%M:%S",
             forecasts:[
                 {
                     times:utils.getDatetimes(["00:00:00","06:00:00","12:00:00","18:00:00"],16,2).map(function(dt) {return dt.format("YYYY-MM-DD HH:mm:ss")}),
+                    pattern:"%Y-%m-%d %H:%M:%S",
+                    style:"text-align:center",
                     datasources:[
                         {
                             workspace:"bom",
-                            id:"IDW71000_WA_T_SFC"
+                            id:"IDW71000_WA_T_SFC",
+                            pattern:"{:-.2f}",
+                            style:"text-align:right",
                         },
                         {
                             workspace:"bom",
-                            id:"IDW71001_WA_Td_SFC"
+                            id:"IDW71001_WA_Td_SFC",
+                            pattern:"{:-.2f}",
+                            style:"text-align:right",
+                        },
+                        {
+                            group:"test",
+                            datasources:[
+                                {
+                                    workspace:"bom",
+                                    id:"IDW71002_WA_MaxT_SFC",
+                                    pattern:"{:-.2f}",
+                                    style:"text-align:right",
+                                },
+                                {
+                                    workspace:"bom",
+                                    id:"IDW71003_WA_MinT_SFC",
+                                    pattern:"{:-.2f}",
+                                    style:"text-align:right",
+                                }
+                            ]
+
                         }
                     ]
                 }
@@ -84,7 +110,7 @@
         }
         if (this.format === "json") {
             $.ajax({
-                url:vm.env.gokartService + "/raster/json",
+                url:vm.env.gokartService + "/spotforecast/json",
                 dataType:"json",
                 data:{
                     data:JSON.stringify(requestData),

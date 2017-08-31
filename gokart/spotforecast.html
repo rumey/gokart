@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- Cordova CSP -->
+    <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob: filesystem: mediastream:;">
+    <!-- Unicode is great -->
+    <meta charset="utf-8" />
+    <title>Spot forecast</title>
+    <!-- Disable awful IE compatibility mode -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- Force fit-to-viewport sizing on mobile -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <!-- favicon -->
+    <link rel="icon" href="dist/static/images/favicon.svg" sizes="any" type="image/svg+xml" />
+    <link rel="icon" href="dist/static/images/favicon-256.png" sizes="16x16 32x32 64x64 128x128 256x256" type="image/png" /> 
+
+    <script src="{{staticService}}/static/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="{{staticService}}/static/libs/foundation/6.4.3/js/foundation.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="{{staticService}}/static/libs/foundation/6.4.3/css/foundation.min.css" />
+    <style>
+        .hover tbody tr:hover td, .table-hover tbody tr:hover th {
+          background-color: #2199e8;
+        }
+    </style>
+  </head>
+  <body>
+    {%- for forecast in data.forecasts -%}
+    <table class="hover" style="border-collapse:separate;background:black">
+      <thead>
+        <tr>
+        {%- if forecast.has_group  -%}
+          <th rowspan="2" style="text-align:center">Time</th>
+        {% else %}
+          <th style="text-align:center"> Time </th>
+        {% endif %}
+        {%- for datasource in forecast.datasources -%}
+          {%- if datasource.group -%}
+          <th colspan="{{datasource.columns}}" style="text-align:center"> {{ datasource.group }} </th>
+          {% else %}
+            {%- if forecast.has_group  -%}
+              <th rowspan="2" style="text-align:center"> {{ datasource.title }} <br> ({{datasource.refresh_time | formatDate(data.datetime_pattern) }})</th>
+            {% else %}
+              <th style="text-align:center"> {{ datasource.title }} <br> ({{datasource.refresh_time | formatDate(data.datetime_pattern) }})</th>
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+        </tr>
+        {%- if forecast.has_group  -%}
+        <tr>
+          {%- for datasource in forecast.datasources -%}
+            {%- if datasource.group -%}
+              {%- for ds in datasource.datasources -%}
+                <th style="text-align:center"> {{ ds.title }} <br> ({{ds.refresh_time | formatDate(data.datetime_pattern) }})</th>
+              {% endfor %}
+            {% endif %}
+          {% endfor %}
+        </tr>
+        {% endif %}
+      </thead>
+      <tbody>
+        {%- for time in forecast.times -%}
+        {%- set index = loop.index0 -%}
+        <tr>
+            <td style="{{forecast.style|format("","text-align:center")}}">{{time | formatDate(forecast.pattern,data.no_data) }}</td>
+          {%- for datasource in forecast.datasources -%}
+            {%- if datasource.group -%}
+              {%- for ds in datasource.datasources -%}
+                {%- if ds.status -%}
+                  <td style="{{ds.style|format("","text-align:center")}}"> {{ ds.data[index]|format(ds.pattern,data.no_data) }}</td>
+                {% else %}
+                  <td style="{{ds.style|format("","text-align:center")}}">{{data.no_data}}</td>
+                {% endif %}
+              {% endfor %}
+            {% else %}
+              {%- if datasource.status -%}
+                <td style="{{datasource.style|format("","text-align:center")}}"> {{ datasource.data[index]|format(datasource.pattern,data.no_data) }}</td>
+              {% else %}
+                <td style="{{datasource.style|format("","text-align:center")}}">{{data.no_data}}</td>
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endfor %}
+  </body>
+</html>

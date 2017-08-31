@@ -22,7 +22,6 @@ from .spatial import *
 from .gdal import *
 from .raster import *
 
-
 @bottle.route('/client')
 def server_static():
     return bottle.static_file('client.html', root=BASE_PATH)

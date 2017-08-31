@@ -21,6 +21,8 @@ BASE_PATH = os.path.dirname(__file__)
 BASE_DIST_PATH = os.path.join(os.path.dirname(BASE_PATH),"dist")
 ENV_TYPE = (os.environ.get("ENV_TYPE") or "prod").lower()
 
+STATIC_SERVICE=os.environ.get("STATIC_SERVICE") or "https://static.dbca.wa.gov.au"
+
 PERTH_TIMEZONE = datetime.now(pytz.timezone('Australia/Perth')).tzinfo
 
 class Setting(object):

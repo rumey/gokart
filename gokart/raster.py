@@ -10,6 +10,7 @@ import json
 import bottle
 
 from .settings import *
+from .jinja2settings import settings as jinja2settings
 
 def convertEpochTimeToDatetime(t):
     """
@@ -109,7 +110,18 @@ raster_datasources={
             "datasource":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71001_WA_Td_SFC.grb"),
             "bandid_f":getEpochTime("GRIB_VALID_TIME"),
             'refresh_time_f':getEpochTime("GRIB_VALID_TIME",None,1)
+        },
+        "IDW71002_WA_MaxT_SFC":{
+            "datasource":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71002_WA_MaxT_SFC.grb"),
+            "bandid_f":getEpochTime("GRIB_VALID_TIME"),
+            'refresh_time_f':getEpochTime("GRIB_VALID_TIME",None,1)
+        },
+        "IDW71003_WA_MinT_SFC":{
+            "datasource":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71003_WA_MinT_SFC.grb"),
+            "bandid_f":getEpochTime("GRIB_VALID_TIME"),
+            'refresh_time_f':getEpochTime("GRIB_VALID_TIME",None,1)
         }
+
     }
 }
 
@@ -226,8 +238,8 @@ def getRasterData(options):
     finally:
         ds = None
 
-@bottle.route('/raster/<fmt>',method="POST")
-def raster(fmt):
+@bottle.route('/spotforecast/<fmt>',method="POST")
+def spotforecast(fmt):
     """
     Get data from raster datasources
     Request datas
@@ -280,35 +292,64 @@ def raster(fmt):
             if forecast.get("datasources"):
                 #change the bands to a list if it is not a list(shoule be a string)
                 for datasource in forecast["datasources"]:
-                    if not datasource.get("workspace"):
-                        raise Exception("Property 'workspace' within datasource is missing.")
-                    if not datasource.get("id"):
-                        raise Exception("Property 'id' within datasource is missing.")
+                    if datasource.get("group"):
+                        if not datasource.get("datasources"):
+                            raise Exception("Property 'datasources' within datasource group is missing.")
+                        for ds in datasource["datasources"]:
+                            if not ds.get("workspace"):
+                                raise Exception("Property 'workspace' within datasource is missing.")
+                            if not ds.get("id"):
+                                raise Exception("Property 'id' within datasource is missing.")
+                    else:
+                        if not datasource.get("workspace"):
+                            raise Exception("Property 'workspace' within datasource is missing.")
+                        if not datasource.get("id"):
+                            raise Exception("Property 'id' within datasource is missing.")
             else:
                 raise Exception("Property 'datasources' within forecast is missing.")
 
 
-        result = {"point":requestData["point"],"forecasts":[]}
-
         for forecast in requestData["forecasts"]:
-            forecastResult = {"times":forecast["times"],"datasources":[]}
-            result["forecasts"].append(forecastResult)
             for datasource in forecast["datasources"]:
-                forecastResult["datasources"].append(getRasterData({
-                    "datasource":datasource,
-                    "point":requestData["point"],
-                    "srs":requestData["srs"],
-                    "bandids":forecast["times"]
-                }))
+                if datasource.get("group"):
+                    for ds in datasource["datasources"]:
+                        ds.update(getRasterData({
+                            "datasource":ds,
+                            "point":requestData["point"],
+                            "srs":requestData["srs"],
+                            "bandids":forecast["times"]
+                        }))
+                else:
+                    datasource.update(getRasterData({
+                        "datasource":datasource,
+                        "point":requestData["point"],
+                        "srs":requestData["srs"],
+                        "bandids":forecast["times"]
+                    }))
     
-    
+        result = requestData
+
         if fmt == "json":
             bottle.response.set_header("Content-Type", "application/json")
             return result
         else:
             #html
+            for forecast in result["forecasts"]:
+                forecast["has_group"] = False
+                forecast["columns"] = 0
+                for datasource in forecast["datasources"]:
+                    if datasource.get("group"):
+                        forecast["has_group"] = True
+                        datasource["columns"] = 0
+                        for ds in datasource["datasources"]:
+                            forecast["columns"] += 1
+                            datasource["columns"] += 1
+			    ds["title"] = ds.get("title") or ds["id"]
+                    else:
+                        forecast["columns"] += 1
+			datasource["title"] = datasource.get("title") or datasource["id"]
             bottle.response.set_header("Content-Type", "text/html")
-            return result
+            return bottle.template('spotforecast.html',template_adapter=bottle.Jinja2Template,template_settings=jinja2settings, staticService=STATIC_SERVICE,data=result)
 
     except:
         bottle.response.status = 400
