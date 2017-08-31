@@ -1068,17 +1068,6 @@
           inter.dispatchEvent(vm.map.createEvent(inter,"addtomap"))
         })
 
-        // remove selections
-        if (t !== this.ui.defaultPan) {
-            //remove selections only if the tool is not Pan
-            if ((this._previousActiveMenu && this._previousActiveMenu !== this.activeMenu) || (this._previousTool && this._previousTool !== t && !t.keepSelection)) {
-                //remove selections only if the current tool is not the same tool as the previous tool.
-                this.selectedFeatures.clear()
-            }
-            this._previousTool = t
-            this._previousActiveMenu = this.activeMenu
-        }
-
         //change the cursor
         if (t.cursor && typeof t.cursor === 'string') {
             $(map.olmap.getTargetElement()).find(".ol-viewport").css('cursor',t.cursor)
@@ -1090,11 +1079,29 @@
             $(map.olmap.getTargetElement()).find(".ol-viewport").css('cursor','default')
         }
         
+        var clearFeatures = false
+        // remove selections if required
+        if (t !== this.ui.defaultPan) {
+            //remove selections only if the tool is not Pan
+            if ((this._previousActiveMenu && this._previousActiveMenu !== this.activeMenu) || (this._previousTool && this._previousTool !== t && !t.keepSelection)) {
+                //remove selections only if the current tool is not the same tool as the previous tool.
+                clearFeatures = true
+            }
+            this._previousTool = t
+            this._previousActiveMenu = this.activeMenu
+        }
+
+        if (!clearFeatures && t.selectMode !== this.tool.selectMode){
+            this.selectedFeatures.forEach(function(f){f.changed()})
+        }
 
         this.tool = t
         this.currentTool = t
-        if (t.selectMode !== this.tool.selectMode){
-            this.selectedFeatures.forEach(function(f){f.changed()})
+
+        // remove selections
+        if (clearFeatures) {
+            //remove selections only if the current tool is not the same tool as the previous tool.
+            this.selectedFeatures.clear()
         }
 
         if (t.onSet) { t.onSet(this.tool) }
