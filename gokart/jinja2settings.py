@@ -16,9 +16,17 @@ def format(value,pattern=None,non_data=""):
     else:
         return "{}".format(value)
 
+def formatText(text,**context):
+    if context:
+        return text.format(**context)
+    else:
+        return text
+
+
 filters={
     "formatDate":formatDate,
-    "format":format
+    "format":format,
+    "formatText":formatText,
 }
 
 settings = {

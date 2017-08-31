@@ -70,13 +70,13 @@ def loadDatasource(datasource):
         datasource["srs"].ImportFromWkt(ds.GetProjection())
 
         if datasource.get("bands") is not None:
-            datasource["bands"].clear()
+            del datasource["bands"][:]
         else:
-            datasource["bands"] = {}
+            datasource["bands"] = []
         index = 1
         while index <= ds.RasterCount:
             bandid= datasource["bandid_f"](ds,index)
-            datasource["bands"][bandid] = index
+            datasource["bands"].append((index,bandid))
             #print "Band {} = {}".format(index,bandid)
             index+=1
         datasource["refresh_time"] = datasource["refresh_time_f"](ds)
@@ -85,40 +85,47 @@ def loadDatasource(datasource):
     except:
         datasource["status"] = "loadfailed"
         datasource["refresh_time"] = None
-        datasource["bands"].clear()
+        del datasource["bands"][:]
         datasource["message"] = traceback.format_exception_only(sys.exc_type,sys.exc_value)
         traceback.print_exc()
-        #print "Failed to load raster datasource: ".format(datasource["datasource"])
-        return traceback.format_exception_only(sys.exc_type,sys.exc_value)
     finally:
         ds = None
 
 def loadAllDatasources():
     for workspace in raster_datasources:
         for datasourceId in raster_datasources[workspace]:
-            bands = loadDatasource(raster_datasources[workspace][datasourceId])
+            loadDatasource(raster_datasources[workspace][datasourceId])
         
-
+"""
+match_strategy: the way to match a user specified value to a band
+    equal: The band is matched if bandid is equal with the value
+    floor: The band is matched if bandid is equal with the value; if no bandid is equal with the value, then find a band whose bandid is cloest and less than specified value 
+    ceiling: The band is matched if bandid is equal with the value; if no bandid is equal with the value, then find a band whose bandid is cloest and large than specified value 
+"""
 raster_datasources={
     "bom":{
         "IDW71000_WA_T_SFC":{
             "datasource":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71000_WA_T_SFC.grb"),
             "bandid_f":getEpochTime("GRIB_VALID_TIME"),
+            "match_strategy":"floor",
             'refresh_time_f':getEpochTime("GRIB_VALID_TIME",None,1)
         },
         "IDW71001_WA_Td_SFC":{
             "datasource":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71001_WA_Td_SFC.grb"),
             "bandid_f":getEpochTime("GRIB_VALID_TIME"),
+            "match_strategy":"floor",
             'refresh_time_f':getEpochTime("GRIB_VALID_TIME",None,1)
         },
         "IDW71002_WA_MaxT_SFC":{
             "datasource":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71002_WA_MaxT_SFC.grb"),
             "bandid_f":getEpochTime("GRIB_VALID_TIME"),
+            "match_strategy":"floor",
             'refresh_time_f':getEpochTime("GRIB_VALID_TIME",None,1)
         },
         "IDW71003_WA_MinT_SFC":{
             "datasource":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71003_WA_MinT_SFC.grb"),
             "bandid_f":getEpochTime("GRIB_VALID_TIME"),
+            "match_strategy":"equal",
             'refresh_time_f':getEpochTime("GRIB_VALID_TIME",None,1)
         }
 
@@ -160,13 +167,14 @@ def getRasterData(options):
 
         datasource = raster_datasources[options["datasource"]["workspace"]][options["datasource"]["id"]]
 
+        options["datasource"]["refresh_time"] = None
         runtimes = 0
         #import ipdb;ipdb.set_trace()
         while True:
             runtimes += 1
             ds = gdal.Open(datasource["datasource"])
             if datasource.get('status') == 'loaded':
-                if ds.RasterCount > 0 and datasource["bands"].get(datasource["bandid_f"](ds,1),-1) != 1:
+                if ds.RasterCount > 0 and datasource["bandid_f"](ds,1)  != datasource["bands"][1][1]:
                     datasource["status"]="outdated"
 
             #try to reload datasource if required
@@ -181,8 +189,25 @@ def getRasterData(options):
 
             if not options.get("band_indexes"):
                 options["band_indexes"] = []
-                for bandid in options["bandids"]:
-                    options["band_indexes"].append(datasource["bands"].get(bandid,-1))
+                for inputBandid in options["bandids"]:
+                    matchedBand = -1
+                    for band in datasource["bands"]:
+                        if band[1] == inputBandid:
+                            matchedBand = band[0]
+                            break
+                        elif inputBandid < band[1] and datasource["match_strategy"] != "equal":
+                            if datasource["match_strategy"] == "floor":
+                                if band[0] >= 2:
+                                    matchedBand = band[0] - 1
+                                else:
+                                    matchedBand = -1
+                            elif datasource["match_strategy"] == "ceiling":
+                                matchedBand = band[0]
+                            else:
+                                matchedBand = -1
+                            break
+                    options["band_indexes"].append(matchedBand)
+
 
             try:
                 if not options.get("pixel"):

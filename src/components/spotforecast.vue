@@ -77,28 +77,32 @@
                         {
                             workspace:"bom",
                             id:"IDW71000_WA_T_SFC",
+                            title:"Temp<br>(C)<br>({refresh_time})",
                             pattern:"{:-.2f}",
                             style:"text-align:right",
                         },
                         {
                             workspace:"bom",
                             id:"IDW71001_WA_Td_SFC",
+                            title:"Dewpt<br>(C)<br>({refresh_time})",
                             pattern:"{:-.2f}",
                             style:"text-align:right",
                         },
                         {
-                            group:"test",
+                            group:"Temperature",
                             datasources:[
                                 {
                                     workspace:"bom",
                                     id:"IDW71002_WA_MaxT_SFC",
                                     pattern:"{:-.2f}",
+                                    title:"Max Temp<br>(C)<br>({refresh_time})",
                                     style:"text-align:right",
                                 },
                                 {
                                     workspace:"bom",
                                     id:"IDW71003_WA_MinT_SFC",
                                     pattern:"{:-.2f}",
+                                    title:"Min Temp<br>(C)<br>({refresh_time})",
                                     style:"text-align:right",
                                 }
                             ]
