@@ -13,3 +13,4 @@ pytesseract>=0.1.6
 Pillow>=4.0.0
 GDAL==2.1.0
 affine
+demjson

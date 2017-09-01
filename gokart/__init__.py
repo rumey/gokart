@@ -8,6 +8,7 @@ import pytz
 import subprocess
 import tempfile
 import requests
+import demjson
 from datetime import datetime,timedelta
 import pytesseract
 try:
