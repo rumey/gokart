@@ -5,7 +5,7 @@ import shutil
 import subprocess
 import tempfile
 import requests
-from datetime import datetime,timedelta
+import datetime
 import re
 import json
 import traceback
@@ -54,7 +54,7 @@ def gdal(fmt):
         "-co", "AUTHOR={}".format("Department of Parks and Wildlife"),
         "-co", "PRODUCER={}".format(gdalinfo),
         "-co", "SUBJECT={}".format(bottle.request.headers.get('Referer', "gokart")),
-        "-co", "CREATION_DATE={}".format(datetime.strftime(datetime.utcnow(), "%Y%m%d%H%M%SZ'00'"))] + extra + [
+        "-co", "CREATION_DATE={}".format(datetime.datetime.strftime(datetime.datetime.utcnow(), "%Y%m%d%H%M%SZ'00'"))] + extra + [
         path, output_filepath
     ])
     output_filename = jpg.filename.replace("jpg", fmt)

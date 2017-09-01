@@ -36,12 +36,12 @@
         {% endif %}
         {%- for datasource in forecast.datasources -%}
           {%- if datasource.group -%}
-          <th colspan="{{datasource.columns}}" style="text-align:center"> {{ datasource.group|formatText(**datasource)|safe }} </th>
+          <th colspan="{{datasource.columns}}" style="text-align:center"> {{ datasource.group|safe }} </th>
           {% else %}
             {%- if forecast.has_group  -%}
-              <th rowspan="2" style="text-align:center"> {{ datasource.title|formatText(**datasource)|safe }}</th>
+              <th rowspan="2" style="text-align:center"> {{ datasource.options.title|safe }}</th>
             {% else %}
-              <th style="text-align:center"> {{ datasource.title|formatText(**datasource)|safe }}</th>
+              <th style="text-align:center"> {{ datasource.options.title|safe }}</th>
             {% endif %}
           {% endif %}
         {% endfor %}
@@ -51,7 +51,7 @@
           {%- for datasource in forecast.datasources -%}
             {%- if datasource.group -%}
               {%- for ds in datasource.datasources -%}
-                <th style="text-align:center"> {{ ds.title|formatText(**ds)|safe }}</th>
+                <th style="text-align:center"> {{ ds.options.title|safe }}</th>
               {% endfor %}
             {% endif %}
           {% endfor %}
@@ -63,21 +63,21 @@
         {%- for time in forecast.times -%}
         {%- set index = loop.index0 -%}
         <tr>
-            <td style="{{forecast.style|format("","text-align:center")}}">{{time | formatDate(forecast.pattern,data.no_data) }}</td>
+            <td style="{{forecast.style|format("","text-align:center")}}">{{time}}</td>
           {%- for datasource in forecast.datasources -%}
             {%- if datasource.group -%}
               {%- for ds in datasource.datasources -%}
                 {%- if ds.status -%}
-                  <td style="{{ds.style|format("","text-align:center")}}"> {{ ds.data[index]|format(ds.pattern,data.no_data) }}</td>
+                <td style="{{ds.style|format("","text-align:center")}}"> {{ ds.data[index]}}</td>
                 {% else %}
-                  <td style="{{ds.style|format("","text-align:center")}}">{{data.no_data}}</td>
+                  <td style="{{ds.style|format("","text-align:center")}}">{{data.options.no_data}}</td>
                 {% endif %}
               {% endfor %}
             {% else %}
               {%- if datasource.status -%}
-                <td style="{{datasource.style|format("","text-align:center")}}"> {{ datasource.data[index]|format(datasource.pattern,data.no_data) }}</td>
+              <td style="{{datasource.style|format("","text-align:center")}}"> {{ datasource.data[index]}}</td>
               {% else %}
-                <td style="{{datasource.style|format("","text-align:center")}}">{{data.no_data}}</td>
+                <td style="{{datasource.style|format("","text-align:center")}}">{{data.options.no_data}}</td>
               {% endif %}
             {% endif %}
           {% endfor %}

@@ -8,7 +8,7 @@ import re
 import hashlib
 import base64
 import json
-from datetime import datetime
+import datetime
 
 
 dotenv.load_dotenv(dotenv.find_dotenv())
@@ -23,7 +23,7 @@ ENV_TYPE = (os.environ.get("ENV_TYPE") or "prod").lower()
 
 STATIC_SERVICE=os.environ.get("STATIC_SERVICE") or "https://static.dbca.wa.gov.au"
 
-PERTH_TIMEZONE = datetime.now(pytz.timezone('Australia/Perth')).tzinfo
+PERTH_TIMEZONE = datetime.datetime.now(pytz.timezone('Australia/Perth')).tzinfo
 
 class Setting(object):
     @staticmethod

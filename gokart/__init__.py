@@ -9,7 +9,7 @@ import subprocess
 import tempfile
 import requests
 import demjson
-from datetime import datetime,timedelta
+import datetime
 import pytesseract
 try:
     from PIL import Image
@@ -138,7 +138,7 @@ def himawari8(target):
     layernames = re.findall("\w+HI8\w+{}\.\w+".format(target), getcaps)
     layers = []
     for layer in layernames:
-        layers.append([PERTH_TIMEZONE.localize(datetime.strptime(re.findall("\w+_(\d+)_\w+", layer)[0], "%Y%m%d%H%M")).isoformat(), layer])
+        layers.append([PERTH_TIMEZONE.localize(datetime.datetime.strptime(re.findall("\w+_(\d+)_\w+", layer)[0], "%Y%m%d%H%M")).isoformat(), layer])
     result = {
         "servers": [baseUrl + FIREWATCH_SERVICE],
         "layers": layers
@@ -176,8 +176,8 @@ def getTimelineFromWmsLayer(target,current_timeline):
             m = basetime_re.search(basetimestr,re.I)
             if not m:
                 raise bottle.HTTPError(status=500,body="Can't extract the base time from base time layer.")
-            basetime = datetime(int(m.group(1)),int(m.group(2)), int(m.group(3)), int(m.group(4)), int(m.group(5)),0,0,tzinfo=pytz.timezone(m.group(6)))
-            now = datetime.now(pytz.timezone('UTC'))
+            basetime = datetime.datetime(int(m.group(1)),int(m.group(2)), int(m.group(3)), int(m.group(4)), int(m.group(5)),0,0,tzinfo=pytz.timezone(m.group(6)))
+            now = datetime.datetime.now(pytz.timezone('UTC'))
             if basetime > now:
                 raise bottle.HTTPError(status=500,body="Extract the wrong base time from base time layer.")
             
@@ -193,17 +193,17 @@ def getTimelineFromWmsLayer(target,current_timeline):
             layertime = None
             layerId = None
             for i in xrange(0,timelineSize):
-                layertime = basetime + timedelta(seconds=layerTimespan * i)
+                layertime = basetime + datetime.timedelta(seconds=layerTimespan * i)
                 layerId = (target + "{0:0>3}").format(i)
 
                 layers.append([layertime.strftime("%a %b %d %Y %H:%M:%S AWST"),layerId,None])
-            return {"refreshtime":datetime.now().strftime("%a %b %d %Y %H:%M:%S"),"layers":layers,"md5":md5,"updatetime":basetime.strftime("%a %b %d %Y %H:%M:%S AWST")}
+            return {"refreshtime":datetime.datetime.now().strftime("%a %b %d %Y %H:%M:%S"),"layers":layers,"md5":md5,"updatetime":basetime.strftime("%a %b %d %Y %H:%M:%S AWST")}
     finally:
         if localfile:
             os.remove(localfile)
 
 
-start_date = datetime(1970, 1, 1, 0, 0,tzinfo=pytz.timezone("UTC")).astimezone(pytz.timezone("Australia/Perth"))
+start_date = datetime.datetime(1970, 1, 1, 0, 0,tzinfo=pytz.timezone("UTC")).astimezone(pytz.timezone("Australia/Perth"))
 @bottle.route("/bom/<target>")
 def bom(target):
     last_updatetime = bottle.request.query.get("updatetime")
@@ -215,7 +215,7 @@ def bom(target):
 
     bottle.response.set_header("Content-Type", "application/json")
     bottle.response.status = 200
-    if current_timeline and datetime.now() - datetime.strptime(current_timeline["refreshtime"],"%a %b %d %Y %H:%M:%S") < timedelta(minutes=5):
+    if current_timeline and datetime.datetime.now() - datetime.datetime.strptime(current_timeline["refreshtime"],"%a %b %d %Y %H:%M:%S") < datetime.timedelta(minutes=5):
         #data is refreshed within 5 minutes, use the result directly
         if current_timeline["updatetime"] == last_updatetime:
             #return 304 cause "No element found" error, so return a customized code to represent the same meaning as 304

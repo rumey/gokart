@@ -17,7 +17,7 @@
   export default {
     data: function () {
       return {
-        format:"html"
+        format:"html",
       }
 
     },
@@ -66,27 +66,27 @@
         var vm = this
         var requestData = {
             point:coordinate,
-            no_data:"-",
-            datetime_pattern:"%d/%m/%Y %H:%M:%S",
+            optons: {
+            },
             forecasts:[
                 {
-                    times:utils.getDatetimes(["00:00:00","06:00:00","12:00:00","18:00:00"],16,2).map(function(dt) {return dt.format("YYYY-MM-DD HH:mm:ss")}),
-                    pattern:"%Y-%m-%d %H:%M:%S",
-                    style:"text-align:center",
+                    times:utils.getDatetimes(["00:00:00","06:00:00","12:00:00","18:00:00"],16,1).map(function(dt) {return dt.format("YYYY-MM-DD HH:mm:ss")}),
+                    options:{
+                    },
                     datasources:[
                         {
                             workspace:"bom",
                             id:"IDW71000_WA_T_SFC",
-                            title:"Temp<br>(C)<br>({refresh_time})",
-                            pattern:"{:-.2f}",
-                            style:"text-align:right",
+                            options:{
+                                title:"Temp<br>(C)<br>({refresh_time})",
+                            }
                         },
                         {
                             workspace:"bom",
                             id:"IDW71001_WA_Td_SFC",
-                            title:"Dewpt<br>(C)<br>({refresh_time})",
-                            pattern:"{:-.2f}",
-                            style:"text-align:right",
+                            options:{
+                                title:"Dewpt<br>(C)<br>({refresh_time})",
+                            }
                         },
                         {
                             group:"Temperature",
@@ -94,20 +94,27 @@
                                 {
                                     workspace:"bom",
                                     id:"IDW71002_WA_MaxT_SFC",
-                                    pattern:"{:-.2f}",
-                                    title:"Max Temp<br>(C)<br>({refresh_time})",
-                                    style:"text-align:right",
+                                    options:{
+                                        title:"Max Temp<br>(C)<br>({refresh_time})",
+                                    }
                                 },
                                 {
                                     workspace:"bom",
                                     id:"IDW71003_WA_MinT_SFC",
-                                    pattern:"{:-.2f}",
-                                    title:"Min Temp<br>(C)<br>({refresh_time})",
-                                    style:"text-align:right",
+                                    options:{
+                                        title:"Min Temp<br>(C)<br>({refresh_time})",
+                                    }
                                 }
                             ]
 
-                        }
+                        },
+                        {
+                            workspace:"bom",
+                            id:"IDW71139_WA_Curing_SFC",
+                            options:{
+                                title:"Curing<br>({refresh_time})",
+                            }
+                        },
                     ]
                 }
             ]

@@ -1,8 +1,9 @@
 import sys
 import struct
 import time
+import subprocess
 import traceback
-from datetime import datetime
+import datetime
 from osgeo import ogr, osr, gdal
 from affine import Affine
 
@@ -18,12 +19,14 @@ def convertEpochTimeToDatetime(t):
     """
     if t:
         datetimes = t.split()
-        if (len(datetimes) == 3 and datetimes[1].lower() == "sec" and datetimes[2].upper() == 'UTC'):
-            return datetime.fromtimestamp(long(datetimes[0]),PERTH_TIMEZONE)
+        if len(datetimes) == 1:
+            return datetime.datetime.fromtimestamp(long(datetimes[0]),PERTH_TIMEZONE)
+        elif (len(datetimes) == 3 and datetimes[1].lower() == "sec" and datetimes[2].upper() == 'UTC'):
+            return datetime.datetime.fromtimestamp(long(datetimes[0]),PERTH_TIMEZONE)
         else:
             raise "Invalid epoch time '{}'".format(t)
 
-def getEpochTime(name,f=None,defaultBand=None):
+def getEpochTimeFunc(name,f=None,defaultBand=None):
     """
     Get the meta data whose type is epoch time
     if f is not None, then return formated string; otherwise return date time
@@ -66,8 +69,11 @@ def loadDatasource(datasource):
         #print "Begin to load raster datasource: ".format(datasource["datasource"])
         ds = gdal.Open(datasource["datasource"])
 
-        datasource["srs"] = osr.SpatialReference()
-        datasource["srs"].ImportFromWkt(ds.GetProjection())
+        if datasource.get("options") and datasource["options"].get("srs"):
+            datasource["srs"] = getEpsgSrs(datasource["options"]["srs"])
+        else:
+            datasource["srs"] = osr.SpatialReference()
+            datasource["srs"].ImportFromWkt(ds.GetProjection())
 
         if datasource.get("bands") is not None:
             del datasource["bands"][:]
@@ -91,9 +97,39 @@ def loadDatasource(datasource):
     finally:
         ds = None
 
+def prepareDatasource(datasource):
+    datasource["file"] = datasource["file"].strip()
+    if (datasource["file"].lower().endswith(".grb")):
+        datasource["datasource"] = datasource["file"]
+    elif (datasource["file"].lower().endswith(".nc")):
+        datasource["datasource"] = datasource["file"]
+    elif (datasource["file"].lower().endswith(".nc.gz")):
+        if datasource.get("datasource"):
+            fileinfo = os.stat(datasource["file"])
+            if fileinfo.st_size != datasource.get("file_size") or (fileinfo.st_mtime and fileinfo.st_mtime != datasource.get("file_mtime")) or not os.path.exists(datasource["datasource"]):
+                datasource["datasource"] = None
+
+        if not datasource.get("datasource"):
+            fileinfo = os.stat(datasource["file"])
+            subprocess.check_call(["gzip","-k","-f","-q","-d",datasource["file"]])
+            datasource["datasource"] = datasource["file"][:-3]
+            datasource["file_size"] = fileinfo.st_size
+            datasource["file_mtime"] = fileinfo.st_mtime
+
+        if not datasource.get("datasource") or not os.path.exists(datasource["datasource"]):
+            raise Exception("Datasource ({}) is missing".format(datasource["datasource"]))
+    else:
+        raise Exception("Datasource {} is not supported".format(datasource["file"]))
+
 def loadAllDatasources():
     for workspace in raster_datasources:
         for datasourceId in raster_datasources[workspace]:
+            try:
+                prepareDatasource(raster_datasources[workspace][datasourceId])
+            except:
+                raster_datasources[workspace][datasourceId]["status"] = "notsupport"
+                raster_datasources[workspace][datasourceId]["message"] = traceback.format_exception_only(sys.exc_type,sys.exc_value)
+                continue
             loadDatasource(raster_datasources[workspace][datasourceId])
         
 """
@@ -105,28 +141,60 @@ match_strategy: the way to match a user specified value to a band
 raster_datasources={
     "bom":{
         "IDW71000_WA_T_SFC":{
-            "datasource":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71000_WA_T_SFC.grb"),
-            "bandid_f":getEpochTime("GRIB_VALID_TIME"),
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71000_WA_T_SFC.grb"),
+            "bandid_f":getEpochTimeFunc("GRIB_VALID_TIME"),
             "match_strategy":"floor",
-            'refresh_time_f':getEpochTime("GRIB_VALID_TIME",None,1)
+            "refresh_time_f":getEpochTimeFunc("GRIB_VALID_TIME",None,1),
+            "options":{
+                "title":"Temp<br>(C)",
+                "pattern":"{:-.2f}",
+                "style":"text-align:right",
+            }
         },
         "IDW71001_WA_Td_SFC":{
-            "datasource":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71001_WA_Td_SFC.grb"),
-            "bandid_f":getEpochTime("GRIB_VALID_TIME"),
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71001_WA_Td_SFC.grb"),
+            "bandid_f":getEpochTimeFunc("GRIB_VALID_TIME"),
             "match_strategy":"floor",
-            'refresh_time_f':getEpochTime("GRIB_VALID_TIME",None,1)
+            "refresh_time_f":getEpochTimeFunc("GRIB_VALID_TIME",None,1),
+            "options":{
+                "title":"Dewpt<br>(C)",
+                "pattern":"{:-.2f}",
+                "style":"text-align:right",
+            }
         },
         "IDW71002_WA_MaxT_SFC":{
-            "datasource":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71002_WA_MaxT_SFC.grb"),
-            "bandid_f":getEpochTime("GRIB_VALID_TIME"),
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71002_WA_MaxT_SFC.grb"),
+            "bandid_f":getEpochTimeFunc("GRIB_VALID_TIME"),
             "match_strategy":"floor",
-            'refresh_time_f':getEpochTime("GRIB_VALID_TIME",None,1)
+            "refresh_time_f":getEpochTimeFunc("GRIB_VALID_TIME",None,1),
+            "options":{
+                "title":"Max Temp<br>(C)",
+                "pattern":"{:-.2f}",
+                "style":"text-align:right",
+            }
         },
         "IDW71003_WA_MinT_SFC":{
-            "datasource":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71003_WA_MinT_SFC.grb"),
-            "bandid_f":getEpochTime("GRIB_VALID_TIME"),
-            "match_strategy":"equal",
-            'refresh_time_f':getEpochTime("GRIB_VALID_TIME",None,1)
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71003_WA_MinT_SFC.grb"),
+            "bandid_f":getEpochTimeFunc("GRIB_VALID_TIME"),
+            "match_strategy":"floor",
+            "refresh_time_f":getEpochTimeFunc("GRIB_VALID_TIME",None,1),
+            "options":{
+                "title":"Min Temp<br>(C)",
+                "pattern":"{:-.2f}",
+                "style":"text-align:right",
+            }
+        },
+        "IDW71139_WA_Curing_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71139_WA_Curing_SFC.nc.gz"),
+            "bandid_f":getEpochTimeFunc("NETCDF_DIM_time"),
+            "match_strategy":"floor",
+            "refresh_time_f":getEpochTimeFunc("NETCDF_DIM_time",None,1),
+            "options":{
+                "title":"Curing",
+                #"pattern":"{:-.2f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:right",
+            }
         }
 
     }
@@ -166,15 +234,19 @@ def getRasterData(options):
             raise Exception("Either band_indexes or bandids must be present in the options")
 
         datasource = raster_datasources[options["datasource"]["workspace"]][options["datasource"]["id"]]
+        if datasource["status"] == "notsupport":
+            raise Exception(datasource["message"])
 
-        options["datasource"]["refresh_time"] = None
+        options["datasource"]["context"] = {}
+        options["datasource"]["context"]["refresh_time"] = None
+        options["datasource"]["match_strategy"] = options["datasource"].get("match_strategy") or datasource.get("match_strategy") or "equal"
         runtimes = 0
-        #import ipdb;ipdb.set_trace()
         while True:
             runtimes += 1
+            prepareDatasource(datasource)
             ds = gdal.Open(datasource["datasource"])
             if datasource.get('status') == 'loaded':
-                if ds.RasterCount > 0 and datasource["bandid_f"](ds,1)  != datasource["bands"][1][1]:
+                if ds.RasterCount > 0 and datasource["bandid_f"](ds,1)  != datasource["bands"][0][1]:
                     datasource["status"]="outdated"
 
             #try to reload datasource if required
@@ -195,13 +267,13 @@ def getRasterData(options):
                         if band[1] == inputBandid:
                             matchedBand = band[0]
                             break
-                        elif inputBandid < band[1] and datasource["match_strategy"] != "equal":
-                            if datasource["match_strategy"] == "floor":
+                        elif inputBandid < band[1] and options["datasource"]["match_strategy"] != "equal":
+                            if options["datasource"]["match_strategy"] == "floor":
                                 if band[0] >= 2:
                                     matchedBand = band[0] - 1
                                 else:
                                     matchedBand = -1
-                            elif datasource["match_strategy"] == "ceiling":
+                            elif options["datasource"]["match_strategy"] == "ceiling":
                                 matchedBand = band[0]
                             else:
                                 matchedBand = -1
@@ -245,7 +317,7 @@ def getRasterData(options):
                     datas.append(data)
                 #import ipdb;ipdb.set_trace()
                 options["datasource"]["status"] = True
-                options["datasource"]["refresh_time"] = datasource["refresh_time"]
+                options["datasource"]["context"]["refresh_time"] = datasource["refresh_time"]
                 options["datasource"]["data"] = datas
                 return options["datasource"]
             except:
@@ -262,6 +334,56 @@ def getRasterData(options):
         return options["datasource"]
     finally:
         ds = None
+
+def formatData(data,pattern,no_data=None):
+    if not data:
+        return no_data
+    elif pattern:
+        if isinstance(data,datetime.datetime) or isinstance(data,datetime.date) or isinstance(data,datetime.time) or isinstance(data,datetime.timedelta):
+            return data.strftime(pattern)
+        else:
+            return pattern.format(data)
+    else:
+        return str(data)
+
+def formatContext(context,patterns):
+    for key,value in context.iteritems():
+        if isinstance(value,datetime.datetime):
+            context[key] = formatData(value,patterns.get("datetime_pattern"),"")
+        elif isinstance(value,datetime.date):
+            context[key] = formatData(value,patterns.get("date_pattern"),"")
+        elif isinstance(value,datetime.time):
+            context[key] = formatData(value,patterns.get("time_pattern"),"")
+        elif isinstance(value,datetime.timedelta):
+            context[key] = formatData(value,patterns.get("timedelta_pattern"),"")
+        
+request_options={
+    "no_data":"-",
+    "datetime_pattern":"%d/%m/%Y %H:%M:%S",
+}
+forecast_options={
+    "time_pattern":"%Y-%m-%d %H:%M:%S",
+    "time_style":"text-align:center",
+}
+
+def setDefaultOptionIfMissing(options,defaultOptions):
+    """
+    If options is none or empty, return defaultOptions directly;
+    Otherwise set option in options if option exist in defaultOptions but does not exist in options.
+    """
+    if not defaultOptions:
+        return {} if options is None else options
+
+    if not options:
+        options = defaultOptions
+
+    for key,value in defaultOptions.iteritems():
+        if key not in options:
+            options[key] = value
+
+    return options
+
+
 
 @bottle.route('/spotforecast/<fmt>',method="POST")
 def spotforecast(fmt):
@@ -312,7 +434,7 @@ def spotforecast(fmt):
                 raise Exception("Property 'times' within forecast is missing.")
             elif not isinstance(forecast["times"],list):
                 forecast["times"] = [forecast["times"]]
-            forecast["times"] = [datetime.strptime(dt,"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE)  for dt in forecast["times"]]
+            forecast["times"] = [datetime.datetime.strptime(dt,"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE)  for dt in forecast["times"]]
 
             if forecast.get("datasources"):
                 #change the bands to a list if it is not a list(shoule be a string)
@@ -358,7 +480,7 @@ def spotforecast(fmt):
             bottle.response.set_header("Content-Type", "application/json")
             return result
         else:
-            #html
+            #html,get total columns and check whether have groups
             for forecast in result["forecasts"]:
                 forecast["has_group"] = False
                 forecast["columns"] = 0
@@ -373,6 +495,58 @@ def spotforecast(fmt):
                     else:
                         forecast["columns"] += 1
 			datasource["title"] = datasource.get("title") or datasource["id"]
+
+            #prepare the format options
+            result["options"] = setDefaultOptionIfMissing(result.get("options"),request_options)
+
+            for forecast in requestData["forecasts"]:
+                forecast["options"] = setDefaultOptionIfMissing(forecast.get("options"),forecast_options)
+
+                for datasource in forecast["datasources"]:
+                    if datasource.get("group"):
+                        for ds in datasource["datasources"]:
+                            try:
+                                ds["options"] = setDefaultOptionIfMissing(ds.get("options"),raster_datasources[ds["workspace"]][ds["id"]].get("options"))
+                            except:
+                                pass
+
+                    else:
+                        try:
+                            datasource["options"] = setDefaultOptionIfMissing(datasource.get("options"),raster_datasources[datasource["workspace"]][datasource["id"]].get("options"))
+                        except:
+                            pass
+
+
+            #format data if required
+            for forecast in result["forecasts"]:
+                index = 0;
+                while index < len(forecast["times"]):
+                    forecast["times"][index] = formatData(forecast["times"][index],forecast["options"].get("time_pattern") or "%Y-%m-%d %H:%M:%S",result["options"].get("no_data") or "")
+                    index += 1
+
+                for datasource in forecast["datasources"]:
+                    if datasource.get("group"):
+                        for ds in datasource["datasources"]:
+                            if ds.get("context"):
+                                formatContext(ds["context"],result["options"])
+                                ds["options"]["title"] = ds["options"]["title"].format(**ds["context"])
+                            if ds["status"] and ds["options"].get("pattern"):
+                                index = 0;
+                                while index < len(ds["data"]):
+                                    ds["data"][index] = formatData(ds["data"][index],ds["options"]["pattern"],result["options"].get("no_data") or "")
+                                    index += 1
+
+                    else:
+                        if datasource.get("context"):
+                            formatContext(datasource["context"],result["options"])
+                            datasource["options"]["title"] = datasource["options"]["title"].format(**datasource["context"])
+
+                        if datasource["status"] and datasource["options"].get("pattern"):
+                            index = 0;
+                            while index < len(datasource["data"]):
+                                datasource["data"][index] = formatData(datasource["data"][index],datasource["options"]["pattern"],result["options"].get("no_data") or "")
+                                index += 1
+
             bottle.response.set_header("Content-Type", "text/html")
             return bottle.template('spotforecast.html',template_adapter=bottle.Jinja2Template,template_settings=jinja2settings, staticService=STATIC_SERVICE,data=result)
 
