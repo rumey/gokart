@@ -56,11 +56,10 @@ def profile(app,dist):
         with open(appPath,"rb") as f:
             m = profile_re.search(f.read())
             profile = m.group("profile") if m else "{}"
-
         profile = {
             'mtime':repr(os.path.getmtime(appPath)),
             'size':os.path.getsize(appPath),
-            'profile':json.loads(profile)
+            'profile':demjson.decode(profile)
         }
         uwsgi.cache_set(key, json.dumps(profile))
 

@@ -27,7 +27,7 @@
                   </div>
                 </div>
                 <div class="row">
-                  <div class="small-8 columns" >
+                  <div class="small-9 columns" >
                     <div class="row">
                       <div class="switch tiny">
                         <input class="switch-input" id="bushfiresInViewport" type="checkbox" v-bind:checked="viewportOnly" @change="toggleViewportOnly" />
@@ -35,10 +35,10 @@
                           <span class="show-for-sr">Viewport bushfires only</span>
                         </label>
                       </div>
-                      <label for="bushfiresInViewport" class="side-label">Restrict to viewport ({{extentFeatureSize}}/{{featureSize}} )</label>
+                      <label for="bushfiresInViewport" class="side-label">Restrict to viewport ({{extentFeatureSize}}/{{featureSize}})</label>
                     </div>
                   </div>
-                  <div class="small-4 columns" style="text-align:right;padding-right:0px">
+                  <div class="small-3 columns" style="text-align:right;padding-right:0px">
                     <span v-on:click="showToggles = !showToggles" style="cursor:pointer"><i class="fa {{showToggles?'fa-angle-double-up':'fa-angle-double-down'}}" aria-hidden="true"></i> Toggles</span>
                   </div>
                 </div>
