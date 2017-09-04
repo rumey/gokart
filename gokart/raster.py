@@ -2,6 +2,7 @@ import sys
 import struct
 import time
 import subprocess
+import math
 import traceback
 import datetime
 from osgeo import ogr, osr, gdal
@@ -26,30 +27,74 @@ def convertEpochTimeToDatetime(t):
         else:
             raise "Invalid epoch time '{}'".format(t)
 
-def getEpochTimeFunc(name,f=None,defaultBand=None):
+def getEpochTimeFunc(name,defaultBandIndex=None):
     """
     Get the meta data whose type is epoch time
-    if f is not None, then return formated string; otherwise return date time
     """
-    def _func(ds,band=None):
+    def _func(ds,bandIndex=None):
         """
         Get the data from datasource's metadata if both band and defaultBand are None; otherwise get the data from datasource's band
         """
         try:
-            if band is not None:
-                dt = convertEpochTimeToDatetime(ds.GetRasterBand(band).GetMetadata().get(name))
-            elif defaultBand is not None:
-                dt = convertEpochTimeToDatetime(ds.GetRasterBand(defaultBand).GetMetadata().get(name))
+            if bandIndex is not None:
+                dt = convertEpochTimeToDatetime(ds.GetRasterBand(bandIndex).GetMetadata().get(name))
+            elif defaultBandIndex is not None:
+                dt = convertEpochTimeToDatetime(ds.GetRasterBand(defaultBandIndex).GetMetadata().get(name))
             else:
                 dt = convertEpochTimeToDatetime(ds.GetMetadata().get(name))
 
-            if f is None:
-                return dt
-            else:
-                return dt.strftime(f)
+            return dt
         except:
             return None
     return _func
+
+def getBandTimeoutFunc(name):
+    """
+    Get band timeout by subtract the first band's start time from the second band's start time
+    if the second band or the first band does not exist, return None
+    """
+    getStartTimeFunc = getEpochTimeFunc(name)
+    def _func(ds):
+        startTime2 = getStartTimeFunc(ds,2)
+        startTime1 = getStartTimeFunc(ds,1)
+        if startTime2 and startTime1 :
+            return (startTime2 - startTime1).total_seconds()
+        else:
+            return None
+    return _func
+
+def isInBandFunc(datasource,band,bandTime):
+    try:
+        diff = (bandTime - band["start_time"]).total_seconds()
+        if diff == 0:
+            return True
+        elif diff < 0:
+            return False
+        else:
+            return diff < datasource["metadata"]["band_timeout"]
+    except:
+        return False
+
+DIRECTIONS_METADATA = {
+    4:[360/4,math.floor(360 / 8 * 100) / 100,["N","E","S","W"]],
+    8:[360/8,math.floor(360 / 16 * 100) / 100,["N","NE","E","SE","S","SW","W","NW"]],
+    16:[360/16,math.floor(360 / 32 * 100) / 100,["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"]],
+    32:[360/32,math.floor(360 / 64 * 100) / 100,["N","NbE","NNE","NEbN","NE","NEbE","ENE","EbN","E","EbS","ESE","SEbE","SE","SEbS","SSE","SbE","S","SbW","SSW","SWbS","SW","SWbW","WSW","WbS","W","WbN","WNW","NWbW","NW","NWbN","NNW","NbW"]],
+}
+
+def windDirFormatFunc(mode):
+    mode = mode or 16
+    direction_metadata = DIRECTIONS_METADATA[mode]
+    def _func(bandIndex,data,no_data):
+        if data:
+            index = int((math.floor(data / direction_metadata[0])  + (0 if (round(data % direction_metadata[0] * 100) / 100 <= direction_metadata[1]) else 1) ) % mode)
+            #return "{}({})".format(direction_metadata[2][index],"{:-.0f}".format(data))
+            return direction_metadata[2][index]
+        else:
+            return no_data
+
+    return _func
+
 
 def getEpsgSrs(srsid):
     srs = srsid.split(":")
@@ -66,6 +111,16 @@ def loadDatasource(datasource):
     datasource["status"] = "loading"
     ds = None
     try:
+        #initialize ds metadata
+        datasource["metadata"] = datasource.get("metadata") or {}
+        for key in datasource.get("metadata_f").iterkeys():
+            datasource["metadata"][key] = None
+
+        #initialize the bands
+        datasource["bands"] = datasource.get("bands") or []
+        for band in datasource["bands"]:
+            band.clear()
+
         #print "Begin to load raster datasource: ".format(datasource["datasource"])
         ds = gdal.Open(datasource["datasource"])
 
@@ -75,23 +130,31 @@ def loadDatasource(datasource):
             datasource["srs"] = osr.SpatialReference()
             datasource["srs"].ImportFromWkt(ds.GetProjection())
 
-        if datasource.get("bands") is not None:
-            del datasource["bands"][:]
-        else:
-            datasource["bands"] = []
+        #load ds metadata
+        for key,func in datasource.get("metadata_f").iteritems():
+            datasource["metadata"][key] = func(ds)
+
+        if len(datasource["bands"]) > ds.RasterCount:
+            del datasource["bands"][ds.RasterCount:]
+
+        #load band metadata
         index = 1
         while index <= ds.RasterCount:
-            bandid= datasource["bandid_f"](ds,index)
-            datasource["bands"].append((index,bandid))
+            if index < len(datasource["bands"]):
+                band = datasource["bands"][index - 1]
+            else:
+                band = {}
+                datasource["bands"].append(band)
+            band["index"] = index
+            for key,func in datasource.get("band_metadata_f").iteritems():
+                band[key] = func(ds,index)
             #print "Band {} = {}".format(index,bandid)
             index+=1
-        datasource["refresh_time"] = datasource["refresh_time_f"](ds)
+
         datasource["status"] = "loaded"
-        #print "End to load raster datasource: ".format(datasource["datasource"])
+        print "End to load raster datasource:{} metadata:{} ".format(datasource["file"],datasource["metadata"])
     except:
         datasource["status"] = "loadfailed"
-        datasource["refresh_time"] = None
-        del datasource["bands"][:]
         datasource["message"] = traceback.format_exception_only(sys.exc_type,sys.exc_value)
         traceback.print_exc()
     finally:
@@ -132,19 +195,18 @@ def loadAllDatasources():
                 continue
             loadDatasource(raster_datasources[workspace][datasourceId])
         
-"""
-match_strategy: the way to match a user specified value to a band
-    equal: The band is matched if bandid is equal with the value
-    floor: The band is matched if bandid is equal with the value; if no bandid is equal with the value, then find a band whose bandid is cloest and less than specified value 
-    ceiling: The band is matched if bandid is equal with the value; if no bandid is equal with the value, then find a band whose bandid is cloest and large than specified value 
-"""
 raster_datasources={
     "bom":{
         "IDW71000_WA_T_SFC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71000_WA_T_SFC.grb"),
-            "bandid_f":getEpochTimeFunc("GRIB_VALID_TIME"),
-            "match_strategy":"floor",
-            "refresh_time_f":getEpochTimeFunc("GRIB_VALID_TIME",None,1),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("GRIB_VALID_TIME",1),
+                "band_timeout":getBandTimeoutFunc("GRIB_VALID_TIME")
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("GRIB_VALID_TIME"),
+            },
+            "band_match_f":isInBandFunc,
             "options":{
                 "title":"Temp<br>(C)",
                 "pattern":"{:-.2f}",
@@ -153,49 +215,187 @@ raster_datasources={
         },
         "IDW71001_WA_Td_SFC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71001_WA_Td_SFC.grb"),
-            "bandid_f":getEpochTimeFunc("GRIB_VALID_TIME"),
-            "match_strategy":"floor",
-            "refresh_time_f":getEpochTimeFunc("GRIB_VALID_TIME",None,1),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("GRIB_VALID_TIME",1),
+                "band_timeout":getBandTimeoutFunc("GRIB_VALID_TIME")
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("GRIB_VALID_TIME"),
+            },
+            "band_match_f":isInBandFunc,
             "options":{
                 "title":"Dewpt<br>(C)",
                 "pattern":"{:-.2f}",
-                "style":"text-align:right",
+                "style":"text-align:center",
             }
         },
         "IDW71002_WA_MaxT_SFC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71002_WA_MaxT_SFC.grb"),
-            "bandid_f":getEpochTimeFunc("GRIB_VALID_TIME"),
-            "match_strategy":"floor",
-            "refresh_time_f":getEpochTimeFunc("GRIB_VALID_TIME",None,1),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("GRIB_VALID_TIME",1),
+                "band_timeout":getBandTimeoutFunc("GRIB_VALID_TIME")
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("GRIB_VALID_TIME"),
+            },
+            "band_match_f":isInBandFunc,
             "options":{
                 "title":"Max Temp<br>(C)",
                 "pattern":"{:-.2f}",
-                "style":"text-align:right",
+                "style":"text-align:center",
             }
         },
         "IDW71003_WA_MinT_SFC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71003_WA_MinT_SFC.grb"),
-            "bandid_f":getEpochTimeFunc("GRIB_VALID_TIME"),
-            "match_strategy":"floor",
-            "refresh_time_f":getEpochTimeFunc("GRIB_VALID_TIME",None,1),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("GRIB_VALID_TIME",1),
+                "band_timeout":getBandTimeoutFunc("GRIB_VALID_TIME")
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("GRIB_VALID_TIME"),
+            },
+            "band_match_f":isInBandFunc,
             "options":{
                 "title":"Min Temp<br>(C)",
                 "pattern":"{:-.2f}",
-                "style":"text-align:right",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71018_WA_RH_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71018_WA_RH_SFC.grb"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("GRIB_VALID_TIME",1),
+                "band_timeout":getBandTimeoutFunc("GRIB_VALID_TIME")
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("GRIB_VALID_TIME"),
+            },
+            "band_match_f":isInBandFunc,
+            "options":{
+                "title":"RH<br>(%)",
+                "pattern":"{:-.0f}",
+                "style":"text-align:center",
             }
         },
         "IDW71139_WA_Curing_SFC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71139_WA_Curing_SFC.nc.gz"),
-            "bandid_f":getEpochTimeFunc("NETCDF_DIM_time"),
-            "match_strategy":"floor",
-            "refresh_time_f":getEpochTimeFunc("NETCDF_DIM_time",None,1),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_match_f":isInBandFunc,
             "options":{
                 "title":"Curing",
-                #"pattern":"{:-.2f}",
+                "pattern":"{:-.0f}",
                 "srs":"EPSG:4326",
-                "style":"text-align:right",
+                "style":"text-align:center",
             }
-        }
+        },
+        "IDW71071_WA_WindMagKmh_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71071_WA_WindMagKmh_SFC.nc.gz"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_match_f":isInBandFunc,
+            "options":{
+                "title":"Speed",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71072_WA_WindGustKmh_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71072_WA_WindGustKmh_SFC.nc.gz"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_match_f":isInBandFunc,
+            "options":{
+                "title":"Gust",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71089_WA_Wind_Dir_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71089_WA_Wind_Dir_SFC.grb"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("GRIB_VALID_TIME",1),
+                "band_timeout":getBandTimeoutFunc("GRIB_VALID_TIME")
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("GRIB_VALID_TIME"),
+            },
+            "band_match_f":isInBandFunc,
+            "data_format_f":windDirFormatFunc(16),
+            "options":{
+                "title":"Dir",
+                #"pattern":"{:-.2f}",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71117_WA_FFDI_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71117_WA_FFDI_SFC.nc.gz"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_match_f":isInBandFunc,
+            "options":{
+                "title":"FFDI",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71122_WA_GFDI_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71122_WA_GFDI_SFC.nc.gz"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_match_f":isInBandFunc,
+            "options":{
+                "title":"GFDI",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71127_WA_DF_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71127_WA_DF_SFC.nc.gz"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_match_f":isInBandFunc,
+            "options":{
+                "title":"DF",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
 
     }
 }
@@ -215,7 +415,6 @@ def getRasterData(options):
         message: error message if failed
         datas: data of bands, if succeed
     """
-
     ds = None
     try:
         if not options.get("datasource"):
@@ -238,15 +437,13 @@ def getRasterData(options):
             raise Exception(datasource["message"])
 
         options["datasource"]["context"] = {}
-        options["datasource"]["context"]["refresh_time"] = None
-        options["datasource"]["match_strategy"] = options["datasource"].get("match_strategy") or datasource.get("match_strategy") or "equal"
         runtimes = 0
         while True:
             runtimes += 1
             prepareDatasource(datasource)
             ds = gdal.Open(datasource["datasource"])
             if datasource.get('status') == 'loaded':
-                if ds.RasterCount > 0 and datasource["bandid_f"](ds,1)  != datasource["bands"][0][1]:
+                if datasource["metadata_f"]["refresh_time"](ds)  != datasource["metadata"]["refresh_time"]:
                     datasource["status"]="outdated"
 
             #try to reload datasource if required
@@ -261,22 +458,11 @@ def getRasterData(options):
 
             if not options.get("band_indexes"):
                 options["band_indexes"] = []
-                for inputBandid in options["bandids"]:
+                for bandid in options["bandids"]:
                     matchedBand = -1
                     for band in datasource["bands"]:
-                        if band[1] == inputBandid:
-                            matchedBand = band[0]
-                            break
-                        elif inputBandid < band[1] and options["datasource"]["match_strategy"] != "equal":
-                            if options["datasource"]["match_strategy"] == "floor":
-                                if band[0] >= 2:
-                                    matchedBand = band[0] - 1
-                                else:
-                                    matchedBand = -1
-                            elif options["datasource"]["match_strategy"] == "ceiling":
-                                matchedBand = band[0]
-                            else:
-                                matchedBand = -1
+                        if datasource["band_match_f"](datasource,band,bandid):
+                            matchedBand = band["index"]
                             break
                     options["band_indexes"].append(matchedBand)
 
@@ -314,10 +500,9 @@ def getRasterData(options):
                                 data = None
                         else:
                             data = None
-                    datas.append(data)
+                    datas.append([index,data])
                 #import ipdb;ipdb.set_trace()
                 options["datasource"]["status"] = True
-                options["datasource"]["context"]["refresh_time"] = datasource["refresh_time"]
                 options["datasource"]["data"] = datas
                 return options["datasource"]
             except:
@@ -333,7 +518,10 @@ def getRasterData(options):
         options["datasource"]["message"] = traceback.format_exception_only(sys.exc_type,sys.exc_value)
         return options["datasource"]
     finally:
+        if datasource:
+            options["datasource"]["context"].update(datasource["metadata"])
         ds = None
+
 
 def formatData(data,pattern,no_data=None):
     if not data:
@@ -362,8 +550,10 @@ request_options={
     "datetime_pattern":"%d/%m/%Y %H:%M:%S",
 }
 forecast_options={
-    "time_pattern":"%Y-%m-%d %H:%M:%S",
-    "time_style":"text-align:center",
+    "time_pattern":"%H:%M",
+    "date_pattern":"%A %d %B",
+    "time_style":"text-align:center;white-space:nowrap;",
+    "date_style":"text-align:left"
 }
 
 def setDefaultOptionIfMissing(options,defaultOptions):
@@ -483,7 +673,7 @@ def spotforecast(fmt):
             #html,get total columns and check whether have groups
             for forecast in result["forecasts"]:
                 forecast["has_group"] = False
-                forecast["columns"] = 0
+                forecast["columns"] = 1
                 for datasource in forecast["datasources"]:
                     if datasource.get("group"):
                         forecast["has_group"] = True
@@ -521,7 +711,7 @@ def spotforecast(fmt):
             for forecast in result["forecasts"]:
                 index = 0;
                 while index < len(forecast["times"]):
-                    forecast["times"][index] = formatData(forecast["times"][index],forecast["options"].get("time_pattern") or "%Y-%m-%d %H:%M:%S",result["options"].get("no_data") or "")
+                    #forecast["times"][index] = formatData(forecast["times"][index],forecast["options"].get("time_pattern") or "%Y-%m-%d %H:%M:%S",result["options"].get("no_data") or "")
                     index += 1
 
                 for datasource in forecast["datasources"]:
@@ -530,10 +720,14 @@ def spotforecast(fmt):
                             if ds.get("context"):
                                 formatContext(ds["context"],result["options"])
                                 ds["options"]["title"] = ds["options"]["title"].format(**ds["context"])
-                            if ds["status"] and ds["options"].get("pattern"):
+                            if ds["status"]:
                                 index = 0;
                                 while index < len(ds["data"]):
-                                    ds["data"][index] = formatData(ds["data"][index],ds["options"]["pattern"],result["options"].get("no_data") or "")
+                                    dataFormatFunc = raster_datasources[ds["workspace"]][ds["id"]].get("data_format_f")
+                                    if dataFormatFunc:
+                                        ds["data"][index][1] = dataFormatFunc(ds["data"][index][0],ds["data"][index][1],result["options"].get("no_data") or "")
+                                    else:
+                                        ds["data"][index][1] = formatData(ds["data"][index][1],ds["options"].get("pattern"),result["options"].get("no_data") or "")
                                     index += 1
 
                     else:
@@ -541,10 +735,14 @@ def spotforecast(fmt):
                             formatContext(datasource["context"],result["options"])
                             datasource["options"]["title"] = datasource["options"]["title"].format(**datasource["context"])
 
-                        if datasource["status"] and datasource["options"].get("pattern"):
+                        if datasource["status"] :
                             index = 0;
                             while index < len(datasource["data"]):
-                                datasource["data"][index] = formatData(datasource["data"][index],datasource["options"]["pattern"],result["options"].get("no_data") or "")
+                                dataFormatFunc = raster_datasources[datasource["workspace"]][datasource["id"]].get("data_format_f")
+                                if dataFormatFunc:
+                                    datasource["data"][index][1] = dataFormatFunc(datasource["data"][index][0],datasource["data"][index][1],result["options"].get("no_data") or "")
+                                else:
+                                    datasource["data"][index][1] = formatData(datasource["data"][index][1],datasource["options"].get("pattern"),result["options"].get("no_data") or "")
                                 index += 1
 
             bottle.response.set_header("Content-Type", "text/html")

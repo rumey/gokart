@@ -22,14 +22,31 @@ def formatText(text,**context):
     else:
         return text
 
-
 filters={
     "formatDate":formatDate,
     "format":format,
     "formatText":formatText,
 }
 
+def initValue(data=None):
+    return [data]
+
+def setValue(var,data=None):
+    var[0] = data
+    return ""
+
+def getValue(var):
+    return var[0]
+
+globals={
+    "initValue":initValue,
+    "setValue":setValue,
+    "getValue":getValue,
+    
+}
+
 settings = {
-    "filters":filters
+    "filters":filters,
+    "globals":globals
 }
 

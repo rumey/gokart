@@ -21,16 +21,27 @@
         .hover tbody tr:hover td, .table-hover tbody tr:hover th {
           background-color: #2199e8;
         }
+
+        #spotforecast .daterow {
+            background-color:#D2EEFA;
+        }
+
+        #spotforecast .time-0-in-day {
+            background-color:#white;
+        }
+        #spotforecast .time-1-in-day {
+            background-color:#D6E2E4;
+        }
     </style>
   </head>
   <body>
     <div style="margin-left:20px;margin-right:20px;margin-top:20px">
     {%- for forecast in data.forecasts -%}
-    <table class="hover" style="border-collapse:separate;background:black" align="center">
+    <table class="hover" style="border-collapse:separate;background:black" align="center" id="spotforecast">
       <thead>
         <tr>
         {%- if forecast.has_group  -%}
-          <th rowspan="2" style="text-align:center">Time</th>
+          <th rowspan="2" style="text-align:center">Local Time</th>
         {% else %}
           <th style="text-align:center"> Time </th>
         {% endif %}
@@ -60,22 +71,34 @@
 
       </thead>
       <tbody>
+        {%- set previousDate = initValue() -%}
+        {%- set timeIndex = initValue() -%}
         {%- for time in forecast.times -%}
-        {%- set index = loop.index0 -%}
-        <tr>
-            <td style="{{forecast.style|format("","text-align:center")}}">{{time}}</td>
+          {%- set index = loop.index0 -%}
+          {%- set currentDate = time.strftime(forecast.options.date_pattern) -%}
+          {%- if getValue(previousDate) != currentDate -%}
+            <tr class="daterow">
+              <td colspan="{{forecast.columns}}" style="{{forecast.options.date_style|format("","text-align:left")}}">{{currentDate}}</td>
+            </tr>
+            {{ setValue(previousDate,currentDate) }}
+            {{ setValue(timeIndex,0) }}
+          {% else %}
+            {{ setValue(timeIndex,(getValue(timeIndex) + 1) % 2) }}
+          {% endif %}
+          <tr class="time-{{getValue(timeIndex)}}-in-day">
+            <td style="{{forecast.options.time_style|format("","text-align:center")}}">{{time |formatDate(forecast.options.time_pattern) }}</td>
           {%- for datasource in forecast.datasources -%}
             {%- if datasource.group -%}
               {%- for ds in datasource.datasources -%}
                 {%- if ds.status -%}
-                <td style="{{ds.style|format("","text-align:center")}}"> {{ ds.data[index]}}</td>
+                <td style="{{ds.style|format("","text-align:center")}}"> {{ ds.data[index][1]}}</td>
                 {% else %}
                   <td style="{{ds.style|format("","text-align:center")}}">{{data.options.no_data}}</td>
                 {% endif %}
               {% endfor %}
             {% else %}
               {%- if datasource.status -%}
-              <td style="{{datasource.style|format("","text-align:center")}}"> {{ datasource.data[index]}}</td>
+              <td style="{{datasource.style|format("","text-align:center")}}"> {{ datasource.data[index][1]}}</td>
               {% else %}
                 <td style="{{datasource.style|format("","text-align:center")}}">{{data.options.no_data}}</td>
               {% endif %}

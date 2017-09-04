@@ -70,7 +70,7 @@
             },
             forecasts:[
                 {
-                    times:utils.getDatetimes(["00:00:00","06:00:00","12:00:00","18:00:00"],16,1).map(function(dt) {return dt.format("YYYY-MM-DD HH:mm:ss")}),
+                    times:utils.getDatetimes(["09:00:00","15:00:00"],8,1).map(function(dt) {return dt.format("YYYY-MM-DD HH:mm:ss")}),
                     options:{
                     },
                     datasources:[
@@ -89,20 +89,34 @@
                             }
                         },
                         {
-                            group:"Temperature",
+                            workspace:"bom",
+                            id:"IDW71018_WA_RH_SFC",
+                            options:{
+                                title:"RH<br>(%)<br>({refresh_time})",
+                            }
+                        },
+                        {
+                            group:"10m Wind (km/h)",
                             datasources:[
                                 {
                                     workspace:"bom",
-                                    id:"IDW71002_WA_MaxT_SFC",
+                                    id:"IDW71089_WA_Wind_Dir_SFC",
                                     options:{
-                                        title:"Max Temp<br>(C)<br>({refresh_time})",
+                                        title:"Dir<br>({refresh_time})",
                                     }
                                 },
                                 {
                                     workspace:"bom",
-                                    id:"IDW71003_WA_MinT_SFC",
+                                    id:"IDW71071_WA_WindMagKmh_SFC",
                                     options:{
-                                        title:"Min Temp<br>(C)<br>({refresh_time})",
+                                        title:"Speed<br>({refresh_time})",
+                                    }
+                                },
+                                {
+                                    workspace:"bom",
+                                    id:"IDW71072_WA_WindGustKmh_SFC",
+                                    options:{
+                                        title:"Gust<br>({refresh_time})",
                                     }
                                 }
                             ]
@@ -110,9 +124,30 @@
                         },
                         {
                             workspace:"bom",
+                            id:"IDW71127_WA_DF_SFC",
+                            options:{
+                                title:"DF<br>({refresh_time})",
+                            }
+                        },
+                        {
+                            workspace:"bom",
                             id:"IDW71139_WA_Curing_SFC",
                             options:{
                                 title:"Curing<br>({refresh_time})",
+                            }
+                        },
+                        {
+                            workspace:"bom",
+                            id:"IDW71117_WA_FFDI_SFC",
+                            options:{
+                                title:"FFDI<br>({refresh_time})",
+                            }
+                        },
+                        {
+                            workspace:"bom",
+                            id:"IDW71122_WA_GFDI_SFC",
+                            options:{
+                                title:"GFDI<br>({refresh_time})",
                             }
                         },
                     ]
