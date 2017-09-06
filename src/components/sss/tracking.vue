@@ -521,13 +521,14 @@
             this.active.toggleHidden(this.trackingMapLayer)
         }
 
-        this.annotations.selectable = [this.trackingMapLayer]
+        this.annotations.selectable.push(this.trackingMapLayer)
+        this.info.hoverable.push(this.trackingMapLayer,this.historyMapLayer)
         this.annotations.setTool()
 
         this.$nextTick(this.adjustHeight)
       },
-      tearDown:function() {
-        this.selectable = null
+      teardown:function() {
+        this.annotations.selectable.splice(0,this.annotations.selectable.length)
       }
     },
     ready: function () {
