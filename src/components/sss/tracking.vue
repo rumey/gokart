@@ -90,7 +90,7 @@
                     <span class="show-for-sr">Show selected only</span>
                  </label>
                     </div>
-                    <label for="selectedResourcesOnly" class="side-label">Show selected only</label>
+                    <label for="selectedResourcesOnly" class="side-label">Show selected only({{annotations.selectedFeatures.getLength()}})</label>
                   </div>
                 </div>
                 <div class="columns">
@@ -786,11 +786,11 @@
             var devices = {}
             // group by device
             features.forEach(function (feature) {
-                var props = feature.getProperties()
-                if (!(props.name in devices)) {
-                  devices[props.name] = []
+                var deviceid = feature.get("deviceid")
+                if (!(deviceid in devices)) {
+                  devices[deviceid] = []
                 }
-                devices[props.name].push(feature)
+                devices[deviceid].push(feature)
             })
             Object.keys(devices).forEach(function (device) {
                 // sort by timestamp
