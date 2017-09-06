@@ -66,11 +66,12 @@
         var vm = this
         var requestData = {
             point:coordinate,
-            optons: {
+            options: {
+                title:"Spot Fire Weather 4 Day Outlook for (" + coordinate[0] + "," + coordinate[1] + ")",
             },
             forecasts:[
                 {
-                    times:utils.getDatetimes(["09:00:00","15:00:00"],8,1).map(function(dt) {return dt.format("YYYY-MM-DD HH:mm:ss")}),
+                    times:utils.getDatetimes(["09:00:00","15:00:00","21:00:00"],12,1).map(function(dt) {return dt.format("YYYY-MM-DD HH:mm:ss")}),
                     options:{
                     },
                     datasources:[
@@ -174,7 +175,7 @@
             })
         } else {
             $("#spotforecast_data").val(JSON.stringify(requestData))
-            utils.submitForm("spotforecast")
+            utils.submitForm("spotforecast",{width: (screen.width > 1890)?1890:screen.width, height:(screen.height > 1060)?1060:screen.height})
         }
         
       },
