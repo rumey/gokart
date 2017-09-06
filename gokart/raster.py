@@ -665,6 +665,7 @@ def spotforecast(fmt):
                     }))
     
         result = requestData
+        result["issued_time"] = datetime.datetime.now(PERTH_TIMEZONE)
 
         if fmt == "json":
             bottle.response.set_header("Content-Type", "application/json")
