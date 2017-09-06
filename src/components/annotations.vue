@@ -1199,7 +1199,7 @@
           this.active.toggleHidden(this.map.getMapLayer('annotations'))
         }
         // runs on switch to this tab
-        this.selectable = [this.featureOverlay]
+        this.selectable.push(this.featureOverlay)
         this.setTool()
         //add feature to place an point based on coordinate
         this.search.setSearchPointFunc(function(searchMethod,coords,name){
@@ -1240,9 +1240,9 @@
             }
         })
       },
-      tearDown:function() {
+      teardown:function() {
         this.search.setSearchPointFunc(null)
-        this.selectable = null
+        this.selectable.splice(0,this.selectable.length)
       },
       getNoteExtent: function(feature) {
         var note = feature.get('note')

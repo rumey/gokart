@@ -90,7 +90,7 @@
                     <span class="show-for-sr">Show selected only</span>
                  </label>
                     </div>
-                    <label for="selectedResourcesOnly" class="side-label">Show selected only</label>
+                    <label for="selectedResourcesOnly" class="side-label">Show selected only({{annotations.selectedFeatures.getLength()}})</label>
                   </div>
                 </div>
                 <div class="columns">
@@ -438,7 +438,10 @@
         var historyLayer = this.historyLayer
         var deviceFilter = 'deviceid in (' + this.selectedDevices.join(',') + ')'
         historyLayer.cql_filter = deviceFilter + "and seen between '" + this.historyFromDate + ' ' + this.historyFromTime + ":00' and '" + this.historyToDate + ' ' + this.historyToTime + ":00'"
-        if (!this.$root.catalogue.onLayerChange(historyLayer, true)) {
+        if (this.$root.catalogue.onLayerChange(historyLayer, true)) {
+            //Add history layer into the map. need to add to the hoverable
+            this.info.hoverable.push(this.historyMapLayer)
+        } else {
             //history layer is already turned on, manually load the history source
             var source = this.$root.map.getMapLayer(historyLayer).getSource()
             source.loadSource("query")
@@ -521,13 +524,17 @@
             this.active.toggleHidden(this.trackingMapLayer)
         }
 
-        this.annotations.selectable = [this.trackingMapLayer]
+        this.annotations.selectable.push(this.trackingMapLayer)
+        this.info.hoverable.push(this.trackingMapLayer)
+        if (this.historyMapLayer) {
+            this.info.hoverable.push(this.historyMapLayer)
+        }
         this.annotations.setTool()
 
         this.$nextTick(this.adjustHeight)
       },
-      tearDown:function() {
-        this.selectable = null
+      teardown:function() {
+        this.annotations.selectable.splice(0,this.annotations.selectable.length)
       }
     },
     ready: function () {
@@ -779,11 +786,11 @@
             var devices = {}
             // group by device
             features.forEach(function (feature) {
-                var props = feature.getProperties()
-                if (!(props.name in devices)) {
-                  devices[props.name] = []
+                var deviceid = feature.get("deviceid")
+                if (!(deviceid in devices)) {
+                  devices[deviceid] = []
                 }
-                devices[props.name].push(feature)
+                devices[deviceid].push(feature)
             })
             Object.keys(devices).forEach(function (device) {
                 // sort by timestamp
