@@ -438,7 +438,10 @@
         var historyLayer = this.historyLayer
         var deviceFilter = 'deviceid in (' + this.selectedDevices.join(',') + ')'
         historyLayer.cql_filter = deviceFilter + "and seen between '" + this.historyFromDate + ' ' + this.historyFromTime + ":00' and '" + this.historyToDate + ' ' + this.historyToTime + ":00'"
-        if (!this.$root.catalogue.onLayerChange(historyLayer, true)) {
+        if (this.$root.catalogue.onLayerChange(historyLayer, true)) {
+            //Add history layer into the map. need to add to the hoverable
+            this.info.hoverable.push(this.historyMapLayer)
+        } else {
             //history layer is already turned on, manually load the history source
             var source = this.$root.map.getMapLayer(historyLayer).getSource()
             source.loadSource("query")
@@ -522,7 +525,10 @@
         }
 
         this.annotations.selectable.push(this.trackingMapLayer)
-        this.info.hoverable.push(this.trackingMapLayer,this.historyMapLayer)
+        this.info.hoverable.push(this.trackingMapLayer)
+        if (this.historyMapLayer) {
+            this.info.hoverable.push(this.historyMapLayer)
+        }
         this.annotations.setTool()
 
         this.$nextTick(this.adjustHeight)
