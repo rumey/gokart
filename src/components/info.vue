@@ -37,6 +37,7 @@
     data: function () {
       return {
         features: false,
+        hoverable: [],
         coordinate: '',
         offset: 0,
         pixel: [0, 0]
@@ -88,10 +89,14 @@
         if (event.dragging || !this.enabled) {
           return
         }
+        if (!vm.hoverable || vm.hoverable.length === 0) {
+            return
+        }
+
         var pixel = this.$root.map.olmap.getEventPixel(event.originalEvent)
         var features = []
         this.$root.map.olmap.forEachFeatureAtPixel(pixel, function (f,layer) {
-          if (!vm.annotations.selectable || vm.annotations.selectable.indexOf(layer) >=0 ) {
+          if (vm.hoverable.indexOf(layer) >=0 ) {
               features.push([f,layer])
           }
         })

@@ -92,6 +92,7 @@
       },
       computed: {
           layers: function () { return this.$root.layers },
+          info: function () { return this.$root.info },
           setting: function () { return this.$root.setting },
       },
       components: { gkMap, gkLayers, gkAnnotations, gkTracking, gkLoading,gkSetting , gkBfrs ,gkDialog},
@@ -123,6 +124,7 @@
         var vm = this
         $("#menu-tabs").on("change.zf.tabs",function(target,selectedTab){
             var menu = selectedTab.attr('menu')
+            vm.info.hoverable.splice(0,vm.info.hoverable.length)
             vm.switchMenu(menu)
         })
       }
