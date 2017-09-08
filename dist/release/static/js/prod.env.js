@@ -1,12 +1,13 @@
 var env = {
     envType: "prod",
-    envVersion:"2007-09-08 10:26",
+    envVersion:"2007-09-08 14:46",
     appType: (window.location.protocol == "file:")?"cordova":"webapp",
 
     cswService:"https://oim.dpaw.wa.gov.au/catalogue/api/records/",
     catalogueAdminService:"https://oim.dpaw.wa.gov.au",
 
     wmtsService:"https://kmi.dpaw.wa.gov.au/geoserver/gwc/service/wmts",
+    wmsService:"https://kmi.dbca.wa.gov.au/geoserver/wms",
     wfsService:"https://kmi.dpaw.wa.gov.au/geoserver/wfs",
     legendSrc:"https://kmi.dpaw.wa.gov.au/geoserver/gwc/service/wms?REQUEST=GetLegendGraphic&VERSION=1.0.0&FORMAT=image/png&LAYER=",
 
