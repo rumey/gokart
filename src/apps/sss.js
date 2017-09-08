@@ -139,6 +139,8 @@ if (result) {
         document.location.search = (searchString.length === 0)?"":("?" + (result[1]?result[1]:"") + ((result[2] && result[2].length > 1)?result[2].substring(1):""))
     })
 } else {
+    //check gokart version
+    utils.checkVersion(profile)
     Vue.use(VueStash)
     localforage.getItem('sssOfflineStore').then(function (store) {
       var settings = $.extend({},persistentData.settings,store?(store.settings || {}):{})
@@ -626,7 +628,7 @@ if (result) {
                     self.active.setup()
     
                     //check gokart version
-                    utils.checkVersion(self.profile)
+                    //utils.checkVersion(self.profile)
     
                     self.loading.app.phaseEnd("post_init")
                 } catch(err) {
