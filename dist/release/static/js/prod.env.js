@@ -1,5 +1,6 @@
 var env = {
     envType: "prod",
+    envVersion:"2007-09-08 10:26",
     appType: (window.location.protocol == "file:")?"cordova":"webapp",
 
     cswService:"https://oim.dpaw.wa.gov.au/catalogue/api/records/",
