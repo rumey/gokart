@@ -38,6 +38,8 @@ Syncrhonize options:
 other options:
     -e,--env-file       the environment file used to setup the options
     --log-level         log level. error,warning,info,debug; default is warning
+    --log-file          log file
+    --log-files         how many files need to be kept in file system, one file per day, default 14 files
 "
 
 #a special value represents a option has no default value and also not specified in the command line and environment file if have
@@ -52,7 +54,7 @@ log_levels["debug"]=4
 
 
 #all the options can be configured in command line or environment file 
-declare -a all_options=("server" "user" "password" "secure" "remote-dir" "root-dir" "local-dir" "only-existing" "log-level" "help" "sync-list-filter" "not-sync" "parallel")
+declare -a all_options=("server" "user" "password" "secure" "remote-dir" "root-dir" "local-dir" "only-existing" "log-level" "log-file" "log-files" "help" "sync-list-filter" "not-sync" "parallel")
 
 #all bool type options
 #bool type option has two value, default is 0
@@ -89,6 +91,8 @@ options["remote-dir"]=""
 options["sync-list-filter"]=""
 options["log-level"]="warning"
 options["parallel"]="5"
+options["log-file"]="/var/log/ftp_sync.log"
+options["log-files"]="14"
 
 #decalre IEEE option
 declare -A options_ieee=()
@@ -121,6 +125,8 @@ options_gnu["not-sync"]="--not-sync"
 options_gnu["parallel"]="--parallel"
 
 options_gnu["log-level"]="--log-level"
+options_gnu["log-file"]="--log-file"
+options_gnu["log-files"]="--log-files"
 options_gnu["env-file"]="--env-file"
 
 options_gnu["help"]="--help"
@@ -206,6 +212,8 @@ while [[ $index -lt $# ]]; do
                     #not a option
                     options[$op]=${!next_index}
                     index=$next_index
+                else
+                    options[$op]=""
                 fi
             fi
             break
@@ -244,24 +252,32 @@ if [[  "${options["remote-dir"]}" == "./" ]]; then
     options["remote-dir"]=""
 fi
 
+#if log_files less then 1, reset to 1
+if [[ ${options["log-files"]} -lt 1 ]]; then
+    options["log-files"]=1
+fi
+
+#initialize logging file
+source ./logging.sh
+
 #check whether all options have value, the value can be default value, specified in command or come from other option
 missing_option=0
 for op in ${all_options[@]}; do 
     if [[ "${options[$op]}" == "$null_value" ]]; then
         missing_option=1
         if [[ "${options_ieee[$op]}" != "" ]] && [[ "${options_gnu[$op]}" != "" ]]; then
-            echo "Missing parameter '$op', using options '${options_ieee[$op]}' or '${options_gnu[$op]}'"
+            error "Missing parameter '$op', using options '${options_ieee[$op]}' or '${options_gnu[$op]}'"
         elif [[ "${options_ieee[$op]}" != "" ]] ; then
-            echo "Missing parameter '$op', using option '${options_ieee[$op]}'"
+            error "Missing parameter '$op', using option '${options_ieee[$op]}'"
         else
-            echo "Missing parameter '$op', using option '${options_gnu[$op]}'"
+            error "Missing parameter '$op', using option '${options_gnu[$op]}'"
         fi
     fi
 done
 
 if [[ $missing_option -eq 1 ]]; then
-    echo ""
-    echo "$usage"
+    error ""
+    error "$usage"
     exit 1
 fi
 
@@ -280,7 +296,7 @@ fi
 options["root-dir"]=`get_absolute_path "${options["root-dir"]}"`
 #if [[ ${options["root-dir"]} =~ ^(/)|(/etc/.*)|(/root/.*)|(/bin/.*)|(/sbin/.*)|(/lib/.*)$ ]]; then
 if [[ ${options["root-dir"]} =~ ^/$|^/etc(/.*)?$|^/root(/.*)?$|^/bin(/.*)?$|^/sbin(/.*)?$|^/lib(/.*)?$ ]]; then
-    echo "root dir can't be '/', also can't be in system folder '/etc','/root','/bin','/sbin','lib'"
+    error "root dir can't be '/', also can't be in system folder '/etc','/root','/bin','/sbin','lib'"
     exit 1
 fi
 create_dir ${options["root-dir"]}
@@ -305,18 +321,18 @@ return_code=$?; if [[ ! $return_code -eq 0 ]]; then  exit $return_code; fi
 #local-dir, the accessing point, this is a soft link
 options["local-dir"]=`get_absolute_path "${options["local-dir"]}" "${options["root-dir"]}"`
 if [[ "${options["local-dir"]}" == "${options["root-dir"]}" ]]; then
-    echo "local-dir can't be the same dir as root-dir"
+    error "local-dir can't be the same dir as root-dir"
     exit 1
 fi
 
 parent_dir=`get_parent_path "${options["local-dir"]}"`
-return_code=$?; if [[ ! $return_code -eq 0 ]]; then  echo "$parent_dir"; exit $return_code; fi
+return_code=$?; if [[ ! $return_code -eq 0 ]]; then  error "$parent_dir"; exit $return_code; fi
 
 create_dir "$parent_dir"
 return_code=$?; if [[ ! $return_code -eq 0 ]]; then  exit $return_code; fi
 
 if [[ -a "${options["local-dir"]}" ]] && [[ ! -h "${options["local-dir"]}" ]]; then
-    echo "${options["local-dir"]} is not a symbolic link."
+    error "${options["local-dir"]} is not a symbolic link."
     exit 1
 fi
 
@@ -324,37 +340,35 @@ if [[ ${options["only-existing"]} -eq 1 ]]; then
     #synchronize the file in only-existing mode
     options["sync-list-file"]="${options["local-dir"]}.synclist"
     if [[ -a "${options["sync-list-file"]}" ]] && [[ ! -f "${options["sync-list-file"]}" ]]; then
-        echo "${options["sync-list-file"]} is not a file."
+        error "${options["sync-list-file"]} is not a file."
         exit 1
     fi
     if [[ "${options["sync-list-filter"]}" != "" ]]; then
         options["sync-list-filter"]=`get_absolute_path "${options["sync-list-filter"]}"`
         if [[ ! -a "${options["sync-list-filter"]}" ]]; then
-            echo "Sync file list filter script '${options["sync-list-filter"]}' does not exist."
+            error "Sync file list filter script '${options["sync-list-filter"]}' does not exist."
             exit 1
         elif [[ -d "${options["sync-list-filter"]}" ]]; then
-            echo "Sync file list filter script '${options["sync-list-filter"]}' is a directory"
+            error "Sync file list filter script '${options["sync-list-filter"]}' is a directory"
             exit 1
         fi
     fi
 fi
 
-#pring all options if debug is enabled
-if [[ ${options["_log-level"]} -ge ${log_levels["debug"]} ]]; then
-    for op in "${!options[@]}"; do 
-        if [[ "$op" =~ ^_.* ]]; then
-            continue
-        elif [[ ! ${credential_options[$op]} -eq 1 ]]; then
-            if [[ ${bool_options[$op]} -eq 1  ]]; then
-                if [[ ${options[$op]} -eq 0  ]]; then
-                    echo "$op = false"
-                else
-                    echo "$op = true"
-                fi
+#print all options if debug is enabled
+for op in "${!options[@]}"; do 
+    if [[ "$op" =~ ^_.* ]]; then
+        continue
+    elif [[ ! ${credential_options[$op]} -eq 1 ]]; then
+        if [[ ${bool_options[$op]} -eq 1  ]]; then
+            if [[ ${options[$op]} -eq 0  ]]; then
+                debug "$op = false"
             else
-                echo "$op = ${options[$op]}"
-           fi
-        fi
-    done
-fi
+                debug "$op = true"
+            fi
+        else
+            debug "$op = ${options[$op]}"
+       fi
+    fi
+done
 

@@ -12,7 +12,7 @@ previous_file_ext=""
 index=-1
 
 if [[ -a "$tmp_file" ]]; then
-    echo "${tmp_file} already exist"
+    error "${tmp_file} already exist"
     exit 1
 fi
 cp "${list_file}" "${tmp_file}"

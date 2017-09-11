@@ -28,8 +28,8 @@ get_absolute_path() {
 
 #create dir
 #has exceptions
-#will create parent dir if not exist
-#will fail if this dir or its parent dir exist and is not directory
+#create parent dir if not exist
+#failed if this dir or its parent dir exist and is not directory
 #$1: the path to create; can be a absolute path or relaive path under `pwd`
 create_dir() {
     local path=`get_absolute_path $1`
@@ -60,6 +60,7 @@ create_dir() {
         #create the folders
         while [[ $index -ge 0 ]]; do
             mkdir ${new_dirs[$index]}
+            return_code=$?; if [[ $return_code -ne 0 ]]; then  return $return_code; fi
             index=$(($index - 1))
         done
     elif [[ ! -d $path ]]; then
@@ -84,3 +85,4 @@ get_parent_path() {
     fi
     echo $parent_path
 }
+
