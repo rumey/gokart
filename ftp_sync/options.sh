@@ -24,7 +24,7 @@ FTP Server options:
     -d,--remote-dir=dir relative folder in user's home folder in ftp server to synchronize from; can't start with '/'
 
 Local options:
-    -r,--root-dir=dir   folder in local system to contain the files synchronized from ftp server
+    -r,--root-dir=dir   folder in local system to contain the files synchronized from ftp server; it is a absolute path or a file path to the file 'ftp_sync.sh'
     -l,--local-dir=dir  relative folder in root dir to syncrhoize the files from remote dir to; default is same as remote-dir
 
 Syncrhonize options:
@@ -32,13 +32,14 @@ Syncrhonize options:
     --only-existing     only synchronize the file already exists in the client side
     --not-sync          don't perfrom synchronization.
     --sync-list-filter  a script to filter the file list returned from remote dir, only valid when --only-existing is enabled.
+                         it is a absolute file or a file relative to the file 'ftp_sync.sh'
                         script parameters
                         1: a file contained all the files returned from ftp server, this script should remove the unwanted files, or comment them with '#'
 
 other options:
-    -e,--env-file       the environment file used to setup the options
+    -e,--env-file       the environment file used to setup the options; it is a absolute file or a file relative to the file 'ftp_sync.sh'
     --log-level         log level. error,warning,info,debug; default is warning
-    --log-file          log file
+    --log-file          log file; it is a absolute file or a file relative to the file 'ftp_sync.sh'
     --log-files         how many files need to be kept in file system, one file per day, default 14 files
 "
 
@@ -176,7 +177,7 @@ done
 #if env-file is configured, execute it first
 if [[ ${options["env-file"]} != $null_value ]] && [[ ${options["env-file"]} != "" ]]; then
     #env file is specified, execute it
-    options["env-file"]=`get_absolute_path "${options["env-file"]}"`
+    options["env-file"]=`get_absolute_path "${options["env-file"]}" "${script_dir}"`
     source ${options["env-file"]}
 fi
 
@@ -257,8 +258,11 @@ if [[ ${options["log-files"]} -lt 1 ]]; then
     options["log-files"]=1
 fi
 
+if [[ "${options["log-file"]}" != "" ]]; then
+    options["log-file"]=`get_absolute_path "${options["log-file"]}" "${script_dir}"`
+fi
 #initialize logging file
-source ./logging.sh
+source ${script_dir}/logging.sh
 
 #check whether all options have value, the value can be default value, specified in command or come from other option
 missing_option=0
@@ -293,7 +297,7 @@ else
 fi
 
 #initialize options or create other options used by program
-options["root-dir"]=`get_absolute_path "${options["root-dir"]}"`
+options["root-dir"]=`get_absolute_path "${options["root-dir"]}" "${script_dir}"`
 #if [[ ${options["root-dir"]} =~ ^(/)|(/etc/.*)|(/root/.*)|(/bin/.*)|(/sbin/.*)|(/lib/.*)$ ]]; then
 if [[ ${options["root-dir"]} =~ ^/$|^/etc(/.*)?$|^/root(/.*)?$|^/bin(/.*)?$|^/sbin(/.*)?$|^/lib(/.*)?$ ]]; then
     error "root dir can't be '/', also can't be in system folder '/etc','/root','/bin','/sbin','lib'"
@@ -344,7 +348,7 @@ if [[ ${options["only-existing"]} -eq 1 ]]; then
         exit 1
     fi
     if [[ "${options["sync-list-filter"]}" != "" ]]; then
-        options["sync-list-filter"]=`get_absolute_path "${options["sync-list-filter"]}"`
+        options["sync-list-filter"]=`get_absolute_path "${options["sync-list-filter"]}" "${script_dir}"`
         if [[ ! -a "${options["sync-list-filter"]}" ]]; then
             error "Sync file list filter script '${options["sync-list-filter"]}' does not exist."
             exit 1
