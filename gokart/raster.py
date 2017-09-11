@@ -198,82 +198,87 @@ def loadAllDatasources():
 raster_datasources={
     "bom":{
         "IDW71000_WA_T_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71000_WA_T_SFC.grb"),
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71000_WA_T_SFC.nc.gz"),
             "metadata_f":{
-                "refresh_time":getEpochTimeFunc("GRIB_VALID_TIME",1),
-                "band_timeout":getBandTimeoutFunc("GRIB_VALID_TIME")
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
             },
             "band_metadata_f":{
-                "start_time":getEpochTimeFunc("GRIB_VALID_TIME"),
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
             },
             "band_match_f":isInBandFunc,
             "options":{
                 "title":"Temp<br>(C)",
                 "pattern":"{:-.2f}",
+                "srs":"EPSG:4326",
                 "style":"text-align:right",
             }
         },
         "IDW71001_WA_Td_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71001_WA_Td_SFC.grb"),
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71001_WA_Td_SFC.nc.gz"),
             "metadata_f":{
-                "refresh_time":getEpochTimeFunc("GRIB_VALID_TIME",1),
-                "band_timeout":getBandTimeoutFunc("GRIB_VALID_TIME")
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
             },
             "band_metadata_f":{
-                "start_time":getEpochTimeFunc("GRIB_VALID_TIME"),
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
             },
             "band_match_f":isInBandFunc,
             "options":{
                 "title":"Dewpt<br>(C)",
                 "pattern":"{:-.2f}",
+                "srs":"EPSG:4326",
                 "style":"text-align:center",
             }
         },
         "IDW71002_WA_MaxT_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71002_WA_MaxT_SFC.grb"),
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71002_WA_MaxT_SFC.nc.gz"),
             "metadata_f":{
-                "refresh_time":getEpochTimeFunc("GRIB_VALID_TIME",1),
-                "band_timeout":getBandTimeoutFunc("GRIB_VALID_TIME")
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
             },
             "band_metadata_f":{
-                "start_time":getEpochTimeFunc("GRIB_VALID_TIME"),
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
             },
             "band_match_f":isInBandFunc,
             "options":{
                 "title":"Max Temp<br>(C)",
                 "pattern":"{:-.2f}",
+                "srs":"EPSG:4326",
                 "style":"text-align:center",
             }
         },
         "IDW71003_WA_MinT_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71003_WA_MinT_SFC.grb"),
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71003_WA_MinT_SFC.nc.gz"),
             "metadata_f":{
-                "refresh_time":getEpochTimeFunc("GRIB_VALID_TIME",1),
-                "band_timeout":getBandTimeoutFunc("GRIB_VALID_TIME")
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
             },
             "band_metadata_f":{
-                "start_time":getEpochTimeFunc("GRIB_VALID_TIME"),
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
             },
             "band_match_f":isInBandFunc,
             "options":{
                 "title":"Min Temp<br>(C)",
                 "pattern":"{:-.2f}",
+                "srs":"EPSG:4326",
                 "style":"text-align:center",
             }
         },
         "IDW71018_WA_RH_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71018_WA_RH_SFC.grb"),
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71018_WA_RH_SFC.nc.gz"),
             "metadata_f":{
-                "refresh_time":getEpochTimeFunc("GRIB_VALID_TIME",1),
-                "band_timeout":getBandTimeoutFunc("GRIB_VALID_TIME")
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
             },
             "band_metadata_f":{
-                "start_time":getEpochTimeFunc("GRIB_VALID_TIME"),
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
             },
             "band_match_f":isInBandFunc,
             "options":{
                 "title":"RH<br>(%)",
                 "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
                 "style":"text-align:center",
             }
         },
@@ -329,19 +334,20 @@ raster_datasources={
             }
         },
         "IDW71089_WA_Wind_Dir_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71089_WA_Wind_Dir_SFC.grb"),
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71089_WA_Wind_Dir_SFC.nc.gz"),
             "metadata_f":{
-                "refresh_time":getEpochTimeFunc("GRIB_VALID_TIME",1),
-                "band_timeout":getBandTimeoutFunc("GRIB_VALID_TIME")
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
             },
             "band_metadata_f":{
-                "start_time":getEpochTimeFunc("GRIB_VALID_TIME"),
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
             },
             "band_match_f":isInBandFunc,
             "data_format_f":windDirFormatFunc(16),
             "options":{
                 "title":"Dir",
                 #"pattern":"{:-.2f}",
+                "srs":"EPSG:4326",
                 "style":"text-align:center",
             }
         },
@@ -518,7 +524,7 @@ def getRasterData(options):
         options["datasource"]["message"] = traceback.format_exception_only(sys.exc_type,sys.exc_value)
         return options["datasource"]
     finally:
-        if datasource:
+        if datasource and options["datasource"] and options["datasource"]["context"]:
             options["datasource"]["context"].update(datasource["metadata"])
         ds = None
 
