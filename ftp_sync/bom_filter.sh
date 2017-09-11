@@ -40,8 +40,8 @@ while read -r f; do
         files[$index]="$f"
         previous_file_name="${file_path}${file_name}"
         previous_file_ext=$file_ext
-    elif [[ $file_ext == "grb" ]]; then
-        #current file is a grb file, a prefered format
+    elif [[ $file_ext != "grb" ]]; then
+        #current file is not a grb file, a prefered format
         files[$index]="$f"
         previous_file_ext=$file_ext
     fi
