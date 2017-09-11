@@ -524,7 +524,7 @@ def getRasterData(options):
         options["datasource"]["message"] = traceback.format_exception_only(sys.exc_type,sys.exc_value)
         return options["datasource"]
     finally:
-        if datasource and options["datasource"] and options["datasource"]["context"]:
+        if datasource and options["datasource"] and "context" in options["datasource"]:
             options["datasource"]["context"].update(datasource["metadata"])
         ds = None
 
