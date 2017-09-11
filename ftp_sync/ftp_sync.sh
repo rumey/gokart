@@ -210,9 +210,9 @@ for wait_time in ${waiting_times[@]}; do
     debug "Start to synchronize file from '${options["ftp-url"]}/${options["remote-dir"]}' to '${options["sync-dir"]}'"
 
     if [[ "$options["remote-dir"]" == "" ]]; then
-        lftp -c "open -u ${options["user"]},${options["password"]} ${options["ftp-url"]} && lcd ${options["sync-dir"]} && mirror -c --recursion=always --no-perms --no-umask ${sync_options};" 
+        lftp -c "open -u ${options["user"]},${options["password"]} ${options["ftp-url"]} && lcd ${options["sync-dir"]} && mirror -c --no-perms --no-umask ${sync_options};" 
     else
-        lftp -c "open -u ${options["user"]},${options["password"]} ${options["ftp-url"]} && cd ${options["remote-dir"]} && lcd ${options["sync-dir"]} && mirror -P 5 -c --recursion=always --no-perms --no-umask ${sync_options};" 
+        lftp -c "open -u ${options["user"]},${options["password"]} ${options["ftp-url"]} && cd ${options["remote-dir"]} && lcd ${options["sync-dir"]} && mirror -P 5 -c --no-perms --no-umask ${sync_options};" 
     fi
     return_code=$?
 
@@ -248,7 +248,7 @@ for wait_time in ${waiting_times[@]}; do
 
     debug "Start to synchronize file from '${options["sync-dir"]}' to '${options["data-dir"]}'"
 
-    lftp -c "local mirror --no-perms --no-umask --recursion=always ${options["sync-dir"]} ${options["data-dir"]}"
+    lftp -c "local mirror --no-perms --no-umask ${options["sync-dir"]} ${options["data-dir"]}"
     return_code=$?
 
     if [[ $return_code -eq 0 ]]; then
