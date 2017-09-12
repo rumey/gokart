@@ -543,17 +543,18 @@ def formatData(data,pattern,no_data=None):
 def formatContext(context,patterns):
     for key,value in context.iteritems():
         if isinstance(value,datetime.datetime):
-            context[key] = formatData(value,patterns.get("datetime_pattern"),"")
+            context[key] = formatData(value,patterns.get("{}_pattern".format(key),patterns.get("datetime_pattern")),"")
         elif isinstance(value,datetime.date):
-            context[key] = formatData(value,patterns.get("date_pattern"),"")
+            context[key] = formatData(value,patterns.get("{}_pattern".format(key),patterns.get("date_pattern")),"")
         elif isinstance(value,datetime.time):
-            context[key] = formatData(value,patterns.get("time_pattern"),"")
+            context[key] = formatData(value,patterns.get("{}_pattern".format(key),patterns.get("time_pattern")),"")
         elif isinstance(value,datetime.timedelta):
-            context[key] = formatData(value,patterns.get("timedelta_pattern"),"")
+            context[key] = formatData(value,patterns.get("{}_pattern".format(key),patterns.get("timedelta_pattern")),"")
         
 request_options={
     "no_data":"-",
     "datetime_pattern":"%d/%m/%Y %H:%M:%S",
+    "refresh_time_pattern":"%d/%m %H:%M",
 }
 forecast_options={
     "time_pattern":"%H:%M",

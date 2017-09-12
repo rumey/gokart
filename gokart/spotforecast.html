@@ -16,6 +16,13 @@
 
     <script src="{{staticService}}/static/libs/jquery/3.2.1/jquery.min.js"></script>
     <script src="{{staticService}}/static/libs/foundation/6.4.3/js/foundation.min.js"></script>
+    <script src="{{staticService}}/static/libs/html2canvas/0.5.0-beta4/html2canvas.min.js"></script>
+    <script src="{{staticService}}/static/libs/pdfmake/0.1.32/pdfmake.min.js"></script>
+    <script src="{{staticService}}/static/libs/pdfmake/0.1.32/vfs_fonts.js"></script>
+    <script src="{{staticService}}/static/libs/filesaverjs/v0.2.2/FileSaver.min.js"></script>
+    <script src="{{staticService}}/static/libs/moment.js/2.18.1/moment.min.js"></script>
+    <script src="{{staticService}}/static/libs/moment-timezone/0.5.13/moment-timezone.js"></script>
+    <script src="/dist/static/js/export.js"></script>
     <link rel="stylesheet" type="text/css" href="{{staticService}}/static/libs/foundation/6.4.3/css/foundation.min.css" />
     <style>
         .hover tbody tr:hover td, .table-hover tbody tr:hover th {
@@ -32,12 +39,21 @@
         #spotforecast .time-1-in-day {
             background-color:#D6E2E4;
         }
+        #spotforecast table,th,td {
+            border:2px solid black
+        }
     </style>
   </head>
   <body>
-    <div style="margin-left:20px;margin-right:20px;margin-top:20px">
+    <div style="background-color:white;letter-spacing:2px;padding-left:20px;padding-right:20px;padding-top:20px;padding-bottom:20px" id="forecasts">
+    <h3 >{{data.options.title}}</h3>
+    <div style="font-size:small;font-weight:bold;font-style:italic">Issued at {{data.issued_time|formatDate("%I:%M %p %Z on %A %d %B %Y")}}</div>
+    <div style="text-align:left;" class="bypass">
+        <img style="cursor:pointer" src="/dist/static/images/png.png" width="40px" height="40px" onclick="exportAs('forecasts','.bypass','forecast_{{data.issued_time|formatDate("%Y-%m-%d %H%M%S")}}.png')">
+        <img style="cursor:pointer;" src="/dist/static/images/pdf.png" width="40px" height="40px" onclick="exportAs('forecasts','.bypass','forecast_{{data.issued_time|formatDate("%Y-%m-%d %H%M%S")}}.pdf')">
+    </div>
     {%- for forecast in data.forecasts -%}
-    <table class="hover" style="border-collapse:separate;background:black" align="center" id="spotforecast">
+    <table class="hover" align="center" id="spotforecast">
       <thead>
         <tr>
         {%- if forecast.has_group  -%}

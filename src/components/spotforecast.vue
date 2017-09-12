@@ -67,11 +67,11 @@
         var requestData = {
             point:coordinate,
             options: {
-                title:"Spot Fire Weather 4 Day Outlook for (" + coordinate[0] + "," + coordinate[1] + ")",
+                title:"Spot Fire Weather 4 Day Outlook for (" + Math.round(coordinate[0] * 10000) / 10000 + "," + Math.round(coordinate[1] * 10000) / 10000 + ")",
             },
             forecasts:[
                 {
-                    times:utils.getDatetimes(["09:00:00","15:00:00","21:00:00"],12,1).map(function(dt) {return dt.format("YYYY-MM-DD HH:mm:ss")}),
+                    times:utils.getDatetimes(["09:00:00","12:00:00","15:00:00","18:00:00","21:00:00"],20,1).map(function(dt) {return dt.format("YYYY-MM-DD HH:mm:ss")}),
                     options:{
                     },
                     datasources:[
