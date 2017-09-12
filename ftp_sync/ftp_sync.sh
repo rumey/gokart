@@ -226,7 +226,7 @@ done
 if [[ $return_code -ne 0 ]]; then  error "Failed to synchronize files from '${options["ftp-url"]}/${options["remote-dir"]}' to '${options["sync-dir"]}',process exits."; exit $return_code; fi
 
 #switch the workspace from data-dir to sync-dir
-info "Swich the workspce to '${options["sync-dir"]}'"
+info "Switch the workspce to '${options["sync-dir"]}'"
 
 if [[ -a "${options["local-dir"]}" ]]; then
     rm -f "${options["local-dir"]}"
@@ -261,7 +261,7 @@ done
 if [[ $return_code -ne 0 ]]; then error "Failed to synchronize files from '${options["sync-dir"]}' to '${options["data-dir"]}', process exits."; exit $return_code; fi
 
 #switch the workspace from sync-dir to data-dir
-info "Swich the workspce to '${options["data-dir"]}'"
+info "Switch the workspce to '${options["data-dir"]}'"
 if [[ -a "${options["local-dir"]}" ]]; then
     rm -f "${options["local-dir"]}"
     return_code=$?; if [[ $return_code -ne 0 ]]; then  error "Failed to remove symbolic link '${options["local-dir"]}'."; exit $return_code; fi
