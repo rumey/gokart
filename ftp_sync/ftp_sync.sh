@@ -1,5 +1,6 @@
 #!/bin/bash
 
+start_time=`date +%s`
 #get the absolute path, 
 #no exception
 #$1: required. relative path or absolutive path, 
@@ -269,6 +270,8 @@ fi
 ln -s "${options["data-dir"]}" "${options["local-dir"]}"
 return_code=$?; if [[ $return_code -ne 0 ]]; then  error "Failed to create symbolic link '${options["local-dir"]}' to '${options["data-dir"]}'."; exit $return_code; fi
 
-info "`date` : End to synchronization"
+end_time=`date +%s`
+run_times=$((${end_time} - ${start_time}))
+info "End to synchronization, total run time is `date -u -d "@${run_times}" "+%_H hours %_M minutes %_S seconds"`"
 info ""
 
