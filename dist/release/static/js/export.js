@@ -246,6 +246,8 @@ function convertHtmlToPdfContent(element,ignoreElements,content) {
                 text:node.data.trim(),
                 style:convertStyleToPdfStyle(element)
             })
+        } else if (node.nodeName.toUpperCase() === "BR") {
+            content.push({text:"\r\n"})
         } else if (node.nodeName.toUpperCase() === "SCRIPT") {
             return
         } else if (node.nodeName.toUpperCase() === "LINK") {
