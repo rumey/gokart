@@ -402,6 +402,23 @@ raster_datasources={
                 "style":"text-align:center",
             }
         },
+        "IDW71017_WA_Sky_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71017_WA_Sky_SFC.nc.gz"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_match_f":isInBandFunc,
+            "options":{
+                "title":"Sky<br>(%)",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
 
     }
 }

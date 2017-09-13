@@ -84,6 +84,13 @@
                         },
                         {
                             workspace:"bom",
+                            id:"IDW71017_WA_Sky_SFC",
+                            options:{
+                                title:"Sky<br>(%)<br>({refresh_time})",
+                            }
+                        },
+                        {
+                            workspace:"bom",
                             id:"IDW71001_WA_Td_SFC",
                             options:{
                                 title:"Dewpt<br>(C)<br>({refresh_time})",
