@@ -167,17 +167,32 @@ def prepareDatasource(datasource):
     elif (datasource["file"].lower().endswith(".nc")):
         datasource["datasource"] = datasource["file"]
     elif (datasource["file"].lower().endswith(".nc.gz")):
+        fileinfo = os.stat(datasource["file"])
         if datasource.get("datasource"):
-            fileinfo = os.stat(datasource["file"])
-            if fileinfo.st_size != datasource.get("file_size") or (fileinfo.st_mtime and fileinfo.st_mtime != datasource.get("file_mtime")) or not os.path.exists(datasource["datasource"]):
+            #loaded before
+            if os.path.exists(datasource["datasource"]):
+                #datsource file exists
+                dsinfo = os.stat(datasource["datasource"])
+                if fileinfo.st_mtime != dsinfo.st_mtime:
+                    #datasource file is old than the compressed datasouce file
+                    datasource["datasource"] = None
+            else:
+                #datasource file exists
                 datasource["datasource"] = None
+        else:
+            #not loaded before
+            ds = datasource["file"][:-3]
+            if os.path.exists(ds):
+                dsinfo = os.stat(ds)
+                if fileinfo.st_mtime == dsinfo.st_mtime:
+                    #datasource file exists and also has the same modify time as compressed datasource file
+                    datasource["datasource"] = ds
 
         if not datasource.get("datasource"):
-            fileinfo = os.stat(datasource["file"])
             subprocess.check_call(["gzip","-k","-f","-q","-d",datasource["file"]])
             datasource["datasource"] = datasource["file"][:-3]
-            datasource["file_size"] = fileinfo.st_size
-            datasource["file_mtime"] = fileinfo.st_mtime
+            os.utime(datasource["datasource"],(fileinfo.st_atime,fileinfo.st_mtime))
+            print "Succeed to decompressed file \"{}\" to file \"{}\"".format(datasource["file"],datasource["datasource"])
 
         if not datasource.get("datasource") or not os.path.exists(datasource["datasource"]):
             raise Exception("Datasource ({}) is missing".format(datasource["datasource"]))
@@ -190,6 +205,7 @@ def loadAllDatasources():
             try:
                 prepareDatasource(raster_datasources[workspace][datasourceId])
             except:
+                traceback.print_exc()
                 raster_datasources[workspace][datasourceId]["status"] = "notsupport"
                 raster_datasources[workspace][datasourceId]["message"] = traceback.format_exception_only(sys.exc_type,sys.exc_value)
                 continue
