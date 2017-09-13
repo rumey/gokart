@@ -1,34 +1,3 @@
-
-var mmPerInch = 25.4;
-var dpmm = null;
-var dpi = null;
-
-
-
-var papers = {
-    A0: [1189, 841],
-    A1: [841, 594],
-    A2: [594, 420],
-    A3: [420, 297],
-    A4: [297, 210]
-}
-
-
-//String.prototype.trim = function () {
-//    return this.replace(/^\s+|\s+$/gm,'');
-//} 
-
-$(document).ready(function(){
-    $('body').append('<div id="dpi" style="width:1in;display:none"></div>');
-    dpi = parseFloat($('#dpi').width());
-    dpmm = dpi / mmPerInch;
-    for(paper in papers) {
-        papers[paper][0] = Math.floor(papers[paper][0] * dpmm);
-        papers[paper][1] = Math.floor(papers[paper][1] * dpmm);
-    }
-    $('#dpi').remove();
-})
-
 function toInt(str) {
     try {
         var result = parseInt(str)
