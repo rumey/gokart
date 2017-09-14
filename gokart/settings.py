@@ -88,7 +88,7 @@ def typename(url):
 
 
 def datetime_encoder(self,o):
-    if isinstance(o,datetime):
+    if isinstance(o,datetime.datetime):
         return o.strftime("%Y-%m-%d %H:%M:%S")
     else:
         raise TypeError("Unknown type {}".format(type(o)))
