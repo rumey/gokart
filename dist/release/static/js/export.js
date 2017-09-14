@@ -215,8 +215,6 @@ function convertHtmlToPdfContent(element,ignoreElements,content) {
                 text:node.data.trim(),
                 style:convertStyleToPdfStyle(element)
             })
-        } else if (node.nodeName.toUpperCase() === "BR") {
-            content.push({text:"\r\n"})
         } else if (node.nodeName.toUpperCase() === "SCRIPT") {
             return
         } else if (node.nodeName.toUpperCase() === "LINK") {
@@ -225,6 +223,8 @@ function convertHtmlToPdfContent(element,ignoreElements,content) {
             return
         } else if (ignoreElements.find(function(e) {return e === node})) {
             return
+        } else if (node.nodeName.toUpperCase() === "BR") {
+            content.push({text:"\r\n"})
         } else if (node.nodeName.toUpperCase() === "TABLE") {
             var table = {body:[],widths:[],context:{tag:"TABLE",section:"body",rowIndex:-1,columnIndex:-1,rowSpan:[]}}
             table = convertHtmlToPdfContent(node,ignoreElements,table)
