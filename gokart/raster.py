@@ -174,7 +174,7 @@ def prepareDatasource(datasource):
                 #datsource file exists
                 dsinfo = os.stat(datasource["datasource"])
                 if fileinfo.st_mtime != dsinfo.st_mtime:
-                    #datasource file is old than the compressed datasouce file
+                    #datasource file is older than the compressed datasouce file
                     datasource["datasource"] = None
             else:
                 #datasource file exists
