@@ -53,6 +53,9 @@
         <img style="cursor:pointer;" src="/dist/static/images/pdf.png" width="40px" height="40px" onclick="exportAs('forecasts','.bypass','forecast_{{data.issued_time|formatDate("%Y-%m-%d %H%M%S")}}.pdf')">
     </div>
     {%- for forecast in data.forecasts -%}
+    {%- if loop.index0 != 0 -%}
+    <br><br>
+    {% endif %}
     <table class="hover" align="center" id="spotforecast">
       <thead>
         <tr>
