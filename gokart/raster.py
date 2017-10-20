@@ -48,6 +48,18 @@ def getEpochTimeFunc(name,defaultBandIndex=None):
             return None
     return _func
 
+def isNightFunc(name):
+    """
+    check whether band's time is night or not
+    """
+    def _func(ds,bandIndex=None):
+        try:
+            dt = convertEpochTimeToDatetime(ds.GetRasterBand(bandIndex).GetMetadata().get(name))
+            return dt.hour >= 18 or dt.hour < 7 
+        except:
+            return False
+    return _func
+
 def getBandTimeoutFunc(name):
     """
     Get band timeout by subtract the first band's start time from the second band's start time
@@ -199,6 +211,36 @@ def prepareDatasource(datasource):
     else:
         raise Exception("Datasource {} is not supported".format(datasource["file"]))
 
+WEATHER_ICONS = {
+    1:{"icon":"/dist/static/images/weather/sunny.png","night-icon":"/dist/static/images/weather/sunny-night.png","desc":"Sunny"},
+    2:{"icon":"/dist/static/images/weather/clear.png","desc":"Clear"},
+    3:{"icon":"/dist/static/images/weather/partly-cloudy.png","night-icon":"/dist/static/images/weather/partly-cloudy-night.png","desc":"Mostly sunny,Partly cloudy"},
+    4:{"icon":"/dist/static/images/weather/cloudy.png","desc":"Cloudy"},
+    6:{"icon":"/dist/static/images/weather/hazy.png","night-icon":"/dist/static/images/weather/hazy-night.png","desc":"Hazy"},
+    8:{"icon":"/dist/static/images/weather/light-rain.png","desc":"Light rain"},
+    9:{"icon":"/dist/static/images/weather/windy.png","desc":"Windy"},
+    10:{"icon":"/dist/static/images/weather/fog.png","night-icon":"/dist/static/images/weather/fog-night.png","desc":"Fog"},
+    11:{"icon":"/dist/static/images/weather/showers.png","night-icon":"/dist/static/images/weather/showers-night.png","desc":"Shower"},
+    12:{"icon":"/dist/static/images/weather/rain.png","desc":"Rain"},
+    13:{"icon":"/dist/static/images/weather/dusty.png","desc":"Dusty"},
+    14:{"icon":"/dist/static/images/weather/frost.png","desc":"Frost"},
+    15:{"icon":"/dist/static/images/weather/snow.png","desc":"Snow"},
+    16:{"icon":"/dist/static/images/weather/storm.png","desc":"Storm"},
+    17:{"icon":"/dist/static/images/weather/light-showers.png","night-icon":"/dist/static/images/weather/light-showers-night.png","desc":"Light shower"},
+    18:{"icon":"/dist/static/images/weather/heavy-showers.png","desc":"Heavy shower"},
+    19:{"icon":"/dist/static/images/weather/tropicalcyclone.png","desc":"Cyclone"},
+}
+def getWeather(band,data):
+    if data is None:
+        return None
+    icon = WEATHER_ICONS.get(int(data))
+    if icon is None:
+        return None
+    elif band.get("is_night",False):
+        return "<img src='{}' style='width:36px;height:34px;' />".format(icon.get("night-icon",icon["icon"]))
+    else:
+        return "<img src='{}' style='width:36px;height:34px;' />".format(icon["icon"])
+
 def loadAllDatasources():
     for workspace in raster_datasources:
         for datasourceId in raster_datasources[workspace]:
@@ -213,7 +255,7 @@ def loadAllDatasources():
         
 raster_datasources={
     "bom":{
-        "IDW71000_WA_T_SFC":{
+        "Hourly temperature forecast":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71000_WA_T_SFC.nc.gz"),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
@@ -225,12 +267,12 @@ raster_datasources={
             "band_match_f":isInBandFunc,
             "options":{
                 "title":"Temp<br>(C)",
-                "pattern":"{:-.2f}",
+                "pattern":"{:-.0f}",
                 "srs":"EPSG:4326",
                 "style":"text-align:right",
             }
         },
-        "IDW71001_WA_Td_SFC":{
+        "Hourly dew point temperature forecast":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71001_WA_Td_SFC.nc.gz"),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
@@ -242,12 +284,12 @@ raster_datasources={
             "band_match_f":isInBandFunc,
             "options":{
                 "title":"Dewpt<br>(C)",
-                "pattern":"{:-.2f}",
+                "pattern":"{:-.0f}",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
             }
         },
-        "IDW71002_WA_MaxT_SFC":{
+        "Daily maximum temperature forecast":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71002_WA_MaxT_SFC.nc.gz"),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
@@ -259,12 +301,12 @@ raster_datasources={
             "band_match_f":isInBandFunc,
             "options":{
                 "title":"Max Temp<br>(C)",
-                "pattern":"{:-.2f}",
+                "pattern":"{:-.0f}",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
             }
         },
-        "IDW71003_WA_MinT_SFC":{
+        "Daily minimum temperature forecast":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71003_WA_MinT_SFC.nc.gz"),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
@@ -276,12 +318,12 @@ raster_datasources={
             "band_match_f":isInBandFunc,
             "options":{
                 "title":"Min Temp<br>(C)",
-                "pattern":"{:-.2f}",
+                "pattern":"{:-.0f}",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
             }
         },
-        "IDW71018_WA_RH_SFC":{
+        "Hourly relative humidity":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71018_WA_RH_SFC.nc.gz"),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
@@ -298,7 +340,7 @@ raster_datasources={
                 "style":"text-align:center",
             }
         },
-        "IDW71139_WA_Curing_SFC":{
+        "Grassland curing index":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71139_WA_Curing_SFC.nc.gz"),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
@@ -315,7 +357,7 @@ raster_datasources={
                 "style":"text-align:center",
             }
         },
-        "IDW71071_WA_WindMagKmh_SFC":{
+        "Hourly wind magnitude":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71071_WA_WindMagKmh_SFC.nc.gz"),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
@@ -332,7 +374,7 @@ raster_datasources={
                 "style":"text-align:center",
             }
         },
-        "IDW71072_WA_WindGustKmh_SFC":{
+        "Wind gust":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71072_WA_WindGustKmh_SFC.nc.gz"),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
@@ -349,7 +391,7 @@ raster_datasources={
                 "style":"text-align:center",
             }
         },
-        "IDW71089_WA_Wind_Dir_SFC":{
+        "Hourly wind direction":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71089_WA_Wind_Dir_SFC.nc.gz"),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
@@ -367,7 +409,7 @@ raster_datasources={
                 "style":"text-align:center",
             }
         },
-        "IDW71117_WA_FFDI_SFC":{
+        "Hourly forest fire danger index":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71117_WA_FFDI_SFC.nc.gz"),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
@@ -384,7 +426,7 @@ raster_datasources={
                 "style":"text-align:center",
             }
         },
-        "IDW71122_WA_GFDI_SFC":{
+        "Hourly grassland fire danger index":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71122_WA_GFDI_SFC.nc.gz"),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
@@ -401,7 +443,7 @@ raster_datasources={
                 "style":"text-align:center",
             }
         },
-        "IDW71127_WA_DF_SFC":{
+        "Drought factor":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71127_WA_DF_SFC.nc.gz"),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
@@ -418,7 +460,7 @@ raster_datasources={
                 "style":"text-align:center",
             }
         },
-        "IDW71017_WA_Sky_SFC":{
+        "Sky cover":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71017_WA_Sky_SFC.nc.gz"),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
@@ -435,9 +477,142 @@ raster_datasources={
                 "style":"text-align:center",
             }
         },
+        "Daily weather icon":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71152_WA_DailyWxIcon_SFC.nc.gz"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+                "is_night":isNightFunc("NETCDF_DIM_time")
+            },
+            "band_match_f":isInBandFunc,
+            "options":{
+                "title":"Daily Weather",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+                "map_f":getWeather
+            }
+        },
+        "3hrly weather icon":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71034_WA_WxIcon_SFC.nc.gz"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+                "is_night":isNightFunc("NETCDF_DIM_time")
+            },
+            "band_match_f":isInBandFunc,
+            "options":{
+                "title":"Weather",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+                "map_f":getWeather
+            }
+        },
+
 
     }
 }
+
+def getRasterBands(datasource,bandids,bandMatchFunc):
+    """
+    datasource: the loading meta data of  raster datasource
+    bandIds: a list of band ids, each member of list can be a id or list of ids
+    batchMatchFunc: the function to check whether the band match the specified bandid
+    return the ranster band with same structure as bandIds
+    """
+    bands = []
+    for bandid in bandids:
+        if isinstance(bandid,list):
+            bands.append(getRasterBands(datasource,bandid,bandMatchFunc))
+        else:
+            matchedBand = None
+            for band in datasource["bands"]:
+                if bandMatchFunc(datasource,band,bandid):
+                    matchedBand = band
+                    break
+            bands.append(matchedBand)
+    return bands
+
+def getBandsData(datasource,bands,pixel,mapFunc=None):
+    """
+    datasource: raster datasource
+    bands: The bands
+    pixel: the position which data will be extracted
+    mapFunc:tansform the data
+    """
+    datas = []
+    for band in bands:
+        if isinstance(band,list):
+            datas.append(getBandsData(datasource,band,pixel,mapFunc))
+        else:
+            data = None
+            if band is None:
+                data = None
+            elif band["index"] < 1 or band["index"] > datasource.RasterCount:
+                data = None
+            elif not pixel:
+                data = None
+            else:
+                ds_band = datasource.GetRasterBand(band["index"])
+                if ds_band is not None:
+                    structval = ds_band.ReadRaster(pixel[0], pixel[1], 1, 1, buf_type=gdal.GDT_Float32) 
+                else:
+                    structval = None
+                if structval:
+                    data = struct.unpack('f', structval)[0]
+                    if data == ds_band.GetNoDataValue():
+                        data = None
+                else:
+                    data = None
+            if data is None:
+                datas.append([band["index"] if band else -1,data])
+            elif mapFunc:
+                datas.append([band["index"] if band else -1 ,mapFunc(band,data)])
+            else:
+                datas.append([band["index"] if band else -1,data])
+    return datas
+
+def formatData(data,pattern,no_data=None):
+    if not data:
+        return no_data
+    elif pattern:
+        if isinstance(data,datetime.datetime) or isinstance(data,datetime.date) or isinstance(data,datetime.time) or isinstance(data,datetime.timedelta):
+            return data.strftime(pattern)
+        else:
+            return pattern.format(data)
+    else:
+        return str(data)
+
+def formatContext(context,patterns):
+    for key,value in context.iteritems():
+        if isinstance(value,datetime.datetime):
+            context[key] = formatData(value,patterns.get("{}_pattern".format(key),patterns.get("datetime_pattern")),"")
+        elif isinstance(value,datetime.date):
+            context[key] = formatData(value,patterns.get("{}_pattern".format(key),patterns.get("date_pattern")),"")
+        elif isinstance(value,datetime.time):
+            context[key] = formatData(value,patterns.get("{}_pattern".format(key),patterns.get("time_pattern")),"")
+        elif isinstance(value,datetime.timedelta):
+            context[key] = formatData(value,patterns.get("{}_pattern".format(key),patterns.get("timedelta_pattern")),"")
+        
+def formatBandsData(datasource,noData="",bandsData = None):
+    if bandsData is None:
+        bandsData = datasource["data"]
+    index = 0;
+    while index < len(bandsData):
+        if isinstance(bandsData[index],list) and ((len(bandsData[index]) != 2) or isinstance(bandsData[index][0],list)):
+            formatBandsData(datasource,noData,bandsData[index])
+        elif bandsData[index] is not None:
+            dataFormatFunc = raster_datasources[datasource["workspace"]][datasource["id"]].get("data_format_f")
+            if dataFormatFunc:
+                bandsData[index][1] = dataFormatFunc(bandsData[index][0],bandsData[index][1],noData)
+            else:
+                bandsData[index][1] = formatData(bandsData[index][1],datasource["options"].get("pattern"),noData)
+        index += 1
 
 def getRasterData(options):
     """
@@ -446,8 +621,8 @@ def getRasterData(options):
         point: the point whose data will retrieved from datasource bands, optional
         srs: point srs  optional
         pixel: the pxiel whose data will be retireved from datasource bands, optional
-        band_indexes: the list of band index,optional
-        bandids: the list of band id,optional
+        band_indexes: the list of band index,optional or the list of list band index
+        bandids: the list of band id,optional, ot the list of list band id
 
     Return dictionary
         status: true if succeed;otherwise false
@@ -495,16 +670,11 @@ def getRasterData(options):
                     #loading by other threads, wait
                     time.sleep(0.1)
 
-            if not options.get("band_indexes"):
-                options["band_indexes"] = []
-                for bandid in options["bandids"]:
-                    matchedBand = -1
-                    for band in datasource["bands"]:
-                        if datasource["band_match_f"](datasource,band,bandid):
-                            matchedBand = band["index"]
-                            break
-                    options["band_indexes"].append(matchedBand)
-
+            bands = None
+            if options.get("band_indexes"):
+                bands = getRasterBands(datasource,options["band_indexes"],lambda datasource,band,band_index:band["index"] == band_index)
+            else:
+                bands = getRasterBands(datasource,options["bandids"],datasource["band_match_f"])
 
             try:
                 if not options.get("pixel"):
@@ -524,22 +694,8 @@ def getRasterData(options):
                             options["pixel"] = (px,py)
 
                 # Extract pixel value
-                datas = []
-                for index in options["band_indexes"]:
-                    if index < 1 or index > ds.RasterCount:
-                        data = None
-                    elif not options["pixel"]:
-                        data = None
-                    else:
-                        band = ds.GetRasterBand(index)
-                        structval = band.ReadRaster(options["pixel"][0], options["pixel"][1], 1, 1, buf_type=gdal.GDT_Float32)
-                        if structval:
-                            data = struct.unpack('f', structval)[0]
-                            if data == band.GetNoDataValue():
-                                data = None
-                        else:
-                            data = None
-                    datas.append([index,data])
+                datas = getBandsData(ds,bands,options["pixel"],datasource["options"]["map_f"] if datasource.get("options") and datasource["options"].get("map_f") else None)
+
                 #import ipdb;ipdb.set_trace()
                 options["datasource"]["status"] = True
                 options["datasource"]["data"] = datas
@@ -562,28 +718,6 @@ def getRasterData(options):
         ds = None
 
 
-def formatData(data,pattern,no_data=None):
-    if not data:
-        return no_data
-    elif pattern:
-        if isinstance(data,datetime.datetime) or isinstance(data,datetime.date) or isinstance(data,datetime.time) or isinstance(data,datetime.timedelta):
-            return data.strftime(pattern)
-        else:
-            return pattern.format(data)
-    else:
-        return str(data)
-
-def formatContext(context,patterns):
-    for key,value in context.iteritems():
-        if isinstance(value,datetime.datetime):
-            context[key] = formatData(value,patterns.get("{}_pattern".format(key),patterns.get("datetime_pattern")),"")
-        elif isinstance(value,datetime.date):
-            context[key] = formatData(value,patterns.get("{}_pattern".format(key),patterns.get("date_pattern")),"")
-        elif isinstance(value,datetime.time):
-            context[key] = formatData(value,patterns.get("{}_pattern".format(key),patterns.get("time_pattern")),"")
-        elif isinstance(value,datetime.timedelta):
-            context[key] = formatData(value,patterns.get("{}_pattern".format(key),patterns.get("timedelta_pattern")),"")
-        
 request_options={
     "no_data":"-",
     "datetime_pattern":"%d/%m/%Y %H:%M:%S",
@@ -660,41 +794,85 @@ def spotforecast(fmt):
             raise Exception("Parameter 'point' is missing.")
 
         for forecast in requestData["forecasts"]:
-            if not forecast.get("times"):
-                raise Exception("Property 'times' within forecast is missing.")
+            if not forecast.get("days"):
+                raise Exception("Days is missing.")
+            elif not isinstance(forecast["days"],list):
+                forecast["days"] = [forecast["days"]]
+
+            if not forecast.get("times") and not forecast.get("daily_data"):
+                raise Exception("Both times and daily_data are missing.")
             elif not isinstance(forecast["times"],list):
                 forecast["times"] = [forecast["times"]]
-            forecast["times"] = [datetime.datetime.strptime(dt,"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE)  for dt in forecast["times"]]
 
-            if forecast.get("datasources"):
-                #change the bands to a list if it is not a list(shoule be a string)
-                for datasource in forecast["datasources"]:
+            if forecast.get("times"):
+                forecast["times"] = [[datetime.datetime.strptime("{} {}".format(day,time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in forecast["times"]] for day in forecast["days"]]
+
+            if forecast.get("times") and not forecast.get("times_data"):
+                raise Exception("times_data is missing.")
+                
+
+            #forecast["times"] = [datetime.datetime.strptime(dt,"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE)  for dt in forecast["times"]]
+
+            if forecast.get("times_data"):
+                if not isinstance(forecast["times_data"],list):
+                    forecast["times_data"] = [forecast["times_data"]]
+
+                for datasource in forecast["times_data"]:
                     if datasource.get("group"):
                         if not datasource.get("datasources"):
-                            raise Exception("Property 'datasources' within datasource group is missing.")
+                            raise Exception("Property 'datasources' of group in times_data is missing.")
                         for ds in datasource["datasources"]:
                             if not ds.get("workspace"):
-                                raise Exception("Property 'workspace' within datasource is missing.")
+                                raise Exception("Property 'workspace' of datasource in times_data's group is missing.")
                             if not ds.get("id"):
-                                raise Exception("Property 'id' within datasource is missing.")
+                                raise Exception("Property 'id' of datasource in times_data's group is missing.")
+                            if ds.get("times"):
+                                if not isinstance(ds["times"],list):
+                                    ds["times"] = [ds["times"]]
+                                if len(ds["times"]) != len(forecast["times"]):
+                                    raise Exception("The length of times of datasource in times_data's group is not equal with the length of times of forecast")
+                                ds["times"] = [[datetime.datetime.strptime("{} {}".format(day,time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in ds["times"]] for day in forecast["days"]]
+
+
                     else:
                         if not datasource.get("workspace"):
-                            raise Exception("Property 'workspace' within datasource is missing.")
+                            raise Exception("Property 'workspace' of datasource in times_data is missing.")
                         if not datasource.get("id"):
-                            raise Exception("Property 'id' within datasource is missing.")
-            else:
-                raise Exception("Property 'datasources' within forecast is missing.")
+                            raise Exception("Property 'id' of datasource in times_data is missing.")
+                        if datasource.get("times"):
+                            if not isinstance(datasource["times"],list):
+                                datasource["times"] = [datasource["times"]]
+                            if len(datasource["times"]) != len(forecast["times"]):
+                                raise Exception("The length of times of datasource in times_data is not equal with the length of times of forecast")
+                            datasource["times"] = [[datetime.datetime.strptime("{} {}".format(day,time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in datasource["times"]] for day in forecast["days"]]
 
+            if forecast.get("daily_data"):
+                for datasource in forecast["daily_data"].itervalues():
+                    if not datasource.get("workspace"):
+                        raise Exception("Property 'workspace' of datasource in daily_data is missing.")
+                    if not datasource.get("id"):
+                        raise Exception("Property 'id' of datasource in daily_data is missing.")
+                    datasource["times"] = [datetime.datetime.strptime("{} {}".format(day,datasource.get("time","00:00:00")),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE)  for day in forecast["days"]]
+
+            forecast["days"] = [datetime.datetime.strptime(day,"%Y-%m-%d").replace(tzinfo=PERTH_TIMEZONE)  for day in forecast["days"]]
 
         for forecast in requestData["forecasts"]:
-            for datasource in forecast["datasources"]:
+            for datasource in forecast.get("daily_data",{}).itervalues():
+                datasource.update(getRasterData({
+                    "datasource":datasource,
+                    "point":requestData["point"],
+                    "srs":requestData["srs"],
+                    "bandids":datasource["times"]
+                }))
+
+            for datasource in forecast.get("times_data",[]):
                 if datasource.get("group"):
                     for ds in datasource["datasources"]:
                         ds.update(getRasterData({
                             "datasource":ds,
                             "point":requestData["point"],
                             "srs":requestData["srs"],
-                            "bandids":forecast["times"]
+                            "bandids":datasource.get("times",forecast["times"])
                         }))
                 else:
                     datasource.update(getRasterData({
@@ -714,33 +892,40 @@ def spotforecast(fmt):
             #html,get total columns and check whether have groups
             for forecast in result["forecasts"]:
                 forecast["has_group"] = False
+                forecast["has_daily_group"] = True
                 forecast["columns"] = 1
-                for datasource in forecast["datasources"]:
+                for datasource in forecast.get("times_data",[]):
                     if datasource.get("group"):
                         forecast["has_group"] = True
                         datasource["columns"] = 0
                         for ds in datasource["datasources"]:
                             forecast["columns"] += 1
                             datasource["columns"] += 1
-			    ds["title"] = ds.get("title") or ds["id"]
+                            ds["title"] = ds.get("title") or ds["id"]
                     else:
                         forecast["columns"] += 1
-			datasource["title"] = datasource.get("title") or datasource["id"]
-
+                        datasource["title"] = datasource.get("title") or datasource["id"]
+                if len(forecast["times"]) < 2:
+                   forecast["has_daily_group"] = False
+    
             #prepare the format options
             result["options"] = setDefaultOptionIfMissing(result.get("options"),request_options)
 
             for forecast in requestData["forecasts"]:
                 forecast["options"] = setDefaultOptionIfMissing(forecast.get("options"),forecast_options)
+                for datasource in forecast.get("daily_data",{}).itervalues():
+                    try:
+                        datasource["options"] = setDefaultOptionIfMissing(datasource.get("options"),raster_datasources[datasource["workspace"]][datasource["id"]].get("options"))
+                    except:
+                        pass
 
-                for datasource in forecast["datasources"]:
+                for datasource in forecast.get("times_data",[]):
                     if datasource.get("group"):
                         for ds in datasource["datasources"]:
                             try:
                                 ds["options"] = setDefaultOptionIfMissing(ds.get("options"),raster_datasources[ds["workspace"]][ds["id"]].get("options"))
                             except:
                                 pass
-
                     else:
                         try:
                             datasource["options"] = setDefaultOptionIfMissing(datasource.get("options"),raster_datasources[datasource["workspace"]][datasource["id"]].get("options"))
@@ -750,44 +935,54 @@ def spotforecast(fmt):
 
             #format data if required
             for forecast in result["forecasts"]:
+                #format time column
                 index = 0;
-                while index < len(forecast["times"]):
-                    #forecast["times"][index] = formatData(forecast["times"][index],forecast["options"].get("time_pattern") or "%Y-%m-%d %H:%M:%S",result["options"].get("no_data") or "")
+                while index < len(forecast["days"]):
+                    timeIndex = 0
+                    while timeIndex < len(forecast["times"][index]):
+                        if len(forecast.get("times_data",[])) == 1:
+                           forecast["times"][index][timeIndex] = formatData(forecast["times"][index][timeIndex],forecast["options"].get("date_pattern") or "%Y-%m-%d",result["options"].get("no_data") or "")
+                        else:
+                           forecast["times"][index][timeIndex] = formatData(forecast["times"][index][timeIndex],forecast["options"].get("time_pattern") or "%Y-%m-%d %H:%M:%S",result["options"].get("no_data") or "")
+                        timeIndex += 1
                     index += 1
-
-                for datasource in forecast["datasources"]:
+                
+                #format daily data
+                for datasource in forecast.get("daily_data", {}).itervalues():
+                    if datasource["status"] :
+                        formatBandsData(datasource,result["options"].get("no_data") or "")
+                
+                #generate daily group row data
+                if forecast.get("has_daily_group"):
+                    forecast["daily_group"] = []
+                    groupContext = {}
+                    index = 0
+                    while index < len(forecast["days"]):
+                        groupContext["day"] = forecast["days"][index].strftime(forecast["options"]["date_pattern"])
+                        for name,datasource in forecast.get("daily_data",[]).iteritems():
+                            groupContext[name] = datasource["data"][index]
+                        forecast["daily_group"].append(forecast.get("options",{}).get("daily_group_pattern","{day}").format(**groupContext))
+                        index += 1
+                
+                #format times data
+                for datasource in forecast.get("times_data",[]):
                     if datasource.get("group"):
                         for ds in datasource["datasources"]:
                             if ds.get("context"):
                                 formatContext(ds["context"],result["options"])
                                 ds["options"]["title"] = ds["options"]["title"].format(**ds["context"])
                             if ds["status"]:
-                                index = 0;
-                                while index < len(ds["data"]):
-                                    dataFormatFunc = raster_datasources[ds["workspace"]][ds["id"]].get("data_format_f")
-                                    if dataFormatFunc:
-                                        ds["data"][index][1] = dataFormatFunc(ds["data"][index][0],ds["data"][index][1],result["options"].get("no_data") or "")
-                                    else:
-                                        ds["data"][index][1] = formatData(ds["data"][index][1],ds["options"].get("pattern"),result["options"].get("no_data") or "")
-                                    index += 1
-
+                                formatBandsData(ds,result["options"].get("no_data") or "")
                     else:
                         if datasource.get("context"):
                             formatContext(datasource["context"],result["options"])
                             datasource["options"]["title"] = datasource["options"]["title"].format(**datasource["context"])
 
                         if datasource["status"] :
-                            index = 0;
-                            while index < len(datasource["data"]):
-                                dataFormatFunc = raster_datasources[datasource["workspace"]][datasource["id"]].get("data_format_f")
-                                if dataFormatFunc:
-                                    datasource["data"][index][1] = dataFormatFunc(datasource["data"][index][0],datasource["data"][index][1],result["options"].get("no_data") or "")
-                                else:
-                                    datasource["data"][index][1] = formatData(datasource["data"][index][1],datasource["options"].get("pattern"),result["options"].get("no_data") or "")
-                                index += 1
+                            formatBandsData(datasource,result["options"].get("no_data") or "")
 
             bottle.response.set_header("Content-Type", "text/html")
-            return bottle.template('spotforecast.html',template_adapter=bottle.Jinja2Template,template_settings=jinja2settings, staticService=STATIC_SERVICE,data=result)
+            return bottle.template('spotforecast.html',template_adapter=bottle.Jinja2Template,template_settings=jinja2settings, staticService=STATIC_SERVICE,data=result,envType=ENV_TYPE)
 
     except:
         bottle.response.status = 400

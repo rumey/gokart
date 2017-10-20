@@ -204,6 +204,22 @@ function convertStyleToPdfStyle(element) {
     }
 }
 
+function getDataUrl(image) {
+    var canvas = document.createElement("canvas"),
+    canvasContext = canvas.getContext("2d");
+
+    //Set canvas size is same as the picture
+    canvas.width = image.width;
+    canvas.height = image.height;
+
+    // draw image into canvas element
+    canvasContext.drawImage(image, 0, 0, image.width, image.height);
+
+    // get canvas contents as a data URL (returns png format by default)
+    return canvas.toDataURL();
+
+}
+
 function convertHtmlToPdfContent(element,ignoreElements,content) {
     content = content || [];
     $.each(element.childNodes,function(index,node){
@@ -214,6 +230,12 @@ function convertHtmlToPdfContent(element,ignoreElements,content) {
             content.push({
                 text:node.data.trim(),
                 style:convertStyleToPdfStyle(element)
+            })
+        } else if (node.nodeName.toUpperCase() === "IMG") {
+            content.push({
+                image:getDataUrl(node),
+                width:node.width,
+                height:node.height
             })
         } else if (node.nodeName.toUpperCase() === "SCRIPT") {
             return
@@ -289,7 +311,7 @@ function convertHtmlToPdfContent(element,ignoreElements,content) {
             }
             //add cell value to pdf
             var cellBody = convertHtmlToPdfContent(node,ignoreElements,[])
-            content["body"][content["context"]["rowIndex"]].push({text:cellBody,colSpan:colSpan,rowSpan:rowSpan,alignment:$(node).css('text-align'),fillColor:content["context"]["rowColor"],margin:[0,0,0,0]})
+            content["body"][content["context"]["rowIndex"]].push({stack:cellBody,colSpan:colSpan,rowSpan:rowSpan,alignment:$(node).css('text-align'),fillColor:content["context"]["rowColor"],margin:[0,0,0,0]})
 
             //set the context rowSpan array value
             if (rowSpan > 1) {
@@ -368,6 +390,7 @@ function exportAs(elementId,ignoreElementsSelector,filename) {
                 letterRendering:true,
                 width:getWidth(element),
                 height:getHeight(element),
+                background:"#ffffff",
                 onrendered:function(canvas) {
                     try{
                         canvas.toBlob(function(blob){

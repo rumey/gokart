@@ -45,8 +45,16 @@
     </style>
   </head>
   <body>
-    <div style="background-color:white;letter-spacing:2px;padding-left:20px;padding-right:20px;padding-top:20px;padding-bottom:20px" id="forecasts">
+  {%- if envType != "prod" -%}
+  <body style="background-image:url('/dist/static/images/for-testing.svg')">
+    <div style="opacity:0.75;letter-spacing:2px;padding-left:20px;padding-right:20px;padding-top:20px;padding-bottom:20px;z-index:100" id="forecasts">
+  {% else %}
+  <body>
+    <div style="letter-spacing:2px;padding-left:20px;padding-right:20px;padding-top:20px;padding-bottom:20px;z-index:100;" id="forecasts">
+  {% endif %}
+
     <h3 >{{data.options.title}}</h3>
+
     <div style="font-size:small;font-weight:bold;font-style:italic">Issued at {{data.issued_time|formatDate("%I:%M %p %Z on %A %d %B %Y")}}</div>
     <div style="text-align:left;" class="bypass">
         <img style="cursor:pointer" src="/dist/static/images/png.png" width="40px" height="40px" onclick="exportAs('forecasts','.bypass','forecast_{{data.issued_time|formatDate("%Y-%m-%d %H%M%S")}}.png')">
@@ -56,7 +64,7 @@
     {%- if loop.index0 != 0 -%}
     <br><br>
     {% endif %}
-    <table class="hover" align="center" id="spotforecast">
+    <table class="hover" align="center" id="spotforecast" >
       <thead>
         <tr>
         {%- if forecast.has_group  -%}
@@ -64,7 +72,7 @@
         {% else %}
           <th style="text-align:center"> Time </th>
         {% endif %}
-        {%- for datasource in forecast.datasources -%}
+        {%- for datasource in forecast.times_data -%}
           {%- if datasource.group -%}
           <th colspan="{{datasource.columns}}" style="text-align:center"> {{ datasource.group|safe }} </th>
           {% else %}
@@ -78,7 +86,7 @@
         </tr>
         {%- if forecast.has_group  -%}
         <tr>
-          {%- for datasource in forecast.datasources -%}
+          {%- for datasource in forecast.times_data -%}
             {%- if datasource.group -%}
               {%- for ds in datasource.datasources -%}
                 <th style="text-align:center"> {{ ds.options.title|safe }}</th>
@@ -90,40 +98,39 @@
 
       </thead>
       <tbody>
-        {%- set previousDate = initValue() -%}
-        {%- set timeIndex = initValue() -%}
-        {%- for time in forecast.times -%}
-          {%- set index = loop.index0 -%}
-          {%- set currentDate = time.strftime(forecast.options.date_pattern) -%}
-          {%- if getValue(previousDate) != currentDate -%}
+        {%- set rowIndex = initValue() -%}
+        {%- for day in forecast.days -%}
+          {%- set dayIndex = loop.index0 -%}
+          {%- if forecast.has_daily_group -%}
             <tr class="daterow">
-              <td colspan="{{forecast.columns}}" style="{{forecast.options.date_style|format("","text-align:left")}}">{{currentDate}}</td>
+                <td colspan="{{forecast.columns}}" style="{{forecast.options.date_style|format("","text-align:left")}}">{{forecast["daily_group"][dayIndex]}}</td>
             </tr>
-            {{ setValue(previousDate,currentDate) }}
-            {{ setValue(timeIndex,0) }}
-          {% else %}
-            {{ setValue(timeIndex,(getValue(timeIndex) + 1) % 2) }}
+            {{ setValue(rowIndex,0) }}
           {% endif %}
-          <tr class="time-{{getValue(timeIndex)}}-in-day">
-            <td style="{{forecast.options.time_style|format("","text-align:center")}}">{{time |formatDate(forecast.options.time_pattern) }}</td>
-          {%- for datasource in forecast.datasources -%}
-            {%- if datasource.group -%}
-              {%- for ds in datasource.datasources -%}
-                {%- if ds.status -%}
-                <td style="{{ds.style|format("","text-align:center")}}"> {{ ds.data[index][1]}}</td>
-                {% else %}
-                  <td style="{{ds.style|format("","text-align:center")}}">{{data.options.no_data}}</td>
-                {% endif %}
-              {% endfor %}
-            {% else %}
-              {%- if datasource.status -%}
-              <td style="{{datasource.style|format("","text-align:center")}}"> {{ datasource.data[index][1]}}</td>
+          {%- for time in forecast.times[dayIndex] -%}
+            {{ setValue(rowIndex,(getValue(rowIndex) + 1) % 2) }}
+            {%- set timeIndex = loop.index0 -%}
+            <tr class="time-{{getValue(rowIndex)}}-in-day">
+              <td style="{{forecast.options.time_style|format("","text-align:center")}}">{{time}}</td>
+            {%- for datasource in forecast.times_data -%}
+              {%- if datasource.group -%}
+                {%- for ds in datasource.datasources -%}
+                  {%- if ds.status -%}
+              <td style="{{ds.style|format("","text-align:center")}}"> {{ ds.data[dayIndex][timeIndex][1]}}</td>
+                  {% else %}
+              <td style="{{ds.style|format("","text-align:center")}}">{{data.options.no_data}}</td>
+                  {% endif %}
+                {% endfor %}
               {% else %}
-                <td style="{{datasource.style|format("","text-align:center")}}">{{data.options.no_data}}</td>
+                {%- if datasource.status -%}
+              <td style="{{datasource.style|format("","text-align:center")}}"> {{ datasource.data[dayIndex][timeIndex][1]}}</td>
+                {% else %}
+              <td style="{{datasource.style|format("","text-align:center")}}">{{data.options.no_data}}</td>
+                {% endif %}
               {% endif %}
-            {% endif %}
+            {% endfor %}
+            </tr>
           {% endfor %}
-        </tr>
         {% endfor %}
       </tbody>
     </table>

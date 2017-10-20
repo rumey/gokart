@@ -1,5 +1,6 @@
 <template>
   <div style="display:none">
+  </div>
   <div id="spotforecast" class="ol-selectable ol-control">
       <button type="button" title="Bom sport forecast" @click="toggleSpotForecast()" v-bind:class="{'selected':isSelected}"><img src="dist/static/images/spot-forecast.svg"></button>
   </div>
@@ -71,34 +72,52 @@
             },
             forecasts:[
                 {
-                    times:utils.getDatetimes(["09:00:00","12:00:00","15:00:00","18:00:00","21:00:00"],20,1).map(function(dt) {return dt.format("YYYY-MM-DD HH:mm:ss")}),
+                    days:utils.getDatetimes(["00:00:00"],4,1).map(function(dt) {return dt.format("YYYY-MM-DD")}),
+                    times:["00:00:00","03:00:00","06:00:00","09:00:00","12:00:00","15:00:00","18:00:00","21:00:00"],
                     options:{
                     },
-                    datasources:[
+                    daily_data:{
+                        weather:{
+                            workspace:"bom",
+                            id:"Daily weather icon",
+                            time:"12:00:00",
+                        },
+                        min_temp:{
+                            workspace:"bom",
+                            id:"Daily minimum temperature forecast",
+                            time:"06:00:00",
+                        },
+                        max_temp:{
+                            workspace:"bom",
+                            id:"Daily maximum temperature forecast",
+                            time:"14:00:00",
+                        }
+                    },
+                    times_data:[
                         {
                             workspace:"bom",
-                            id:"IDW71000_WA_T_SFC",
+                            id:"3hrly weather icon",
+                            options:{
+                                title:"Weather<br>({refresh_time})",
+                            }
+                        },
+                        {
+                            workspace:"bom",
+                            id:"Hourly temperature forecast",
                             options:{
                                 title:"Temp<br>(C)<br>({refresh_time})",
                             }
                         },
                         {
                             workspace:"bom",
-                            id:"IDW71017_WA_Sky_SFC",
-                            options:{
-                                title:"Sky<br>(%)<br>({refresh_time})",
-                            }
-                        },
-                        {
-                            workspace:"bom",
-                            id:"IDW71001_WA_Td_SFC",
+                            id:"Hourly dew point temperature forecast",
                             options:{
                                 title:"Dewpt<br>(C)<br>({refresh_time})",
                             }
                         },
                         {
                             workspace:"bom",
-                            id:"IDW71018_WA_RH_SFC",
+                            id:"Hourly relative humidity",
                             options:{
                                 title:"RH<br>(%)<br>({refresh_time})",
                             }
@@ -108,21 +127,21 @@
                             datasources:[
                                 {
                                     workspace:"bom",
-                                    id:"IDW71089_WA_Wind_Dir_SFC",
+                                    id:"Hourly wind direction",
                                     options:{
                                         title:"Dir<br>({refresh_time})",
                                     }
                                 },
                                 {
                                     workspace:"bom",
-                                    id:"IDW71071_WA_WindMagKmh_SFC",
+                                    id:"Hourly wind magnitude",
                                     options:{
                                         title:"Speed<br>({refresh_time})",
                                     }
                                 },
                                 {
                                     workspace:"bom",
-                                    id:"IDW71072_WA_WindGustKmh_SFC",
+                                    id:"Wind gust",
                                     options:{
                                         title:"Gust<br>({refresh_time})",
                                     }
@@ -132,28 +151,28 @@
                         },
                         {
                             workspace:"bom",
-                            id:"IDW71127_WA_DF_SFC",
+                            id:"Drought factor",
                             options:{
                                 title:"DF<br>({refresh_time})",
                             }
                         },
                         {
                             workspace:"bom",
-                            id:"IDW71139_WA_Curing_SFC",
+                            id:"Grassland curing index",
                             options:{
                                 title:"Curing<br>({refresh_time})",
                             }
                         },
                         {
                             workspace:"bom",
-                            id:"IDW71117_WA_FFDI_SFC",
+                            id:"Hourly forest fire danger index",
                             options:{
                                 title:"FFDI<br>({refresh_time})",
                             }
                         },
                         {
                             workspace:"bom",
-                            id:"IDW71122_WA_GFDI_SFC",
+                            id:"Hourly grassland fire danger index",
                             options:{
                                 title:"GFDI<br>({refresh_time})",
                             }
