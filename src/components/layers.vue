@@ -32,6 +32,9 @@
         activeSubmenu:'activeSubmenu'
     },
     components: { gkActive, gkCatalogue, gkExport },
+    computed: {
+        info: function () { return this.$root.info },
+    },
     methods:{
         setup: function() {
             this.$root.annotations.setTool()
@@ -54,6 +57,7 @@
       var vm = this
       $("#layers-tabs").on("change.zf.tabs",function(target,selectedTab){
           var menu = selectedTab.attr('menu')
+          vm.info.hoverable.splice(0,vm.info.hoverable.length)
           vm.switchMenu(menu)
       })
     }

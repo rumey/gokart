@@ -2748,7 +2748,8 @@
             this.active.toggleHidden(this.bushfireMapLayer)
         }
 
-        this.$root.annotations.selectable = [this.bushfireMapLayer]
+        this.annotations.selectable.push(this.bushfireMapLayer)
+        this.info.hoverable.push(this.bushfireMapLayer)
         this.annotations.setTool()
 
         //add feature to place an point based on coordinate
@@ -2792,8 +2793,8 @@
 
         this.$nextTick(this.adjustHeight)
       },
-      tearDown:function() {
-        this.selectable = null
+      teardown:function() {
+        this.annotations.selectable.splice(0,this.annotations.selectable.length)
       }
     },
     ready: function () {
