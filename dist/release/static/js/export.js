@@ -234,8 +234,8 @@ function convertHtmlToPdfContent(element,ignoreElements,content) {
         } else if (node.nodeName.toUpperCase() === "IMG") {
             content.push({
                 image:getDataUrl(node),
-                width:node.width,
-                height:node.height
+                width:Math.floor(node.width * 2 / 3),
+                height:Math.floor(node.height * 2 / 3)
             })
         } else if (node.nodeName.toUpperCase() === "SCRIPT") {
             return

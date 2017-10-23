@@ -230,7 +230,7 @@ WEATHER_ICONS = {
     18:{"icon":"/dist/static/images/weather/heavy-showers.png","desc":"Heavy shower"},
     19:{"icon":"/dist/static/images/weather/tropicalcyclone.png","desc":"Cyclone"},
 }
-def getWeather(band,data):
+def getWeatherIcon(band,data):
     if data is None:
         return None
     icon = WEATHER_ICONS.get(int(data))
@@ -240,6 +240,15 @@ def getWeather(band,data):
         return "<img src='{}' style='width:36px;height:34px;' />".format(icon.get("night-icon",icon["icon"]))
     else:
         return "<img src='{}' style='width:36px;height:34px;' />".format(icon["icon"])
+
+def getWeather(band,data):
+    if data is None:
+        return None
+    icon = WEATHER_ICONS.get(int(data))
+    if icon is None:
+        return None
+    else:
+        return icon["desc"]
 
 def loadAllDatasources():
     for workspace in raster_datasources:
@@ -492,10 +501,46 @@ raster_datasources={
                 "title":"Daily Weather",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
+                "map_f":getWeatherIcon
+            }
+        },
+        "Daily weather":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71152_WA_DailyWxIcon_SFC.nc.gz"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+                "is_night":isNightFunc("NETCDF_DIM_time")
+            },
+            "band_match_f":isInBandFunc,
+            "options":{
+                "title":"Daily Weather",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
                 "map_f":getWeather
             }
         },
         "3hrly weather icon":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71034_WA_WxIcon_SFC.nc.gz"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+                "is_night":isNightFunc("NETCDF_DIM_time")
+            },
+            "band_match_f":isInBandFunc,
+            "options":{
+                "title":"Weather",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+                "map_f":getWeatherIcon
+            }
+        },
+        "3hrly weather":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71034_WA_WxIcon_SFC.nc.gz"),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
@@ -784,9 +829,9 @@ def spotforecast(fmt):
             requestData = json.loads(requestData)
         else:
             requestData = {}
-
+        #check whether request is valid and initialize the request parameters
         requestData["srs"] = (requestData.get("srs") or "EPSG:4326").strip().upper()
-
+        
         if not requestData.get("forecasts"):
             raise Exception("Parameter 'forecasts' is missing")
 
@@ -794,58 +839,60 @@ def spotforecast(fmt):
             raise Exception("Parameter 'point' is missing.")
 
         for forecast in requestData["forecasts"]:
+            #initialize 'days' parameter
             if not forecast.get("days"):
-                raise Exception("Days is missing.")
+                raise Exception("Parameter 'days' is missing.")
             elif not isinstance(forecast["days"],list):
                 forecast["days"] = [forecast["days"]]
 
-            if not forecast.get("times") and not forecast.get("daily_data"):
-                raise Exception("Both times and daily_data are missing.")
+            #initialize 'times' parameter
+            if not forecast.get("times"):
+                raise Exception("Parameter 'times' is  missing.")
             elif not isinstance(forecast["times"],list):
                 forecast["times"] = [forecast["times"]]
 
-            if forecast.get("times"):
-                forecast["times"] = [[datetime.datetime.strptime("{} {}".format(day,time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in forecast["times"]] for day in forecast["days"]]
+            #format parameter 'times' to a 2 dimension array of datatime object;the first dimension is day, the second dimension is times in a day
+            forecast["times"] = [[datetime.datetime.strptime("{} {}".format(day,time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in forecast["times"]] for day in forecast["days"]]
 
-            if forecast.get("times") and not forecast.get("times_data"):
-                raise Exception("times_data is missing.")
+            if not forecast.get("times_data"):
+                raise Exception("Parameter 'times_data' is missing.")
                 
 
             #forecast["times"] = [datetime.datetime.strptime(dt,"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE)  for dt in forecast["times"]]
 
-            if forecast.get("times_data"):
-                if not isinstance(forecast["times_data"],list):
-                    forecast["times_data"] = [forecast["times_data"]]
+            if not isinstance(forecast["times_data"],list):
+                forecast["times_data"] = [forecast["times_data"]]
+            #initialize 'times_data' parameter
+            for datasource in forecast["times_data"]:
+                if datasource.get("group"):
+                    if not datasource.get("datasources"):
+                        raise Exception("Property 'datasources' of group in times_data is missing.")
+                    for ds in datasource["datasources"]:
+                        if not ds.get("workspace"):
+                            raise Exception("Property 'workspace' of datasource in times_data's group is missing.")
+                        if not ds.get("id"):
+                            raise Exception("Property 'id' of datasource in times_data's group is missing.")
+                        if ds.get("times"):
+                            if not isinstance(ds["times"],list):
+                                ds["times"] = [ds["times"]]
+                            if len(ds["times"]) != len(forecast["times"]):
+                                raise Exception("The length of times of datasource in times_data's group is not equal with the length of times of forecast")
+                            ds["times"] = [[datetime.datetime.strptime("{} {}".format(day,time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in ds["times"]] for day in forecast["days"]]
 
-                for datasource in forecast["times_data"]:
-                    if datasource.get("group"):
-                        if not datasource.get("datasources"):
-                            raise Exception("Property 'datasources' of group in times_data is missing.")
-                        for ds in datasource["datasources"]:
-                            if not ds.get("workspace"):
-                                raise Exception("Property 'workspace' of datasource in times_data's group is missing.")
-                            if not ds.get("id"):
-                                raise Exception("Property 'id' of datasource in times_data's group is missing.")
-                            if ds.get("times"):
-                                if not isinstance(ds["times"],list):
-                                    ds["times"] = [ds["times"]]
-                                if len(ds["times"]) != len(forecast["times"]):
-                                    raise Exception("The length of times of datasource in times_data's group is not equal with the length of times of forecast")
-                                ds["times"] = [[datetime.datetime.strptime("{} {}".format(day,time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in ds["times"]] for day in forecast["days"]]
 
+                else:
+                    if not datasource.get("workspace"):
+                        raise Exception("Property 'workspace' of datasource in times_data is missing.")
+                    if not datasource.get("id"):
+                        raise Exception("Property 'id' of datasource in times_data is missing.")
+                    if datasource.get("times"):
+                        if not isinstance(datasource["times"],list):
+                            datasource["times"] = [datasource["times"]]
+                        if len(datasource["times"]) != len(forecast["times"]):
+                            raise Exception("The length of times of datasource in times_data is not equal with the length of times of forecast")
+                        datasource["times"] = [[datetime.datetime.strptime("{} {}".format(day,time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in datasource["times"]] for day in forecast["days"]]
 
-                    else:
-                        if not datasource.get("workspace"):
-                            raise Exception("Property 'workspace' of datasource in times_data is missing.")
-                        if not datasource.get("id"):
-                            raise Exception("Property 'id' of datasource in times_data is missing.")
-                        if datasource.get("times"):
-                            if not isinstance(datasource["times"],list):
-                                datasource["times"] = [datasource["times"]]
-                            if len(datasource["times"]) != len(forecast["times"]):
-                                raise Exception("The length of times of datasource in times_data is not equal with the length of times of forecast")
-                            datasource["times"] = [[datetime.datetime.strptime("{} {}".format(day,time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in datasource["times"]] for day in forecast["days"]]
-
+            #initialize 'daily_data' parameter
             if forecast.get("daily_data"):
                 for datasource in forecast["daily_data"].itervalues():
                     if not datasource.get("workspace"):
@@ -854,8 +901,11 @@ def spotforecast(fmt):
                         raise Exception("Property 'id' of datasource in daily_data is missing.")
                     datasource["times"] = [datetime.datetime.strptime("{} {}".format(day,datasource.get("time","00:00:00")),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE)  for day in forecast["days"]]
 
+            #format the days to a array of datetime object
             forecast["days"] = [datetime.datetime.strptime(day,"%Y-%m-%d").replace(tzinfo=PERTH_TIMEZONE)  for day in forecast["days"]]
 
+        #extract the data from raster dataset and save the data into 'data' property of each datasource
+        #the data structure is the same as the times structure
         for forecast in requestData["forecasts"]:
             for datasource in forecast.get("daily_data",{}).itervalues():
                 datasource.update(getRasterData({
@@ -889,7 +939,8 @@ def spotforecast(fmt):
             bottle.response.set_header("Content-Type", "application/json")
             return result
         else:
-            #html,get total columns and check whether have groups
+            #html
+            #get total columns and check whether have groups
             for forecast in result["forecasts"]:
                 forecast["has_group"] = False
                 forecast["has_daily_group"] = True
@@ -958,10 +1009,10 @@ def spotforecast(fmt):
                     groupContext = {}
                     index = 0
                     while index < len(forecast["days"]):
-                        groupContext["day"] = forecast["days"][index].strftime(forecast["options"]["date_pattern"])
+                        groupContext["date"] = forecast["days"][index].strftime(forecast["options"]["date_pattern"])
                         for name,datasource in forecast.get("daily_data",[]).iteritems():
-                            groupContext[name] = datasource["data"][index]
-                        forecast["daily_group"].append(forecast.get("options",{}).get("daily_group_pattern","{day}").format(**groupContext))
+                            groupContext[name] = datasource["data"][index][1]
+                        forecast["daily_group"].append(forecast.get("options",{}).get("daily_title_pattern","{date}").format(**groupContext))
                         index += 1
                 
                 #format times data

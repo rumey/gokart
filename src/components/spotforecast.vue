@@ -75,11 +75,12 @@
                     days:utils.getDatetimes(["00:00:00"],4,1).map(function(dt) {return dt.format("YYYY-MM-DD")}),
                     times:["00:00:00","03:00:00","06:00:00","09:00:00","12:00:00","15:00:00","18:00:00","21:00:00"],
                     options:{
+                        daily_title_pattern: "{date}    {weather}, Min {min_temp} Max {max_temp}"
                     },
                     daily_data:{
                         weather:{
                             workspace:"bom",
-                            id:"Daily weather icon",
+                            id:"Daily weather",
                             time:"12:00:00",
                         },
                         min_temp:{
