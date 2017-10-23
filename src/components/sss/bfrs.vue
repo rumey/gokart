@@ -326,11 +326,11 @@
           'initial.textFill': '#333',
           'initial.fillColour':[0, 0, 0, 0.25],
           'initial.colour': '#D3D3D3',
-          'draft_final': [['#b43232', '#8B0000']],
-          'draft_final.textStroke': '#8B0000',
+          'draft_final': [['#b43232', '#FF0000']],
+          'draft_final.textStroke': '#FF0000',
           'draft_final.textFill': '#FFFFFF',
           'draft_final.fillColour':[0, 0, 0, 0.25],
-          'draft_final.colour': '#8B0000',
+          'draft_final.colour': '#FF0000',
           'final_authorised': [['#b43232', '#00FF00']],
           'final_authorised.textStroke': '#00FF00',
           'final_authorised.textFill': '#333',
@@ -376,8 +376,7 @@
         return this.annotations.selectedFeatures
       },
       bushfireLayer: function() {
-        //console.log(this.env.bushfireLayer)
-        return this.$root.catalogue.getLayer(this.env.bushfireLayer)
+        return this.$root.catalogue.getLayer(this.env.bushfireListLayer)
       },
       bushfireMapLayer: function() {
         return this.$root.map?this.$root.map.getMapLayer(this.bushfireLayer):undefined
@@ -431,7 +430,7 @@
                     }
 
                     var labelStyle = null
-                    if (res < 0.003 && geometries.length > 0 && feat.get('fire_number') && vm.bushfireLabels && !vm.$root.active.isHidden(vm.map.getMapLayer(vm.env.bushfireLayer))) {
+                    if (res < 0.003 && geometries.length > 0 && feat.get('fire_number') && vm.bushfireLabels && !vm.$root.active.isHidden(vm.map.getMapLayer(vm.env.bushfireListLayer))) {
                       labelStyle = labelStyleFunc.call(feat,res)
                       labelStyle.setGeometry(geometries[0])
                     }   
@@ -2963,7 +2962,7 @@
       vm.loadRegions()
 
       vm.ui = {}
-      var toolConfig = {features:vm.features,mapLayers:function(layer){return layer.get("id") === vm.env.bushfireLayer }}
+      var toolConfig = {features:vm.features,mapLayers:function(layer){return layer.get("id") === vm.env.bushfireListLayer }}
       /*
       vm.ui.translateInter = vm.annotations.translateInterFactory()(toolConfig)
       vm.ui.translateInter.on("translateend",function(ev){
@@ -2998,7 +2997,7 @@
         }
       })($.extend({selectMode:"geometry"},toolConfig))
 
-      vm.ui.modifyInter = vm.annotations.modifyInterFactory()({features:vm.selectedFeatures,mapLayers:function(layer){return layer.get("id") === vm.env.bushfireLayer }})
+      vm.ui.modifyInter = vm.annotations.modifyInterFactory()({features:vm.selectedFeatures,mapLayers:function(layer){return layer.get("id") === vm.env.bushfireListLayer }})
       vm.ui.modifyInter.on("featuresmodified",function(ev){
           if (ev.features.getLength() === 1 ) {
             vm.validateBushfire(ev.features.item(0),"modifyBushfire")
@@ -3300,7 +3299,7 @@
       this.$root.fixedLayers.push({
         type: 'WFSLayer',
         name: 'Bushfire Report',
-        id: vm.env.bushfireLayer,
+        id: vm.env.bushfireListLayer,
         getFeatureInfo:function (f) {
             return {name:f.get("fire_number"), img:map.getBlob(f, ['icon', 'tint']), comments:f.get('name') + "(" + (vm._reportStatusName[f.get('report_status')] || vm._reportStatusName[99999]) + ")"}
         },
@@ -3458,7 +3457,7 @@
         }
       })
 
-      this.measure.register(vm.env.bushfireLayer,this.features)
+      this.measure.register(vm.env.bushfireListLayer,this.features)
       vm._bfrsStatus.phaseEnd("initialize")
 
       vm._bfrsStatus.phaseBegin("gk-init",20,"Listen 'gk-init' event",true,true)
@@ -3512,7 +3511,7 @@
 
 
         vm.map.olmap.on("removeLayer",function(ev){
-            if (ev.mapLayer.get('id') === vm.env.bushfireLayer) {
+            if (ev.mapLayer.get('id') === vm.env.bushfireListLayer) {
                 vm.features.clear()
                 vm._featurelist.clear()
             }
