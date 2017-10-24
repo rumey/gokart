@@ -99,6 +99,7 @@
       </thead>
       <tbody>
         {%- set rowIndex = initValue() -%}
+        {{ setValue(rowIndex,0) }}
         {%- for day in forecast.days -%}
           {%- set dayIndex = loop.index0 -%}
           {%- if forecast.has_daily_group -%}

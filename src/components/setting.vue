@@ -64,6 +64,41 @@
 
             <div class="tool-slice row collapse">
                 <div class="small-4">
+                    <label class="tool-label">Spot Forecast Days:</label>
+                </div>
+                <div class="small-8">
+                    <select name="spotforecastForecastDays" v-model="spotforecast.forecastDays" @change="saveState()">
+                        <option value="1">Today</option>      
+                        <option value="2">2 Days</option>      
+                        <option value="3">3 Days</option>      
+                        <option value="4">4 Days</option>      
+                        <option value="6">6 Days</option>      
+                        <option value="7">7 Days</option>      
+                    </select>
+                </div>
+            </div>
+
+            <div class="tool-slice row collapse">
+                <div class="small-4">
+                    <label class="tool-label">Spot Forecast Type:</label>
+                </div>
+                <div class="small-8">
+                    <select name="spotforecastReportType" v-model="spotforecast.reportType" @change="saveState()">
+                        <option value="1">Hourly</option>      
+                        <option value="2">2 Hourly</option>      
+                        <option value="3">3 Hourly</option>      
+                        <option value="4">4 Hourly</option>      
+                        <option value="6">6 Hourly</option>      
+                        <option value="0">Others</option>      
+                    </select>
+                    <div v-if="spotforecast.reportType == 0">
+                      <input type="text" v-model="spotforecastReportHours" placeholder="hours(0-23) separated by ','" @blur="formatSpotforecastReportHours">
+                    </div>
+                </div>
+            </div>
+
+            <div class="tool-slice row collapse">
+                <div class="small-4">
                     <label class="tool-label">Distance unit:</label>
                 </div>
                 <div class="small-8">
@@ -192,6 +227,7 @@
   export default {
     store: {
         settings:'settings',
+        spotforecast:'settings.spotforecast',
         overviewMap:'settings.overviewMap',
         undoLimit:'settings.undoLimit',
         measureFeature:'settings.measureFeature',
@@ -206,7 +242,8 @@
     },
     data: function () {
       return {
-        configuredUndoLimit:0
+        configuredUndoLimit:0,
+        spotforecastReportHours:""
       }
     },
     computed: {
@@ -267,6 +304,22 @@
       },
       setup: function() {
         this.annotations.setTool()
+      },
+      formatSpotforecastReportHours() {
+        var hours = ""
+        $.each(this.spotforecastReportHours.split(','),function(index,hour) {
+            hour = parseInt(hour.trim())
+            if (!isNaN(hour) && hour >= 0 && hour < 24) {
+                if (hours === "") {
+                    hours = hour
+                } else {
+                    hours += "," + hour
+                }
+            }
+        })
+        this.spotforecast.reportHours = hours
+        this.spotforecastReportHours = hours
+        this.export.saveState()
       },
       saveState:function() {
         this.export.saveState()
@@ -344,6 +397,8 @@
         settingStatus.phaseBegin("initialize",20,"Initialize",true,false)
         vm.showOverviewMap(vm.overviewMap)
         vm.showRightHandTools(vm.rightHandTools)
+
+        this.spotforecastReportHours = this.spotforecast.reportHours
 
         settingStatus.phaseEnd("initialize")
       })

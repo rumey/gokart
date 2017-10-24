@@ -16,9 +16,15 @@
 <script>
   import { ol,$,utils} from 'src/vendor.js'
   export default {
+    store: {
+        reportType:'settings.spotforecast.reportType',
+        reportHours:'settings.spotforecast.reportHours',
+        forecastDays:'settings.spotforecast.forecastDays',
+    },
     data: function () {
       return {
         format:"html",
+        reportTimes:[]
       }
 
     },
@@ -52,7 +58,13 @@
         } else {
             this._overlay.setMap(null)
         }
-      }
+      },
+      reportType:function(newValue,oldValue) {
+        this.updateReportTimes()   
+      },
+      reportHours:function(newValue,oldValue) {
+        this.updateReportTimes()   
+      },
     },
     // methods callable from inside the template
     methods: {
@@ -63,7 +75,37 @@
             this.annotations.setTool(this._spotforecastTool)
         }
       },
+      updateReportDays:function() {
+      },
+      updateReportTimes:function() {
+        this.reportTimes = []
+        var vm = this
+        if (this.reportType > 0) {
+            var hour = 0;
+            while (hour < 24) {
+                if (hour % this.reportType === 0) {
+                    if (hour < 10) {
+                        this.reportTimes.push("0" + hour + ":00:00")
+                    } else {
+                        this.reportTimes.push(hour + ":00:00")
+                    }
+                }
+                hour += 1
+            }
+        } else if (this.reportHours !== null && this.reportHours.length > 0) {
+            $.each(this.reportHours.split(","),function(index,hour){
+                if (hour < 10) {
+                    vm.reportTimes.push("0" + hour + ":00:00")
+                } else {
+                    vm.reportTimes.push(hour + ":00:00")
+                }
+            })
+        }
+      },
       getSpotforecast:function(coordinate) {
+        if (this.reportTimes.length === 0) {
+            alert("No spot forecast report times are configured in settings module")
+        }
         var vm = this
         var requestData = {
             point:coordinate,
@@ -72,8 +114,8 @@
             },
             forecasts:[
                 {
-                    days:utils.getDatetimes(["00:00:00"],4,1).map(function(dt) {return dt.format("YYYY-MM-DD")}),
-                    times:["00:00:00","03:00:00","06:00:00","09:00:00","12:00:00","15:00:00","18:00:00","21:00:00"],
+                    days:utils.getDatetimes(["00:00:00"],parseInt(this.forecastDays),1).map(function(dt) {return dt.format("YYYY-MM-DD")}),
+                    times:this.reportTimes,
                     options:{
                         daily_title_pattern: "{date}    {weather}, Min {min_temp} Max {max_temp}"
                     },
@@ -254,6 +296,8 @@
       }
 
       this.annotations.tools.push(this._spotforecastTool)
+
+      this.updateReportTimes()
 
       spotforecastStatus.phaseEnd("initialize")
 

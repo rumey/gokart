@@ -101,6 +101,11 @@ var systemSettings = {
   bfrs:{
       bushfireLabels:true,
       viewportOnly: false,
+  },
+  spotforecast:{
+      reportType:3,//3 hourly
+      reportHours:null,
+      forecastDays:4
   }
 }
 
