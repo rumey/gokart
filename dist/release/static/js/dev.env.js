@@ -18,6 +18,8 @@ var env = {
 
     s3Service:"http://gokart.dpaw.io/",
 
+    bushfireListLayer:"dpaw:bushfirelist_latest_dev",
+
     bushfireLayer:"dpaw:bushfire_latest_dev",
     finalFireboundaryLayer:"dpaw:bushfire_final_fireboundary_latest_dev",
     fireboundaryLayer:"dpaw:bushfire_fireboundary_latest_dev",
