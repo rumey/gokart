@@ -54,7 +54,7 @@
                 </div>
                 <div class="row">
                   <div class="switch tiny">
-                    <input class="switch-input" id="toggleReportInfo" type="checkbox" v-bind:disabled="!setting.hoverInfoSwitchable" v-bind:checked="setting.hoverInfo" @change="setting.toggleHoverInfo" />
+                    <input class="switch-input" id="toggleReportInfo" type="checkbox" v-bind:disabled="!systemsetting.hoverInfoSwitchable" v-bind:checked="systemsetting.hoverInfo" @change="systemsetting.toggleHoverInfo" />
                     <label class="switch-paddle" for="toggleReportInfo">
                       <span class="show-for-sr">Display hovering bushfire info</span>
                     </label>
@@ -356,12 +356,11 @@
       map: function () { return this.$root.$refs.app.$refs.map },
       env: function () { return this.$root.env },
       annotations: function () { return this.$root.$refs.app.$refs.annotations },
-      setting: function () { return this.$root.setting },
+      systemsetting: function () { return this.$root.systemsetting },
       dialog: function () { return this.$root.dialog },
       active: function () { return this.$root.active},
       measure: function () { return this.$root.measure },
       info: function () { return this.$root.info },
-      setting: function () { return this.$root.setting },
       catalogue: function () { return this.$root.catalogue },
       export: function () { return this.$root.export },
       loading: function () { return this.$root.loading },
@@ -1266,55 +1265,16 @@
                 if (fire_position_task) {
                     fire_position_task.setStatus(utils.RUNNING)
                     var buffers = [50,100,150,200,300,400,1000,2000,100000]
-                    var getFirePosition = function(index) {
-                        var buffered = turf.bbox(turf.buffer(turf.point(originPoint),buffers[index],"kilometers"))
-                        $.ajax({
-                            url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:townsite_points&outputFormat=json&bbox=" + buffered[1] + "," + buffered[0] + "," + buffered[3] + "," + buffered[2],
-                            dataType:"json",
-                            success: function (response, stat, xhr) {
-                                if (response.totalFeatures === 0) {
-                                    getFirePosition(index + 1)
-                                } else {
-                                    var nearestTown = null
-                                    var nearestDistance = null
-                                    var distance = null
-                                    $.each(response.features,function(index,feature){
-                                        if (nearestTown === null) {
-                                            nearestTown = feature
-                                            nearestDistance = vm.measure.getLength([feature.geometry.coordinates,originPoint])
-                                        } else {
-                                            distance = vm.measure.getLength([feature.geometry.coordinates,originPoint])
-                                            if (distance < nearestDistance) {
-                                                nearestTown = feature
-                                                nearestDistance = distance
-                                            }
-                                        }
-                                    })
-                                    nearestDistance = vm.measure.formatLength(nearestDistance,"km")
-                                    var bearing = null
-                                    if (nearestDistance === 0) {
-                                        spatialData["fire_position"] = "0m of " + nearestTown.properties["name"]
-                                    } else {
-                                        bearing = vm.measure.getBearing(nearestTown.geometry.coordinates,originPoint)
-                                        spatialData["fire_position"] = nearestDistance + " " + vm.measure.getDirection(bearing,16) + " of " + nearestTown.properties["name"]
-                                    }
-            
-                                    fire_position_task.setStatus(utils.SUCCEED)
-                                    vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
-            
-                                }
-                            },
-                            error: function (xhr,status,message) {
-                                fire_position_task.setStatus(utils.FAILED,xhr.status + " : " + (xhr.responseText || message))
-                                //alert(fire_position_task.message)
-                                vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
-                            },
-                            xhrFields: {
-                                withCredentials: true
-                            }
-                        })
-                    }
-                    getFirePosition(0)
+                    vm.map.getPosition(originPoint,function(position){
+                        spatialData["fire_position"] = position
+                        fire_position_task.setStatus(utils.SUCCEED)
+                        vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                    },
+                    function(msg){
+                        fire_position_task.setStatus(utils.FAILED,msg)
+                        //alert(fire_position_task.message)
+                        vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                    })
                 }
         
                 if (region_task) {

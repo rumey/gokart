@@ -5,7 +5,6 @@
   <gk-scales v-ref:scales></gk-scales>
   <gk-search v-ref:search></gk-search>
   <gk-measure v-ref:measure></gk-measure>
-  <gk-spotforecast v-ref:spotforecast></gk-spotforecast>
 </template>
 <style>
     .ol-custom-overviewmap,
@@ -40,12 +39,11 @@
 </style>
 
 <script>
-  import { $, ol, proj4, moment,interact } from 'src/vendor.js'
+  import { $, ol, proj4, moment,interact,turf } from 'src/vendor.js'
   import gkInfo from './info.vue'
   import gkScales from './scales.vue'
   import gkSearch from './search.vue'
   import gkMeasure from './measure.vue'
-  import gkSpotforecast from './spotforecast.vue'
   export default {
     store: {
         fixedScales:'fixedScales', 
@@ -56,7 +54,7 @@
         displayGraticule:'settings.graticule',
         displayResolution:'displayResolution'
     },
-    components: { gkInfo, gkScales, gkSearch, gkMeasure, gkSpotforecast},
+    components: { gkInfo, gkScales, gkSearch, gkMeasure},
     data: function () {
       return {
         scale: 0,
@@ -90,9 +88,9 @@
       catalogue: function () { return this.$root.catalogue },
       env: function () { return this.$root.env },
       annotations: function () { return this.$root.annotations    },
+      spotforecast: function () { return this.$root.spotforecast    },
       active: function () { return this.$root.active    },
       measure: function () { return this.$root.measure    },
-      spotforecast: function () { return this.$root.spotforecast    },
       // because the viewport size changes when the tab pane opens, don't cache the map width and height
       width: {
         cache: false,
@@ -1810,7 +1808,64 @@
                 vm.setRefreshInterval(dependentLayer,dependentLayer.inheritRefresh?layer.refresh:dependentLayer.refresh)
             })
           }
-      }
+      },
+      getPosition:function(coordinate,successCallback,failedCallback) {
+          var buffers = [50,100,150,200,300,400,1000,2000,100000]
+          var vm = this
+          var _getPosition = function(index) {
+            var buffered = turf.bbox(turf.buffer(turf.point(coordinate),buffers[index],"kilometers"))
+            $.ajax({
+                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:townsite_points&outputFormat=json&bbox=" + buffered[1] + "," + buffered[0] + "," + buffered[3] + "," + buffered[2],
+                dataType:"json",
+                success: function (response, stat, xhr) {
+                   if (response.totalFeatures === 0) {
+                        _getPosition(index + 1)
+                    } else {
+                        var nearestTown = null
+                        var nearestDistance = null
+                        var distance = null
+                        $.each(response.features,function(index,feature){
+                            if (nearestTown === null) {
+                                nearestTown = feature
+                                nearestDistance = vm.measure.getLength([feature.geometry.coordinates,coordinate])
+                            } else {
+                                distance = vm.measure.getLength([feature.geometry.coordinates,coordinate])
+                                if (distance < nearestDistance) {
+                                    nearestTown = feature
+                                    nearestDistance = distance
+                                }
+                            }
+                        })
+                        nearestDistance = vm.measure.formatLength(nearestDistance,"km")
+                        var bearing = null
+                        var position = null
+                        if (nearestDistance === 0) {
+                            position = "0m of " + nearestTown.properties["name"]
+                        } else {
+                            bearing = vm.measure.getBearing(nearestTown.geometry.coordinates,coordinate)
+                            position = nearestDistance + " " + vm.measure.getDirection(bearing,16) + " of " + nearestTown.properties["name"]
+                        }
+                        if (successCallback) {
+                            successCallback(position)
+                        } else {
+                            alert(position)
+                        }
+                    }
+                },
+                error: function (xhr,status,message) {
+                    if (failedCallback) {
+                        alert(xhr.status + " : " + (xhr.responseText || message))
+                    } else {
+                        failedCallback(xhr.status + " : " + (xhr.responseText || message))
+                    }
+                },
+                xhrFields: {
+                    withCredentials: true
+                }
+            })
+        }
+        _getPosition(0)
+      },
     },
     ready: function () {
       var vm = this

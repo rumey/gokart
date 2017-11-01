@@ -1,16 +1,8 @@
 <template>
-  <div class="tabs-panel" id="menu-tab-setting" v-cloak>
-    <div class="row collapse">
-      <div class="columns">
-        <ul class="tabs" id="setting-tabs">
-          <li class="tabs-title is-active"><a class="label" aria-selected="true">System Settings</a></li>
-        </ul>
-      </div>
-    </div>
-    <div class="row collapse" id="setting-tab-panels">
+  <div class="tabs-panel is-active" id="systemsetting" v-cloak>
+    <div class="row " >
       <div class="columns">
         <div class="tabs-content vertical" data-tabs-content="setting-tabs">
-          <div class="tabs-panel is-active" id="system-settings" v-cloak>
 
             <div class="tool-slice row collapse">
               <div class="switch tiny">
@@ -60,41 +52,6 @@
                 </label>
               </div>
               <label for="toggleMeasureFeature" class="side-label">Measure feature</label>
-            </div>
-
-            <div class="tool-slice row collapse">
-                <div class="small-4">
-                    <label class="tool-label">Spot Forecast Days:</label>
-                </div>
-                <div class="small-8">
-                    <select name="spotforecastForecastDays" v-model="spotforecast.forecastDays" @change="saveState()">
-                        <option value="1">Today</option>      
-                        <option value="2">2 Days</option>      
-                        <option value="3">3 Days</option>      
-                        <option value="4">4 Days</option>      
-                        <option value="6">6 Days</option>      
-                        <option value="7">7 Days</option>      
-                    </select>
-                </div>
-            </div>
-
-            <div class="tool-slice row collapse">
-                <div class="small-4">
-                    <label class="tool-label">Spot Forecast Type:</label>
-                </div>
-                <div class="small-8">
-                    <select name="spotforecastReportType" v-model="spotforecast.reportType" @change="saveState()">
-                        <option value="1">Hourly</option>      
-                        <option value="2">2 Hourly</option>      
-                        <option value="3">3 Hourly</option>      
-                        <option value="4">4 Hourly</option>      
-                        <option value="6">6 Hourly</option>      
-                        <option value="0">Others</option>      
-                    </select>
-                    <div v-if="spotforecast.reportType == 0">
-                      <input type="text" v-model="spotforecastReportHours" placeholder="hours(0-23) separated by ','" @blur="formatSpotforecastReportHours">
-                    </div>
-                </div>
             </div>
 
             <div class="tool-slice row collapse">
@@ -185,7 +142,6 @@
                 <p><b>DISCLAIMER:</b> The Department of Parks and Wildlife does not guarantee that this map is without flaw of any kind and disclaims all liability for any error, or loss or other consequence which may arise from relying on any information depicted. Apart from any use permitted under the Copyright Act, no part of this map may be reproduced by any process without the written permission of the authors. Crown copyright reserved.</p>
               </div>
             </div>
-          </div>
         </div>
       </div>
     </div>
@@ -227,7 +183,6 @@
   export default {
     store: {
         settings:'settings',
-        spotforecast:'settings.spotforecast',
         overviewMap:'settings.overviewMap',
         undoLimit:'settings.undoLimit',
         measureFeature:'settings.measureFeature',
@@ -243,7 +198,6 @@
     data: function () {
       return {
         configuredUndoLimit:0,
-        spotforecastReportHours:""
       }
     },
     computed: {
@@ -305,24 +259,14 @@
       setup: function() {
         this.annotations.setTool()
       },
-      formatSpotforecastReportHours() {
-        var hours = ""
-        $.each(this.spotforecastReportHours.split(','),function(index,hour) {
-            hour = parseInt(hour.trim())
-            if (!isNaN(hour) && hour >= 0 && hour < 24) {
-                if (hours === "") {
-                    hours = hour
-                } else {
-                    hours += "," + hour
-                }
-            }
-        })
-        this.spotforecast.reportHours = hours
-        this.spotforecastReportHours = hours
-        this.export.saveState()
-      },
-      saveState:function() {
-        this.export.saveState()
+      saveState:function(wait) {
+        var vm = this
+        wait = wait || 1
+        this._saveState = this._saveState || debounce(function(){
+            vm.export.saveState()
+        },wait)
+
+        this._saveState.call({wait:wait})
       },
       enableUndo:function(enable) {
         if (enable) {
@@ -397,8 +341,6 @@
         settingStatus.phaseBegin("initialize",20,"Initialize",true,false)
         vm.showOverviewMap(vm.overviewMap)
         vm.showRightHandTools(vm.rightHandTools)
-
-        this.spotforecastReportHours = this.spotforecast.reportHours
 
         settingStatus.phaseEnd("initialize")
       })

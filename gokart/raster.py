@@ -87,27 +87,6 @@ def isInBandFunc(datasource,band,bandTime):
     except:
         return False
 
-DIRECTIONS_METADATA = {
-    4:[360/4,math.floor(360 / 8 * 100) / 100,["N","E","S","W"]],
-    8:[360/8,math.floor(360 / 16 * 100) / 100,["N","NE","E","SE","S","SW","W","NW"]],
-    16:[360/16,math.floor(360 / 32 * 100) / 100,["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"]],
-    32:[360/32,math.floor(360 / 64 * 100) / 100,["N","NbE","NNE","NEbN","NE","NEbE","ENE","EbN","E","EbS","ESE","SEbE","SE","SEbS","SSE","SbE","S","SbW","SSW","SWbS","SW","SWbW","WSW","WbS","W","WbN","WNW","NWbW","NW","NWbN","NNW","NbW"]],
-}
-
-def windDirFormatFunc(mode):
-    mode = mode or 16
-    direction_metadata = DIRECTIONS_METADATA[mode]
-    def _func(bandIndex,data,no_data):
-        if data:
-            index = int((math.floor(data / direction_metadata[0])  + (0 if (round(data % direction_metadata[0] * 100) / 100 <= direction_metadata[1]) else 1) ) % mode)
-            #return "{}({})".format(direction_metadata[2][index],"{:-.0f}".format(data))
-            return direction_metadata[2][index]
-        else:
-            return no_data
-
-    return _func
-
-
 def getEpsgSrs(srsid):
     srs = srsid.split(":")
     if len(srs) != 2 or srs[0] != "EPSG":
@@ -211,6 +190,26 @@ def prepareDatasource(datasource):
     else:
         raise Exception("Datasource {} is not supported".format(datasource["file"]))
 
+DIRECTIONS_METADATA = {
+    4:[360/4,math.floor(360 / 8 * 100) / 100,["N","E","S","W"]],
+    8:[360/8,math.floor(360 / 16 * 100) / 100,["N","NE","E","SE","S","SW","W","NW"]],
+    16:[360/16,math.floor(360 / 32 * 100) / 100,["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"]],
+    32:[360/32,math.floor(360 / 64 * 100) / 100,["N","NbE","NNE","NEbN","NE","NEbE","ENE","EbN","E","EbS","ESE","SEbE","SE","SEbS","SSE","SbE","S","SbW","SSW","SWbS","SW","SWbW","WSW","WbS","W","WbN","WNW","NWbW","NW","NWbN","NNW","NbW"]],
+}
+
+def getWindDirFunc(mode):
+    mode = mode or 16
+    direction_metadata = DIRECTIONS_METADATA[mode]
+    def _func(band,data):
+        if data:
+            index = int((math.floor(data / direction_metadata[0])  + (0 if (round(data % direction_metadata[0] * 100) / 100 <= direction_metadata[1]) else 1) ) % mode)
+            #return "{}({})".format(direction_metadata[2][index],"{:-.0f}".format(data))
+            return direction_metadata[2][index]
+        else:
+            return None
+
+    return _func
+
 WEATHER_ICONS = {
     1:{"icon":"/dist/static/images/weather/sunny.png","night-icon":"/dist/static/images/weather/sunny-night.png","desc":"Sunny"},
     2:{"icon":"/dist/static/images/weather/clear.png","desc":"Clear"},
@@ -264,8 +263,9 @@ def loadAllDatasources():
         
 raster_datasources={
     "bom":{
-        "Hourly temperature forecast":{
+        "IDW71000_WA_T_SFC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71000_WA_T_SFC.nc.gz"),
+            "name":"Hourly temperature",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
                 "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
@@ -273,7 +273,9 @@ raster_datasources={
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
             },
-            "band_match_f":isInBandFunc,
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
             "options":{
                 "title":"Temp<br>(C)",
                 "pattern":"{:-.0f}",
@@ -281,8 +283,9 @@ raster_datasources={
                 "style":"text-align:right",
             }
         },
-        "Hourly dew point temperature forecast":{
+        "IDW71001_WA_Td_SFC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71001_WA_Td_SFC.nc.gz"),
+            "name":"Hourly dew point temperature",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
                 "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
@@ -290,7 +293,9 @@ raster_datasources={
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
             },
-            "band_match_f":isInBandFunc,
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
             "options":{
                 "title":"Dewpt<br>(C)",
                 "pattern":"{:-.0f}",
@@ -298,8 +303,11 @@ raster_datasources={
                 "style":"text-align:center",
             }
         },
-        "Daily maximum temperature forecast":{
+        "IDW71002_WA_MaxT_SFC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71002_WA_MaxT_SFC.nc.gz"),
+            "name":"Daily maximum temperature",
+            "time":"14:00:00",
+            "var":"max_temp",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
                 "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
@@ -307,7 +315,9 @@ raster_datasources={
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
             },
-            "band_match_f":isInBandFunc,
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
             "options":{
                 "title":"Max Temp<br>(C)",
                 "pattern":"{:-.0f}",
@@ -315,8 +325,11 @@ raster_datasources={
                 "style":"text-align:center",
             }
         },
-        "Daily minimum temperature forecast":{
+        "IDW71003_WA_MinT_SFC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71003_WA_MinT_SFC.nc.gz"),
+            "name":"Daily minimum temperature",
+            "time":"06:00:00",
+            "var":"min_temp",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
                 "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
@@ -324,7 +337,9 @@ raster_datasources={
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
             },
-            "band_match_f":isInBandFunc,
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
             "options":{
                 "title":"Min Temp<br>(C)",
                 "pattern":"{:-.0f}",
@@ -332,8 +347,9 @@ raster_datasources={
                 "style":"text-align:center",
             }
         },
-        "Hourly relative humidity":{
+        "IDW71018_WA_RH_SFC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71018_WA_RH_SFC.nc.gz"),
+            "name":"Hourly relative humidity",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
                 "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
@@ -341,7 +357,9 @@ raster_datasources={
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
             },
-            "band_match_f":isInBandFunc,
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
             "options":{
                 "title":"RH<br>(%)",
                 "pattern":"{:-.0f}",
@@ -349,8 +367,9 @@ raster_datasources={
                 "style":"text-align:center",
             }
         },
-        "Grassland curing index":{
+        "IDW71139_WA_Curing_SFC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71139_WA_Curing_SFC.nc.gz"),
+            "name":"Grassland curing index",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
                 "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
@@ -358,7 +377,9 @@ raster_datasources={
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
             },
-            "band_match_f":isInBandFunc,
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
             "options":{
                 "title":"Curing",
                 "pattern":"{:-.0f}",
@@ -366,8 +387,9 @@ raster_datasources={
                 "style":"text-align:center",
             }
         },
-        "Hourly wind magnitude":{
+        "IDW71071_WA_WindMagKmh_SFC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71071_WA_WindMagKmh_SFC.nc.gz"),
+            "name":"Hourly wind magnitude",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
                 "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
@@ -375,7 +397,9 @@ raster_datasources={
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
             },
-            "band_match_f":isInBandFunc,
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
             "options":{
                 "title":"Speed",
                 "pattern":"{:-.0f}",
@@ -383,8 +407,9 @@ raster_datasources={
                 "style":"text-align:center",
             }
         },
-        "Wind gust":{
+        "IDW71072_WA_WindGustKmh_SFC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71072_WA_WindGustKmh_SFC.nc.gz"),
+            "name":"Wind gust",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
                 "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
@@ -392,7 +417,9 @@ raster_datasources={
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
             },
-            "band_match_f":isInBandFunc,
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
             "options":{
                 "title":"Gust",
                 "pattern":"{:-.0f}",
@@ -400,8 +427,9 @@ raster_datasources={
                 "style":"text-align:center",
             }
         },
-        "Hourly wind direction":{
+        "IDW71089_WA_Wind_Dir_SFC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71089_WA_Wind_Dir_SFC.nc.gz"),
+            "name":"Hourly wind direction",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
                 "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
@@ -409,8 +437,10 @@ raster_datasources={
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
             },
-            "band_match_f":isInBandFunc,
-            "data_format_f":windDirFormatFunc(16),
+            "band_f":{
+                "band_match":isInBandFunc,
+                "data_map":getWindDirFunc(16),
+            },
             "options":{
                 "title":"Dir",
                 #"pattern":"{:-.2f}",
@@ -418,8 +448,9 @@ raster_datasources={
                 "style":"text-align:center",
             }
         },
-        "Hourly forest fire danger index":{
+        "IDW71117_WA_FFDI_SFC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71117_WA_FFDI_SFC.nc.gz"),
+            "name":"Hourly forest fire danger index",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
                 "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
@@ -427,7 +458,9 @@ raster_datasources={
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
             },
-            "band_match_f":isInBandFunc,
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
             "options":{
                 "title":"FFDI",
                 "pattern":"{:-.0f}",
@@ -435,8 +468,9 @@ raster_datasources={
                 "style":"text-align:center",
             }
         },
-        "Hourly grassland fire danger index":{
+        "IDW71122_WA_GFDI_SFC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71122_WA_GFDI_SFC.nc.gz"),
+            "name":"Hourly grassland fire danger index",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
                 "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
@@ -444,7 +478,9 @@ raster_datasources={
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
             },
-            "band_match_f":isInBandFunc,
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
             "options":{
                 "title":"GFDI",
                 "pattern":"{:-.0f}",
@@ -452,8 +488,9 @@ raster_datasources={
                 "style":"text-align:center",
             }
         },
-        "Drought factor":{
+        "IDW71127_WA_DF_SFC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71127_WA_DF_SFC.nc.gz"),
+            "name":"Drought factor",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
                 "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
@@ -461,7 +498,9 @@ raster_datasources={
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
             },
-            "band_match_f":isInBandFunc,
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
             "options":{
                 "title":"DF",
                 "pattern":"{:-.0f}",
@@ -469,8 +508,9 @@ raster_datasources={
                 "style":"text-align:center",
             }
         },
-        "Sky cover":{
+        "IDW71017_WA_Sky_SFC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71017_WA_Sky_SFC.nc.gz"),
+            "name":"Sky cover",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
                 "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
@@ -478,7 +518,9 @@ raster_datasources={
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
             },
-            "band_match_f":isInBandFunc,
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
             "options":{
                 "title":"Sky<br>(%)",
                 "pattern":"{:-.0f}",
@@ -486,44 +528,53 @@ raster_datasources={
                 "style":"text-align:center",
             }
         },
-        "Daily weather icon":{
+        "IDW71152_WA_DailyWxIcon_SFC_ICON":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71152_WA_DailyWxIcon_SFC.nc.gz"),
+            "name":"Daily weather icon",
+            "time":"12:00:00",
+            "var":"weather_icon",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
                 "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
             },
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
-                "is_night":isNightFunc("NETCDF_DIM_time")
             },
-            "band_match_f":isInBandFunc,
+            "band_f":{
+                "band_match":isInBandFunc,
+                "data_map":getWeatherIcon,
+            },
             "options":{
                 "title":"Daily Weather",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
-                "map_f":getWeatherIcon
             }
         },
-        "Daily weather":{
+        "IDW71152_WA_DailyWxIcon_SFC_DESC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71152_WA_DailyWxIcon_SFC.nc.gz"),
+            "name":"Daily weather",
+            "time":"12:00:00",
+            "var":"weather",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
                 "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
             },
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
-                "is_night":isNightFunc("NETCDF_DIM_time")
             },
-            "band_match_f":isInBandFunc,
+            "band_f":{
+                "band_match":isInBandFunc,
+                "data_map":getWeather,
+            },
             "options":{
                 "title":"Daily Weather",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
-                "map_f":getWeather
             }
         },
-        "3hrly weather icon":{
+        "IDW71034_WA_WxIcon_SFC_ICON":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71034_WA_WxIcon_SFC.nc.gz"),
+            "name":"3hrly weather icon",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
                 "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
@@ -532,16 +583,19 @@ raster_datasources={
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
                 "is_night":isNightFunc("NETCDF_DIM_time")
             },
-            "band_match_f":isInBandFunc,
+            "band_f":{
+                "band_match":isInBandFunc,
+                "data_map":getWeatherIcon,
+            },
             "options":{
                 "title":"Weather",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
-                "map_f":getWeatherIcon
             }
         },
-        "3hrly weather":{
+        "IDW71034_WA_WxIcon_SFC_DESC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71034_WA_WxIcon_SFC.nc.gz"),
+            "name":"3hrly weather",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
                 "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
@@ -550,16 +604,100 @@ raster_datasources={
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
                 "is_night":isNightFunc("NETCDF_DIM_time")
             },
-            "band_match_f":isInBandFunc,
+            "band_f":{
+                "band_match":isInBandFunc,
+                "data_map":getWeather,
+            },
             "options":{
                 "title":"Weather",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
-                "map_f":getWeather
             }
         },
-
-
+        "IDW71005_WA_DailyPrecip_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71005_WA_DailyPrecip_SFC.nc.gz"),
+            "name":"Daily Precipitation",
+            "var":"precip",
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"Precipitation",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+                "pattern":"{:-.1f}",
+            }
+        },
+        "IDW71014_WA_DailyPrecip25Pct_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71014_WA_DailyPrecip25Pct_SFC.nc.gz"),
+            "name":"25% daily Precipitation",
+            "var":"precip_25",
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"Precipitation(25%)",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+                "pattern":"{:-.1f}",
+            }
+        },
+        "IDW71015_WA_DailyPrecip50Pct_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71015_WA_DailyPrecip50Pct_SFC.nc.gz"),
+            "name":"50% daily Precipitation",
+            "var":"precip_50",
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"Precipitation(50%)",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+                "pattern":"{:-.1f}",
+            }
+        },
+        "IDW71016_WA_DailyPrecip75Pct_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71016_WA_DailyPrecip75Pct_SFC.nc.gz"),
+            "name":"75% daily Precipitation",
+            "var":"precip_75",
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"Precipitation(75%)",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+                "pattern":"{:-.1f}",
+            }
+        },
     }
 }
 
@@ -652,11 +790,7 @@ def formatBandsData(datasource,noData="",bandsData = None):
         if isinstance(bandsData[index],list) and ((len(bandsData[index]) != 2) or isinstance(bandsData[index][0],list)):
             formatBandsData(datasource,noData,bandsData[index])
         elif bandsData[index] is not None:
-            dataFormatFunc = raster_datasources[datasource["workspace"]][datasource["id"]].get("data_format_f")
-            if dataFormatFunc:
-                bandsData[index][1] = dataFormatFunc(bandsData[index][0],bandsData[index][1],noData)
-            else:
-                bandsData[index][1] = formatData(bandsData[index][1],datasource["options"].get("pattern"),noData)
+            bandsData[index][1] = formatData(bandsData[index][1],datasource["options"].get("pattern"),noData)
         index += 1
 
 def getRasterData(options):
@@ -719,7 +853,7 @@ def getRasterData(options):
             if options.get("band_indexes"):
                 bands = getRasterBands(datasource,options["band_indexes"],lambda datasource,band,band_index:band["index"] == band_index)
             else:
-                bands = getRasterBands(datasource,options["bandids"],datasource["band_match_f"])
+                bands = getRasterBands(datasource,options["bandids"],datasource["band_f"]["band_match"])
 
             try:
                 if not options.get("pixel"):
@@ -739,7 +873,7 @@ def getRasterData(options):
                             options["pixel"] = (px,py)
 
                 # Extract pixel value
-                datas = getBandsData(ds,bands,options["pixel"],datasource["options"]["map_f"] if datasource.get("options") and datasource["options"].get("map_f") else None)
+                datas = getBandsData(ds,bands,options["pixel"],datasource["band_f"]["data_map"] if datasource["band_f"].get("data_map") else None)
 
                 #import ipdb;ipdb.set_trace()
                 options["datasource"]["status"] = True
@@ -771,6 +905,8 @@ request_options={
 forecast_options={
     "time_pattern":"%H:%M",
     "date_pattern":"%A %d %B",
+    "forecast_time_pattern":"%H:%M",
+    "forecast_date_pattern":"%d/%m/%Y",
     "time_style":"text-align:center;white-space:nowrap;",
     "date_style":"text-align:left"
 }
@@ -792,6 +928,14 @@ def setDefaultOptionIfMissing(options,defaultOptions):
 
     return options
 
+
+@bottle.route('/forecastmetadata',method="GET")
+def forecastmetadata():
+    """
+    Get forecast metadata
+    """
+    bottle.response.set_header("Content-Type", "application/json")
+    return forecast_metadata
 
 
 @bottle.route('/spotforecast/<fmt>',method="POST")
@@ -899,7 +1043,8 @@ def spotforecast(fmt):
                         raise Exception("Property 'workspace' of datasource in daily_data is missing.")
                     if not datasource.get("id"):
                         raise Exception("Property 'id' of datasource in daily_data is missing.")
-                    datasource["times"] = [datetime.datetime.strptime("{} {}".format(day,datasource.get("time","00:00:00")),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE)  for day in forecast["days"]]
+                    datasourceMetadata = raster_datasources.get(datasource["workspace"],{}).get(datasource["id"],{})
+                    datasource["times"] = [datetime.datetime.strptime("{} {}".format(day,datasourceMetadata.get("time","00:00:00")),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE)  for day in forecast["days"]]
 
             #format the days to a array of datetime object
             forecast["days"] = [datetime.datetime.strptime(day,"%Y-%m-%d").replace(tzinfo=PERTH_TIMEZONE)  for day in forecast["days"]]
@@ -956,7 +1101,7 @@ def spotforecast(fmt):
                     else:
                         forecast["columns"] += 1
                         datasource["title"] = datasource.get("title") or datasource["id"]
-                if len(forecast["times"]) < 2:
+                if len(forecast.get("daily_data",{})) == 0 and len(forecast["times"][0]) < 2:
                    forecast["has_daily_group"] = False
     
             #prepare the format options
@@ -991,10 +1136,10 @@ def spotforecast(fmt):
                 while index < len(forecast["days"]):
                     timeIndex = 0
                     while timeIndex < len(forecast["times"][index]):
-                        if len(forecast.get("times_data",[])) == 1:
-                           forecast["times"][index][timeIndex] = formatData(forecast["times"][index][timeIndex],forecast["options"].get("date_pattern") or "%Y-%m-%d",result["options"].get("no_data") or "")
+                        if forecast.get("has_daily_group"):
+                           forecast["times"][index][timeIndex] = formatData(forecast["times"][index][timeIndex],forecast["options"].get("forecast_time_pattern"),result["options"].get("no_data") or "")
                         else:
-                           forecast["times"][index][timeIndex] = formatData(forecast["times"][index][timeIndex],forecast["options"].get("time_pattern") or "%Y-%m-%d %H:%M:%S",result["options"].get("no_data") or "")
+                           forecast["times"][index][timeIndex] = formatData(forecast["times"][index][timeIndex],forecast["options"].get("forecast_date_pattern"),result["options"].get("no_data") or "")
                         timeIndex += 1
                     index += 1
                 
@@ -1045,3 +1190,28 @@ def spotforecast(fmt):
     
 #load all raster datasource first
 loadAllDatasources()
+#load forecast metadata
+forecast_metadata = {'size':len(raster_datasources["bom"]),'datasources':[]}
+for key,value in raster_datasources["bom"].iteritems():
+    data = dict(value)
+    data.pop("metadata_f")
+    data.pop("band_metadata_f")
+    data.pop("band_f")
+    data.pop("bands")
+    data.pop("datasource")
+    data.pop("file")
+    data["workspace"] = "bom"
+    bandTimeout = int(math.ceil(data.get("metadata",{}).get("band_timeout",0) / 3600))
+    if bandTimeout >= 24:
+        data["type"] = "Daily"
+    elif bandTimeout == 1:
+        data["type"] = "Hourly"
+    elif bandTimeout > 1:
+        data["type"] = "{}hrly".format(bandTimeout)
+    else:
+        data["type"] = None
+    data["id"] = key
+    forecast_metadata["datasources"].append(data)
+
+forecast_metadata["datasources"].sort(key=lambda data:data["id"])
+

@@ -5,7 +5,7 @@
             <div class="off-canvas position-left" id="offCanvasLeft" data-off-canvas>
                 <a id="side-pane-close" class="button alert hide-for-medium">&#x2715;</a>
                 <div class="tabs-content vertical" data-tabs-content="menu-tabs">
-                    <gk-setting v-ref:setting></gk-setting>
+                    <gk-settings v-ref:settings></gk-settings>
                     <gk-layers v-ref:layers></gk-layers>
                     <gk-annotations v-ref:annotations></gk-annotations>
                     <gk-tracking v-ref:tracking></gk-tracking>
@@ -27,7 +27,7 @@
                       </template>
                   </div>
                   <div class="small-12 " style="text-align:right;">
-                      <img src="dist/static/images/question-mark.png" style="height:32px;width:32px" @click="setting.toggleShowHints()">
+                      <img src="dist/static/images/question-mark.png" style="height:32px;width:32px" @click="systemsetting.toggleShowHints()">
                   </div>
                 </div>
             </div>
@@ -55,8 +55,8 @@
                             <i class="fa fa-fire" aria-hidden="true"></i>
                         </a>
                     </li>
-                    <li class="tabs-title side-button" menu="setting">
-                        <a href="#menu-tab-setting" title="System Settings">
+                    <li class="tabs-title side-button" menu="settings">
+                        <a href="#menu-tab-settings" title="System Settings">
                             <i class="fa fa-cog" aria-hidden="true"></i>
                         </a>
                     </li>
@@ -74,7 +74,7 @@
     import gkAnnotations from '../components/annotations.vue'
     import gkTracking from '../components/sss/tracking.vue'
     import gkLoading from '../components/loading.vue'
-    import gkSetting from '../components/setting.vue'
+    import gkSettings from '../components/settings.vue'
     import gkBfrs from '../components/sss/bfrs.vue'
     import gkDialog from '../components/dialog.vue'
     import { ol } from 'src/vendor.js'
@@ -93,9 +93,9 @@
       computed: {
           layers: function () { return this.$root.layers },
           info: function () { return this.$root.info },
-          setting: function () { return this.$root.setting },
+          systemsetting: function () { return this.$root.systemsetting },
       },
-      components: { gkMap, gkLayers, gkAnnotations, gkTracking, gkLoading,gkSetting , gkBfrs ,gkDialog},
+      components: { gkMap, gkLayers, gkAnnotations, gkTracking, gkLoading,gkSettings , gkBfrs ,gkDialog},
       methods:{
         switchMenu:function(menu) {
             if ((this.activeMenu === menu) || (!this.activeMenu && !menu)) {

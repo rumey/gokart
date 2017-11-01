@@ -105,7 +105,9 @@ var systemSettings = {
   spotforecast:{
       reportType:3,//3 hourly
       reportHours:null,
-      forecastDays:4
+      dailyTitle:null,
+      forecastDays:4,
+      forecastColumns:null
   }
 }
 
@@ -148,7 +150,39 @@ if (result) {
     utils.checkVersion(profile)
     Vue.use(VueStash)
     localforage.getItem('sssOfflineStore').then(function (store) {
-      var settings = $.extend({},persistentData.settings,store?(store.settings || {}):{})
+      var _extend = function() {
+          if (arguments.length === 0) {
+              return {}
+          } else if (arguments.length === 1) {
+              return arguments[0]
+          } else {
+              var o = arguments[0]
+              var _arguments = arguments
+              $.each(o,function(key,value){
+                  if (value !== null && value !== undefined && typeof(value) === "object" && !Array.isArray(value)) {
+                      var args = []
+                      for(var index = 0;index < _arguments.length;index++) {
+                          if (_arguments[index] && key in _arguments[index]) {
+                              args.push(_arguments[index][key])
+                          }
+                      }
+                      o[key] = _extend.apply(null,args)
+                  } else {
+                      for(var index = _arguments.length - 1;index > 0;index--) {
+                          if (_arguments[index]) {
+                              if (key in _arguments[index]) {
+                                  o[key] = _arguments[index][key]
+                                  break
+                              }
+                          }
+                      }
+                  }
+              })
+              return o
+          }
+      }
+      var settings = _extend(persistentData.settings,store?(store.settings || {}):{})
+      
       var storedData = $.extend({}, persistentData, store || {}, volatileData)
       storedData.settings = settings
     
@@ -178,7 +212,6 @@ if (result) {
           scales: function () { return this.$refs.app.$refs.map.$refs.scales },
           search: function () { return this.$refs.app.$refs.map.$refs.search },
           measure: function () { return this.$refs.app.$refs.map.$refs.measure },
-          spotforecast: function () { return this.$refs.app.$refs.map.$refs.spotforecast },
           info: function() { return this.$refs.app.$refs.map.$refs.info},
           active: function () { return this.$refs.app.$refs.layers.$refs.active },
           layers: function () { return this.$refs.app.$refs.layers },
@@ -186,8 +219,10 @@ if (result) {
           export: function () { return this.$refs.app.$refs.layers.$refs.export },
           annotations: function () { return this.$refs.app.$refs.annotations },
           tracking: function () { return this.$refs.app.$refs.tracking },
-          setting: function () { return this.$refs.app.$refs.setting },
+          settings: function () { return this.$refs.app.$refs.settings },
+          systemsetting: function () { return this.$refs.app.$refs.settings.$refs.systemsetting },
           bfrs: function () { return this.$refs.app.$refs.bfrs },
+          spotforecast: function () { return this.$refs.app.$refs.settings.$refs.spotforecast },
           geojson: function () { return new ol.format.GeoJSON() },
           wgs84Sphere: function () { return new ol.Sphere(6378137) },
           profile: function(){return profile},

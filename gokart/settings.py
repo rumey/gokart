@@ -8,6 +8,7 @@ import re
 import hashlib
 import base64
 import json
+import osgeo
 import datetime
 
 
@@ -90,6 +91,8 @@ def typename(url):
 def datetime_encoder(self,o):
     if isinstance(o,datetime.datetime):
         return o.strftime("%Y-%m-%d %H:%M:%S")
+    elif isinstance(o,osgeo.osr.SpatialReference):
+        return str(o)
     else:
         raise TypeError("Unknown type {}".format(type(o)))
 json.JSONEncoder.default = datetime_encoder

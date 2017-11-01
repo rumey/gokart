@@ -118,7 +118,7 @@ body {
 
 .ol-zoom button,
 #map-measure button,
-#spotforecast button,
+#spotforecast_control button,
 .ol-full-screen button {
     width: 48px;
     height: 48px;
@@ -172,7 +172,7 @@ body {
 }
 
 
-#spotforecast {
+#spotforecast_control {
     position: absolute;
     top: 180px;
     left: auto;
@@ -193,7 +193,7 @@ body {
 #map-measure .selected{
     background-color: #2199E8;
 }
-#spotforecast .selected{
+#spotforecast_control .selected{
     background-color: #2199E8;
 }
 .tooltip-measure {
@@ -608,3 +608,4 @@ input:disabled ~ .switch-paddle {
     height:32px;
     cursor:pointer;
 }
+

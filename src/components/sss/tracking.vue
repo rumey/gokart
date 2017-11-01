@@ -55,7 +55,7 @@
             </div>
             <div class="row">
               <div class="switch tiny">
-                <input class="switch-input" id="toggleResourceInfo" type="checkbox" v-bind:disabled="!setting.hoverInfoSwitchable" v-bind:checked="setting.hoverInfo" @change="setting.toggleHoverInfo" />
+                <input class="switch-input" id="toggleResourceInfo" type="checkbox" v-bind:disabled="!systemsetting.hoverInfoSwitchable" v-bind:checked="systemsetting.hoverInfo" @change="systemsetting.toggleHoverInfo" />
                 <label class="switch-paddle" for="toggleResourceInfo">
                   <span class="show-for-sr">Display hovering resource info</span>
                 </label>
@@ -215,7 +215,7 @@
       active: function () { return this.$root.active },
       annotations: function () { return this.$root.$refs.app.$refs.annotations },
       info: function () { return this.$root.info },
-      setting: function () { return this.$root.setting },
+      systemsetting: function () { return this.$root.systemsetting },
       catalogue: function () { return this.$root.catalogue },
       export: function () { return this.$root.export },
       loading: function () { return this.$root.loading },

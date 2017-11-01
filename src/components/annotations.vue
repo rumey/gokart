@@ -1056,11 +1056,16 @@
         }
         var map = this.map
         // remove all custom tool interactions from map
-        this.tools.forEach(function (tool) {
-          tool.interactions.forEach(function (inter) {
+        if (this.tool && this.tool.interactions) {
+          this.tool.interactions.forEach(function (inter) {
             map.olmap.removeInteraction(inter)
           })
-        })
+        }
+        //this.tools.forEach(function (tool) {
+        //  tool.interactions.forEach(function (inter) {
+        //    map.olmap.removeInteraction(inter)
+        //  })
+        //})
 
         // add interactions for this tool
         t.interactions.forEach(function (inter) {
