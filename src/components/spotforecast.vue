@@ -181,9 +181,12 @@
                                     </div>
                                 </div>
                                 <div class="small-6 datasource-desc">
-                                    <div class="forecast-datasources">Type: {{ ds.type }} forecast</div>
+                                    <div class="forecast-datasources">Type: {{ ds.type }}</div>
                                 </div>
                                 <div class="small-6 datasource-desc">
+                                    <div class="forecast-datasources" v-if="ds.metadata.unit">Unit: {{ ds.metadata.unit}}</div>
+                                </div>
+                                <div class="small-12 datasource-desc">
                                     <div class="forecast-datasources">Title: {{ ds.options.title }}</div>
                                 </div>
                               </div>
@@ -506,7 +509,27 @@
         var vm = this
         if (ds && ds["selected"]) {
             //add
-            this.forecastColumns.push({workspace:ds["workspace"],id:ds["id"],name:ds["name"]})
+            if (ds["options"] && ds["options"]["group"]) {
+                //has default group
+                group = ds["options"] && ds["options"]["group"]
+                var groupIndex = this.forecastColumns.findIndex(function(o) {return o.group?o.group === group:false})
+                if (groupIndex >= 0) {
+                    //group already exist
+                    this.forecastColumns[groupIndex]["datasources"].push({workspace:ds["workspace"],id:ds["id"],name:ds["name"]})
+                } else {
+                    //group does not exist
+                    this.forecastColumns.push({group:group,datasources:[{workspace:ds["workspace"],id:ds["id"],name:ds["name"]}]})
+                }
+                groupIndex = this.columnGroups.findIndex(function(o) {return o === group})
+                if (groupIndex < 0) {
+                    this.columnGroups.push(group)
+                    this.columnGroups.sort()
+                }
+            } else {
+                //no default group
+                this.forecastColumns.push({workspace:ds["workspace"],id:ds["id"],name:ds["name"]})
+            }
+
         } else {
             //remove
             if (index === null || index === undefined) {
@@ -897,7 +920,7 @@
               id:"IDW71018_WA_RH_SFC",
           },
           {
-              group:"10m Wind (km/h)",
+              group:"10m Wind",
               datasources:[
                   {
                       workspace:"bom",

@@ -48,6 +48,57 @@ def getEpochTimeFunc(name,defaultBandIndex=None):
             return None
     return _func
 
+def getMetadataFunc(name,defaultBandIndex=None):
+    """
+    Get the meta data 
+    """
+    def _func(ds,bandIndex=None):
+        """
+        Get the data from datasource's metadata if both band and defaultBand are None; otherwise get the data from datasource's band
+        """
+        try:
+            if bandIndex is not None:
+                dt = ds.GetRasterBand(bandIndex).GetMetadata().get(name)
+            elif defaultBandIndex is not None:
+                dt = ds.GetRasterBand(defaultBandIndex).GetMetadata().get(name)
+            else:
+                dt = ds.GetMetadata().get(name)
+
+            return dt
+        except:
+            return None
+    return _func
+
+def getUnitFunc(name,defaultBandIndex=None):
+    """
+    Get the meta data 
+    """
+    unit_map = {
+        "kmh":"km/h",
+        "wx":None,
+        "degrees_north":None,
+        "DF":None,
+        "FFDI":None,
+        "GFDI":None
+
+    }
+    def _func(ds,bandIndex=None):
+        """
+        Get the data from datasource's metadata if both band and defaultBand are None; otherwise get the data from datasource's band
+        """
+        try:
+            if bandIndex is not None:
+                dt = ds.GetRasterBand(bandIndex).GetMetadata().get(name)
+            elif defaultBandIndex is not None:
+                dt = ds.GetRasterBand(defaultBandIndex).GetMetadata().get(name)
+            else:
+                dt = ds.GetMetadata().get(name)
+
+            return unit_map[dt] if dt in unit_map else dt
+        except:
+            return None
+    return _func
+
 def isNightFunc(name):
     """
     check whether band's time is night or not
@@ -142,6 +193,9 @@ def loadDatasource(datasource):
             #print "Band {} = {}".format(index,bandid)
             index+=1
 
+        if "name" not in datasource:
+            datasource["name"] = datasource.get("metadata",{}).get("name","")
+
         datasource["status"] = "loaded"
         print "End to load raster datasource:{} metadata:{} ".format(datasource["file"],datasource["metadata"])
     except:
@@ -197,7 +251,7 @@ DIRECTIONS_METADATA = {
     32:[360/32,math.floor(360 / 64 * 100) / 100,["N","NbE","NNE","NEbN","NE","NEbE","ENE","EbN","E","EbS","ESE","SEbE","SE","SEbS","SSE","SbE","S","SbW","SSW","SWbS","SW","SWbW","WSW","WbS","W","WbN","WNW","NWbW","NW","NWbN","NNW","NbW"]],
 }
 
-def getWindDirFunc(mode):
+def getDirFunc(mode):
     mode = mode or 16
     direction_metadata = DIRECTIONS_METADATA[mode]
     def _func(band,data):
@@ -265,10 +319,12 @@ raster_datasources={
     "bom":{
         "IDW71000_WA_T_SFC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71000_WA_T_SFC.nc.gz"),
-            "name":"Hourly temperature",
+            "sort_key":("weather","temperature"),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
-                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
             },
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
@@ -277,7 +333,7 @@ raster_datasources={
                 "band_match":isInBandFunc,
             },
             "options":{
-                "title":"Temp<br>(C)",
+                "title":"Temp",
                 "pattern":"{:-.0f}",
                 "srs":"EPSG:4326",
                 "style":"text-align:right",
@@ -285,10 +341,13 @@ raster_datasources={
         },
         "IDW71001_WA_Td_SFC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71001_WA_Td_SFC.nc.gz"),
-            "name":"Hourly dew point temperature",
+            #"name":"Hourly dew point temperature",
+            "sort_key":("weather","other"),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
-                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
             },
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
@@ -297,7 +356,7 @@ raster_datasources={
                 "band_match":isInBandFunc,
             },
             "options":{
-                "title":"Dewpt<br>(C)",
+                "title":"Dewpt",
                 "pattern":"{:-.0f}",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
@@ -305,12 +364,15 @@ raster_datasources={
         },
         "IDW71002_WA_MaxT_SFC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71002_WA_MaxT_SFC.nc.gz"),
-            "name":"Daily maximum temperature",
+            #"name":"Daily maximum temperature",
+            "sort_key":("weather","temperature","maximum"),
             "time":"14:00:00",
             "var":"max_temp",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
-                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
             },
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
@@ -319,7 +381,7 @@ raster_datasources={
                 "band_match":isInBandFunc,
             },
             "options":{
-                "title":"Max Temp<br>(C)",
+                "title":"Max Temp",
                 "pattern":"{:-.0f}",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
@@ -327,12 +389,15 @@ raster_datasources={
         },
         "IDW71003_WA_MinT_SFC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71003_WA_MinT_SFC.nc.gz"),
-            "name":"Daily minimum temperature",
+            #"name":"Daily minimum temperature",
+            "sort_key":("weather","temperature","minimum"),
             "time":"06:00:00",
             "var":"min_temp",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
-                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
             },
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
@@ -341,18 +406,22 @@ raster_datasources={
                 "band_match":isInBandFunc,
             },
             "options":{
-                "title":"Min Temp<br>(C)",
+                "title":"Min Temp",
                 "pattern":"{:-.0f}",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
             }
         },
-        "IDW71018_WA_RH_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71018_WA_RH_SFC.nc.gz"),
-            "name":"Hourly relative humidity",
+        "IDW71005_WA_DailyPrecip_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71005_WA_DailyPrecip_SFC.nc.gz"),
+            #"name":"Daily Precipitation",
+            "sort_key":("weather","precipitation"),
+            "var":"precip",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
-                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
             },
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
@@ -361,38 +430,21 @@ raster_datasources={
                 "band_match":isInBandFunc,
             },
             "options":{
-                "title":"RH<br>(%)",
-                "pattern":"{:-.0f}",
+                "title":"Precip",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
-            }
-        },
-        "IDW71139_WA_Curing_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71139_WA_Curing_SFC.nc.gz"),
-            "name":"Grassland curing index",
-            "metadata_f":{
-                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
-                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
-            },
-            "band_metadata_f":{
-                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
-            },
-            "band_f":{
-                "band_match":isInBandFunc,
-            },
-            "options":{
-                "title":"Curing",
                 "pattern":"{:-.0f}",
-                "srs":"EPSG:4326",
-                "style":"text-align:center",
             }
         },
-        "IDW71071_WA_WindMagKmh_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71071_WA_WindMagKmh_SFC.nc.gz"),
-            "name":"Hourly wind magnitude",
+        "IDW71006_WA_Wind_Mag_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71006_WA_Wind_Mag_SFC.nc.gz"),
+            #"name":"Wind Speed",
+            "sort_key":("weather","wind",10),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
-                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
             },
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
@@ -402,17 +454,21 @@ raster_datasources={
             },
             "options":{
                 "title":"Speed",
-                "pattern":"{:-.0f}",
+                "group":"10m Wind",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
+                "pattern":"{:-.1f}",
             }
         },
-        "IDW71072_WA_WindGustKmh_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71072_WA_WindGustKmh_SFC.nc.gz"),
-            "name":"Wind gust",
+        "IDW71013_WA_PoP_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71013_WA_PoP_SFC.nc.gz"),
+            #"name":"Probability of 0.2mm Precipitation (3hrly)",
+            "sort_key":("weather","precipitation",0.2,"probability"),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
-                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
             },
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
@@ -421,39 +477,22 @@ raster_datasources={
                 "band_match":isInBandFunc,
             },
             "options":{
-                "title":"Gust",
-                "pattern":"{:-.0f}",
+                "title":"0.2mm Precip",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
+                "pattern":"{:-.1f}",
             }
         },
-        "IDW71089_WA_Wind_Dir_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71089_WA_Wind_Dir_SFC.nc.gz"),
-            "name":"Hourly wind direction",
+        "IDW71014_WA_DailyPrecip25Pct_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71014_WA_DailyPrecip25Pct_SFC.nc.gz"),
+            #"name":"25% Confidence Precipitation Amount for 24 hours",
+            "sort_key":("weather","precipitation","probability",25),
+            "var":"precip_25",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
-                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
-            },
-            "band_metadata_f":{
-                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
-            },
-            "band_f":{
-                "band_match":isInBandFunc,
-                "data_map":getWindDirFunc(16),
-            },
-            "options":{
-                "title":"Dir",
-                #"pattern":"{:-.2f}",
-                "srs":"EPSG:4326",
-                "style":"text-align:center",
-            }
-        },
-        "IDW71117_WA_FFDI_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71117_WA_FFDI_SFC.nc.gz"),
-            "name":"Hourly forest fire danger index",
-            "metadata_f":{
-                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
-                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
             },
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
@@ -462,18 +501,22 @@ raster_datasources={
                 "band_match":isInBandFunc,
             },
             "options":{
-                "title":"FFDI",
-                "pattern":"{:-.0f}",
+                "title":"Precip(25%)",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
+                "pattern":"{:-.0f}",
             }
         },
-        "IDW71122_WA_GFDI_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71122_WA_GFDI_SFC.nc.gz"),
-            "name":"Hourly grassland fire danger index",
+        "IDW71015_WA_DailyPrecip50Pct_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71015_WA_DailyPrecip50Pct_SFC.nc.gz"),
+            #"name":"50% Confidence Precipitation Amount for 24 hours",
+            "sort_key":("weather","precipitation","probability",50),
+            "var":"precip_50",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
-                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
             },
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
@@ -482,18 +525,22 @@ raster_datasources={
                 "band_match":isInBandFunc,
             },
             "options":{
-                "title":"GFDI",
-                "pattern":"{:-.0f}",
+                "title":"Precip(50%)",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
+                "pattern":"{:-.0f}",
             }
         },
-        "IDW71127_WA_DF_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71127_WA_DF_SFC.nc.gz"),
-            "name":"Drought factor",
+        "IDW71016_WA_DailyPrecip75Pct_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71016_WA_DailyPrecip75Pct_SFC.nc.gz"),
+            #"name":"75% Confidence Precipitation Amount for 24 hours",
+            "sort_key":("weather","precipitation","probability",75),
+            "var":"precip_75",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
-                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
             },
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
@@ -502,18 +549,21 @@ raster_datasources={
                 "band_match":isInBandFunc,
             },
             "options":{
-                "title":"DF",
-                "pattern":"{:-.0f}",
+                "title":"Precip(75%)",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
+                "pattern":"{:-.0f}",
             }
         },
         "IDW71017_WA_Sky_SFC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71017_WA_Sky_SFC.nc.gz"),
-            "name":"Sky cover",
+            #"name":"Sky cover",
+            "sort_key":("weather","sky"),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
-                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
             },
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
@@ -522,52 +572,177 @@ raster_datasources={
                 "band_match":isInBandFunc,
             },
             "options":{
-                "title":"Sky<br>(%)",
+                "title":"Sky",
                 "pattern":"{:-.0f}",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
             }
         },
-        "IDW71152_WA_DailyWxIcon_SFC_ICON":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71152_WA_DailyWxIcon_SFC.nc.gz"),
-            "name":"Daily weather icon",
-            "time":"12:00:00",
-            "var":"weather_icon",
+        "IDW71018_WA_RH_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71018_WA_RH_SFC.nc.gz"),
+            #"name":"Hourly relative humidity",
+            "sort_key":("weather","relative humidity"),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
-                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
             },
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"RH",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71022_WA_WindWaveHgt_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71022_WA_WindWaveHgt_SFC.nc.gz"),
+            #"name":"Wind Wave Height",
+            "sort_key":("weather","wind",10),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"Wind Height",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71023_WA_Swell_Mag_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71023_WA_Swell_Mag_SFC.nc.gz"),
+            #"name":"Swell Magnitude",
+            "sort_key":("sea","swell"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"Magnitude",
+                "group":"Swell",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71030_WA_DailyPrecip10Pct_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71030_WA_DailyPrecip10Pct_SFC.nc.gz"),
+            #"name":"10% Confidence Precipitation Amount for 24 hours",
+            "sort_key":("weather","rainfall","confidence",10),
+            "var":"daily_rainfall_10%",
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"Precip",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71031_WA_Precip10Pct_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71031_WA_Precip10Pct_SFC.nc.gz"),
+            #"name":"10% Confidence Precipitation Amount in 3 Hours",
+            "sort_key":("weather","rainfall","confidence",10),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+                "is_night":isNightFunc("NETCDF_DIM_time"),
             },
             "band_f":{
                 "band_match":isInBandFunc,
                 "data_map":getWeatherIcon,
             },
             "options":{
-                "title":"Daily Weather",
+                "title":"Precip",
+                "pattern":"{:-.1f}",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
             }
         },
-        "IDW71152_WA_DailyWxIcon_SFC_DESC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71152_WA_DailyWxIcon_SFC.nc.gz"),
-            "name":"Daily weather",
-            "time":"12:00:00",
-            "var":"weather",
+        "IDW71032_WA_Precip25Pct_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71032_WA_Precip25Pct_SFC.nc.gz"),
+            #"name":"25% Confidence Precipitation Amount in 3 Hours",
+            "sort_key":("weather","rainfall","exceeding chance",25),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
-                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
             },
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+                "is_night":isNightFunc("NETCDF_DIM_time"),
             },
             "band_f":{
                 "band_match":isInBandFunc,
-                "data_map":getWeather,
+                "data_map":getWeatherIcon,
             },
             "options":{
-                "title":"Daily Weather",
+                "title":"Precip",
+                "pattern":"{:-.1f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71033_WA_Precip50Pct_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71033_WA_Precip50Pct_SFC.nc.gz"),
+            #"name":"50% Confidence Precipitation Amount in 3 Hours",
+            "sort_key":("weather","rainfall","exceeding chance",50),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+                "is_night":isNightFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+                "data_map":getWeatherIcon,
+            },
+            "options":{
+                "title":"Precip",
+                "pattern":"{:-.1f}",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
             }
@@ -575,13 +750,16 @@ raster_datasources={
         "IDW71034_WA_WxIcon_SFC_ICON":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71034_WA_WxIcon_SFC.nc.gz"),
             "name":"3hrly weather icon",
+            "sort_key":("weather",),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
-                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
             },
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
-                "is_night":isNightFunc("NETCDF_DIM_time")
+                "is_night":isNightFunc("NETCDF_DIM_time"),
             },
             "band_f":{
                 "band_match":isInBandFunc,
@@ -596,13 +774,16 @@ raster_datasources={
         "IDW71034_WA_WxIcon_SFC_DESC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71034_WA_WxIcon_SFC.nc.gz"),
             "name":"3hrly weather",
+            "sort_key":("weather",),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
-                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
             },
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
-                "is_night":isNightFunc("NETCDF_DIM_time")
+                "is_night":isNightFunc("NETCDF_DIM_time"),
             },
             "band_f":{
                 "band_match":isInBandFunc,
@@ -614,13 +795,15 @@ raster_datasources={
                 "style":"text-align:center",
             }
         },
-        "IDW71005_WA_DailyPrecip_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71005_WA_DailyPrecip_SFC.nc.gz"),
-            "name":"Daily Precipitation",
-            "var":"precip",
+        "IDW71068_WA_ApparentT_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71068_WA_ApparentT_SFC.nc.gz"),
+            #"name":"Hourly apparent temperature (deg)",
+            "sort_key":("weather","apparent"),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
-                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
             },
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
@@ -629,19 +812,21 @@ raster_datasources={
                 "band_match":isInBandFunc,
             },
             "options":{
-                "title":"Precipitation",
+                "title":"Apparent Temp",
+                "pattern":"{:-.0f}",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
-                "pattern":"{:-.1f}",
             }
         },
-        "IDW71014_WA_DailyPrecip25Pct_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71014_WA_DailyPrecip25Pct_SFC.nc.gz"),
-            "name":"25% daily Precipitation",
-            "var":"precip_25",
+        "IDW71069_WA_SigWaveHgt_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71069_WA_SigWaveHgt_SFC.nc.gz"),
+            #"name":"Total Significant Wave Height",
+            "sort_key":("sea",),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
-                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
             },
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
@@ -650,19 +835,21 @@ raster_datasources={
                 "band_match":isInBandFunc,
             },
             "options":{
-                "title":"Precipitation(25%)",
+                "title":"Sea & Swell",
+                "pattern":"{:-.0f}",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
-                "pattern":"{:-.1f}",
             }
         },
-        "IDW71015_WA_DailyPrecip50Pct_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71015_WA_DailyPrecip50Pct_SFC.nc.gz"),
-            "name":"50% daily Precipitation",
-            "var":"precip_50",
+        "IDW71071_WA_WindMagKmh_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71071_WA_WindMagKmh_SFC.nc.gz"),
+            #"name":"Hourly wind magnitude",
+            "sort_key":("weather","wind",10),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
-                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
             },
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
@@ -671,19 +858,22 @@ raster_datasources={
                 "band_match":isInBandFunc,
             },
             "options":{
-                "title":"Precipitation(50%)",
+                "title":"Speed",
+                "group":"10m Wind",
+                "pattern":"{:-.0f}",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
-                "pattern":"{:-.1f}",
             }
         },
-        "IDW71016_WA_DailyPrecip75Pct_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71016_WA_DailyPrecip75Pct_SFC.nc.gz"),
-            "name":"75% daily Precipitation",
-            "var":"precip_75",
+        "IDW71072_WA_WindGustKmh_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71072_WA_WindGustKmh_SFC.nc.gz"),
+            #"name":"Wind gust",
+            "sort_key":("weather","wind",10),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
-                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time")
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
             },
             "band_metadata_f":{
                 "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
@@ -692,10 +882,832 @@ raster_datasources={
                 "band_match":isInBandFunc,
             },
             "options":{
-                "title":"Precipitation(75%)",
+                "title":"Gust",
+                "group":"10m Wind",
+                "pattern":"{:-.0f}",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
+            }
+        },
+        "IDW71089_WA_Wind_Dir_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71089_WA_Wind_Dir_SFC.nc.gz"),
+            #"name":"Hourly wind direction",
+            "sort_key":("weather","wind",10),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+                "data_map":getDirFunc(16),
+            },
+            "options":{
+                "title":"Dir",
+                "group":"10m Wind",
+                #"pattern":"{:-.2f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71090_WA_DailyPoP_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71090_WA_DailyPoP_SFC.nc.gz"),
+            #"name":"Daily probability of precipitation",
+            "sort_key":("weather","precipitation","probability"),
+            "var" :"precip_proba",
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+                "data_map":getDirFunc(16),
+            },
+            "options":{
+                "title":"Precip",
                 "pattern":"{:-.1f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71092_WA_Swell_Dir_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71092_WA_Swell_Dir_SFC.nc.gz"),
+            #"name":"Swell Direction",
+            "sort_key":("sea","swell"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+                "data_map":getDirFunc(16),
+            },
+            "options":{
+                "title":"Dir",
+                "group":"Swell",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71094_WA_WxThunderstorms_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71094_WA_WxThunderstorms_SFC.nc.gz"),
+            "name":"3 hourly weather - thunderstorms",
+            "sort_key":("weather","other"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"Thunderstorms",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71096_WA_WxPrecipitationFrozen_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71096_WA_WxPrecipitationFrozen_SFC.nc.gz"),
+            "name":"3 hourly weather - frozen precipitation",
+            "sort_key":("weather","other"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"Frozen Precip",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71097_WA_WxPrecipitation_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71097_WA_WxPrecipitation_SFC.nc.gz"),
+            "name":"3 hourly weather - precipitation",
+            "sort_key":("weather","other"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"Precip",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71102_WA_WxFog_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71102_WA_WxFog_SFC.nc.gz"),
+            "name":"3 hourly weather - fog",
+            "sort_key":("weather","other"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"Fog",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71107_WA_WxFrost_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71107_WA_WxFrost_SFC.nc.gz"),
+            "name":"3 hourly weather - frost",
+            "sort_key":("weather","other"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"Frost",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71109_WA_MixHgt_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71109_WA_MixHgt_SFC.nc.gz"),
+            #"name":"3 hourly mixing height (m)",
+            "sort_key":("weather","other"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"Mixing Height",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71110_WA_WindMagKmh_1500mAMSL":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71110_WA_WindMagKmh_1500mAMSL.nc.gz"),
+            #"name":"3 hourly wind magnitude at 1500m above mean sea level (km/h)",
+            "sort_key":("weather","wind",1500),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"Speed",
+                "group":"1500m Wind",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71111_WA_Wind_Dir_1500mAMSL":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71111_WA_Wind_Dir_1500mAMSL.nc.gz"),
+            #"name":"3 hourly wind direction at 1500m above mean sea level",
+            "sort_key":("weather","wind",1500),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+                "data_map":getDirFunc(16),
+            },
+            "options":{
+                "title":"Dir",
+                "group":"1500m Wind",
+                #"pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71112_WA_WindMagKmh_3000mAMSL":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71112_WA_WindMagKmh_3000mAMSL.nc.gz"),
+            #"name":"3 hourly wind magnitude at 3000m above mean sea level (km/h)",
+            "sort_key":("weather","wind",3000),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"Speed",
+                "group":"3000m Wind",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71113_WA_Wind_Dir_3000mAMSL":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71113_WA_Wind_Dir_3000mAMSL.nc.gz"),
+            #"name":"3 hourly wind direction at 3000m above mean sea level",
+            "sort_key":("weather","wind",3000),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+                "data_map":getDirFunc(16),
+            },
+            "options":{
+                "title":"Dir",
+                "group":"3000m Wind",
+                #"pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71114_WA_LAL2_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71114_WA_LAL2_SFC.nc.gz"),
+            #"name":"3 hourly thunderstorm activity level",
+            "sort_key":("weather","other"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"Thunderstorm Activity Level",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71115_WA_CHaines_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71115_WA_CHaines_SFC.nc.gz"),
+            #"name":"3 hourly continuous Haines",
+            "sort_key":("weather","other"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"Continuous Haines",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71116_WA_MaxFDI_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71116_WA_MaxFDI_SFC.nc.gz"),
+            #"name":"Daily maximum fire danger index",
+            "sort_key":("bushfire",),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"Fire Danger Index",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71117_WA_FFDI_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71117_WA_FFDI_SFC.nc.gz"),
+            #"name":"Hourly forest fire danger index",
+            "sort_key":("bushfire",'forest',"ffdi"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"FFDI",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71118_WA_MaxFFDI_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71118_WA_MaxFFDI_SFC.nc.gz"),
+            #"name":"Daily maximum forest fire danger index",
+            "sort_key":("bushfire",'forest',"ffdi"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"Maximum FFDI",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71119_WA_Hrs50FFDI_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71119_WA_Hrs50FFDI_SFC.nc.gz"),
+            #"name":"Number of hours FFDI exceeds 50",
+            "sort_key":("bushfire",'forest',"ffdi","hours",50),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"Hours FFDI exceeds 50",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71120_WA_Hrs75FFDI_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71120_WA_Hrs75FFDI_SFC.nc.gz"),
+            #"name":"Number of hours FFDI exceeds 75",
+            "sort_key":("bushfire",'forest',"ffdi","hours",75),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"Hours FFDI exceeds 75",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71121_WA_Hrs100FFDI_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71121_WA_Hrs100FFDI_SFC.nc.gz"),
+            #"name":"Number of hours FFDI exceeds 100",
+            "sort_key":("bushfire",'forest',"ffdi","hours",100),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"Hours FFDI exceeds 100",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71122_WA_GFDI_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71122_WA_GFDI_SFC.nc.gz"),
+            #"name":"Hourly grassland fire danger index",
+            "sort_key":("bushfire","grassland","gfdi"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"GFDI",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71123_WA_MaxGFDI_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71123_WA_MaxGFDI_SFC.nc.gz"),
+            #"name":"Daily maximum grassland fire danger index",
+            "sort_key":("bushfire","grassland","gfdi"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"GFDI",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71124_WA_Hrs50GFDI_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71124_WA_Hrs50GFDI_SFC.nc.gz"),
+            #"name":"Number of hours GFDI exceeds 50",
+            "sort_key":("bushfire","grassland","gfdi","hours",50),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"Hours GFDI exceeds 50",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71125_WA_Hrs75GFDI_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71125_WA_Hrs75GFDI_SFC.nc.gz"),
+            #"name":"Number of hours GFDI exceeds 75",
+            "sort_key":("bushfire","grassland","gfdi","hours",75),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"Hours GFDI exceeds 75",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71126_WA_Hrs100GFDI_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71126_WA_Hrs100GFDI_SFC.nc.gz"),
+            #"name":"Number of hours GFDI exceeds 100",
+            "sort_key":("bushfire","grassland","gfdi","hours",100),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"Hours GFDI exceeds 100",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71127_WA_DF_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71127_WA_DF_SFC.nc.gz"),
+            #"name":"Drought factor",
+            "sort_key":("bushfire",),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"DF",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71132_WA_Hrs32GFDI_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71132_WA_Hrs32GFDI_SFC.nc.gz"),
+            #"name":"Number of hours GFDI exceeds 32",
+            "sort_key":("bushfire","grassland","gfdi","hours",32),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"Hours GFDI exceeds 32",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71139_WA_Curing_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71139_WA_Curing_SFC.nc.gz"),
+            #"name":"Grassland curing index",
+            "sort_key":("bushfire","grassland"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"Curing",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71144_WA_GrassFuelLoad_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71144_WA_GrassFuelLoad_SFC.nc.gz"),
+            #"name":"Grassland fuel load (t/ha)",
+            "sort_key":("bushfire","grassland"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"Fuel Load",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71147_WA_KBDI_SFC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71147_WA_KBDI_SFC.nc.gz"),
+            #"name":"Keetch-Byram Drought Index (Observed)",
+            "sort_key":("bushfire",),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"KBDI",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71152_WA_DailyWxIcon_SFC_ICON":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71152_WA_DailyWxIcon_SFC.nc.gz"),
+            "name":"Daily weather icon",
+            "sort_key":("weather",),
+            "time":"12:00:00",
+            "var":"weather_icon",
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+                "data_map":getWeatherIcon,
+            },
+            "options":{
+                "title":"Weather",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71152_WA_DailyWxIcon_SFC_DESC":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71152_WA_DailyWxIcon_SFC.nc.gz"),
+            "name":"Daily weather",
+            "sort_key":("weather",),
+            "time":"12:00:00",
+            "var":"weather",
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+                "data_map":getWeather,
+            },
+            "options":{
+                "title":"Weather",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71199_WA_WindMagKmh_1000mAMSL":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71199_WA_WindMagKmh_1000mAMSL.nc.gz"),
+            "sort_key":("weather","wind",1000),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"Speed",
+                "group":"1000m Wind",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDW71200_WA_Wind_Dir_1000mAMSL":{
+            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71200_WA_Wind_Dir_1000mAMSL.nc.gz"),
+            "sort_key":("weather","wind",1000),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+                "data_map":getDirFunc(16),
+            },
+            "options":{
+                "title":"Dir",
+                "group":"1000m Wind",
+                #"pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
             }
         },
     }
@@ -920,7 +1932,7 @@ def setDefaultOptionIfMissing(options,defaultOptions):
         return {} if options is None else options
 
     if not options:
-        options = defaultOptions
+        return dict(defaultOptions)
 
     for key,value in defaultOptions.iteritems():
         if key not in options:
@@ -1167,12 +2179,17 @@ def spotforecast(fmt):
                             if ds.get("context"):
                                 formatContext(ds["context"],result["options"])
                                 ds["options"]["title"] = ds["options"]["title"].format(**ds["context"])
+                                if raster_datasources[ds["workspace"]][ds["id"]].get("metadata",{}).get("unit"):
+                                    ds["options"]["title"] = "{}<br>({})".format(ds["options"]["title"],raster_datasources[ds["workspace"]][ds["id"]]["metadata"]["unit"])
+
                             if ds["status"]:
                                 formatBandsData(ds,result["options"].get("no_data") or "")
                     else:
                         if datasource.get("context"):
                             formatContext(datasource["context"],result["options"])
                             datasource["options"]["title"] = datasource["options"]["title"].format(**datasource["context"])
+                            if raster_datasources[datasource["workspace"]][datasource["id"]].get("metadata",{}).get("unit"):
+                                datasource["options"]["title"] = "{}<br>({})".format(datasource["options"]["title"],raster_datasources[datasource["workspace"]][datasource["id"]]["metadata"]["unit"])
 
                         if datasource["status"] :
                             formatBandsData(datasource,result["options"].get("no_data") or "")
@@ -1213,5 +2230,67 @@ for key,value in raster_datasources["bom"].iteritems():
     data["id"] = key
     forecast_metadata["datasources"].append(data)
 
-forecast_metadata["datasources"].sort(key=lambda data:data["id"])
+sort_key_map={
+    "weather":100,
+    "sea":200,
+    "bushfire":300,
+    "temperature":100,
+    "other":-1000
+}
+def _compare_datasource(ds1,ds2):
+    index = 0
+    length = len(ds1["sort_key"]) if len(ds1["sort_key"]) <= len(ds2["sort_key"]) else len(ds2["sort_key"])
+    while index < length:
+        key1 = sort_key_map.get(ds1["sort_key"][index])
+        key2 = sort_key_map.get(ds2["sort_key"][index])
+        if key1 is not None:
+            if key2 is not None:
+                key1 = 10000000 + int(math.fabs(key1))
+                key2 = 10000000 + int(math.fabs(key2))
+            else:
+                return -1 if key1 > 0 else 1
+        elif key2 is not None:
+            return 1 if key2 > 0 else -1
+        else:
+            key1 = ds1["sort_key"][index]
+            key2 = ds2["sort_key"][index]
+
+        if key1 == key2:
+            pass
+        elif key1 < key2:
+            return -1
+        else:
+            return 1
+        
+        index += 1
+
+    if len(ds1["sort_key"]) == len(ds2["sort_key"]):
+        pass
+    elif len(ds1["sort_key"]) < len(ds2["sort_key"]):
+        return -1
+    else:
+        return 1
+
+    timeout1 = ds1.get("metadata",{}).get("band_timeout",0)
+    timeout2 = ds2.get("metadata",{}).get("band_timeout",0)
+    if timeout1 == timeout2:
+        pass
+    elif timeout1 < timeout2:
+        return 1
+    else:
+        return -1
+
+    name1 = ds1.get("name","")
+    name2 = ds2.get("name","")
+    if name1 == name2:
+        return 0
+    elif name1 < name2:
+        return 1
+    else:
+        return -1
+    
+
+forecast_metadata["datasources"] = sorted(forecast_metadata["datasources"],cmp=_compare_datasource)
+for ds in forecast_metadata["datasources"]:
+    ds.pop("sort_key")
 
