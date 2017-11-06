@@ -487,7 +487,7 @@ raster_datasources={
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71014_WA_DailyPrecip25Pct_SFC.nc.gz"),
             #"name":"25% Confidence Precipitation Amount for 24 hours",
             "sort_key":("weather","precipitation","probability",25),
-            "var":"precip_25",
+            "var":"precip_25%",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
                 "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
@@ -511,7 +511,7 @@ raster_datasources={
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71015_WA_DailyPrecip50Pct_SFC.nc.gz"),
             #"name":"50% Confidence Precipitation Amount for 24 hours",
             "sort_key":("weather","precipitation","probability",50),
-            "var":"precip_50",
+            "var":"precip_50%",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
                 "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
@@ -535,7 +535,7 @@ raster_datasources={
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71016_WA_DailyPrecip75Pct_SFC.nc.gz"),
             #"name":"75% Confidence Precipitation Amount for 24 hours",
             "sort_key":("weather","precipitation","probability",75),
-            "var":"precip_75",
+            "var":"precip_75%",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
                 "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
@@ -652,7 +652,7 @@ raster_datasources={
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71030_WA_DailyPrecip10Pct_SFC.nc.gz"),
             #"name":"10% Confidence Precipitation Amount for 24 hours",
             "sort_key":("weather","rainfall","confidence",10),
-            "var":"daily_rainfall_10%",
+            "var":"rainfall_10%",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
                 "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
@@ -918,7 +918,7 @@ raster_datasources={
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71090_WA_DailyPoP_SFC.nc.gz"),
             #"name":"Daily probability of precipitation",
             "sort_key":("weather","precipitation","probability"),
-            "var" :"precip_proba",
+            "var" :"precip_chance",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
                 "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
