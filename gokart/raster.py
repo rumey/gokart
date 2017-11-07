@@ -79,7 +79,8 @@ def getUnitFunc(name,defaultBandIndex=None):
         "degrees_north":None,
         "DF":None,
         "FFDI":None,
-        "GFDI":None
+        "GFDI":None,
+        "C":"&deg;"
 
     }
     def _func(ds,bandIndex=None):
@@ -666,7 +667,7 @@ raster_datasources={
                 "band_match":isInBandFunc,
             },
             "options":{
-                "title":"Precip",
+                "title":"Precip(10%)",
                 "pattern":"{:-.0f}",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
@@ -688,10 +689,9 @@ raster_datasources={
             },
             "band_f":{
                 "band_match":isInBandFunc,
-                "data_map":getWeatherIcon,
             },
             "options":{
-                "title":"Precip",
+                "title":"Precip(10%)",
                 "pattern":"{:-.1f}",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
@@ -713,10 +713,9 @@ raster_datasources={
             },
             "band_f":{
                 "band_match":isInBandFunc,
-                "data_map":getWeatherIcon,
             },
             "options":{
-                "title":"Precip",
+                "title":"Precip(25%)",
                 "pattern":"{:-.1f}",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
@@ -738,10 +737,9 @@ raster_datasources={
             },
             "band_f":{
                 "band_match":isInBandFunc,
-                "data_map":getWeatherIcon,
             },
             "options":{
-                "title":"Precip",
+                "title":"Precip(50%)",
                 "pattern":"{:-.1f}",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
@@ -763,7 +761,7 @@ raster_datasources={
             },
             "band_f":{
                 "band_match":isInBandFunc,
-                "data_map":getWeatherIcon,
+                "data":getWeatherIcon,
             },
             "options":{
                 "title":"Weather",
@@ -787,7 +785,7 @@ raster_datasources={
             },
             "band_f":{
                 "band_match":isInBandFunc,
-                "data_map":getWeather,
+                "data":getWeather,
             },
             "options":{
                 "title":"Weather",
@@ -904,7 +902,7 @@ raster_datasources={
             },
             "band_f":{
                 "band_match":isInBandFunc,
-                "data_map":getDirFunc(16),
+                "data":getDirFunc(16),
             },
             "options":{
                 "title":"Dir",
@@ -930,11 +928,10 @@ raster_datasources={
             },
             "band_f":{
                 "band_match":isInBandFunc,
-                "data_map":getDirFunc(16),
             },
             "options":{
                 "title":"Precip",
-                "pattern":"{:-.1f}",
+                "pattern":"{:-.0f}",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
             }
@@ -954,7 +951,7 @@ raster_datasources={
             },
             "band_f":{
                 "band_match":isInBandFunc,
-                "data_map":getDirFunc(16),
+                "data":getDirFunc(16),
             },
             "options":{
                 "title":"Dir",
@@ -1140,7 +1137,7 @@ raster_datasources={
             },
             "band_f":{
                 "band_match":isInBandFunc,
-                "data_map":getDirFunc(16),
+                "data":getDirFunc(16),
             },
             "options":{
                 "title":"Dir",
@@ -1189,7 +1186,7 @@ raster_datasources={
             },
             "band_f":{
                 "band_match":isInBandFunc,
-                "data_map":getDirFunc(16),
+                "data":getDirFunc(16),
             },
             "options":{
                 "title":"Dir",
@@ -1630,7 +1627,7 @@ raster_datasources={
             },
             "band_f":{
                 "band_match":isInBandFunc,
-                "data_map":getWeatherIcon,
+                "data":getWeatherIcon,
             },
             "options":{
                 "title":"Weather",
@@ -1655,7 +1652,7 @@ raster_datasources={
             },
             "band_f":{
                 "band_match":isInBandFunc,
-                "data_map":getWeather,
+                "data":getWeather,
             },
             "options":{
                 "title":"Weather",
@@ -1700,7 +1697,7 @@ raster_datasources={
             },
             "band_f":{
                 "band_match":isInBandFunc,
-                "data_map":getDirFunc(16),
+                "data":getDirFunc(16),
             },
             "options":{
                 "title":"Dir",
@@ -1794,15 +1791,18 @@ def formatContext(context,patterns):
         elif isinstance(value,datetime.timedelta):
             context[key] = formatData(value,patterns.get("{}_pattern".format(key),patterns.get("timedelta_pattern")),"")
         
-def formatBandsData(datasource,noData="",bandsData = None):
+def formatBandsData(datasource,noData="",unit = None,bandsData = None):
     if bandsData is None:
         bandsData = datasource["data"]
     index = 0;
     while index < len(bandsData):
         if isinstance(bandsData[index],list) and ((len(bandsData[index]) != 2) or isinstance(bandsData[index][0],list)):
-            formatBandsData(datasource,noData,bandsData[index])
+            formatBandsData(datasource,noData,unit,bandsData[index])
         elif bandsData[index] is not None:
-            bandsData[index][1] = formatData(bandsData[index][1],datasource["options"].get("pattern"),noData)
+            if unit and bandsData[index][1]:
+                bandsData[index][1] = "{}{}".format(formatData(bandsData[index][1],datasource["options"].get("pattern"),noData),unit)
+            else:
+                bandsData[index][1] = formatData(bandsData[index][1],datasource["options"].get("pattern"),noData)
         index += 1
 
 def getRasterData(options):
@@ -1885,7 +1885,7 @@ def getRasterData(options):
                             options["pixel"] = (px,py)
 
                 # Extract pixel value
-                datas = getBandsData(ds,bands,options["pixel"],datasource["band_f"]["data_map"] if datasource["band_f"].get("data_map") else None)
+                datas = getBandsData(ds,bands,options["pixel"],datasource["band_f"]["data"] if datasource["band_f"].get("data") else None)
 
                 #import ipdb;ipdb.set_trace()
                 options["datasource"]["status"] = True
@@ -2007,9 +2007,6 @@ def spotforecast(fmt):
             elif not isinstance(forecast["times"],list):
                 forecast["times"] = [forecast["times"]]
 
-            #format parameter 'times' to a 2 dimension array of datatime object;the first dimension is day, the second dimension is times in a day
-            forecast["times"] = [[datetime.datetime.strptime("{} {}".format(day,time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in forecast["times"]] for day in forecast["days"]]
-
             if not forecast.get("times_data"):
                 raise Exception("Parameter 'times_data' is missing.")
                 
@@ -2034,6 +2031,10 @@ def spotforecast(fmt):
                             if len(ds["times"]) != len(forecast["times"]):
                                 raise Exception("The length of times of datasource in times_data's group is not equal with the length of times of forecast")
                             ds["times"] = [[datetime.datetime.strptime("{} {}".format(day,time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in ds["times"]] for day in forecast["days"]]
+                        else:
+                            datasourceMetadata = raster_datasources.get(ds["workspace"],{}).get(ds["id"],{})
+                            if datasourceMetadata.get("time"):
+                                ds["times"] = [[datetime.datetime.strptime("{} {}".format(day,datasourceMetadata["time"],time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in forecast["times"]] for day in forecast["days"]]
 
 
                 else:
@@ -2047,6 +2048,10 @@ def spotforecast(fmt):
                         if len(datasource["times"]) != len(forecast["times"]):
                             raise Exception("The length of times of datasource in times_data is not equal with the length of times of forecast")
                         datasource["times"] = [[datetime.datetime.strptime("{} {}".format(day,time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in datasource["times"]] for day in forecast["days"]]
+                    else:
+                        datasourceMetadata = raster_datasources.get(datasource["workspace"],{}).get(datasource["id"],{})
+                        if datasourceMetadata.get("time"):
+                            datasource["times"] = [[datetime.datetime.strptime("{} {}".format(day,datasourceMetadata["time"],time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in forecast["times"]] for day in forecast["days"]]
 
             #initialize 'daily_data' parameter
             if forecast.get("daily_data"):
@@ -2057,6 +2062,9 @@ def spotforecast(fmt):
                         raise Exception("Property 'id' of datasource in daily_data is missing.")
                     datasourceMetadata = raster_datasources.get(datasource["workspace"],{}).get(datasource["id"],{})
                     datasource["times"] = [datetime.datetime.strptime("{} {}".format(day,datasourceMetadata.get("time","00:00:00")),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE)  for day in forecast["days"]]
+
+            #format parameter 'times' to a 2 dimension array of datatime object;the first dimension is day, the second dimension is times in a day
+            forecast["times"] = [[datetime.datetime.strptime("{} {}".format(day,time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in forecast["times"]] for day in forecast["days"]]
 
             #format the days to a array of datetime object
             forecast["days"] = [datetime.datetime.strptime(day,"%Y-%m-%d").replace(tzinfo=PERTH_TIMEZONE)  for day in forecast["days"]]
@@ -2079,14 +2087,14 @@ def spotforecast(fmt):
                             "datasource":ds,
                             "point":requestData["point"],
                             "srs":requestData["srs"],
-                            "bandids":datasource.get("times",forecast["times"])
+                            "bandids":ds.get("times",forecast["times"])
                         }))
                 else:
                     datasource.update(getRasterData({
                         "datasource":datasource,
                         "point":requestData["point"],
                         "srs":requestData["srs"],
-                        "bandids":forecast["times"]
+                        "bandids":datasource.get("times",forecast["times"])
                     }))
     
         result = requestData
@@ -2158,7 +2166,7 @@ def spotforecast(fmt):
                 #format daily data
                 for datasource in forecast.get("daily_data", {}).itervalues():
                     if datasource["status"] :
-                        formatBandsData(datasource,result["options"].get("no_data") or "")
+                        formatBandsData(datasource,result["options"].get("no_data") or "",raster_datasources[datasource["workspace"]][datasource["id"]]["metadata"]["unit"])
                 
                 #generate daily group row data
                 if forecast.get("has_daily_group"):
