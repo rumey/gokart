@@ -1758,16 +1758,16 @@
             vm.ui.dragSelectInter.setMulti(true)
             vm.ui.selectInter.setMulti(true)
         },
-        /*
         comments:[
           {
               name:"Tips",
               description:[
-                  "Select features using keyboard or mouse."
+                  "Select all features using shortcut key 'Ctrl + A'",
+                  "Select features using mouse.",
+                  "Delete selected features using key 'Del'"
               ]
           }
         ]
-        */
       }
       this.ui.defaultEdit = {
         name: 'Edit Geometry',
