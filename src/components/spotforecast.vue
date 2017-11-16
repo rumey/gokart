@@ -184,7 +184,10 @@
                                     <div class="forecast-datasources">Type: {{ ds.type }}</div>
                                 </div>
                                 <div class="small-6 datasource-desc">
-                                    <div class="forecast-datasources" v-if="ds.metadata.unit">Unit: {{ ds.metadata.unit}}</div>
+                                    <div class="forecast-datasources" v-if="isDegreeUnit(ds)">Unit: &deg;
+                                    </div>
+                                    <div class="forecast-datasources" v-if="ds.metadata.unit && !isDegreeUnit(ds)">Unit: {{ ds.metadata.unit}}
+                                    </div>
                                 </div>
                                 <div class="small-12 datasource-desc">
                                     <div class="forecast-datasources">Title: {{ ds.options.title }}</div>
@@ -350,6 +353,9 @@
             $("#spotforecast-datasources").height(height)
         }
       },
+      isDegreeUnit:function(ds) {
+        return ds.metadata.unit === "C"
+      },
       selectColumn:function(index,subindex,column) {
         if (this.selectedRow) {
             this.selectedRow.removeClass("feature-selected")
@@ -359,10 +365,12 @@
         this.selectedRow = this.selectedSubindex == -1?$("#active-column-" + this.selectedIndex):$("#active-column-" + this.selectedIndex + "-" + this.selectedSubindex)
         this.selectedColumn = column
         if (column.group) {
+            //the selected column is a group
             this.selectedDatasource = null
             this.editingColumnTitle = ""
             this.editingColumnGroup = column.group
         } else {
+            //the selected column is a column
             this.selectedDatasource = this._datasources["datasources"].find(function(o){return o.id === column.id})
             this.editingColumnTitle = this.selectedColumnTitle
             this.editingColumnGroup = subindex >= 0 ?this.forecastColumns[index]["group"]:""
