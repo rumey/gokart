@@ -74,7 +74,7 @@
                     </li>
                     <li class="accordion-item is-active" data-accordion-item>
                         <!-- Accordion tab title -->
-                        <a href="#" class="accordion-title">Active Columns</a>
+                        <a href="#" class="accordion-title">Choosed Datasources</a>
                         <!-- Accordion tab content: it would start in the open state due to using the `is-active` state class. -->
                         <div class="accordion-content" data-tab-content>
                             <div class="scroller" id="spotforecast-columns" style="margin-left:-16px;margin-right:-16px">
@@ -153,7 +153,7 @@
                     </li>
                     <li class="accordion-item" data-accordion-item>
                         <!-- Accordion tab title -->
-                        <a href="#" class="accordion-title">Available Columns</a>
+                        <a href="#" class="accordion-title">Available Datasources</a>
                         <!-- Accordion tab content: it would start in the open state due to using the `is-active` state class. -->
                         <div class="accordion-content scroller" data-tab-content id="spotforecast-datasources">
 
@@ -164,7 +164,8 @@
                                   <span class="show-for-sr">Show daily datasources</span>
                                 </label>
                               </div>
-                              <label for="toggleDailyDatasources" class="side-label">Show daily datasources</label>
+                              <label for="toggleDailyDatasources" class="side-label" >Show daily datasources</label>
+                              <a @click.stop.prevent="refreshDatasources(true)"  title="Refresh" style="margin-left:120px" ><i class="fa fa-refresh"></i></a>
                             </div>
 
                             <template v-for="ds in datasources" track-by="id">
@@ -181,7 +182,7 @@
                                     </div>
                                 </div>
                                 <div class="small-6 datasource-desc">
-                                    <div class="forecast-datasources">Type: {{ ds.type }}</div>
+                                    <div class="forecast-datasources">Type: {{ ds.metadata.type }}</div>
                                 </div>
                                 <div class="small-6 datasource-desc">
                                     <div class="forecast-datasources" v-if="isDegreeUnit(ds)">Unit: &deg;
@@ -191,6 +192,9 @@
                                 </div>
                                 <div class="small-12 datasource-desc">
                                     <div class="forecast-datasources">Title: {{ ds.options.title }}</div>
+                                </div>
+                                <div class="small-12 datasource-desc">
+                                    <div class="forecast-datasources">Updated: {{ ds.metadata.refresh_time?ds.metadata.refresh_time.toLocaleString():"" }}</div>
                                 </div>
                               </div>
                             </template>
@@ -239,7 +243,7 @@
 </style>
 
 <script>
-  import { ol,$,utils} from 'src/vendor.js'
+  import { ol,$,moment,utils} from 'src/vendor.js'
   export default {
     store: {
         reportType:'settings.spotforecast.reportType',
@@ -681,7 +685,7 @@
         return this.revision && ds["selected"]
       },
       isShow:function(ds) {
-        return ds["type"] != "Daily" || this.showDailyDatasources
+        return ds["metadata"]["type"] != "Daily" || this.showDailyDatasources
       },
       formatReportHours(event) {
         if (event && event.type === "keyup" && event.keyCode !== 13) {  
@@ -724,6 +728,8 @@
             } else if (!(ds = this._datasources["dailyDatasources"].find(function(ds){return ds["var"] === result[1]}))) {
                 $("#daily-title").addClass('alert')
                 alert("Variable(" + result[1] + ") is unavailable");
+                this.dailyTitle = ""
+                this.dailyData = {}
                 return
             } else {
                 dailyData[result[1]] = {workspace:ds["workspace"],id:ds["id"]}
@@ -815,31 +821,42 @@
       },
       loadDatasources:function() {
         var vm = this
-        this._datasources = []
         this._spotforecastStatus.phaseBegin("load_datasources",80,"Load datasources")
+        this.refreshDatasources(true,function(){
+            vm._spotforecastStatus.phaseEnd("load_datasources")
+        },function(){
+            vm._spotforecastStatus.phaseFailed("load_datasources","Failed to loading datasources. status = " + xhr.status + " , message = " + (xhr.responseText || message))
+        })
+      },
+      refreshDatasources:function(refresh,callback,failedCallback) {
+        var vm = this
+        this._datasources = []
         $.ajax({
-            url: vm.env.gokartService + "/forecastmetadata",
+            url: vm.env.gokartService + "/forecastmetadata" + (refresh?"?refresh=true":""),
             method:"GET",
             dataType:"json",
             success: function (response, stat, xhr) {
+                $.each(response["datasources"],function(index,datasource){
+                    if (datasource["metadata"] && datasource["metadata"]["refresh_time"]) {
+                        datasource["metadata"]["refresh_time"] = moment.tz(datasource["metadata"]["refresh_time"],"YYYY-MM-DD HH:mm:ss","Australia/Perth")
+                    }
+                })
                 vm._datasources = {"datasources":response["datasources"],"dailyDatasources":[]}
                 $.each(vm._datasources["datasources"],function(index,ds){
-                    if (ds["var"] && ds["type"] === "Daily") {
+                    if (ds["var"] && ds["metadata"]["type"] === "Daily") {
                         vm._datasources["dailyDatasources"].push(ds)
                     }
                 })
                 var columns = vm.forecastColumns
                 vm.forecastColumns = null
-                if (!vm.dailyData) {
-                    vm.formatDailyTitle()
-                }
+                vm.formatDailyTitle()
                 vm.revision += 1
                 vm.$nextTick(function(){vm.setForecastColumns(columns)})
-                vm._spotforecastStatus.phaseEnd("load_datasources")
+                if (callback) {callback()}
             },
             error: function (xhr,status,message) {
                 alert(xhr.status + " : " + (xhr.responseText || message))
-                vm._spotforecastStatus.phaseFailed("load_datasources","Failed to loading datasources. status = " + xhr.status + " , message = " + (xhr.responseText || message))
+                if (failedCallback) {failedCallback()}
             },
             xhrFields: {
               withCredentials: true

@@ -13,6 +13,7 @@ import bottle
 
 from .settings import *
 from .jinja2settings import settings as jinja2settings
+from .file_lock import FileLock
 
 def convertEpochTimeToDatetime(t):
     """
@@ -155,12 +156,17 @@ def getEpsgSrs(srsid):
 def loadDatasource(datasource):
     """
     load the data source
+    return true if succeed else return False
     """
-    datasource["status"] = "loading"
+    datasource["metadata"] = datasource.get("metadata",{})
+
+    if datasource["loadstatus"]["status"] in ("notsupport","notexist","initfailed"):
+        #init failed, can't load
+        return
+
     ds = None
     try:
         #initialize ds metadata
-        datasource["metadata"] = datasource.get("metadata") or {}
         for key in datasource.get("metadata_f").iterkeys():
             datasource["metadata"][key] = None
 
@@ -202,53 +208,173 @@ def loadDatasource(datasource):
         if "name" not in datasource:
             datasource["name"] = datasource.get("metadata",{}).get("name","")
 
-        datasource["status"] = "loaded"
-        print "End to load raster datasource:{} metadata:{} ".format(datasource["file"],datasource["metadata"])
+        datasource["loadstatus"]["status"] = "loaded"
+        if "message" in datasource["loadstatus"]:
+            del datasource["loadstatus"]["message"]
+
+
+        bandTimeout = int(math.ceil(datasource["metadata"].get("band_timeout",0) / 3600))
+        if bandTimeout >= 24:
+            datasource["metadata"]["type"] = "Daily"
+        elif bandTimeout == 1:
+            datasource["metadata"]["type"] = "Hourly"
+        elif bandTimeout > 1:
+            datasource["metadata"]["type"] = "{}hrly".format(bandTimeout)
+        else:
+            datasource["metadata"]["type"] = None
+
+        #print "End to load raster datasource:{} metadata:{} status:{}".format(datasource["file"],datasource["metadata"],datasource["loadstatus"])
+        return True
     except:
-        datasource["status"] = "loadfailed"
-        datasource["message"] = traceback.format_exception_only(sys.exc_type,sys.exc_value)
         traceback.print_exc()
+        datasource["loadstatus"]["status"] = "loadfailed"
+        datasource["loadstatus"]["message"] = traceback.format_exception_only(sys.exc_type,sys.exc_value)
+        traceback.print_exc()
+        return False
     finally:
         ds = None
 
 def prepareDatasource(datasource):
+    """
+    datasource status
+      initing: first time to prepare the datasource
+      inited: the datasource is prepared and ready to load
+      notsupport: datasource file format does not supported
+      notexist: datasource file does not exist
+      initfailed: unexpected error during initing
+
+      loaded: datasource is loaded into system and ready to use
+      loadfailed: unknown error during loading
+
+      outdated: the metadata of the datasource is outdated , and need to reload the metadata from datasource
+
+    """
     datasource["file"] = datasource["file"].strip()
-    if (datasource["file"].lower().endswith(".grb")):
-        datasource["datasource"] = datasource["file"]
-    elif (datasource["file"].lower().endswith(".nc")):
-        datasource["datasource"] = datasource["file"]
-    elif (datasource["file"].lower().endswith(".nc.gz")):
-        fileinfo = os.stat(datasource["file"])
-        if datasource.get("datasource"):
-            #loaded before
-            if os.path.exists(datasource["datasource"]):
-                #datsource file exists
-                dsinfo = os.stat(datasource["datasource"])
-                if fileinfo.st_mtime != dsinfo.st_mtime:
-                    #datasource file is older than the compressed datasouce file
+    if "loadstatus" not in datasource:
+        datasource["loadstatus"] = {"status":"initing"}
+    
+    #print "Prepare raster datasource:{} status:{}".format(datasource["file"],datasource["loadstatus"])
+    try:
+        if not os.path.exists(datasource["file"]):
+            datasource["loadstatus"]["status"] = "notexist"
+            datasource["loadstatus"]["message"] = "Datasource file ({}) does not exist".format(datasource["file"])
+            datasource["datasource"] = None
+            return
+    
+        if datasource["file"].lower().endswith(".grb"):
+            if "datasource" not in datasource:
+                datasource["datasource"] = datasource["file"]
+        elif (datasource["file"].lower().endswith(".nc")):
+            if "datasource" not in datasource:
+                datasource["datasource"] = datasource["file"]
+        elif (datasource["file"].lower().endswith(".nc.gz")):
+            fileinfo = os.stat(datasource["file"])
+    
+            filename = os.path.split(datasource["file"])
+    
+            fileLock = FileLock(os.path.join(filename[0],".{}.lock".format(filename[1])),300,0.1)
+    
+            if datasource.get("datasource"):
+                #loaded before
+                try:
+                    fileLock.waitUntilRelease()
+                    if os.path.exists(datasource["datasource"]):
+                        #datsource file exists
+                        dsinfo = os.stat(datasource["datasource"])
+                        #print "1  {}:{} {} {}".format(datasource["file"],round(fileinfo.st_mtime,3) ,"==" if (round(fileinfo.st_mtime,3) == round(dsinfo.st_mtime,3)) else "<>",round(dsinfo.st_mtime,3))
+                        if round(fileinfo.st_mtime,3) != round(dsinfo.st_mtime,3):
+                            #datasource file is older than the compressed datasouce file
+                            datasource["datasource"] = None
+                    else:
+                        #datasource file exists
+                        datasource["datasource"] = None
+                except:
+                    #some other process must change the datasource at the same time, do it again
                     datasource["datasource"] = None
-            else:
-                #datasource file exists
+    
+            if not datasource.get("datasource"):
+                try:
+                    fileLock.acquire()
+                    #check whether the file is decompressed before
+                    ds = datasource["file"][:-3]
+                    if os.path.exists(ds):
+                        dsinfo = os.stat(ds)
+                        #print "2  {}:{} {} {}".format(datasource["file"],round(fileinfo.st_mtime,3) ,"==" if (round(fileinfo.st_mtime,3) == round(dsinfo.st_mtime,3)) else "<>",round(dsinfo.st_mtime,3))
+                        if round(fileinfo.st_mtime,3) == round(dsinfo.st_mtime,3):
+                            #datasource file exists and also has the same modify time as compressed datasource file
+                            datasource["datasource"] = ds
+    
+                    if not datasource.get("datasource"):
+                        subprocess.check_call(["gzip","-k","-f","-q","-d",datasource["file"]])
+                        datasource["datasource"] = datasource["file"][:-3]
+                        os.utime(datasource["datasource"],(fileinfo.st_atime,fileinfo.st_mtime))
+                        #print "Succeed to decompressed file \"{}\" to file \"{}\"".format(datasource["file"],datasource["datasource"])
+                    datasource["loadstatus"]["status"] = "inited"
+                    if "message" in datasource["loadstatus"]:
+                        del datasource["loadstatus"]["message"]
+                finally:
+                    fileLock.release()
+    
+            if not datasource.get("datasource") or not os.path.exists(datasource["datasource"]):
+                datasource["loadstatus"]["status"] = "notexist"
+                datasource["loadstatus"]["message"] = "Datasource file ({}) does not exist".format(datasource["datasource"])
                 datasource["datasource"] = None
+                return
         else:
-            #not loaded before
-            ds = datasource["file"][:-3]
-            if os.path.exists(ds):
-                dsinfo = os.stat(ds)
-                if fileinfo.st_mtime == dsinfo.st_mtime:
-                    #datasource file exists and also has the same modify time as compressed datasource file
-                    datasource["datasource"] = ds
+            datasource["loadstatus"]["status"] = "notsupport"
+            datasource["loadstatus"]["message"] = "Datasource {} is not supported".format(datasource["file"])
+            datasource["datasource"] = None
+            return
+    
+        if datasource["loadstatus"]["status"] not in ("loaded","notexist","notsupport"):
+            datasource["loadstatus"]["status"] = "inited"
+            if "message" in datasource["loadstatus"]:
+                del datasource["loadstatus"]["message"]
+    except:
+        traceback.print_exc()
+        datasource["loadstatus"]["status"] = "initfailed"
+        datasource["loadstatus"]["message"] = traceback.format_exception_only(sys.exc_type,sys.exc_value)
+        datasource["datasource"] = None
 
-        if not datasource.get("datasource"):
-            subprocess.check_call(["gzip","-k","-f","-q","-d",datasource["file"]])
-            datasource["datasource"] = datasource["file"][:-3]
-            os.utime(datasource["datasource"],(fileinfo.st_atime,fileinfo.st_mtime))
-            print "Succeed to decompressed file \"{}\" to file \"{}\"".format(datasource["file"],datasource["datasource"])
 
-        if not datasource.get("datasource") or not os.path.exists(datasource["datasource"]):
-            raise Exception("Datasource ({}) is missing".format(datasource["datasource"]))
-    else:
-        raise Exception("Datasource {} is not supported".format(datasource["file"]))
+def syncDatasource(datasource):
+    """
+    Sync the data source metadata with the data source file
+    if not loaded or loaded failed or outdated, then reload it.
+    return latest gdal datasource object
+    """
+    try:
+        prepareDatasource(datasource)
+    
+        if datasource["loadstatus"]["status"] in ("notsupport","notexist","initfailed"):
+            return
+
+        #datasource is prepared. 
+        ds = gdal.Open(datasource["datasource"])
+        if datasource["loadstatus"].get('status') == 'loaded':
+            if datasource["metadata_f"]["refresh_time"](ds)  != datasource["metadata"]["refresh_time"]:
+                datasource["loadstatus"]["status"]="outdated"
+
+        #try to reload datasource if required
+        while (datasource["loadstatus"].get('status') or "loadfailed") != "loaded":
+            if (datasource["loadstatus"].get('status') or 'error') in ("loadfailed","outdated","","inited"):
+                #print "{}:{}".format(datasource["file"],datasource["loadstatus"])
+                loadDatasource(datasource)
+                if (datasource["loadstatus"].get('status') or 'loadfailed') == "loadfailed":
+                    raise Exception(datasource["loadstatus"].get("message") or "unknown error.")
+            else:
+                #loading by other threads, wait
+                time.sleep(0.1)
+
+        return ds
+    finally:
+        pass
+
+def loadAllDatasources():
+    for workspace in raster_datasources:
+        for datasourceId in raster_datasources[workspace]:
+            prepareDatasource(raster_datasources[workspace][datasourceId])
+            loadDatasource(raster_datasources[workspace][datasourceId])
 
 DIRECTIONS_METADATA = {
     4:[360/4,math.floor(360 / 8 * 100) / 100,["N","E","S","W"]],
@@ -314,18 +440,6 @@ def getWeather(band,data):
     else:
         return icon["desc"]
 
-def loadAllDatasources():
-    for workspace in raster_datasources:
-        for datasourceId in raster_datasources[workspace]:
-            try:
-                prepareDatasource(raster_datasources[workspace][datasourceId])
-            except:
-                traceback.print_exc()
-                raster_datasources[workspace][datasourceId]["status"] = "notsupport"
-                raster_datasources[workspace][datasourceId]["message"] = traceback.format_exception_only(sys.exc_type,sys.exc_value)
-                continue
-            loadDatasource(raster_datasources[workspace][datasourceId])
-        
 raster_datasources={
     "bom":{
         "IDW71000_WA_T_SFC":{
@@ -1851,28 +1965,16 @@ def getRasterData(options):
             raise Exception("Either band_indexes or bandids must be present in the options")
 
         datasource = raster_datasources[options["datasource"]["workspace"]][options["datasource"]["id"]]
-        if datasource["status"] == "notsupport":
-            raise Exception(datasource["message"])
+        if datasource["loadstatus"]["status"] == "notsupport":
+            raise Exception(datasource["loadstatus"].get("message","not support"))
 
         options["datasource"]["context"] = {}
         runtimes = 0
         while True:
             runtimes += 1
-            prepareDatasource(datasource)
-            ds = gdal.Open(datasource["datasource"])
-            if datasource.get('status') == 'loaded':
-                if datasource["metadata_f"]["refresh_time"](ds)  != datasource["metadata"]["refresh_time"]:
-                    datasource["status"]="outdated"
-
-            #try to reload datasource if required
-            while (datasource.get('status') or "loadfailed") != "loaded":
-                if (datasource.get('status') or 'loadfailed') in ("loadfailed","outdated"):
-                    loadDatasource(datasource)
-                    if (datasource.get('status') or 'loadfailed') == "loadfailed":
-                        raise Exception(datasource.get("message") or "unknown error.")
-                else:
-                    #loading by other threads, wait
-                    time.sleep(0.1)
+            ds = syncDatasource(datasource)
+            if not ds:
+                raise Exception("Datasource {} is not available.".format(datasource["name"]))
 
             bands = None
             if options.get("band_indexes"):
@@ -1959,8 +2061,23 @@ def forecastmetadata():
     """
     Get forecast metadata
     """
+    refresh = (bottle.request.query.get("refresh") or "false").lower() in ("true","yes","on")
+    if refresh:
+        for datasource in raster_datasources["bom"].itervalues():
+            syncDatasource(datasource)
+
     bottle.response.set_header("Content-Type", "application/json")
-    return forecast_metadata
+    hasFailedDs = False
+    for ds in forecast_metadata:
+        if ds["loadstatus"]["status"] != "loaded":
+            hasFailedDs = True
+            break
+
+    if hasFailedDs:
+        result = [ds for ds in forecast_metadata if ds["loadstatus"]["status"] == "loaded"]
+        return {'size':len(result),'datasources':result}
+    else:
+        return {'size':len(forecast_metadata),'datasources':forecast_metadata}
 
 
 @bottle.route('/spotforecast/<fmt>',method="POST")
@@ -2189,7 +2306,7 @@ def spotforecast(fmt):
                     while index < len(forecast["days"]):
                         groupContext["date"] = forecast["days"][index].strftime(forecast["options"]["date_pattern"])
                         for name,datasource in forecast.get("daily_data",[]).iteritems():
-                            groupContext[name] = datasource["data"][index][1]
+                            groupContext[name] = datasource["data"][index][1] if datasource["status"] else (result["options"].get("no_data") or "")
                         forecast["daily_group"].append(forecast.get("options",{}).get("daily_title_pattern","{date}").format(**groupContext))
                         index += 1
                 
@@ -2231,27 +2348,25 @@ def spotforecast(fmt):
 #load all raster datasource first
 loadAllDatasources()
 #load forecast metadata
-forecast_metadata = {'size':len(raster_datasources["bom"]),'datasources':[]}
+#forecast_metadata = {'size':len(raster_datasources["bom"]),'datasources':[]}
+forecast_metadata = []
 for key,value in raster_datasources["bom"].iteritems():
     data = dict(value)
-    data.pop("metadata_f")
-    data.pop("band_metadata_f")
-    data.pop("band_f")
-    data.pop("bands")
-    data.pop("datasource")
-    data.pop("file")
+    if "metadata_f" in data:
+        data.pop("metadata_f")
+    if "band_metadata_f" in data:
+        data.pop("band_metadata_f")
+    if "band_f" in data:
+        data.pop("band_f")
+    if "bands" in data:
+        data.pop("bands")
+    if "datasource" in data:
+        data.pop("datasource")
+    if "file" in data:
+        data.pop("file")
     data["workspace"] = "bom"
-    bandTimeout = int(math.ceil(data.get("metadata",{}).get("band_timeout",0) / 3600))
-    if bandTimeout >= 24:
-        data["type"] = "Daily"
-    elif bandTimeout == 1:
-        data["type"] = "Hourly"
-    elif bandTimeout > 1:
-        data["type"] = "{}hrly".format(bandTimeout)
-    else:
-        data["type"] = None
     data["id"] = key
-    forecast_metadata["datasources"].append(data)
+    forecast_metadata.append(data)
 
 sort_key_map={
     "weather":100,
@@ -2313,7 +2428,7 @@ def _compare_datasource(ds1,ds2):
         return -1
 
 
-forecast_metadata["datasources"] = sorted(forecast_metadata["datasources"],cmp=_compare_datasource)
-for ds in forecast_metadata["datasources"]:
+forecast_metadata = sorted(forecast_metadata,cmp=_compare_datasource)
+for ds in forecast_metadata:
     ds.pop("sort_key")
 
