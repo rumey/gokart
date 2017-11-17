@@ -538,8 +538,14 @@
       }
     },
     methods: {
-      regionFilter:function() {
-        return this.region?("region_id=" + this.region) : null
+      regionFilter:function(downloadFilter) {
+        if (downloadFilter) {
+            var vm = this
+            var r = this.regions.find(function(o){return o.region_id === parseInt(vm.region)})
+            return this.region?("region='" + (r?r.region:"") + "'") : null
+        } else {
+            return this.region?("region_id=" + this.region) : null
+        }
       },
       dateFilter:function() {
         if (this.endDate && this.endDate.length !== 10) {
@@ -572,8 +578,14 @@
             return null
         }
       },
-      districtFilter:function() {
-        return this.district?("district_id=" + this.district) : null
+      districtFilter:function(downloadFilter) {
+        if (downloadFilter) {
+            var vm = this
+            var d = this.districts.find(function(o){return o.id === parseInt(vm.district)})
+            return this.district?("district='" + (d?d.district:"") + "'") : null
+        } else {
+            return this.district?("district_id=" + this.district) : null
+        }
       },
       changeDateRange:function() {
         var endDate = moment().startOf('day')
@@ -1798,7 +1810,18 @@
         var originpoint_filter = ""
         var fireboundary_filter = ""
         if (downloadType === "listed") {
-            if (this.clippedOnly || ((vm.bushfireLayer.cql_filter || (this.search && this.search.trim().length > 0) || (this.viewportOnly && this.extentFeatureSize !== this.featureSize) && this.viewportOnly?this.extentFeatureSize:this.featureSize) <= 80)) {
+            if (
+                this.clippedOnly || 
+                (
+                    (
+                        vm._download_cql_filter || 
+                        this.search && this.search.trim().length > 0 || 
+                        (this.viewportOnly && this.extentFeatureSize !== this.featureSizea)
+                    ) && 
+                    ((this.viewportOnly?this.extentFeatureSize:this.featureSize) <= 80)
+                )
+            ){
+                //use fire id as the filter if clipped only is true or has customer filter and the length of file list is less than 80
                 var features = this._featurelist.getArray().filter(function(f) {
                     if (f.get('status') === 'new') {
                         return false
@@ -1812,7 +1835,7 @@
                 originpoint_filter = "&cql_filter=" + cql_filter
                 fireboundary_filter = originpoint_filter
             } else {
-                cql_filter = vm.bushfireLayer.cql_filter || ""
+                cql_filter = vm._download_cql_filter || ""
                 if (this.search && this.search.trim().length > 0) {
                     cql_filter = (cql_filter?(cql_filter + " and (("):"((") +  this.fields.map(function(field) { return "strToLowerCase(" + field + ") like '%25" + vm.search.trim().toLowerCase() + "%25'"}).join(") or (") + "))"
                 }
@@ -2481,6 +2504,22 @@
                         return 
                     } else {
                         vm.bushfireLayer.cql_filter = cql_filter
+                        filters = [
+                            vm.statusFilter.replace("fire_not_found=0","fire_not_found='No'").replace("fire_not_found=1","fire_not_found='Yes'"), 
+                            vm.regionFilter(true), 
+                            vm.districtFilter(true),
+                            vm.dateFilter()
+                        ].filter(function(f){return (f || false) && true})
+                        cql_filter = ''
+                        if (filters.length === 0) {
+                          cql_filter = ''
+                        } else if (filters.length === 1) {
+                          cql_filter = filters[0]
+                        } else {
+                          cql_filter = "(" + filters.join(") and (") + ")"
+                        }
+                        vm._download_cql_filter = cql_filter
+
                     }
                     //clear bushfire filter or change other filter
                     vm.bushfireMapLayer.getSource().loadSource("query",callback)
@@ -2799,6 +2838,7 @@
     },
     ready: function () {
       var vm = this
+      this._download_cql_filter = ""
       this._changingDate = false
       this._featurelist =new ol.Collection()
       this._taskManager = utils.getFeatureTaskManager(function(){
