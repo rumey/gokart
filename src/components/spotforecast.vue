@@ -717,26 +717,39 @@
             //not changed
             return
         }
-        var hours = ""
-        var varPattern = /\{([^\}]+)\}/g
         var result;
         var dailyData = {}
         var ds = null
         $("#daily-title").removeClass('alert')
-        while(result = varPattern.exec(this.editingDailyTitle || "")) {
-            if (result[1] === "date") {
-            } else if (!(ds = this._datasources["dailyDatasources"].find(function(ds){return ds["var"] === result[1]}))) {
-                $("#daily-title").addClass('alert')
-                alert("Variable(" + result[1] + ") is unavailable");
-                this.dailyTitle = ""
-                this.dailyData = {}
-                return
-            } else {
-                dailyData[result[1]] = {workspace:ds["workspace"],id:ds["id"]}
+        var varPattern = null
+        var title = this.editingDailyTitle
+        var rerun = true
+        var unavailableVars = null
+        while (rerun) {
+            varPattern = /\{([^\}]+)\}/g
+            rerun = false
+            while(result = varPattern.exec(title || "")) {
+                if (result[1] === "date") {
+                } else if (!(ds = this._datasources["dailyDatasources"].find(function(ds){return ds["var"] === result[1]}))) {
+                    if (unavailableVars === null) {
+                        unavailableVars = result[1]
+                    } else {
+                        unavailableVars += " , " + result[1]
+                    }
+                    title = title.replace(result[0],"N/A")
+                    rerun = true
+                    break
+                } else {
+                    dailyData[result[1]] = {workspace:ds["workspace"],id:ds["id"]}
+                }
             }
         }
+        if (unavailableVars !== null) {
+            $("#daily-title").addClass('alert')
+            alert("The variables (" + unavailableVars + ") are unavailable");
+        }
         this.dailyData = dailyData
-        this.dailyTitle = this.editingDailyTitle
+        this.dailyTitle = title
         this.systemsetting.saveState(10000)
       },
       updateReportTimes:function() {
