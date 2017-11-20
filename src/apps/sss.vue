@@ -94,6 +94,7 @@
           layers: function () { return this.$root.layers },
           info: function () { return this.$root.info },
           systemsetting: function () { return this.$root.systemsetting },
+          settings: function () { return this.$root.settings },
       },
       components: { gkMap, gkLayers, gkAnnotations, gkTracking, gkLoading,gkSettings , gkBfrs ,gkDialog},
       methods:{
@@ -108,6 +109,9 @@
             if (this.activeMenu === "layers" && menu !== "layers") {
                 this._activeSubmenu = this.activeSubmenu
                 this.layers.switchMenu(null)
+            } else if(this.activeMenu === "settings" && menu !== "settings") {
+                this._activeSubmenu = this.activeSubmenu
+                this.settings.switchMenu(null)
             }
             this.activeMenu = menu || null
 
@@ -117,7 +121,11 @@
             if (menu === "layers") {
                 this.layers.switchMenu(this._activeSubmenu)
                 this._activeSubmenu = null
+            } else if (menu === "settings") {
+                this.settings.switchMenu(this._activeSubmenu)
+                this._activeSubmenu = null
             }
+            this.$root.menuChanged()
         }
       },
       ready: function () {

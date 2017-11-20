@@ -198,6 +198,7 @@ if (result) {
           fixedLayers:[],
           saved: null,
           touring: false,
+          menuRevision:1,
           tints: {
             'selectedPoint': [['#b43232', '#2199e8']],
             'selectedDivision': [['#000000', '#2199e8'], ['#7c3100','#2199e8'], ['#ff6600', '#ffffff']],
@@ -270,8 +271,12 @@ if (result) {
                     vm.setHintsHeight()
                 })
             },
-            activeModule:function(newValue,oldValue) {
+            menuRevision:function(newValue,oldValue) {
                 var vm = this
+                //var module = this.store.activeSubmenu || this.store.activeMenu
+                //if (this[module]["adjustHeight"]) {
+                //    this[module]["adjustHeight"]()
+                //}
                 this.$nextTick(function(){
                     vm.store.layout.leftPanelHeadHeight = $("#" + newValue + "-tabs").height() || 90
                     vm.setHintsHeight()
@@ -291,6 +296,9 @@ if (result) {
                 this.store.layout.hintsHeight = (this.isShowHints?$("#hints").height():0) + (this.hasHints?32:0)
                 this[this.activeModule]["adjustHeight"]()
             }
+          },
+          menuChanged:function() {
+              this.menuRevision += 1
           },
           takeTour: function() {
               this.store.settings.tourVersion = tour.version

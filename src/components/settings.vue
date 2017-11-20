@@ -56,6 +56,7 @@
           var menu = selectedTab.attr('menu')
           vm.info.hoverable.splice(0,vm.info.hoverable.length)
           vm.switchMenu(menu)
+          vm.$root.menuChanged()
       })
     }
   }

@@ -74,7 +74,7 @@
                     </li>
                     <li class="accordion-item is-active" data-accordion-item>
                         <!-- Accordion tab title -->
-                        <a href="#" class="accordion-title">Choosed Datasources</a>
+                        <a href="#" class="accordion-title">Chosen Columns</a>
                         <!-- Accordion tab content: it would start in the open state due to using the `is-active` state class. -->
                         <div class="accordion-content" data-tab-content>
                             <div class="scroller" id="spotforecast-columns" style="margin-left:-16px;margin-right:-16px">
@@ -153,7 +153,7 @@
                     </li>
                     <li class="accordion-item" data-accordion-item>
                         <!-- Accordion tab title -->
-                        <a href="#" class="accordion-title">Available Datasources</a>
+                        <a href="#" class="accordion-title">Available Columns</a>
                         <!-- Accordion tab content: it would start in the open state due to using the `is-active` state class. -->
                         <div class="accordion-content scroller" data-tab-content id="spotforecast-datasources">
 
@@ -351,9 +351,11 @@
     methods: {
       adjustHeight:function() {
         if (this.activeMenu === "settings" && this.activeSubmenu === "spotforecast") {
+            //the 'chosen columns' is selected by default, so the first time when the user entries into the sportforecast setting panel, the 'column editor' should have valid height value.
+            this._columnEditorHeight = this._columnEditorHeight || $("#spotforecast-column-editor").height()
             var height = this.screenHeight - this.leftPanelHeadHeight - $("#spotforecast-settings").height() - 200
             $("#spotforecast-header").height(height)
-            $("#spotforecast-columns").height(height - $("#spotforecast-column-editor").height())
+            $("#spotforecast-columns").height(height - this._columnEditorHeight)
             $("#spotforecast-datasources").height(height)
         }
       },
