@@ -848,7 +848,7 @@
         tileLayer.on('propertychange', function (event) {
           if (event.key === 'timeIndex') {
             tileSource.updateParams({
-              'layers': options.timeline[event.target.get(event.key)][1]
+              'layers': getLayerId(options.timeline[event.target.get(event.key)][1])
             })
           }
         })
@@ -913,7 +913,7 @@
           request: 'GetFeature',
           outputFormat: 'application/json',
           srsname: 'EPSG:4326',
-          typename: options.id
+          typename: getLayerId(options.id)
         }, options.params || {})
 
 
@@ -1091,7 +1091,7 @@
         // create a tile source
         var tileSource = new ol.source.WMTS({
           url: layer.wmts_url,
-          layer: layer.id,
+          layer: getLayerId(layer.id),
           matrixSet: matrixSet.name,
           format: layer.format,
           style: layer.style,
@@ -1149,7 +1149,7 @@
                 if (!(options.timeline[event.target.get(event.key)][2])) {
                     options.timeline[event.target.get(event.key)][2] = new ol.source.WMTS({
                       url: layer.wmts_url,
-                      layer: options.timeline[event.target.get(event.key)][1],
+                      layer: getLayerId(options.timeline[event.target.get(event.key)][1]),
                       matrixSet: matrixSet.name,
                       format: layer.format,
                       style: layer.style,
@@ -1362,7 +1362,7 @@
           crossOrigin :'use-credentials',
           serverType:"geoserver",
           params:{
-            LAYERS:layer.id,
+            LAYERS:getLayerId(layer.id),
             styles:layer.style
           },
           projection: layer.projection,
@@ -1815,7 +1815,7 @@
           var _getPosition = function(index) {
             var buffered = turf.bbox(turf.buffer(turf.point(coordinate),buffers[index],"kilometers"))
             $.ajax({
-                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=cddp:townsite_points&outputFormat=json&bbox=" + buffered[1] + "," + buffered[0] + "," + buffered[3] + "," + buffered[2],
+                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:townsite_points") + "&outputFormat=json&bbox=" + buffered[1] + "," + buffered[0] + "," + buffered[3] + "," + buffered[2],
                 dataType:"json",
                 success: function (response, stat, xhr) {
                    if (response.totalFeatures === 0) {

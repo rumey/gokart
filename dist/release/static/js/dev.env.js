@@ -18,14 +18,19 @@ var env = {
 
     s3Service:"http://gokart.dpaw.io/",
 
-    bushfireListLayer:"dpaw:bushfirelist_latest_dev",
-
-    bushfireLayer:"dpaw:bushfire_latest_dev",
-    finalFireboundaryLayer:"dpaw:bushfire_final_fireboundary_latest_dev",
-    fireboundaryLayer:"dpaw:bushfire_fireboundary_latest_dev",
-
-    allBushfireLayer:"dpaw:bushfire_dev",
-    allFireboundaryLayer:"dpaw:bushfire_fireboundary_dev"
+    appMapping:{
+        sss:"sss_dev",
+    },
+    layerMapping:{
+        "dpaw:bushfirelist_latest"                  : "dpaw:bushfirelist_latest_dev",
+        "dpaw:bushfire_latest"                      : "dpaw:bushfire_latest_dev",
+        "dpaw:bushfire_final_fireboundary_latest"   : "dpaw:bushfire_final_fireboundary_latest_dev",
+        "dpaw:bushfire_fireboundary_latest"         : "dpaw:bushfire_fireboundary_latest_dev",
+        "dpaw:bushfire"                             : "dpaw:bushfire_dev",
+        "dpaw:bushfire_fireboundary"                : "dpaw:bushfire_fireboundary_dev",
+        "dpaw:resource_tracking_live"               : "dpaw:resource_tracking_live_uat",
+        "dpaw:resource_tracking_history"            : "dpaw:resource_tracking_history_uat"
+    },
 
 };
 

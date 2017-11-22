@@ -16,6 +16,27 @@ import profile from './sss-profile.js'
 import gokartListener from './gokart-listener.js'
 
 global.tour = tour
+//Return an environment dependent layer id
+global.getLayerId = function(id) {
+    return (env && env.layerMapping && env.layerMapping[id]) || id
+}
+//Return an environment independent layer id
+global.getIndependentLayerId = function(id) {
+    if (!env || !env.layerMapping) {
+        return id
+    } 
+    var independentId = id
+    $.each(env.layerMapping,function(key,value){
+        if (value === id) {
+            independentId = key
+            return false
+        }
+    })
+    return independentId
+}
+global.getAppId = function(id) {
+    return (env && env.appMapping && env.appMapping[id]) || id
+}
 
 global.debounce = function (func, wait, immediate) {
   // Returns a function, that, as long as it continues to be invoked, will not
