@@ -1610,6 +1610,11 @@
                     title:catLayer["title"] || fixedLayer["title"],
                     abstract:catLayer["abstract"] || fixedLayer["abstract"],
                 })
+                if (catLayer.dependentLayers) {
+                    $.each(catLayer.dependentLayers,function(index,layer){
+                        layer.mapLayerId = layer.mapLayerId || layer.id
+                    })
+                }
             } else {
                 //fixed layer not exist, add it
                 vm.$root.catalogue.catalogue.push(fixedLayer)
