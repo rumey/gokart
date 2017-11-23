@@ -154,11 +154,11 @@
                 <div class="row collapse">
                   <div class="small-6 columns">
                     <select name="select" v-model="statusFilter" >
-                      <option value="fire_not_found=0" selected>All Reports</option> 
-                      <option value="(report_status=1) and (fire_not_found=0)">Initial Fire Report</option>
-                      <option value="(report_status=2) and (fire_not_found=0)">Notifications Submitted</option>
-                      <option value="(report_status>=3) and (fire_not_found=0)">Report Authorised</option>
-                      <option value="fire_not_found=1">Fire Not Found</option>
+                      <option value="all_reports" selected>All Reports</option> 
+                      <option value="initial_fire_report">Initial Fire Report</option>
+                      <option value="notification_submitted">Notifications Submitted</option>
+                      <option value="report_authorised">Report Authorised</option>
+                      <option value="fire_not_found">Fire Not Found</option>
                     </select>
                   </div>
                   <div class="small-6 expanded button-group">
@@ -289,7 +289,7 @@
       return {
         clippedOnly: false,
         search: '',
-        statusFilter: "fire_not_found=0",
+        statusFilter: "all_reports",
         region:'',
         district:'',
         bushfireLabelsDisabled:false,
@@ -745,8 +745,8 @@
         if (updateType || options["refresh"]) {
             if (options["bushfireid"] !== null && options["bushfireid"] !== undefined){
                 //want to find some bushfire, clear other filters
-                if (this.statusFilter !== "fire_not_found=0") {
-                    this.statusFilter = "fire_not_found=0"
+                if (this.statusFilter !== "all_reports") {
+                    this.statusFilter = "all_reports"
                 }
                 if (this.dateRange !== "") {
                     this.dateRange = ""
@@ -1829,28 +1829,28 @@
                 ignore_if_empty:true,
                 sourcelayers:{
                     url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + bushfireLayer + originpoint_filter  + bbox,
-                    where:"report_status=1",
+                    where:"report_status='Initial Fire Report'",
                 }
             },{
                 layer:"final_bushfire_originpoint",
                 ignore_if_empty:true,
                 sourcelayers:{
                     url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + bushfireLayer + originpoint_filter + bbox,
-                    where:"report_status>1",
+                    where:"report_status<>'Initial Fire Report'",
                 }
             },{
                 layer:"initial_bushfire_fireboundary",
                 ignore_if_empty:true,
                 sourcelayers:{
                     url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
-                    where:"report_status=1",
+                    where:"report_status='Initial Fire Report'",
                 }
             },{
                 layer:"final_bushfire_fireboundary",
                 ignore_if_empty:true,
                 sourcelayers:{
                     url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
-                    where:"report_status>1",
+                    where:"report_status<>'Initial Fire Report'",
                 }
             }]
         }
@@ -2430,7 +2430,7 @@
         this.dateRange = ""
         this.startDate = ""
         this.endDate = ""
-        this.statusFilter = "fire_not_found=0"
+        this.statusFilter = "all_reports"
         this.updateCQLFilter(0)
       },
       refreshBushfires:function() {
@@ -2450,7 +2450,7 @@
                         return
                     }
                     // CQL statement assembling logic
-                    var filters = [vm.statusFilter, vm.regionFilter(), vm.districtFilter(),vm.dateFilter()].filter(function(f){return (f || false) && true})
+                    var filters = [vm._statusFilters[vm.statusFilter][0], vm.regionFilter(), vm.districtFilter(),vm.dateFilter()].filter(function(f){return (f || false) && true})
                     var cql_filter = ''
                     if (filters.length === 0) {
                       cql_filter = ''
@@ -2465,7 +2465,7 @@
                     } else {
                         vm.bushfireLayer.cql_filter = cql_filter
                         filters = [
-                            vm.statusFilter.replace("fire_not_found=0","fire_not_found='No'").replace("fire_not_found=1","fire_not_found='Yes'"), 
+                            vm._statusFilters[vm.statusFilter][1],
                             vm.regionFilter(true), 
                             vm.districtFilter(true),
                             vm.dateFilter()
@@ -2800,6 +2800,15 @@
       var vm = this
       this._download_cql_filter = ""
       this._changingDate = false
+
+      this._statusFilters = {   
+        all_reports :["fire_not_found=0","fire_not_found='No'"],
+        initial_fire_report: ["(report_status=1) and (fire_not_found=0)","(report_status='Initial Fire Report') and (fire_not_found='No')"],
+        notification_submitted:["(report_status=2) and (fire_not_found=0)","(report_status='Notifications Submitted') and (fire_not_found='No')"],
+        report_authorised:["(report_status>=3) and (fire_not_found=0)","(report_status in ('Report Authorised','Reviewed')) and (fire_not_found='No')"],
+        fire_not_found:["fire_not_found=1","fire_not_found='Yes'"]
+      }
+
       this._featurelist =new ol.Collection()
       this._taskManager = utils.getFeatureTaskManager(function(){
         vm.revision++
