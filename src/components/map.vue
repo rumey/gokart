@@ -1635,7 +1635,7 @@
             vm.catalogue.onLayerChange(layer,true)
         })
         //enable controls
-        vm.mapControls = {
+        vm.mapControls = $.extend(vm.mapControls,{
             "zoom": {
                 enabled:false,
                 autoenable:false,
@@ -1746,34 +1746,11 @@
                     element: $('#menu-scale').get(0),
                     target: $('#external-controls').get(0)
             })},
-            "search": {
-                enabled:false,
-                controls: [
-                    new ol.control.Control({
-                        element: $('#map-search').get(0),
-                        target: $('#external-controls').get(0)
-                      }),
-                    new ol.control.Control({
-                        element: $('#map-search-button').get(0),
-                        target: $('#external-controls').get(0)
-                    })
-                ]
-            },
             "attribution": {
                 enabled:false,
                 controls:new ol.control.Attribution()
             },
-            "measure": {
-                enabled:false,
-                autoenable:false,
-                controls:vm.measure.mapControl
-            },
-            "spotforecast": {
-                enabled:false,
-                autoenable:false,
-                controls:vm.spotforecast.mapControl
-            }
-        }
+        })
         $.each(vm.mapControls,function(key,control){
             if (control.autoenable === undefined || control.autoenable) {
                 vm.enableControl(key,true)

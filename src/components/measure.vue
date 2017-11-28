@@ -1,6 +1,6 @@
 <template>
   <div style="display:none">
-  <div id="map-measure" class="ol-selectable ol-control">
+  <div id="map-measure" style="top:{{top}}px" class="ol-selectable ol-control">
       <button type="button" title="Measure length" @click="toggleMeasure('MeasureLength')" v-bind:class="{'selected':isMeasureLength}"><img src="dist/static/images/measure-length.svg"></button>
       <button type="button" title="Measure area" @click="toggleMeasure('MeasureArea')" v-bind:class="{'selected':isMeasureArea}"><img src="dist/static/images/measure-area.svg"></button>
       <button type="button" title="Measure bearing" @click="toggleMeasure('MeasureBearing')" v-bind:class="{'selected':isMeasureBearing}"><img src="dist/static/images/measure-bearing.svg"></button>
@@ -14,6 +14,16 @@
   .feature-icon {
     width: 24px;
     height: 24px;
+  }
+  #map-measure {
+    position: absolute;
+    left: auto;
+    right: 16px;
+    bottom: auto;
+    padding: 0;
+  }
+  #map-measure .selected{
+    background-color: #2199E8;
   }
 </style>
 
@@ -34,6 +44,9 @@
       catalogue: function () { return this.$root.catalogue },
       annotations: function () { 
         return this.$root.$refs.app.$refs.annotations 
+      },
+      top:function(){
+        return 237;
       },
       measureType: function() {
         if (["MeasureLength","MeasureArea","MeasureBearing"].indexOf(this.annotations.tool.name) >= 0) {
@@ -868,7 +881,12 @@
       var measureStatus = vm.loading.register("measure","Measurement Component")
 
       measureStatus.phaseBegin("initialize",30,"Initialize")
-      var map = this.$root.map
+      vm.map.mapControls["measure"] = {
+          enabled:false,
+          autoenable:false,
+          controls:vm.mapControl
+      }
+
       //initialize the overlay and interactions
       this.features = new ol.Collection()
       this.features.on("remove",function(event){
@@ -921,10 +939,10 @@
       var measureLength = {
         name: 'MeasureLength',
         interactions:[
-            //map.dragPanInter,
-            //map.doubleClickZoomInter,
-            //map.keyboardPanInter,
-            //map.keyboardZoomInter,
+            //vm.map.dragPanInter,
+            //vm.map.doubleClickZoomInter,
+            //vm.map.keyboardPanInter,
+            //vm.map.keyboardZoomInter,
             measureLengthInter,
             measureSnap
         ]
@@ -946,10 +964,10 @@
       var measureBearing = {
         name: 'MeasureBearing',
         interactions:[
-            //map.dragPanInter,
-            //map.doubleClickZoomInter,
-            //map.keyboardPanInter,
-            //map.keyboardZoomInter,
+            //vm.map.dragPanInter,
+            //vm.map.doubleClickZoomInter,
+            //vm.map.keyboardPanInter,
+            //vm.map.keyboardZoomInter,
             measureBearingInter,
             measureSnap
         ]
@@ -967,10 +985,10 @@
       var measureArea = {
         name: 'MeasureArea',
         interactions:[
-            //map.dragPanInter,
-            //map.doubleClickZoomInter,
-            //map.keyboardPanInter,
-            //map.keyboardZoomInter,
+            //vm.map.dragPanInter,
+            //vm.map.doubleClickZoomInter,
+            //vm.map.keyboardPanInter,
+            //vm.map.keyboardZoomInter,
             measureAreaInter,
             measureSnap
         ]

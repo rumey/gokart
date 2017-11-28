@@ -334,9 +334,9 @@
       var settingStatus = this.loading.register("setting","Setting Component")
       this.configuredUndoLimit = this.undoLimit
      
-      settingStatus.phaseBegin("gk-init",80,"Listen 'gk-init' event",true,true)
-      this.$on('gk-init', function() {
-        settingStatus.phaseEnd("gk-init")
+      settingStatus.phaseBegin("gk-postinit",80,"Listen 'gk-postinit' event",true,true)
+      this.$on('gk-postinit', function() {
+        settingStatus.phaseEnd("gk-postinit")
 
         settingStatus.phaseBegin("initialize",20,"Initialize",true,false)
         vm.showOverviewMap(vm.overviewMap)

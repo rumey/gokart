@@ -33,7 +33,8 @@
       return {}
     },
     computed: {
-      env: function () { return this.$root.env }
+      env: function () { return this.$root.env },
+      map: function () { return this.$root.map },
     },
     methods: {
       searchKeyFix: function (ev) {
@@ -198,7 +199,21 @@
     },
     ready: function () {
       var vm = this
-      var map = this.$root.map
+
+      vm.map.mapControls["search"] = {
+          enabled:false,
+          controls: [
+              new ol.control.Control({
+                  element: $('#map-search').get(0),
+                  target: $('#external-controls').get(0)
+              }),
+              new ol.control.Control({
+                  element: $('#map-search-button').get(0),
+                  target: $('#external-controls').get(0)
+              })
+          ]
+      }
+
       this._wa_bbox = [112.50,-36.0,129.00,-13.0]
       this._wa_perth = [115.8605,-31.9527]
 
@@ -237,7 +252,7 @@
       })
 
       this.$on('gk-init', function () {
-        this.overlay.setMap(map.olmap)
+        this.overlay.setMap(vm.map.olmap)
       })
     }
   }

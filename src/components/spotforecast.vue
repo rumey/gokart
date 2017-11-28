@@ -240,6 +240,18 @@
 .forecast-datasources {
     font-size: 100%;
 }
+#spotforecast_control .selected{
+    background-color: #2199E8;
+}
+#spotforecast_control {
+    position: absolute;
+    top: 180px;
+    left: auto;
+    right: 16px;
+    bottom: auto;
+    padding: 0;
+}
+
 </style>
 
 <script>
@@ -939,6 +951,13 @@
       this._spotforecastStatus = vm.loading.register("spotforecast","BOM Spot Forecast Component")
 
       this._spotforecastStatus.phaseBegin("initialize",20,"Initialize")
+      
+      vm.map.mapControls["spotforecast"] = {
+          enabled:false,
+          autoenable:false,
+          controls:vm.mapControl
+      }
+
       this.editingReportHours = this.reportHours
       this.editingDailyTitle = this.dailyTitle
 

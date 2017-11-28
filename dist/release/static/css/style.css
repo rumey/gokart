@@ -171,31 +171,6 @@ body {
     right: 16px;
 }
 
-
-#spotforecast_control {
-    position: absolute;
-    top: 180px;
-    left: auto;
-    right: 16px;
-    bottom: auto;
-    padding: 0;
-}
-
-#map-measure {
-    position: absolute;
-    top: 237px;
-    left: auto;
-    right: 16px;
-    bottom: auto;
-    padding: 0;
-}
-
-#map-measure .selected{
-    background-color: #2199E8;
-}
-#spotforecast_control .selected{
-    background-color: #2199E8;
-}
 .tooltip-measure {
     position: relative;
     background: rgba(0, 0, 0, 0.5);
