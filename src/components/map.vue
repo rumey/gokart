@@ -4,6 +4,7 @@
   </div>
   <gk-scales v-ref:scales></gk-scales>
   <gk-search v-ref:search></gk-search>
+  <gk-featuredetail v-ref:featuredetail></gk-featuredetail>
   <gk-measure v-ref:measure></gk-measure>
 </template>
 <style>
@@ -43,6 +44,7 @@
   import gkInfo from './info.vue'
   import gkScales from './scales.vue'
   import gkSearch from './search.vue'
+  import gkFeaturedetail from './featuredetail.vue'
   import gkMeasure from './measure.vue'
   export default {
     store: {
@@ -54,7 +56,7 @@
         displayGraticule:'settings.graticule',
         displayResolution:'displayResolution'
     },
-    components: { gkInfo, gkScales, gkSearch, gkMeasure},
+    components: { gkInfo, gkScales, gkSearch, gkMeasure,gkFeaturedetail},
     data: function () {
       return {
         scale: 0,

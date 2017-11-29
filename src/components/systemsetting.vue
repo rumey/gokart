@@ -282,7 +282,7 @@
       },
       showRightHandTools: function (show) {
         var vm = this
-        $.each(vm.map.mapControls,function(key,control){
+        $.each(vm.map.mapControls,function(key,control) {
             if (["overviewMap","fullScreen","search","mousePosition","attribution"].indexOf(key) < 0) {
                 vm.map.enableControl(key,show)
             }

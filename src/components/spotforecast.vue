@@ -209,9 +209,9 @@
     </div>
 
     <div style="display:none">
-    </div>
     <div id="spotforecast_control" class="ol-selectable ol-control">
         <button type="button" title="Bom sport forecast" @click="toggleSpotForecast()" v-bind:class="{'selected':isControlSelected}"><img src="dist/static/images/spot-forecast.svg"></button>
+    </div>
     </div>
 
     <form id="get_spotforecast" name="spotforecast" action="{{env.gokartService + '/spotforecast/html'}}" method="post" target="spotforecast">

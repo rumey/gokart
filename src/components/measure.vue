@@ -1,6 +1,6 @@
 <template>
   <div style="display:none">
-  <div id="map-measure" style="top:{{top}}px" class="ol-selectable ol-control">
+  <div id="map-measure" v-bind:style="topStyle" class="ol-selectable ol-control">
       <button type="button" title="Measure length" @click="toggleMeasure('MeasureLength')" v-bind:class="{'selected':isMeasureLength}"><img src="dist/static/images/measure-length.svg"></button>
       <button type="button" title="Measure area" @click="toggleMeasure('MeasureArea')" v-bind:class="{'selected':isMeasureArea}"><img src="dist/static/images/measure-area.svg"></button>
       <button type="button" title="Measure bearing" @click="toggleMeasure('MeasureBearing')" v-bind:class="{'selected':isMeasureBearing}"><img src="dist/static/images/measure-bearing.svg"></button>
@@ -41,12 +41,17 @@
       loading: function () { return this.$root.loading },
       map: function () { return this.$root.map },
       active: function () { return this.$root.active },
+      featuredetail: function () { return this.$root.featuredetail },
       catalogue: function () { return this.$root.catalogue },
       annotations: function () { 
         return this.$root.$refs.app.$refs.annotations 
       },
-      top:function(){
-        return 237;
+      top:function() {
+        if (!this.featuredetail || !this.featuredetail.enabled) {
+            return 237
+        } else {
+            return this.featuredetail.height + 9 + 237;
+        }
       },
       measureType: function() {
         if (["MeasureLength","MeasureArea","MeasureBearing"].indexOf(this.annotations.tool.name) >= 0) {
@@ -84,6 +89,9 @@
       },
       measureFeature:function() {
         return this.settings.measureFeature
+      },
+      topStyle:function() {
+        return "top:" + this.top + "px";
       }
     },
     watch:{
@@ -1096,7 +1104,6 @@
               measureStatus.phaseBegin("attach_event_to_tool",5,"Attach event to tool")
               var processedInteractions = []
               $.each(vm.annotations.tools,function(index1,tool){
-                //console.log(tool.name)
                 $.each(tool.interactions,function(index2,interaction){
                     if (!processedInteractions.find(function(o){return o === interaction})) {
                         if (interaction instanceof ol.interaction.Modify) {
