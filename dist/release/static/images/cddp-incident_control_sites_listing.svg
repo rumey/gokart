@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
 <svg
    xmlns:dc="http://purl.org/dc/elements/1.1/"
    xmlns:cc="http://creativecommons.org/ns#"
@@ -7,17 +9,47 @@
    xmlns="http://www.w3.org/2000/svg"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   height="512"
+   width="512"
+   height="387.86874"
+   viewBox="0 0 511.99997 387.86872"
    id="svg2"
    version="1.1"
-   width="512"
    inkscape:version="0.91 r13725"
    sodipodi:docname="cddp-incident_control_sites_listing.svg"
-   inkscape:export-filename="/home/rockyc/work/gokart/dist/release/static/images/cddp-incident_control_sites_listing.png"
+   inkscape:export-filename="/home/rockyc/work/gokart/dist/release/static/images/cddp-incident_control_sites_listing_level_3.png"
    inkscape:export-xdpi="90"
-   inkscape:export-ydpi="90">
+   inkscape:export-ydpi="90"
+   style="shape-rendering:crispEdges">
+  <defs
+     id="defs4" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="1"
+     inkscape:cx="199.02812"
+     inkscape:cy="258.26826"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer3"
+     showgrid="false"
+     inkscape:window-width="1920"
+     inkscape:window-height="1141"
+     inkscape:window-x="1920"
+     inkscape:window-y="26"
+     inkscape:window-maximized="1"
+     units="px"
+     inkscape:showpageshadow="false"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0"
+     borderlayer="true"
+     showborder="true" />
   <metadata
-     id="metadata8">
+     id="metadata7">
     <rdf:RDF>
       <cc:Work
          rdf:about="">
@@ -28,47 +60,49 @@
       </cc:Work>
     </rdf:RDF>
   </metadata>
-  <sodipodi:namedview
-     pagecolor="#ffffff"
-     bordercolor="#666666"
-     borderopacity="1"
-     objecttolerance="10"
-     gridtolerance="10"
-     guidetolerance="10"
-     inkscape:pageopacity="0"
-     inkscape:pageshadow="2"
-     inkscape:window-width="1920"
-     inkscape:window-height="1141"
-     id="namedview6"
-     showgrid="false"
-     inkscape:zoom="0.4609375"
-     inkscape:cx="-459.93221"
-     inkscape:cy="247.32204"
-     inkscape:window-x="1920"
-     inkscape:window-y="26"
-     inkscape:window-maximized="1"
-     inkscape:current-layer="layer1" />
-  <defs
-     id="defs4" />
   <g
-     id="layer1"
-     transform="translate(0,-540.3622)">
-    <path
-       d="m 255.71875,588.75 c -5.14903,0.0739 -10.2385,2.22892 -13.875,5.875 L 58.5625,777.90625 c -3.701032,3.70256 -5.855526,8.90549 -5.855526,14.14062 0,5.23514 2.154494,10.43807 5.855526,14.14063 l 54.9375,54.96875 0,122.8125 c 5.1e-4,5.23585 2.15613,10.43927 5.85843,14.14158 3.7023,3.70227 8.90572,5.85797 14.14157,5.85847 l 65,0 c 5.23585,-5e-4 10.43927,-2.1562 14.14157,-5.85847 3.7023,-3.70231 5.85792,-8.90573 5.85843,-14.14158 l 0,-145 75,0 0,145 c 5.1e-4,5.23585 2.15613,10.43927 5.85843,14.14158 3.7023,3.70227 8.90572,5.85797 14.14157,5.85847 l 65,0 c 5.23585,-5e-4 10.43927,-2.1562 14.14157,-5.85847 3.7023,-3.70231 5.85792,-8.90573 5.85843,-14.14158 l 0,-122.84375 54.9375,-54.9375 c 3.70103,-3.70256 5.85553,-8.90549 5.85553,-14.14063 0,-5.23513 -2.1545,-10.43806 -5.85553,-14.14062 L 270.15625,594.625 c -3.76894,-3.77878 -9.10096,-5.94852 -14.4375,-5.875 z"
-       id="path3766-1"
-       style="font-size:medium;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-indent:0;text-align:start;text-decoration:none;line-height:normal;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;block-progression:tb;writing-mode:lr-tb;text-anchor:start;baseline-shift:baseline;color:#000000;fill:#ff7f2a;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:40;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate;font-family:Sans;-inkscape-font-specification:Sans"
-       inkscape:export-xdpi="90"
-       inkscape:export-ydpi="90" />
+     inkscape:groupmode="layer"
+     id="layer3"
+     inkscape:label="Layer 2"
+     style="display:inline"
+     transform="translate(-3309.8479,2676.5043)">
     <text
        xml:space="preserve"
-       style="font-style:normal;font-weight:normal;font-size:180px;line-height:0%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       x="392.67798"
-       y="603.27747"
-       id="text4134"
-       sodipodi:linespacing="0%"><tspan
+       style="font-style:normal;font-weight:normal;font-size:621.07830811px;line-height:0%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;"
+       x="4105.1719"
+       y="-1863.2416"
+       id="text4689"
+       sodipodi:linespacing="0%"
+       transform="scale(0.80516976,1.2419741)"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90"><tspan
          sodipodi:role="line"
-         id="tspan4136"
-         x="392.67798"
-         y="603.27747" /></text>
-  </g>
+         id="tspan4691"
+         x="4105.1719"
+         y="-1863.2416"
+         style="font-size:372.64724731px;fill:#ffffff;">ICC</tspan></text>
+    <flowRoot
+       xml:space="preserve"
+       id="flowRoot4693"
+       style="font-style:normal;font-weight:normal;font-size:12.5px;line-height:0%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       transform="translate(3557.3379,-2490.0496)"><flowRegion
+         id="flowRegion4695"><rect
+           id="rect4697"
+           width="67.5"
+           height="24"
+           x="-11.75"
+           y="5" /></flowRegion><flowPara
+         id="flowPara4699"></flowPara></flowRoot>  </g>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     style="display:inline"
+     transform="translate(-3309.8479,2676.5043)" />
+  <g
+     inkscape:groupmode="layer"
+     id="layer2"
+     inkscape:label="Text"
+     style="display:inline"
+     transform="translate(-3309.8479,2676.5043)" />
 </svg>

@@ -230,7 +230,7 @@ var defaultWinOptions = [
     ["width",function(){return Math.floor(window.innerWidth * 0.95)}],
     ["height",function(){return Math.floor(window.innerHeight * 0.95)}]
 ]
-Utils.prototype.editResource = function(event,options,url,target) {
+Utils.prototype.editResource = function(event,options,url,target,reopen) {
     if (!url) {
         var targetElement = (event.target.nodeName == "A")?event.target:event.target.parentNode;
         url = targetElement.href
@@ -244,8 +244,22 @@ Utils.prototype.editResource = function(event,options,url,target) {
     } else {
         options = options || {}
         var winOptions = defaultWinOptions.map(function(option){return option[0] + "=" + (options[option[0]] || ((typeof option[1] === "function")?option[1]():option[1]) )}).join(",")
-        var  win = window.open(url,target,winOptions);
-        setTimeout(function(){win.focus()},500)
+        if (reopen) {
+            var win = window.open("",target,winOptions)
+            try{
+                if (win.location.href !== "about:blank") {
+                    //already opened before, close it first
+                    win.close()
+                }
+            } catch (ex) {
+                //already opened before, close it first
+                win.close()
+            }
+            window.open(url,target,winOptions)
+        } else {
+            var  win = window.open(url,target,winOptions);
+            setTimeout(function(){win.focus()},500)
+        }
     }
 }
 

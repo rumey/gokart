@@ -1,14 +1,16 @@
 <template>
     <div style="display:none">
     <div id="featuredetail_control" class="ol-selectable ol-control">
-        <button type="button" title="{{layer.title}}" style="{{layers.length > 1 ? "height:36px;border-bottom-left-radius:0px;border-bottom-right-radius:0px":""}}" @click="toggleFeaturedetail()" v-bind:class="{'selected':isControlSelected,'warning':warning}">
+        <button type="button" title="{{layer.title}}" v-bind:style="controlButtonStyle" @click="toggleFeaturedetail()" v-bind:class="{'selected':isControlSelected,'warning':warning}">
             <img v-bind:src="layer.icon" width=36 height=36>
         </button>
         <button v-if="layers.length > 1" type="button" style="height:16px;border-top-left-radius:0px;border-top-right-radius:0px"  @click="showLayers=!showLayers" >
             <i class="fa fa-angle-double-down" aria-hidden="true"></i>
         </button>
         <div v-show="showLayers" style="position:absolute;width:300px;right:0px">
-            <img v-for="l in layers" v-bind:src="l.icon" title="{{l.title}}" width="48" height="48" style="margin:1px;float:right" track-by="$index" @click.stop.prevent="selectLayer(l)">
+            <button type="button" v-for="l in layers" title="{{l.title}}"  style="margin:1px;float:right" track-by="$index" @click.stop.prevent="selectLayer(l)">
+                <img v-bind:src="l.icon" width="36" height="36">
+            </button>
         </div>
     </div>
     </div>
@@ -55,10 +57,14 @@
       annotations: function () { return this.$root.annotations },
       catalogue:function() { return this.$root.catalogue},
       active:function() { return this.$root.active},
+      dialog: function () { return this.$root.dialog },
       map: function () { return this.$root.map },
       env: function () { return this.$root.env },
       enabled:function() {
         return this.layers.length > 0
+      },
+      controlButtonStyle:function() {
+        return this.layers.length > 1 ? "height:36px;border-bottom-left-radius:0px;border-bottom-right-radius:0px":""
       },
       height:function() {
         if (this.layers.length === 0) {
@@ -112,6 +118,7 @@
         if (this.layer === l) {
             return
         }
+        /*
         if (this.layer) {
             //remove the preivouse selected layer from map
             var mapLayer = this.map.getMapLayer(this.layer)
@@ -119,8 +126,19 @@
               this.catalogue.onLayerChange(this.layer, false)
             }
         }
+        */
         this.layer = l
         this.warning = false
+        if (this.isControlSelected) {
+            // enable resource bfrs layer, if disabled
+            var mapLayer = this.map.getMapLayer(this.layer)
+            if (!mapLayer) {
+              this.catalogue.onLayerChange(this.layer, true)
+            } else if (this.active.isHidden(mapLayer)) {
+                this.active.toggleHidden(mapLayer)
+            }
+
+        }
       }
     },
     ready: function () {
@@ -134,7 +152,7 @@
         vm._featuredetailStatus.phaseBegin("initialize",20,"Initialize",true,false)
 
         vm.catalogue.catalogue.forEach(function(layer){
-            if (layer.tags && layer.tags.some(function(o) {return o.name === "detail_link"} )) {
+            if (layer.tags && layer.tags.some(function(o) {return o.name === "detail_link" || o.name === "detail_dialog"} )) {
                 layer.icon = "/dist/static/images/" + layer.id.replace(":","-").toLowerCase() + ".png"
                 vm.layers.splice(0,0,layer)
             }
@@ -158,16 +176,35 @@
 
                     var bbox = "&bbox=" + bottomRight[1] + "," + topLeft[0] + "," + topLeft[1] + "," + bottomRight[0]
                     $.ajax({
-                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&count=1&outputFormat=application%2Fjson&typeNames=" + vm.layer.id + bbox,
+                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&count=1&outputFormat=application%2Fjson&typeNames=" + getDetailLayerId(vm.layer.id) + bbox,
                         dataType:"json",
                         success: function (response, stat, xhr) {
                             if (response.totalFeatures < 1) {
                                 vm.warning = true
                                 return
                             }
-                            if (response.features[0].properties["url"]) {
-                                utils.editResource(browserEvent,null,response.features[0].properties["url"],vm.layer.id)
-                                vm.warning = false
+
+                            if (vm.layer.tags && vm.layer.tags.some(function(o) {return o.name === "detail_link"} )) {
+                                if (response.features[0].properties["url"]) {
+                                    utils.editResource(browserEvent,null,response.features[0].properties["url"],vm.layer.id,true)
+                                    vm.warning = false
+                                }
+                            } else if (vm.layer.tags && vm.layer.tags.some(function(o) {return o.name === "detail_dialog"} )) {
+                               var messages = []
+                                $.each(response.features[0].properties,function(key,value) {
+                                    if (['ogc_fid','md5_rowhash'].indexOf(key) >= 0){
+                                        return
+                                    }
+                                    if (vm.dialog.isLink(value)) {
+                                        messages.push([[key,3,"detail_name"],[value,9,"detail_value",vm.layer.id + "." + key]])
+                                    } else {
+                                        messages.push([[key,3,"detail_name"],[value,9,"detail_value"]])
+                                    }
+                                })
+                                vm.dialog.show({
+                                    messages:messages,
+                                    buttons:[]
+                                })
                             } else {
                                 vm.warning = true
                             }

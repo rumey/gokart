@@ -20,6 +20,10 @@ global.tour = tour
 global.getLayerId = function(id) {
     return (env && env.layerMapping && env.layerMapping[id]) || id
 }
+//sometimes we use a different layer to get the detail layer information.
+global.getDetailLayerId = function(id) {
+    return (env && env.detailLayerMapping && env.detailLayerMapping[id]) || (env && env.layerMapping && env.layerMapping[id]) || id
+}
 //Return an environment independent layer id
 global.getIndependentLayerId = function(id) {
     if (!env || !env.layerMapping) {
