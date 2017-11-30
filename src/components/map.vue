@@ -1239,6 +1239,7 @@
                             if (!auto) {return}
                             var waitTimes = layer.getNextRefreshTime() - moment()
                             tileLayer.autoTimelineRefresh = setTimeout(function(){_func(layer,tileLayer,true)},waitTimes)
+                            layer.lastTimelineRefreshTime = null
                             //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Next timeline refresh time for " + layer.name + " is " + waitTimes + " milliseconds later" )
                         }
                         var timelineNotChanged = function(){
