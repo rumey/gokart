@@ -236,7 +236,7 @@ def himawari8(target):
 
 basetime_url = os.environ.get("BOM_BASETIME_URL") or "https://kmi.dbca.wa.gov.au/geoserver/bom/wms?service=WMS&version=1.1.0&request=GetMap&styles=&bbox=70.0,-55.0,195.0,20.0&width=768&height=460&srs=EPSG:4283&format=image%2Fgif&layers={}"
 basetime_re = re.compile("(\d{4})-(\d{2})-(\d{2})\s*(\d{2})\D*(\d{2})\s*(UTC)")
-def getTimelineFromWmsLayer(target,current_timeline):
+def getTimelineFromWmsLayer(current_timeline,layerIdFunc):
     basetimeLayer = bottle.request.query.get("basetimelayer")
     timelineSize = bottle.request.query.get("timelinesize")
     layerTimespan = bottle.request.query.get("layertimespan") # in seconds
@@ -281,13 +281,26 @@ def getTimelineFromWmsLayer(target,current_timeline):
             layerId = None
             for i in xrange(0,timelineSize):
                 layertime = basetime + datetime.timedelta(seconds=layerTimespan * i)
-                layerId = (target + "{0:0>3}").format(i)
+                layerId = layerIdFunc(i,layerTimespan)
 
                 layers.append([layertime.strftime("%a %b %d %Y %H:%M:%S AWST"),layerId,None])
             return {"refreshtime":datetime.datetime.now().strftime("%a %b %d %Y %H:%M:%S"),"layers":layers,"md5":md5,"updatetime":basetime.strftime("%a %b %d %Y %H:%M:%S AWST")}
     finally:
         if localfile:
             os.remove(localfile)
+
+def bomLayerIdFunc(target):
+    def _func(i,timespan):
+        if timespan >= 86400:
+            #unit is day
+            return "bom:{}{:0>3}".format(target,i * int(timespan / 86400))
+        else:
+            #unit is hour
+            return "bom:{}{:0>3}".format(target,i * int(timespan / 3600))
+
+    return _func
+
+
 
 
 start_date = datetime.datetime(1970, 1, 1, 0, 0,tzinfo=pytz.timezone("UTC")).astimezone(pytz.timezone("Australia/Perth"))
@@ -312,7 +325,7 @@ def bom(target):
             return {"layers":current_timeline["layers"],"updatetime":current_timeline["updatetime"]}
 
 
-    timeline = getTimelineFromWmsLayer(target,current_timeline)
+    timeline = getTimelineFromWmsLayer(current_timeline,bomLayerIdFunc(target))
 
     if not timeline:
         raise "Missing some of http parameters 'basetimelayer', 'timelinesize', 'layertimespan'."
