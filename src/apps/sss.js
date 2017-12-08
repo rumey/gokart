@@ -493,6 +493,14 @@ if (result) {
             fetchTimelineUrl:function(lastUpdatetime){
                 return "/bom/IDZ71123?basetimelayer=bom:IDZ71123_datetime&timelinesize=4&layertimespan=86400&updatetime=" + lastUpdatetime
             }
+          }, {
+            type: 'TileLayer',
+            name: 'Continuous Haines',
+            id: 'bom:continuous_haines',
+            timelineRefresh:300,
+            fetchTimelineUrl:function(lastUpdatetime){
+                return "/bom/IDZ71115?basetimelayer=bom:IDZ71115_datetime&timelinesize=56&layertimespan=10800&updatetime=" + lastUpdatetime
+            }
           }])
     
           // load custom annotation tools
