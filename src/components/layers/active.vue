@@ -13,11 +13,13 @@
             </div>
             <div class="small-3">
               <div class="text-right">
-                <a @click.stop="toggleHidden(l)" class="button small" v-bind:title="isHidden(l)?'Show in map':'Hide in map'">
-                    <i class="fa fa-eye" v-if="isHidden(l)" > </i>
-                    <i class="fa fa-eye-slash" v-if="!isHidden(l)"> </i>
+                <a @click.stop="toggleHidden(l)" class="button small icon2x" v-bind:class="{success:!isHidden(l),warning:isHidden(l)}" v-bind:title="isHidden(l)?'Show in map':'Hide in map'">
+                    <i class="fa fa-eye-slash fa-2x" v-if="isHidden(l)" > </i>
+                    <i class="fa fa-eye fa-2x" v-if="!isHidden(l)"> </i>
                 </a>
-                <a @click="removeLayer(l)" class="button small alert remove-layer" title="Remove from map">&#x2715;</a>
+                <a @click="removeLayer(l)" class="button small icon2x alert remove-layer" title="Remove from map">
+                    <i class="fa fa-close fa-2x" > </i>
+                </a>
               </div>
             </div>
           </div>

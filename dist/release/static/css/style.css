@@ -585,3 +585,10 @@ input:disabled ~ .switch-paddle {
     cursor:pointer;
 }
 
+.button.small.icon2x {
+    padding-left: 5px;
+    padding-right: 5px;
+    padding-top: 4.2px;
+    padding-bottom: 4.2px;
+}
+
