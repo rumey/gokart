@@ -2986,6 +2986,13 @@
             }
         }
       })(toolConfig)
+      vm.ui.polygonSelectInter = vm.annotations.polygonSelectInterFactory({
+        listeners: {
+            selected:function(selectedFeatures) {   
+                vm.scrollToSelected()
+            }
+        }
+      })(toolConfig)
       vm.ui.selectInter = vm.annotations.selectInterFactory({
         listeners: {
             selected:function(selectedFeatures) {   
@@ -3148,6 +3155,7 @@
               scope:["bfrs"],
               interactions: [
                   vm.ui.dragSelectInter,
+                  vm.ui.polygonSelectInter,
                   vm.ui.selectInter,
                   //vm.ui.translateInter,
                   vm.annotations.keyboardInterFactory({
