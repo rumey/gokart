@@ -1,6 +1,6 @@
 <template>
   <div style="display:none">
-  <div id="map-measure" v-bind:style="topStyle" class="ol-selectable ol-control">
+  <div id="map-measure" v-bind:style="topPositionStyle" class="ol-selectable ol-control">
       <button type="button" title="Measure length" @click="toggleMeasure('MeasureLength')" v-bind:class="{'selected':isMeasureLength}"><img src="dist/static/images/measure-length.svg"></button>
       <button type="button" title="Measure area" @click="toggleMeasure('MeasureArea')" v-bind:class="{'selected':isMeasureArea}"><img src="dist/static/images/measure-area.svg"></button>
       <button type="button" title="Measure bearing" @click="toggleMeasure('MeasureBearing')" v-bind:class="{'selected':isMeasureBearing}"><img src="dist/static/images/measure-bearing.svg"></button>
@@ -42,15 +42,16 @@
       map: function () { return this.$root.map },
       active: function () { return this.$root.active },
       featuredetail: function () { return this.$root.featuredetail },
+      spotforecast:function() { return this.$root.spotforecast},
       catalogue: function () { return this.$root.catalogue },
       annotations: function () { 
         return this.$root.$refs.app.$refs.annotations 
       },
-      top:function() {
+      topPosition:function() {
         if (!this.featuredetail || !this.featuredetail.enabled) {
-            return 237
+            return 180 + this.spotforecast.height + 9;
         } else {
-            return this.featuredetail.height + 9 + 237;
+            return this.featuredetail.topPosition + this.spotforecast.height + 9;
         }
       },
       measureType: function() {
@@ -90,8 +91,8 @@
       measureFeature:function() {
         return this.settings.measureFeature
       },
-      topStyle:function() {
-        return "top:" + this.top + "px";
+      topPositionStyle:function() {
+        return "top:" + this.topPosition + "px";
       }
     },
     watch:{

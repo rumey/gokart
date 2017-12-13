@@ -210,7 +210,17 @@
 
     <div style="display:none">
     <div id="spotforecast_control" class="ol-selectable ol-control">
-        <button type="button" title="Bom sport forecast" @click="toggleSpotForecast()" v-bind:class="{'selected':isControlSelected}"><img src="dist/static/images/spot-forecast.svg"></button>
+        <button type="button" title="{{settingTitle()}}" @click="toggleSpotForecast()" v-bind:class="{'selected':isControlSelected}" style="height:36px;border-bottom-left-radius:0px;border-bottom-right-radius:0px">
+            <img v-bind:src="forecastSetting.icon" width="36" height="36">
+        </button>
+        <button type="button" style="height:16px;border-top-left-radius:0px;border-top-right-radius:0px"  @click="showSettings=!showSettings" >
+            <i class="fa fa-angle-double-down" aria-hidden="true"></i>
+        </button>
+        <div v-show="showSettings" style="position:absolute;width:300px;right:0px">
+            <button type="button" v-for="s in forecastSettings" title="{{settingTitle(s)}}"  style="margin:1px;float:right" track-by="$index" @click.stop.prevent="selectSetting(s)">
+                <img v-bind:src="s.icon" width="36" height="36">
+            </button>
+        </div>
     </div>
     </div>
 
@@ -284,6 +294,12 @@
         selectedColumn:null,
         columnGroups:[],
         reportTimes:[],
+        forecastSetting:{},
+        forecastSettings:[
+            {name:"default",title:"Default outlook forecast",icon:"/dist/static/images/default-outlook-forecast.svg"},
+            {name:"customized",title:"Customized outlook forecast",icon:"/dist/static/images/customized-outlook-forecast.svg"}
+        ],
+        showSettings:false,
         revision:1,
       }
 
@@ -343,6 +359,13 @@
             }
         }
       },
+      height:function() {
+        if (!this.showSettings) {
+            return 52
+        } else {
+            return 52 + Math.ceil(this.forecastSettings.length / 6) * 50
+        }
+      },
     },
     watch:{
       isControlSelected:function(newValue,oldValue) {
@@ -370,6 +393,17 @@
             $("#spotforecast-columns").height(height - this._columnEditorHeight)
             $("#spotforecast-datasources").height(height)
         }
+      },
+      settingTitle: function(s){
+        s = s || this.forecastSetting
+        return (s.name === "default")?"Default 4 Day Outlook":(this.forecastDays + " Day Outlook")
+      },
+      selectSetting:function(s) {
+        this.showSettings = false
+        if (this.forecastSetting === s) {
+            return
+        }
+        this.forecastSetting = s
       },
       isDegreeUnit:function(ds) {
         return ds.metadata.unit === "C"
@@ -901,22 +935,43 @@
         }
         var vm = this
         var _getSpotforecast = function(position) {
-            var requestData = {
-                point:coordinate,
-                options: {
-                    title:"<h3>Spot Fire Weather " + vm.forecastDays + " Day Outlook for " + position + "(" + Math.round(coordinate[0] * 10000) / 10000 + "," + Math.round(coordinate[1] * 10000) / 10000 + ")</h3>",
-                },
-                forecasts:[
-                    {
-                        days:utils.getDatetimes(["00:00:00"],parseInt(vm.forecastDays),1).map(function(dt) {return dt.format("YYYY-MM-DD")}),
-                        times:vm.reportTimes,
-                        options:{
-                            daily_title_pattern: vm.dailyTitle || "{date}"
-                        },
-                        daily_data:vm.dailyData||{},
-                        times_data:vm.forecastColumns,
-                    }
-                ]
+            var requestData = null;
+            if (vm.forecastSetting.name === "default") {
+                requestData = {
+                    point:coordinate,
+                    options: {
+                        title:"<h3>Spot Fire Weather 4 Day Outlook for " + position + "(" + Math.round(coordinate[0] * 10000) / 10000 + "," + Math.round(coordinate[1] * 10000) / 10000 + ")</h3>",
+                    },
+                    forecasts:[
+                        {
+                            days:utils.getDatetimes(["00:00:00"],4,1).map(function(dt) {return dt.format("YYYY-MM-DD")}),
+                            times:["09:00:00","15:00:00"],
+                            options:{
+                                daily_title_pattern: "{date} {weather}"
+                            },
+                            daily_data:{"weather":{"workspace":"bom","id":"IDW71152_WA_DailyWxIcon_SFC_DESC"}},
+                            times_data:vm._defaultForecastColumns,
+                        }
+                    ]
+                }
+            } else {
+                requestData = {
+                    point:coordinate,
+                    options: {
+                        title:"<h3>Spot Fire Weather " + vm.forecastDays + " Day Outlook for " + position + "(" + Math.round(coordinate[0] * 10000) / 10000 + "," + Math.round(coordinate[1] * 10000) / 10000 + ")</h3>",
+                    },
+                    forecasts:[
+                        {
+                            days:utils.getDatetimes(["00:00:00"],parseInt(vm.forecastDays),1).map(function(dt) {return dt.format("YYYY-MM-DD")}),
+                            times:vm.reportTimes,
+                            options:{
+                                daily_title_pattern: vm.dailyTitle || "{date}"
+                            },
+                            daily_data:vm.dailyData||{},
+                            times_data:vm.forecastColumns,
+                        }
+                    ]
+                }
             }
             if (vm.format === "json") {
                 $.ajax({
@@ -951,6 +1006,7 @@
       this._spotforecastStatus = vm.loading.register("spotforecast","BOM Spot Forecast Component")
 
       this._spotforecastStatus.phaseBegin("initialize",20,"Initialize")
+      this.forecastSetting = this.forecastSettings[0]
       
       vm.map.mapControls["spotforecast"] = {
           enabled:false,

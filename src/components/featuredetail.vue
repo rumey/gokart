@@ -1,6 +1,6 @@
 <template>
     <div style="display:none">
-    <div id="featuredetail_control" class="ol-selectable ol-control">
+    <div id="featuredetail_control" class="ol-selectable ol-control" v-bind:style="topPositionStyle">
         <button type="button" title="{{layer.title}}" v-bind:style="controlButtonStyle" @click="toggleFeaturedetail()" v-bind:class="{'selected':isControlSelected,'warning':warning}">
             <img v-bind:src="layer.icon" width=36 height=36>
         </button>
@@ -26,7 +26,6 @@
 }
 #featuredetail_control {
     position: absolute;
-    top: 237px;
     left: auto;
     right: 16px;
     bottom: auto;
@@ -56,6 +55,7 @@
       loading: function () { return this.$root.loading },
       annotations: function () { return this.$root.annotations },
       catalogue:function() { return this.$root.catalogue},
+      spotforecast:function() { return this.$root.spotforecast},
       active:function() { return this.$root.active},
       dialog: function () { return this.$root.dialog },
       map: function () { return this.$root.map },
@@ -76,6 +76,12 @@
         } else {
             return 52 + Math.ceil(this.layers.length / 6) * 50
         }
+      },
+      topPosition:function() {
+        return 180 + this.spotforecast.height + 9;
+      },
+      topPositionStyle:function() {
+        return "top:" + this.topPosition + "px";
       },
       mapControl:function() {
         if (!this._controller) {
