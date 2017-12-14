@@ -4,7 +4,7 @@
       <div class="columns">
         <ul class="tabs" data-tabs id="settings-tabs">
           <li class="tabs-title is-active" menu="systemsetting"><a href="#systemsetting" aria-selected="true">System</a></li>
-          <li class="tabs-title" menu="spotforecast"><a href="#spotforecast" aria-selected="true">Spot Outlook Forecast</a></li>
+          <li class="tabs-title" menu="spotforecast"><a href="#spotforecast" aria-selected="true">Weather Outlook</a></li>
         </ul>
       </div>
     </div>

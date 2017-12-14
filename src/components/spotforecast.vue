@@ -396,7 +396,7 @@
       },
       settingTitle: function(s){
         s = s || this.forecastSetting
-        return (s.name === "default")?"Default 4 Day Outlook":(this.forecastDays + " Day Outlook")
+        return (s.name === "default")?"Default 4 Day Weather Outlook":(this.forecastDays + " Day Weather Outlook")
       },
       selectSetting:function(s) {
         this.showSettings = false
