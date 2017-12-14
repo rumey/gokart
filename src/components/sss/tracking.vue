@@ -27,14 +27,22 @@
               </div>
             </div>
             <div class="row">
-              <div class="switch tiny">
-                <input class="switch-input" id="resourcesInViewport" type="checkbox" v-bind:checked="viewportOnly" @change="toggleViewportOnly" />
-                <label class="switch-paddle" for="resourcesInViewport">
-                  <span class="show-for-sr">Viewport resources only</span>
-                </label>
+              <div class="small-9 columns" >
+                <div class="row">
+                  <div class="switch tiny">
+                    <input class="switch-input" id="resourcesInViewport" type="checkbox" v-bind:checked="viewportOnly" @change="toggleViewportOnly" />
+                    <label class="switch-paddle" for="resourcesInViewport">
+                      <span class="show-for-sr">Viewport resources only</span>
+                    </label>
+                  </div>
+                  <label for="resourcesInViewport" class="side-label">Restrict to viewport ({{ stats }})</label>
+                </div>
               </div>
-              <label for="resourcesInViewport" class="side-label">Restrict to viewport ({{ stats }})</label>
+              <div class="small-3 columns" style="text-align:right;padding-right:0px">
+                <span v-on:click="showToggles = !showToggles" style="cursor:pointer"><i class="fa {{showToggles?'fa-angle-double-up':'fa-angle-double-down'}}" aria-hidden="true"></i> Toggles</span>
+              </div>
             </div>
+            <div v-show="showToggles">
             <div class="row">
               <div class="switch tiny">
                 <input class="switch-input" id="toggleResourceLabels" type="checkbox" v-bind:checked="resourceLabels" @change="toggleResourceLabels" />
@@ -61,6 +69,7 @@
                 </label>
               </div>
               <label for="toggleResourceInfo" class="side-label">Display hovering resource info</label>
+            </div>
             </div>
             <div class="row collapse">
               <div class="small-6 columns">
@@ -186,6 +195,7 @@
       var stroke = '#7c3100'
       return {
         toggleHistory: false,
+        showToggles:false,
         selectedOnly: false,
         search: '',
         cql: '',
@@ -303,9 +313,12 @@
       resourceDirections:function(newValue,oldValue) {
         this.showResourceLabelsOrDirections()
       },
-      "toggleHistory":function() {
+      toggleHistory:function() {
         this.adjustHeight()
-      }
+      },
+      showToggles:function(newValue,oldValue) {
+        this.adjustHeight()
+      },
     },
     methods: {
       adjustHeight:function() {
