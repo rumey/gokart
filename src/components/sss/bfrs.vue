@@ -1649,8 +1649,8 @@
       },  
       adjustHeight:function() {
         if (this.activeMenu === "bfrs") {
-            //$("#bfrs-list").height(this.screenHeight - this.leftPanelHeadHeight - 16 - 16 - 5 - $("#bfrs-list-controller-container").height() - this.hintsHeight)
-            $("#bfrs-list").height(this.screenHeight - this.leftPanelHeadHeight - 37 - $("#bfrs-list-controller-container").height() - this.hintsHeight)
+            //$("#bfrs-list").height(this.screenHeight - this.leftPanelHeadHeight - 16 - 16 - 4 - 5 - $("#bfrs-list-controller-container").height() - this.hintsHeight)
+            $("#bfrs-list").height(this.screenHeight - this.leftPanelHeadHeight - 41 - $("#bfrs-list-controller-container").height() - this.hintsHeight)
         }
       },
       //modifyType(bit value): 

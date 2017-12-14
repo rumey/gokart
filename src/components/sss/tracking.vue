@@ -185,6 +185,7 @@
         resourceLabels:'settings.resourceLabels',
         resourceDirections:'settings.resourceDirections',
         viewportOnly:'settings.viewportOnly',
+        hintsHeight:'layout.hintsHeight',
         screenHeight:'layout.screenHeight',
         leftPanelHeadHeight:'layout.leftPanelHeadHeight',
         activeMenu:'activeMenu',
@@ -323,7 +324,7 @@
     methods: {
       adjustHeight:function() {
         if (this.activeMenu === "tracking") {
-            $("#tracking-list").height(this.screenHeight - this.leftPanelHeadHeight - 37 - $("#tracking-list-controller-container").height())
+            $("#tracking-list").height(this.screenHeight - this.leftPanelHeadHeight - 41 - $("#tracking-list-controller-container").height() - this.hintsHeight)
         }
       },
       ago: function (time) {

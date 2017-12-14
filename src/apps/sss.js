@@ -304,7 +304,7 @@ if (result) {
                 //    this[module]["adjustHeight"]()
                 //}
                 this.$nextTick(function(){
-                    vm.store.layout.leftPanelHeadHeight = $("#" + newValue + "-tabs").height() || 90
+                    vm.store.layout.leftPanelHeadHeight = $("#" + vm.activeModule + "-tabs").height() || 90
                     vm.setHintsHeight()
                 })
             },
