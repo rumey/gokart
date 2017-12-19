@@ -276,7 +276,7 @@
       },
       toggleMeasure: function (type) {
         if (this.measureType === type) {
-            this.annotations.setTool('Pan')
+            this.annotations.setTool(this.annotations.currentTool,true)
         } else  {
             this.annotations.setTool(type)
         }
@@ -947,6 +947,7 @@
 
       var measureLength = {
         name: 'MeasureLength',
+        keepSelection:true,
         interactions:[
             //vm.map.dragPanInter,
             //vm.map.doubleClickZoomInter,
@@ -972,6 +973,7 @@
 
       var measureBearing = {
         name: 'MeasureBearing',
+        keepSelection:true,
         interactions:[
             //vm.map.dragPanInter,
             //vm.map.doubleClickZoomInter,
@@ -993,6 +995,7 @@
 
       var measureArea = {
         name: 'MeasureArea',
+        keepSelection:true,
         interactions:[
             //vm.map.dragPanInter,
             //vm.map.doubleClickZoomInter,

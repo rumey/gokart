@@ -553,7 +553,7 @@
       },
       toggleSpotForecast: function () {
         if (!this._spotforecastTool || this.annotations.tool === this._spotforecastTool) {
-            this.annotations.setTool('Pan')
+            this.annotations.setTool(this.annotations.currentTool,true)
         } else  {
             this.annotations.setTool(this._spotforecastTool)
         }
@@ -1109,6 +1109,7 @@
 
       this._spotforecastTool = {
         name: 'SpotForecast',
+        keepSelection:true,
         interactions:[
             spotforecastInter
         ]
