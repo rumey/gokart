@@ -924,6 +924,10 @@
             }
         })
       },
+      setSpot:function(coordinate) {
+        this._features.clear()
+        this._features.push(new ol.Feature({geometry:new ol.geom.Point(coordinate)}))
+      },
       getSpotforecast:function(coordinate) {
         if (this.reportTimes.length === 0) {
             alert("No spot forecast report times are configured in settings module")
