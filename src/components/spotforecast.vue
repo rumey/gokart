@@ -553,7 +553,7 @@
       },
       toggleSpotForecast: function () {
         if (!this._spotforecastTool || this.annotations.tool === this._spotforecastTool) {
-            this.annotations.setTool('Pan')
+            this.annotations.setTool(this.annotations.currentTool,true)
         } else  {
             this.annotations.setTool(this._spotforecastTool)
         }
@@ -924,6 +924,10 @@
             }
         })
       },
+      setSpot:function(coordinate) {
+        this._features.clear()
+        this._features.push(new ol.Feature({geometry:new ol.geom.Point(coordinate)}))
+      },
       getSpotforecast:function(coordinate) {
         if (this.reportTimes.length === 0) {
             alert("No spot forecast report times are configured in settings module")
@@ -1109,6 +1113,7 @@
 
       this._spotforecastTool = {
         name: 'SpotForecast',
+        keepSelection:true,
         interactions:[
             spotforecastInter
         ]

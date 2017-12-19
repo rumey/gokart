@@ -106,7 +106,7 @@
     methods: {
       toggleFeaturedetail: function () {
         if (!this._featuredetailTool || this.annotations.tool === this._featuredetailTool) {
-            this.annotations.setTool('Pan')
+            this.annotations.setTool(this.annotations.currentTool,true)
         } else  {
             this.annotations.setTool(this._featuredetailTool)
             // enable resource bfrs layer, if disabled
@@ -230,6 +230,7 @@
 
             vm._featuredetailTool = {
               name: 'FeatureDetail',
+              keepSelection:true,
               interactions:[
                   featuredetailInter
               ]

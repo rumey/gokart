@@ -178,6 +178,8 @@ def loadDatasource(datasource):
         #print "Begin to load raster datasource: ".format(datasource["datasource"])
         ds = gdal.Open(datasource["datasource"])
 
+        datasource["geotransform"] =  ds.GetGeoTransform()
+
         if datasource.get("options") and datasource["options"].get("srs"):
             datasource["srs"] = getEpsgSrs(datasource["options"]["srs"])
         else:
@@ -1932,7 +1934,7 @@ def formatBandsData(datasource,noData="",unit = None,bandsData = None):
                 bandsData[index][1] = formatData(bandsData[index][1],datasource["options"].get("pattern"),noData)
         index += 1
 
-def getRasterData(options):
+def getRasterData(options,debug=False):
     """
     options: a dictionary
         datasource: the raster datasource
@@ -1941,6 +1943,7 @@ def getRasterData(options):
         pixel: the pxiel whose data will be retireved from datasource bands, optional
         band_indexes: the list of band index,optional or the list of list band index
         bandids: the list of band id,optional, ot the list of list band id
+    debug: output pixel location if true
 
     Return dictionary
         status: true if succeed;otherwise false
@@ -1989,11 +1992,10 @@ def getRasterData(options):
                         point.AddPoint(options["point"][0],options["point"][1])
                         point.Transform(osr.CoordinateTransformation(getEpsgSrs(options["srs"]),datasource["srs"]))
                         # Convert geographic co-ordinates to pixel co-ordinates
-                        forward_transform = Affine.from_gdal(*ds.GetGeoTransform())
+                        forward_transform = Affine.from_gdal(*datasource["geotransform"])
                         reverse_transform = ~forward_transform
                         px, py = reverse_transform * (point.GetX(),point.GetY())
-                        #choose the cloest pixel
-                        px, py = int(px + 0.5), int(py + 0.5)
+                        px, py = int(px), int(py)
                         if px < 0 or px > ds.RasterXSize or py < 0 or py > ds.RasterYSize:
                             options["pixel"] = None
                         else:
@@ -2005,6 +2007,8 @@ def getRasterData(options):
                 #import ipdb;ipdb.set_trace()
                 options["datasource"]["status"] = True
                 options["datasource"]["data"] = datas
+                if debug :
+                    options["datasource"]["pixel"] = options["pixel"]
                 return options["datasource"]
             except:
                 #retrieve data failed, maybe be caused by ftp sync process; retrieved it again
@@ -2118,6 +2122,7 @@ def spotforecast(fmt):
         #check whether request is valid and initialize the request parameters
         requestData["srs"] = (requestData.get("srs") or "EPSG:4326").strip().upper()
         
+        debug = (bottle.request.query.get("debug") or "false").lower() in ("true")
         if not requestData.get("forecasts"):
             raise Exception("Parameter 'forecasts' is missing")
 
@@ -2208,7 +2213,7 @@ def spotforecast(fmt):
                     "point":requestData["point"],
                     "srs":requestData["srs"],
                     "bandids":datasource["times"]
-                }))
+                },debug))
 
             for datasource in forecast.get("times_data",[]):
                 if datasource.get("group"):
@@ -2218,14 +2223,14 @@ def spotforecast(fmt):
                             "point":requestData["point"],
                             "srs":requestData["srs"],
                             "bandids":ds.get("times",forecast["times"])
-                        }))
+                        },debug))
                 else:
                     datasource.update(getRasterData({
                         "datasource":datasource,
                         "point":requestData["point"],
                         "srs":requestData["srs"],
                         "bandids":datasource.get("times",forecast["times"])
-                    }))
+                    },debug))
     
         result = requestData
         result["issued_time"] = datetime.datetime.now(PERTH_TIMEZONE)

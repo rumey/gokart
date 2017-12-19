@@ -35,7 +35,7 @@
                           <span class="show-for-sr">Viewport bushfires only</span>
                         </label>
                       </div>
-                      <label for="bushfiresInViewport" class="side-label">Restrict to viewport ({{extentFeatureSize}}/{{featureSize}})</label>
+                      <label for="bushfiresInViewport" class="side-label">Restrict to viewport ({{extentFeaturesSize}}/{{featureSize}})</label>
                     </div>
                   </div>
                   <div class="small-3 columns" style="text-align:right;padding-right:0px">
@@ -76,20 +76,21 @@
                     </div>
                   </div>
                 </div>
+
                 <div class="row">
                   <div class="small-12">
                     <div class="columns">
                       <div class="row">
                         <div class="switch tiny">
-                          <input class="switch-input" id="clippedFeaturesOnly" v-bind:disabled="clippedFeatures.length === 0" type="checkbox" v-model="clippedOnly"  @change="updateFeatureFilter(3)"/>
-                          <label class="switch-paddle" for="clippedFeaturesOnly">
+                          <input class="switch-input" id="clippedBushfireReportOnly" v-bind:disabled="clippedFeatures.length === 0" type="checkbox" v-model="clippedOnly" @change="updateFeatureFilter(3,0)" />
+                          <label class="switch-paddle" for="clippedBushfireReportOnly">
                             <span class="show-for-sr">Show saved selection</span>
                          </label>
                         </div>
-                        <label for="clippedFeaturesOnly" style="side-label" class="side-label">Show saved selection
+                        <label for="clippedBushfireReportOnly" style="side-label" class="side-label">Show saved selection
                         </label>
-                        <a class="button tiny secondary" title="Save selection" style="margin-top:0px;margin-bottom:5px;padding-top:6px;padding-left:1px;padding-right:1px;padding-bottom:0px;border:0px;height:24px;font-size:0.73rem;background-color:#2199e8" @click="clipToSelection()" >
-                            Save selection ({{selectedBushfires.length}})
+                        <a class="button tiny secondary" title="Save selection" style="margin-top:0px;margin-bottom:5px;padding-top:6px;padding-left:1px;padding-right:1px;padding-bottom:0px;border:0px;height:24px;font-size:0.73rem;background-color:#2199e8" @click="clipToSelection()" v-bind:disabled="selectedFeaturesSize === 0">
+                            Save selection ({{selectedFeaturesSize}})
                         </a> 
                         ({{clippedFeatures.length}}/{{features.getLength()}})
                       </div>
@@ -188,7 +189,7 @@
 
             <div id="bfrs-list" class="layers-flexibleframe scroller" style="margin-left:-15px; margin-right:-15px;">
               <template v-for="f in featurelist" track-by="get('id')">
-              <div v-if="showFeature(f)" class="row feature-row" v-bind:class="{'feature-selected': selected(f) }" @click="toggleSelect(f)">
+              <div v-if="showFeature(f)" class="row feature-row" v-bind:class="{'feature-selected': isFeatureSelected(f) }" @click="toggleSelect(f)">
                 <div class="small-12 columns">
                   <a v-if="canReset(f)"  @click.stop.prevent="resetFeature(f)" title="Reset" class="button tiny secondary float-right acion" style="margin-left:2px"><i class="fa fa-undo actionicon"></i></a>
                   <a v-if="canDelete(f)" @click.stop.prevent="deleteFeature(f)" title="Delete" class="button tiny secondary float-right action" style="margin-left:2px"><i class="fa fa-trash actionicon"></i></a>
@@ -306,10 +307,10 @@
         startDate:'',
         endDate:'',
         dateRange:'',
-        selectedBushfires: [],
         revision:1,
+        selectRevision:1,
         profileRevision:1,
-        extentFeatureSize:0,
+        extentFeaturesSize:0,
         tints: {
           'new':[["#b43232","#c8c032"]],
           'new.textStroke':"#c8c032",
@@ -372,7 +373,10 @@
         return this.$root.active.isHidden(this.bushfireMapLayer)
       },
       selectedFeatures: function () {
-        return this.annotations.selectedFeatures
+        return this.annotations.getSelectedFeatures("bfrs")
+      },
+      selectedFeaturesSize:function() {
+        return this.selectRevision && this.selectedFeatures.getLength()
       },
       bushfireLayer: function() {
         return this.$root.catalogue.getLayer("dpaw:bushfirelist_latest")
@@ -467,6 +471,9 @@
         } catch (ex) {
             return 0;
         }
+      },
+      hasFeatureFilter: function () {
+        return (this.search && this.search.trim())?true:false
       }
     },
     watch:{
@@ -1649,8 +1656,8 @@
       },  
       adjustHeight:function() {
         if (this.activeMenu === "bfrs") {
-            //$("#bfrs-list").height(this.screenHeight - this.leftPanelHeadHeight - 16 - 16 - 5 - $("#bfrs-list-controller-container").height() - this.hintsHeight)
-            $("#bfrs-list").height(this.screenHeight - this.leftPanelHeadHeight - 37 - $("#bfrs-list-controller-container").height() - this.hintsHeight)
+            //$("#bfrs-list").height(this.screenHeight - this.leftPanelHeadHeight - 16 - 16 - 4 - 5 - $("#bfrs-list-controller-container").height() - this.hintsHeight)
+            $("#bfrs-list").height(this.screenHeight - this.leftPanelHeadHeight - 41 - $("#bfrs-list-controller-container").height() - this.hintsHeight)
         }
       },
       //modifyType(bit value): 
@@ -1689,7 +1696,7 @@
         return feat.get('tint') === 'modified'
       },
       toggleSelect: function (f) {
-        if (this.selected(f)) {
+        if (this.isFeatureSelected(f)) {
           this.selectedFeatures.remove(f)
         } else {
           if (["Bfrs Origin Point","Bfrs Edit Geometry","Bfrs Fire Boundary"].indexOf(this.annotations.tool.name) >= 0) {
@@ -1756,8 +1763,8 @@
             $("#bushfire-icon-" + f.get('id')).attr("src", vm.featureIconSrc(f))
         })
       },
-      selected: function (f) {
-        return f.get('fire_number') && (this.selectedBushfires.indexOf(f.get('fire_number')) > -1)
+      isFeatureSelected: function (f) {
+        return this.selectedFeatures.getArray().findIndex(function(o){return o === f}) >= 0
       },
       downloadList: function (fmt,downloadType) {
         var vm = this
@@ -1776,9 +1783,9 @@
                     (
                         vm._download_cql_filter || 
                         this.search && this.search.trim().length > 0 || 
-                        (this.viewportOnly && this.extentFeatureSize !== this.featureSizea)
+                        (this.viewportOnly && this.extentFeaturesSize !== this.featureSizea)
                     ) && 
-                    ((this.viewportOnly?this.extentFeatureSize:this.featureSize) <= 80)
+                    ((this.viewportOnly?this.extentFeaturesSize:this.featureSize) <= 80)
                 )
             ){
                 //use fire id as the filter if clipped only is true or has customer filter and the length of file list is less than 80
@@ -1800,7 +1807,7 @@
                     cql_filter = (cql_filter?(cql_filter + " and (("):"((") +  this.fields.map(function(field) { return "strToLowerCase(" + field + ") like '%25" + vm.search.trim().toLowerCase() + "%25'"}).join(") or (") + "))"
                 }
                 if (cql_filter.length > 0) {
-                    if (this.viewportOnly && this.extentFeatureSize !== this.featureSize) {
+                    if (this.viewportOnly && this.extentFeaturesSize !== this.featureSize) {
                         bbox = this.map.extent
                         originpoint_filter = "&cql_filter=" + (cql_filter + " and BBOX(origin_point," + bbox[1] + "," + bbox[0] + "," + bbox[3] + "," + bbox[2] + ")")
                         fireboundary_filter = "&cql_filter=" + (cql_filter + " and BBOX(fire_boundary," + bbox[1] + "," + bbox[0] + "," + bbox[3] + "," + bbox[2] + ")")
@@ -1812,7 +1819,7 @@
                 }
 
             }
-            if (cql_filter.length === 0 && (this.viewportOnly && this.extentFeatureSize !== this.featureSize)) {
+            if (cql_filter.length === 0 && (this.viewportOnly && this.extentFeaturesSize !== this.featureSize)) {
                 bbox = this.map.extent
                 bbox = "&bbox=" + bbox[1] + "," + bbox[0] + "," + bbox[3] + "," + bbox[2]
             }
@@ -2436,7 +2443,7 @@
       refreshBushfires:function() {
         this.bushfireMapLayer.getSource().loadSource("query")
         this.refreshFinalFireboundaryLayer()
-        if (this.selectedBushfires.length >= 0) { 
+        if (this.selectedFeatures.getLength() > 0) { 
             this.refreshSelectedFinalFireboundaryLayer()
         }
       },
@@ -2524,7 +2531,7 @@
       featureFilter: function (feat) {
         if (feat.get('status') === 'new') return true
 
-        var search = ('' + this.search).trim().toLowerCase()
+        var search = this.search?this.search.trim().toLowerCase():""
         if (search && !this.fields.some(function (key) {
             return ('' + feat.get(key)).toLowerCase().indexOf(search) > -1
         })){
@@ -2543,14 +2550,13 @@
                 ++size
             }
         })
-        this.extentFeatureSize = size;
+        this.extentFeaturesSize = size;
       },
       clipToSelection:function() {
         if (this.selectedFeatures.getLength() === 0) {
-            this.clippedFeatures.splice(0,this.clippedFeatures.length)
             return
         }
-        this.clippedFeatures.length = 0
+        this.clippedFeatures.splice(0,this.clippedFeatures.length)
         for (var index = 0;index < this.features.getLength();index++) {
             if (this.features.item(index).get('status') === 'new') {
                 this.clippedFeatures.push(this.features.item(index))
@@ -2579,66 +2585,61 @@
       updateFeatureFilter: function(filterType,wait) {
         var vm = this
         this._filterType = ((this._filterType === undefined || this._filterType === null)?0:this._filterType) | filterType
-        var updateFeatureFilterFunc = function() {
-            if (vm._filterType === 0) return
-            //console.log("Filter: " + (((vm._filterType & 2) === 2)?"filterBySearch = true  ":"") + (((vm._filterType & 1) === 1)?"filterBySelected = true":""))
-            var list = vm.clippedOnly?vm.clippedFeatures:vm.features.getArray()
-            if ((vm._filterType & 2) === 2) {
-                list = list.filter(vm.featureFilter)
-            }
-            vm._featurelist.clear()
-            vm._featurelist.extend(list)
-            vm._filterType = 0
-            vm.setExtentFeatureSize()
-            if (vm.selectedFeatures.getLength() > 0) {
-                if (list.length === 0) {
-                    vm.selectedFeatures.clear()
-                } else {
-                    for(var index = vm.selectedFeatures.getLength() - 1;index >= 0;index--) {
-                        if (!list.find(function(f){return f === vm.selectedFeatures.item(index)})) {
-                            vm.selectedFeatures.removeAt(index)
+        if (!vm._updateFeatureFilter) {
+            vm._updateFeatureFilter = debounce(function(){
+                if (vm._filterType === 0) return
+                //console.log("Filter: " + (((vm._filterType & 2) === 2)?"filterBySearch = true  ":"") + (((vm._filterType & 1) === 1)?"filterBySelected = true":""))
+                var list = vm.clippedOnly?vm.clippedFeatures:vm.features.getArray()
+                if (((vm._filterType & 2) === 2) && vm.hasFeatureFilter) {
+                    list = list.filter(vm.featureFilter)
+                }
+                vm._featurelist.clear()
+                vm._featurelist.extend(list)
+                vm._filterType = 0
+                vm.setExtentFeatureSize()
+                if (vm.selectedFeatures.getLength() > 0) {
+                    if (list.length === 0) {
+                        vm.selectedFeatures.clear()
+                    } else {
+                        for(var index = vm.selectedFeatures.getLength() - 1;index >= 0;index--) {
+                            if (!list.find(function(f){return f === vm.selectedFeatures.item(index)})) {
+                                vm.selectedFeatures.removeAt(index)
+                            }
                         }
                     }
                 }
-            }
-            vm.revision += 1;
-        }
-    
-        if (!vm._updateFeatureFilter) {
-            vm._updateFeatureFilter = debounce(function(){
-                updateFeatureFilterFunc()
+                vm.revision += 1;
             },500)
         }
 
         if (wait === 0) {
-            updateFeatureFilterFunc()
+            vm._updateFeatureFilter.call({wait:1})
         } else if (wait === undefined || wait === null){
             vm._updateFeatureFilter()
         } else {
             vm._updateFeatureFilter.call({wait:wait})
         }
       },
-      updateViewport: function(runNow) {
+      updateViewport: function(wait) {
         var vm = this
-        var updateViewportFunc = function() {
-            var viewportExtent = vm.map.extent
-            vm.features.forEach(function(feat) {
-                feat.inViewport = ol.extent.containsCoordinate(viewportExtent,vm.originpointCoordinate(feat))
-            })
-            vm.setExtentFeatureSize()
-            if (vm.viewportOnly) {
-                vm.revision += 1;
-            }
+        if (!vm._updateViewport) {
+            vm._updateViewport = debounce(function(){
+                var viewportExtent = vm.map.extent
+                vm.features.forEach(function(feat) {
+                    feat.inViewport = ol.extent.containsCoordinate(viewportExtent,vm.originpointCoordinate(feat))
+                })
+                vm.setExtentFeatureSize()
+                if (vm.viewportOnly) {
+                    vm.revision += 1;
+                }
+            },500)
         }
-        if (runNow) {
-            updateViewportFunc()
-        } else {
-            if (!vm._updateViewport) {
-                vm._updateViewport = debounce(function(){
-                    updateViewportFunc()
-                },500)
-            }
+        if (wait === 0) {
+            vm._updateViewport.call({wait:1})
+        } else if (wait === undefined || wait === null){
             vm._updateViewport()
+        } else {
+            vm._updateViewport.call({wait:wait})
         }
       },
       scrollToSelected:function() {
@@ -2972,7 +2973,7 @@
       vm.loadRegions()
 
       vm.ui = {}
-      var toolConfig = {features:vm.features,mapLayers:function(layer){return layer.get("id") === "dpaw:bushfirelist_latest" }}
+      var toolConfig = {features:vm.features,selectedFeatures:vm.selectedFeatures,mapLayers:function(layer){return layer.get("id") === "dpaw:bushfirelist_latest"}}
       /*
       vm.ui.translateInter = vm.annotations.translateInterFactory()(toolConfig)
       vm.ui.translateInter.on("translateend",function(ev){
@@ -3153,6 +3154,7 @@
               label: 'Select',
               icon: 'fa-mouse-pointer',
               scope:["bfrs"],
+              keepSelection:true,
               interactions: [
                   vm.ui.dragSelectInter,
                   vm.ui.polygonSelectInter,
@@ -3431,7 +3433,7 @@
                         }
                     }
                 }
-                if (vm.annotations.isFeaturesSelectedFromModule("bfrs") && vm.selectedFeatures.getLength() > 0) {
+                if (vm.selectedFeatures.getLength() > 0) {
                     for(var index = vm.selectedFeatures.getLength() - 1;index >= 0;index--) {
                         var f = vm.selectedFeatures.item(index)
                         loadedFeature = features.find(function(f1){return f1.get('fire_number') === f.get('fire_number')})
@@ -3461,7 +3463,7 @@
                 }
                 vm.features.clear()
                 vm.features.extend(features.sort(vm.featureOrder))
-                vm.updateViewport(true)
+                vm.updateViewport(0)
 
                 vm.updateFeatureFilter(3,0)
 
@@ -3476,6 +3478,7 @@
       })
 
       this.measure.register("dpaw:bushfirelist_latest",this.features)
+
       vm._bfrsStatus.phaseEnd("initialize")
 
       vm._bfrsStatus.phaseBegin("gk-init",20,"Listen 'gk-init' event",true,true)
@@ -3488,7 +3491,6 @@
 
         vm.selectedFeatures.on('add', function (event) {
           if (event.element.get('toolName') === "Bfrs Origin Point") {
-            vm.selectedBushfires.push(event.element.get('fire_number'))
             if (vm.annotations.tool.selectMode === "geometry") {
                 if (event.element["selectedIndex"] === undefined) {
                     vm.selectDefaultGeometry(event.element)
@@ -3500,10 +3502,9 @@
         })
         vm.selectedFeatures.on('remove', function (event) {
           if (event.element.get('toolName') === "Bfrs Origin Point") {
-            vm.selectedBushfires.$remove(event.element.get('fire_number'))
             vm.refreshSelectedFinalFireboundaryLayer()
             //vm.zoomToSelected(200)
-            if (vm.selectedBushfires.length !== 1) {
+            if (vm.selectedFeatures.getLength() !== 1) {
                 if (vm.annotations.tool === vm.ui.modifyTool) {
                     vm.annotations.setTool(vm.ui.panTool)
                 }
@@ -3543,6 +3544,13 @@
 
         vm.map.olmap.getView().on("change:resolution",function(){
             vm._resolutionChanged()
+        })
+
+        vm.selectedFeatures.on('add', function (event) {
+            vm.selectRevision += 1
+        })
+        vm.selectedFeatures.on('remove', function (event) {
+            vm.selectRevision += 1
         })
 
         vm._bfrsStatus.phaseEnd("attach_event")

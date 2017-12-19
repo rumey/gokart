@@ -58,7 +58,7 @@
                     <a @click="setProp('shape', s)" v-bind:class="{'selected': shape && (s[0] === shape[0])}" class="button pointshape"><img v-bind:src="s[0]"/></a>
                   </template>
                 </div>
-              </div>
+              clippedOnly</div>
             </div>
 
             <div v-show="shouldShowSizePicker" class="tool-slice row collapse">
@@ -190,7 +190,7 @@
         tools: [],
         annotationTools: [],
         features: new ol.Collection(),
-        selectedFeatures: new ol.Collection(),
+        selectedFeatures:new ol.Collection(),
         // array of layers that are selectable
         selectable: [],
         featureOverlay: {},
@@ -227,7 +227,8 @@
             ["dist/static/symbols/points/minus.svg","Star",[null,'#000000']],
             ["dist/static/symbols/points/Fire_Advice.svg","Star",['#000000','#000000']],
         ],
-        shape: null
+        shape: null,
+        toolRevision:1
       }
     },
     computed: {
@@ -239,9 +240,13 @@
       measure: function () { return this.$root.measure },
       loading: function () { return this.$root.loading },
       drawinglogs: function () { return this.$refs.drawinglogs    },
+      activeModule: function () { return this.$root.activeModule    },
+      selectedAnnotations:function() {
+        return this.getSelectedFeatures("annotations")
+      },
       featureEditing: function() {
-        if (this.tool == this.ui.editStyle && this.selectedFeatures.getLength() > 0) {
-            return this.selectedFeatures.item(0)
+        if (this.tool == this.ui.editStyle && this.selectedAnnotations.getLength() > 0) {
+            return this.selectedAnnotations.item(0)
         } else {
             return null
         }
@@ -284,15 +289,16 @@
       },
       currentTool:{
         get:function() {
-            var t = this._currentTool[this.activeMenu]
+            var t = this._currentTool[this.activeModule]
             if (!t) {
                 t = this.ui.defaultPan
-                this._currentTool[this.activeMenu] = t
+                this._currentTool[this.activeModule] = t
             }
-            return t
+            return this.toolRevision && t
         },
         set:function(t) {
-            this._currentTool[this.activeMenu] = t
+            this.toolRevision += 1
+            this._currentTool[this.activeModule] = t
         }
       },
     },
@@ -320,34 +326,44 @@
     },
     methods: {
       adjustHeight:function() {
-        if (this.activeMenu === "annotations") {
+        if (this.activeModule === "annotations") {
             $("#annotations-flexible-part").height(this.screenHeight - this.leftPanelHeadHeight - 41 - $("#annotations-fixed-part").height() - this.hintsHeight)
         }
       },
-      restoreSelectedFeatures:function() {
-        //cache the existing selected features
-        if (this._selectedFeaturesKey) {
-            if (this._selectedFeaturesKey in this._cachedSelectedFeatures) {
-                this._cachedSelectedFeatures[this._selectedFeaturesKey].length = 0
-            } else {
-                this._cachedSelectedFeatures[this._selectedFeaturesKey] = []
+      getSelectedFeatures:function(menu,submenu) {
+        var key = submenu?(menu + "." + mubmenu):menu
+        var selectedFeatures = null
+        try {
+            selectedFeatures = this._cachedSelectedFeatures[key]
+        } catch(ex){}
+        if (selectedFeatures) return selectedFeatures
+
+        var vm = this
+        selectedFeatures = new ol.Collection()
+        this._cachedSelectedFeatures = this._cachedSelectedFeatures || {}
+        this._cachedSelectedFeatures[key] = selectedFeatures
+        // add/remove selected property
+        selectedFeatures.on('add', function (ev) {
+            if (vm.selectedFeatures === selectedFeatures) {
+                vm.tintSelectedFeature(ev.element)
             }
-            if (this.selectedFeatures.getLength() > 0) {
-                this._cachedSelectedFeatures[this._selectedFeaturesKey].push.apply(this._cachedSelectedFeatures[this._selectedFeaturesKey],this.selectedFeatures.getArray())
+        })
+        selectedFeatures.on('remove', function (ev) {
+            if (vm.selectedFeatures === selectedFeatures) {
+                vm.tintUnselectedFeature(ev.element)
             }
-        }
-        if (this.selectedFeatures.getLength() > 0) {
-            this.selectedFeatures.clear()
-        }
-        //restore the cached selected features
-        this._selectedFeaturesKey = this.activeSubmenu?(this.activeMenu + "." + this.activeSubmenu):this.activeMenu
-        if (this._selectedFeaturesKey in this._cachedSelectedFeatures) {
-            this.selectedFeatures.extend(this._cachedSelectedFeatures[this._selectedFeaturesKey])
-        }
+        })
+        return selectedFeatures
       },
-      isFeaturesSelectedFromModule:function(menu,submenu) {
-        var key = submenu?(menu + "." + submenu):menu
-        return this._selectedFeaturesKey === key
+      restoreSelectedFeatures:function() {
+        var selectedFeatures = this.getSelectedFeatures(this.activeMenu,this.activeSubmenu)
+        if (this.selectedFeatures === selectedFeatures) return
+        var vm = this
+        //untint the previous selected features
+        this.selectedFeatures.forEach(function(feat){vm.tintUnselectedFeature(feat)})
+        //tint the current selected features
+        this.selectedFeatures = selectedFeatures
+        this.selectedFeatures.forEach(function(feat){vm.tintSelectedFeature(feat)})
       },
       importAnnotations:function() {
         if (this.$els.annotationsfile.files.length === 0) {
@@ -621,7 +637,7 @@
           // allow translating of features by click+dragging
           var translateInter = new ol.interaction.Translate({
             layers: (tool && tool.mapLayers) || [vm.featureOverlay],
-            features: (tool && tool.selectedFeatures) || vm.selectedFeatures
+            features: (tool && tool.selectedFeatures) || vm.selectedAnnotations
           })
 
           translateInter.handleEvent = function() {
@@ -723,8 +739,8 @@
             }
         }
         return function(tool) {
-            selectedFeatures = (tool && tool.selectedFeatures) || vm.selectedFeatures
-            var selectInter = new ol.interaction.Draw({
+            var selectedFeatures_ = (tool && tool.selectedFeatures) || null
+            var drawInter = new ol.interaction.Draw({
               source: vm._source4Selection,
               type: 'Polygon',
               style: vm._style4Selection,
@@ -742,16 +758,16 @@
               condition:ol.events.condition.platformModifierKeyOnly
             });
 
-            selectInter.startDrawing_ = function() {
-                var _func = selectInter.startDrawing_
+            drawInter.startDrawing_ = function() {
+                var _func = drawInter.startDrawing_
                 return function(event) {
                     vm._toolStatus["selectTool"] = this
                     _func.call(this,event)
                 }
             }()
 
-            selectInter.abortDrawing_ = function() {
-                var _func = selectInter.abortDrawing_
+            drawInter.abortDrawing_ = function() {
+                var _func = drawInter.abortDrawing_
                 return function() {
                     var result =  _func.call(this)
                     vm._toolStatus["selectTool"] = null
@@ -759,12 +775,13 @@
                 }
             }()
 
-            selectInter.on("addtomap",function(ev){
+            drawInter.on("addtomap",function(ev){
                 vm._overlay4Selection.setMap(vm.map.olmap)
                 if (vm._listener4Selection) {
                     vm._features4Selection.unByKey(vm._listener4Selection)
                 }
                 vm._listener4Selection = vm._features4Selection.on("add",function(ev){
+                    var selectedFeatures = selectedFeatures_ || vm.selectedFeatures
                     try{
                         var extent = ev.element.getGeometry().getExtent()
                         var turfPolygon = turf.polygon(ev.element.getGeometry().getCoordinates())
@@ -814,23 +831,23 @@
                 })
                 this.setActive(true)
             })
-            selectInter.on("removefrommap",function(ev){
+            drawInter.on("removefrommap",function(ev){
                 vm._overlay4Selection.setMap(null)
                 if (vm._listener4Selection) {
                     vm._features4Selection.unByKey(vm._listener4Selection)
                 }
             })
-            selectInter.setMulti = function(multi) {
+            drawInter.setMulti = function(multi) {
                 this.multi_ = multi
             }
           
-            return selectInter
+            return drawInter
         }
       },
       dragSelectInterFactory: function(options) {
         var vm = this
         return function(tool) {
-          selectedFeatures = (tool && tool.selectedFeatures) || vm.selectedFeatures
+          var selectedFeatures_ = (tool && tool.selectedFeatures) || null
           // allow dragbox selection of features
           var dragSelectInter = new ol.interaction.DragBox({
             condition: function(ev) {
@@ -844,6 +861,7 @@
           })
 
           dragSelectInter.on('boxend', function (event) {
+            selectedFeatures = selectedFeatures_ || vm.selectedFeatures
             selectedFeatures.clear()
             var extent = event.target.getGeometry().getExtent()
             var multi = (this.multi_ == undefined)?true:this.multi_
@@ -883,7 +901,6 @@
           })
           // clear selectedFeatures before dragging a box
           dragSelectInter.on('boxdrag', function () {
-            //selectedFeatures.clear()
             vm._toolStatus["selectTool"] = this
           })
           dragSelectInter.setMulti = function(multi) {
@@ -1020,7 +1037,7 @@
       selectInterFactory:function(options) {
         var vm = this
         return function(tool) {
-          selectedFeatures = (tool && tool.selectedFeatures) || vm.selectedFeatures
+          selectedFeatures = (tool && tool.selectedFeatures) || vm.selectedAnnotations
           // allow selecting multiple features by clicking
           var selectInter = new ol.interaction.Select({
             layers: function(layer) { 
@@ -1084,9 +1101,7 @@
       keyboardInterFactory:function(options) { 
         var vm = this
         // OpenLayers3 hook for keyboard input
-        vm._deleteSelected = vm._deleteSelected || function (features,selectedFeatures,interaction) {
-            features = features || this.features
-            selectedFeatures = selectedFeatures || vm.selectedFeatures
+        vm._deleteSelected = vm._deleteSelected || function (features,selectedFeatures) {
             if (vm.tool.selectMode === "feature") {
                 selectedFeatures.forEach(function (feature) {
                   features.remove(feature)
@@ -1228,22 +1243,26 @@
       getTool: function (toolName) {
         return (toolName)?this.tools.filter(function (t) {return t.name === toolName })[0]:null
       },
-      setTool: function (t) {
+      setTool: function (t,keepSelection) {
         var vm = this
+        keepSelection = keepSelection || false
         if (!t) {
-            if (this._previousActiveMenu && this._previousActiveMenu !== this.activeMenu && this._previousTool) {
-                //before switching to other menu, if a non-pan tool was enabled, choose the 'pan' tool for the current menu to preseve the changes(for example, the selected features) made by the previous non-pan tool
-                t = this.ui.defaultPan
-            } else {
-                t = this.currentTool
+            //called when change components
+            if (!this.tool.scope || this.tool.scope.length === 0) {
+                //it is a common tool, no need to change it
+                return
             }
+            t = this.currentTool
+            keepSelection = true
         }
         if (typeof t == 'string') {
           t = this.getTool(t)
         }
-        if ((this.tool === t) && (t === this.ui.defaultPan || this._previousActiveMenu === this.activeMenu)) {
+        if (this.tool === t){
             //choose the same tool, do nothing,
-            this.currentTool = t
+            if (this.tool.scope && this.tool.scope.length > 0) {
+                this.currentTool = t
+            }
             return
         } else if(this.tool.onUnset) {
             this.tool.onUnset()
@@ -1256,11 +1275,6 @@
             inter.dispatchEvent(vm.map.createEvent(inter,"removefrommap"))
           })
         }
-        //this.tools.forEach(function (tool) {
-        //  tool.interactions.forEach(function (inter) {
-        //    map.olmap.removeInteraction(inter)
-        //  })
-        //})
 
         // add interactions for this tool
         t.interactions.forEach(function (inter) {
@@ -1279,27 +1293,18 @@
             $(map.olmap.getTargetElement()).find(".ol-viewport").css('cursor','default')
         }
         
-        var clearFeatures = false
-        // remove selections if required
-        if (t !== this.ui.defaultPan) {
-            //remove selections only if the tool is not Pan
-            if ((this._previousActiveMenu && this._previousActiveMenu !== this.activeMenu) || (this._previousTool && this._previousTool !== t && !t.keepSelection)) {
-                //remove selections only if the current tool is not the same tool as the previous tool.
-                clearFeatures = true
-            }
-            this._previousTool = t
-            this._previousActiveMenu = this.activeMenu
-        }
-
-        if (!clearFeatures && t.selectMode !== this.tool.selectMode){
+        if ((keepSelection || t.keepSelection) && t.selectMode !== this.tool.selectMode){
             this.selectedFeatures.forEach(function(f){f.changed()})
         }
 
         this.tool = t
-        this.currentTool = t
+        if (this.tool.scope && this.tool.scope.length > 0) {
+            //new tool is not a common tool,
+            this.currentTool = t
+        }
 
         // remove selections
-        if (clearFeatures) {
+        if (!(keepSelection || t.keepSelection)) {
             //remove selections only if the current tool is not the same tool as the previous tool.
             this.selectedFeatures.clear()
         }
@@ -1852,7 +1857,6 @@
     },
     ready: function () {
       var vm = this
-      this._cachedSelectedFeatures = {}
       this._toolStatus = {}
       vm._currentTool = {}
       vm.shape = vm.pointShapes[0]
@@ -1868,13 +1872,6 @@
         }
       })
 
-      // add/remove selected property
-      this.selectedFeatures.on('add', function (ev) {
-        vm.tintSelectedFeature(ev.element)
-      })
-      this.selectedFeatures.on('remove', function (ev) {
-        vm.tintUnselectedFeature(ev.element)
-      })
       // layer/source for modifying annotation features
       this.featureOverlay = new ol.layer.Vector({
         source: new ol.source.Vector({
@@ -1902,6 +1899,7 @@
         icon: 'fa-hand-paper-o',
         cursor:['-webkit-grab','-moz-grab'],
         scope:["annotation"],
+        keepSelection:true,
         interactions: [
           map.dragPanInter,
           map.doubleClickZoomInter,
@@ -1945,6 +1943,7 @@
         name: 'Select',
         icon: 'fa-mouse-pointer',
         scope:["annotation"],
+        keepSelection:true,
         interactions: [
           this.ui.keyboardInter,
           this.ui.dragSelectInter,

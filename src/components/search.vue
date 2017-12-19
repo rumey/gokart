@@ -35,6 +35,7 @@
     computed: {
       env: function () { return this.$root.env },
       map: function () { return this.$root.map },
+      annotations: function () { return this.$root.annotations },
     },
     methods: {
       searchKeyFix: function (ev) {
@@ -63,7 +64,10 @@
           if (update_name) {
             $('#map-search').val(update_name)
           }
-          if (!vm._setSearchPointFunc || !vm._setSearchPointFunc(searchMethod,coords,name)) {
+          if (vm.$root.spotforecast && vm.annotations.tool && vm.annotations.tool.name === "SpotForecast") {
+            //spot forecast tool is activated.
+            vm.$root.spotforecast.setSpot(coords)
+          } else if (!vm._setSearchPointFunc || !vm._setSearchPointFunc(searchMethod,coords,name)) {
             vm.features.clear()
             vm.features.push(new ol.Feature({
               geometry: new ol.geom.Point(coords),

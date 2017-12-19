@@ -208,6 +208,9 @@ if (result) {
       }
       var settings = _extend(persistentData.settings,store?(store.settings || {}):{})
       
+      if (store["activeLayers"] && store["activeLayers"].length === 0) {
+          delete store["activeLayers"]
+      }
       var storedData = $.extend({}, persistentData, store || {}, volatileData)
       storedData.settings = settings
     
@@ -304,7 +307,7 @@ if (result) {
                 //    this[module]["adjustHeight"]()
                 //}
                 this.$nextTick(function(){
-                    vm.store.layout.leftPanelHeadHeight = $("#" + newValue + "-tabs").height() || 90
+                    vm.store.layout.leftPanelHeadHeight = $("#" + vm.activeModule + "-tabs").height() || 90
                     vm.setHintsHeight()
                 })
             },
