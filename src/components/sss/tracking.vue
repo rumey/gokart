@@ -900,7 +900,7 @@
               vm.annotations.ui.keyboardInter,
               vm.annotations.ui.dragSelectInter,
               vm.annotations.ui.polygonSelectInter,
-              vm.annotations.selectInterFactory()()
+              vm.annotations.selectInterFactory()
             ],
             onSet: function() {
                 vm.annotations.ui.dragSelectInter.setMulti(true)
