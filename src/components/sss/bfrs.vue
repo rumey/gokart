@@ -3490,27 +3490,23 @@
         map.olmap.getView().on('propertychange', function() {vm.updateViewport()})
 
         vm.selectedFeatures.on('add', function (event) {
-          if (event.element.get('toolName') === "Bfrs Origin Point") {
-            if (vm.annotations.tool.selectMode === "geometry") {
-                if (event.element["selectedIndex"] === undefined) {
-                    vm.selectDefaultGeometry(event.element)
-                }
-            }
-            vm.refreshSelectedFinalFireboundaryLayer()
-            //vm.zoomToSelected(200)
+          if (vm.annotations.tool.selectMode === "geometry") {
+              if (event.element["selectedIndex"] === undefined) {
+                  vm.selectDefaultGeometry(event.element)
+              }
           }
+          vm.refreshSelectedFinalFireboundaryLayer()
+          //vm.zoomToSelected(200)
         })
         vm.selectedFeatures.on('remove', function (event) {
-          if (event.element.get('toolName') === "Bfrs Origin Point") {
-            vm.refreshSelectedFinalFireboundaryLayer()
-            //vm.zoomToSelected(200)
-            if (vm.selectedFeatures.getLength() !== 1) {
-                if (vm.annotations.tool === vm.ui.modifyTool) {
-                    vm.annotations.setTool(vm.ui.panTool)
-                }
-            }
-
+          vm.refreshSelectedFinalFireboundaryLayer()
+          //vm.zoomToSelected(200)
+          if (vm.selectedFeatures.getLength() !== 1) {
+              if (vm.annotations.tool === vm.ui.modifyTool) {
+                  vm.annotations.setTool(vm.ui.panTool)
+              }
           }
+
           //remove the index of the selected geometry in geometry collection
           //delete event.element['selectedIndex']
         })
