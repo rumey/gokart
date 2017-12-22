@@ -831,7 +831,6 @@
                         }
                     }
                 }
-                vm.scrollToSelected()
                 trackingStatus.phaseEnd("load_resources")
             }
             if ((vm.whoami.editVehicle === null || vm.whoami.editVehicle === undefined ) && features.length > 0) {
