@@ -823,7 +823,7 @@
                 vm.features.extend(features.sort(vm.featureOrder))
                 vm.updateViewport(0)
                 vm.updateFeatureFilter(0)
-                //remove unexisted deviceid from clippedFeatures
+                //remove nonexisted deviceid from clippedFeatures
                 if (loadType === "querySavedSelection") {
                     for(var index = vm.clippedFeatures.length - 1;index >= 0;index--) {
                         if (!features.find(function(f){return f.get("deviceid") === vm.clippedFeatures[index]})) {
@@ -831,6 +831,7 @@
                         }
                     }
                 }
+                vm.scrollToSelected()
                 trackingStatus.phaseEnd("load_resources")
             }
             if ((vm.whoami.editVehicle === null || vm.whoami.editVehicle === undefined ) && features.length > 0) {

@@ -3466,7 +3466,7 @@
                 vm.updateViewport(0)
 
                 vm.updateFeatureFilter(3,0)
-
+                vm.scrollToSelected()
                 if (vm.whoami['bushfire']["permission"]["changed"]) {
                     delete vm.whoami['bushfire']["permission"]["changed"]
                     vm.revision += 1
