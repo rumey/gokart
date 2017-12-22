@@ -370,6 +370,25 @@
             return now.diff(moment(time), 'minutes') + ' mins'
         }
       },
+      scrollToSelected:function() {
+        if (this.selectedFeatures.getLength() === 0) return
+        var index = -1
+
+        for (var i = 0;i < this._featurelist.getLength() ;i++) {
+            if (this.showFeature(this._featurelist.item(i))) {
+                index += 1
+                if (this._featurelist.item(i) === this.selectedFeatures.item(0)) {
+                    break
+                }
+            }
+        }
+        if (index >= 0) {
+            var listElement = document.getElementById("tracking-list")
+            if (index < listElement.children.length) {
+                listElement.scrollTop += listElement.children[index].getBoundingClientRect().top - listElement.getBoundingClientRect().top
+            }
+        }
+      },
       toggleSelect: function (f) {
         if (this.isFeatureSelected(f)) {
           this.selectedFeatures.remove(f)
@@ -561,7 +580,7 @@
         }
         this.clippedFeatures.splice(0,this.clippedFeatures.length)
         for (var index = 0;index < this.selectedFeatures.getLength();index++) {
-            this.clippedFeatures.push(this.features.item(index).get("deviceid"))
+            this.clippedFeatures.push(this.selectedFeatures.item(index).get("deviceid"))
         }
         if (this.clippedOnly) {
             this.updateCQLFilter()
@@ -897,10 +916,27 @@
             selectedFeatures:vm.selectedFeatures,
             keepSelection:true,
             interactions: [
-              vm.annotations.ui.keyboardInter,
-              vm.annotations.ui.dragSelectInter,
-              vm.annotations.ui.polygonSelectInter,
-              vm.annotations.selectInterFactory()
+              vm.annotations.dragSelectInterFactory({
+                listeners: {
+                    selected:function(selectedFeatures) {   
+                        vm.scrollToSelected()
+                    }
+                }
+              }),
+              vm.annotations.polygonSelectInterFactory({
+                listeners: {
+                    selected:function(selectedFeatures) {   
+                        vm.scrollToSelected()
+                    }
+                }
+              }),
+              vm.annotations.selectInterFactory({
+                listeners: {
+                    selected:function(selectedFeatures) {   
+                        vm.scrollToSelected()
+                    }
+                }
+              })
             ],
             onSet: function() {
                 vm.annotations.ui.dragSelectInter.setMulti(true)
