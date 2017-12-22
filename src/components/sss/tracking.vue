@@ -131,7 +131,7 @@
               <div class="small-5">
                 <a title="Zoom to selected" class="button" @click="map.zoomToSelected()" ><i class="fa fa-search"></i></a>
                 <a title="Download list as geoJSON" class="button" @click="downloadList()" ><i class="fa fa-download"></i></a>
-                <a title="Download all or selected as CSV" class="button" href="{{env.resourceTrackingService}}/devices.csv?{{downloadSelectedCSV()}}" target="_blank" ><i class="fa fa-table"></i></a>
+                <a title="Download all or selected as CSV" class="button" href="{{selectRevision&&env.resourceTrackingService}}/devices.csv?{{downloadSelectedCSV()}}" target="_blank" ><i class="fa fa-table"></i></a>
               </div>
             </div>
             <div id="history-panel" v-if="toggleHistory">
@@ -416,8 +416,8 @@
       },
       downloadSelectedCSV: function () {
           var deviceFilter = ''
-          if (this.selectedFeatures.length > 0) {
-              deviceFilter = 'deviceid__in=' + this.selectedFeatures.map(function(o) {return o.get("deviceid")}).join(",")
+          if (this.selectedFeatures.getLength() > 0) {
+              deviceFilter = 'deviceid__in=' + this.selectedFeatures.getArray().map(function(o) {return o.get("deviceid")}).join(",") + ""
           }
           return deviceFilter
       },
@@ -437,7 +437,7 @@
                 // filter by specific devices if "Show selected only" is enabled
                 if (vm.clippedOnly) {
                     if (vm.clippedFeatures.length > 0) {
-                      deviceFilter = 'deviceid in (' + vm.clippedFeatures.join(',') + ')'
+                      deviceFilter = 'deviceid in (\'' + vm.clippedFeatures.join('\',\'') + '\')'
                     } else {
                       vm.clippedOnly = false
                     }
@@ -460,7 +460,7 @@
       historyCQLFilter: function () {
         var vm = this
         var historyLayer = this.historyLayer
-        var deviceFilter = 'deviceid in (' + this.selectedFeatures.map(function(o) {return o.get("deviceid")}).join(',') + ')'
+        var deviceFilter = 'deviceid in (\'' + this.selectedFeatures.getArray().map(function(o) {return o.get("deviceid")}).join('\',\'') + '\')'
         historyLayer.cql_filter = deviceFilter + "and seen between '" + this.historyFromDate + ' ' + this.historyFromTime + ":00' and '" + this.historyToDate + ' ' + this.historyToTime + ":00'"
         if (this.$root.catalogue.onLayerChange(historyLayer, true)) {
             //Add history layer into the map. need to add to the hoverable

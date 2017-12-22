@@ -1018,7 +1018,7 @@
         }catch(ex) {
             if (!feat.get('external_feature')) {
                 if (indexes) {feat['selectedIndex'] = indexes}
-                if (this.annotations.selectedFeatures.length !== 1 || this.annotations.selectedFeatures.item(0) !== feat) {
+                if (this.annotations.selectedFeatures.getLength() !== 1 || this.annotations.selectedFeatures.item(0) !== feat) {
                     this.annotations.selectedFeatures.clear()
                     this.annotations.selectedFeatures.push(feat)
                 }
