@@ -188,7 +188,7 @@
         vm.catalogue.catalogue.forEach(function(layer){
             if (layer.tags && layer.tags.some(function(o) {return o.name === "detail_link" || o.name === "detail_dialog"} )) {
                 layer.icon = "/dist/static/images/" + layer.id.replace(":","-").toLowerCase() + ".png"
-                layer.title = layer.label
+                layer.title = layer.name || layer.id
                 vm.layers.splice(0,0,layer)
             }
         })

@@ -7,13 +7,13 @@
         <button type="button" style="height:16px;border-top-left-radius:0px;border-top-right-radius:0px"  @click="showTools=!showTools" >
             <i class="fa fa-angle-double-down" aria-hidden="true"></i>
         </button>
-        <div v-show="showTools" style="position:absolute;width:300px;right:0px">
+        <div v-show="showTools" style="position:absolute;width:200px;right:0px">
             <button type="button" v-for="t in tools" title="{{t.title}}"  style="margin:1px;float:right" track-by="$index" @click.stop.prevent="selectTool(t)">
                 <img v-bind:src="t.icon" width="36" height="36">
             </button>
         </div>
         <template v-for="t in tool.assistantButtons" track-by="$index" >
-            <button type="button" v-show="showAssistantButton(t)" title="{{t.title}}" @click.stop.prevent="clickAssistantButton(t)">
+            <button type="button" v-show="showAssistantButton(t)" style="margin-top:1px" title="{{t.title}}" @click.stop.prevent="clickAssistantButton(t)">
                 <img v-bind:src="t.icon">
             </button>
         </template>
@@ -67,7 +67,7 @@
       map: function () { return this.$root.map },
       env: function () { return this.$root.env },
       components:function() {
-        return [this.$root.spotforecast,this.$root.featuredetail]
+        return [this.$root.spotforecast,this.$root.featuredetail,this.$root.measure]
       },
       enabled:function() {
         return this.layers.length > 0
@@ -115,7 +115,7 @@
         this.tool._component.toggleTool(undefined,this.tool)
       },
       showAssistantButton:function(button) {
-        this.tool._component.showAssistantButton(button)
+        return this.showTools?false:(this.tool._component.showAssistantButton && this.tool._component.showAssistantButton(button))
       },
       clickAssistantButton:function(button) {
         this.tool._component.clickAssistantButton(button)
@@ -131,11 +131,17 @@
 
         vm._toolboxStatus.phaseBegin("initialize",20,"Initialize",true,false)
         
-        $.each(vm.components,function(index,component){
-            $.each(component.tools,function(index,tool){
+        var defaultTool = null;
+        var index = 0
+        $.each(vm.components,function(index1,component){
+            $.each(component.tools,function(index2,tool){
                 tool._component = component
                 tool.assistantButtons = (tool.assistantButtons === null || tool.assistantButtons === undefined)?[]:tool.assistantButtons
-                vm.tools.push(tool)
+                vm.tools.splice( Math.floor(index / 4) * 4,0,tool)
+                if (index === 0) {
+                    defaultTool = tool
+                }
+                index += 1
             })
         })
         if (vm.tools.length) {
@@ -145,7 +151,7 @@
                 controls:vm.mapControl
             }
     
-            vm.selectTool(vm.tools[0])
+            vm.selectTool(defaultTool)
         }
         vm.revision += 1
 

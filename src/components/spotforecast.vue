@@ -1032,7 +1032,7 @@
                 })
             } else {
                 $("#spotforecast_data").val(JSON.stringify(requestData))
-                utils.submitForm("get_spotforecast",{width: (screen.width > 1890)?1890:screen.width, height:(screen.height > 1060)?1060:screen.height})
+                utils.submitForm("get_spotforecast",{width: (screen.width > 1890)?1890:screen.width, height:(screen.height > 1060)?1060:screen.height},true)
             }
         }
 

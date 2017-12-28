@@ -110,30 +110,30 @@
         return "top:" + this.topPosition + "px";
       },
       tools:function() {
-        return {
+        return [
             {
-                name:"measure_length",
+                name:"MeasureLength",
                 title:"Measure Length",
                 icon:"/dist/static/images/measure-length.svg",
                 assistantButtons:[
                     {name:"Clear", title:"Clear Measurements",icon:"/dist/static/images/clear.svg"}
                 ]
             },{
-                name:"measure_area",
+                name:"MeasureArea",
                 title:"Measure Area",
                 icon:"/dist/static/images/measure-area.svg",
                 assistantButtons:[
                     {name:"Clear", title:"Clear Measurements",icon:"/dist/static/images/clear.svg"}
                 ]
             },{
-                name:"measure_bearing",
+                name:"MeasureBearing",
                 title:"Measure Bearing",
                 icon:"/dist/static/images/measure-bearing.svg",
                 assistantButtons:[
                     {name:"Clear", title:"Clear Measurements",icon:"/dist/static/images/clear.svg"}
                 ]
             },
-        }
+        ]
       },
     },
     watch:{
@@ -206,10 +206,19 @@
         this._measureLayers.push([layer["id"] || layer,features || null, filter||null,{}])
       },
       selectTool:function(tool) {
-        if (this.forecastSetting === tool) {
-            return
-        }
-        this.forecastSetting = tool
+      },
+      toggleTool: function (enable,tool) {
+          this.toggleMeasure(tool.name,enable)
+
+      },
+      isToolActivated:function(tool) {
+        return this.measureType !== ""
+      },
+      showAssistantButton:function(button) {
+        return this.showClear
+      },
+      clickAssistantButton:function(button) {
+        this.clearMeasure()
       },
       //layer can be layerid, layer object, and memeber of this._measureLayers
       enableLayerMeasurement:function(layer,enable) {
@@ -321,8 +330,14 @@
             vm._remeasureFeature(feature)
         }
       },
-      toggleMeasure: function (type) {
-        if (this.measureType === type) {
+      toggleMeasure: function (type,enable) {
+        if (enable === true && this.measureType === type) {
+            //already enabled
+            return 
+        } else if (enable === false && this.measureType !== type) {
+            //already disabled
+            return
+        } else if (this.measureType === type) {
             this.annotations.setTool(this.annotations.currentTool,true)
         } else  {
             this.annotations.setTool(type)
@@ -937,10 +952,12 @@
       var measureStatus = vm.loading.register("measure","Measurement Component")
 
       measureStatus.phaseBegin("initialize",30,"Initialize")
-      vm.map.mapControls["measure"] = {
-          enabled:false,
-          autoenable:false,
-          controls:vm.mapControl
+      if (!vm.$root.toolbox.inToolbox(vm)) {
+        vm.map.mapControls["measure"] = {
+              enabled:false,
+            autoenable:false,
+            controls:vm.mapControl
+        }
       }
 
       //initialize the overlay and interactions

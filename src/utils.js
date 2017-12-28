@@ -263,7 +263,7 @@ Utils.prototype.editResource = function(event,options,url,target,reopen) {
     }
 }
 
-Utils.prototype.submitForm = function(formid,options) {
+Utils.prototype.submitForm = function(formid,options,reopen) {
     var form = $("#" + formid)
 
     if (env.appType == "cordova") {
@@ -272,12 +272,25 @@ Utils.prototype.submitForm = function(formid,options) {
         var target = form.attr("target") || "_blank"
         options = options || {}
         var winOptions = defaultWinOptions.map(function(option){return option[0] + "=" + (options[option[0]] || ((typeof option[1] === "function")?option[1]():option[1]) )}).join(",")
-        var win = null;
-        if (target !== "_blank" ) {
-            win = window.open("",target,winOptions);
+        var win = window.open("",target,winOptions);
+        if (reopen) {
+            try{
+                if (win.location.href !== "about:blank") {
+                    //already opened before, close it first
+                    win.close()
+                    win = null
+                }
+            } catch (ex) {
+                //already opened before, close it first
+                win.close()
+                win = null
+            }
+            if (win === null) {
+                win = window.open("",target,winOptions);
+            }
         }
         form.submit()
-        if (win) {
+        if (target === "_blank"  || !reopen) {
             setTimeout(function(){win.focus()},500)
         }
     }
