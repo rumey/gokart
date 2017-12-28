@@ -209,15 +209,15 @@
     </div>
 
     <div style="display:none">
-    <div id="spotforecast_control" class="ol-selectable ol-control">
-        <button type="button" title="{{settingTitle()}}" @click="toggleSpotForecast()" v-bind:class="{'selected':isControlSelected}" style="height:36px;border-bottom-left-radius:0px;border-bottom-right-radius:0px">
+    <div id="spotforecast_control" class="ol-selectable ol-control" v-bind:style="topPositionStyle">
+        <button type="button" title="{{forecastSetting.title}}" @click="toggleTool()" v-bind:class="{'selected':isControlSelected}" style="width:48px;height:36px;border-bottom-left-radius:0px;border-bottom-right-radius:0px">
             <img v-bind:src="forecastSetting.icon" width="36" height="36">
         </button>
         <button type="button" style="height:16px;border-top-left-radius:0px;border-top-right-radius:0px"  @click="showSettings=!showSettings" >
             <i class="fa fa-angle-double-down" aria-hidden="true"></i>
         </button>
         <div v-show="showSettings" style="position:absolute;width:300px;right:0px">
-            <button type="button" v-for="s in forecastSettings" title="{{settingTitle(s)}}"  style="margin:1px;float:right" track-by="$index" @click.stop.prevent="selectSetting(s)">
+            <button type="button" v-for="s in forecastSettings" title="{{s.title}}"  style="margin:1px;float:right" track-by="$index" @click.stop.prevent="selectSetting(s)">
                 <img v-bind:src="s.icon" width="36" height="36">
             </button>
         </div>
@@ -231,6 +231,12 @@
 </template>
 
 <style>
+#spotforecast_control button{
+    width: 48px;
+    height: 48px;
+    margin: 0;
+}
+
 .datasource-desc {
     font-style:italic;
     padding-left:24px;
@@ -255,7 +261,6 @@
 }
 #spotforecast_control {
     position: absolute;
-    top: 180px;
     left: auto;
     right: 16px;
     bottom: auto;
@@ -296,8 +301,8 @@
         reportTimes:[],
         forecastSetting:{},
         forecastSettings:[
-            {name:"default",title:"Default outlook forecast",icon:"/dist/static/images/default-outlook-forecast.svg"},
-            {name:"customized",title:"Customized outlook forecast",icon:"/dist/static/images/customized-outlook-forecast.svg"}
+            {name:"default",title:"Default 4 Day Weather Outlook",icon:"/dist/static/images/default-outlook-forecast.svg"},
+            {name:"customized",title:"Customized Weather Outlook",icon:"/dist/static/images/customized-outlook-forecast.svg"}
         ],
         showSettings:false,
         revision:1,
@@ -360,11 +365,22 @@
         }
       },
       height:function() {
-        if (!this.showSettings) {
-            return 52
+        if (!this.$root.toolbox || this.$root.toolbox.inToolbox(this)) {
+            return 0
+        } else if (!this.showSettings) {
+            return 52 + 9
         } else {
-            return 52 + Math.ceil(this.forecastSettings.length / 6) * 50
+            return 52 + Math.ceil(this.forecastSettings.length / 6) * 50 + 9
         }
+      },
+      topPosition:function() {
+        return 180;
+      },
+      topPositionStyle:function() {
+        return "top:" + this.topPosition + "px";
+      },
+      tools:function() {
+        return this.forecastSettings
       },
     },
     watch:{
@@ -381,6 +397,9 @@
       reportHours:function(newValue,oldValue) {
         this.updateReportTimes()   
       },
+      forecastDays:function(newValue,oldValue) {
+        this.changeForecastDays()
+      }
     },
     // methods callable from inside the template
     methods: {
@@ -394,9 +413,8 @@
             $("#spotforecast-datasources").height(height)
         }
       },
-      settingTitle: function(s){
-        s = s || this.forecastSetting
-        return (s.name === "default")?"Default 4 Day Weather Outlook":(this.forecastDays + " Day Weather Outlook")
+      changeForecastDays:function() {
+        this.forecastSettings[1].title = "Customised " + this.forecastDays + " Day Weather Outlook"
       },
       selectSetting:function(s) {
         this.showSettings = false
@@ -404,6 +422,30 @@
             return
         }
         this.forecastSetting = s
+      },
+      selectTool:function(tool) {
+        if (this.forecastSetting === tool) {
+            return
+        }
+        this.forecastSetting = tool
+      },
+      toggleTool: function (enable) {
+        if (!this._spotforecastTool) {
+            this.annotations.setTool(this.annotations.currentTool,true)
+        } else if (enable === true && this.annotations.tool === this._spotforecastTool) {
+            //already enabled
+            return
+        } else if (enable === false && this.annotations.tool !== this._spotforecastTool) {
+            //already disabled
+            return
+        } else if (this.annotations.tool === this._spotforecastTool) {
+            this.annotations.setTool(this.annotations.currentTool,true)
+        } else  {
+            this.annotations.setTool(this._spotforecastTool)
+        }
+      },
+      isToolActivated:function(tool) {
+        return this.isControlSelected
       },
       isDegreeUnit:function(ds) {
         return ds.metadata.unit === "C"
@@ -550,13 +592,6 @@
         }
         this.revision += 1
 
-      },
-      toggleSpotForecast: function () {
-        if (!this._spotforecastTool || this.annotations.tool === this._spotforecastTool) {
-            this.annotations.setTool(this.annotations.currentTool,true)
-        } else  {
-            this.annotations.setTool(this._spotforecastTool)
-        }
       },
       toggleDatasource:function(ds,add,index,subindex) {
         if (ds) {
@@ -1012,10 +1047,12 @@
       this._spotforecastStatus.phaseBegin("initialize",20,"Initialize")
       this.forecastSetting = this.forecastSettings[0]
       
-      vm.map.mapControls["spotforecast"] = {
-          enabled:false,
-          autoenable:false,
-          controls:vm.mapControl
+      if (!vm.$root.toolbox.inToolbox(vm)) {
+          vm.map.mapControls["spotforecast"] = {
+              enabled:false,
+            autoenable:false,
+            controls:vm.mapControl
+        }
       }
 
       this.editingReportHours = this.reportHours
@@ -1124,6 +1161,8 @@
       this.updateReportTimes()
 
       this.adjustHeight()
+
+      this.changeForecastDays()
 
       this._spotforecastStatus.phaseEnd("initialize")
 

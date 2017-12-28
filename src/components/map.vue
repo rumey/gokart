@@ -6,6 +6,7 @@
   <gk-search v-ref:search></gk-search>
   <gk-featuredetail v-ref:featuredetail></gk-featuredetail>
   <gk-measure v-ref:measure></gk-measure>
+  <gk-toolbox v-ref:toolbox></gk-toolbox>
 </template>
 <style>
     .ol-custom-overviewmap,
@@ -46,6 +47,7 @@
   import gkSearch from './search.vue'
   import gkFeaturedetail from './featuredetail.vue'
   import gkMeasure from './measure.vue'
+  import gkToolbox from './toolbox.vue'
   export default {
     store: {
         fixedScales:'fixedScales', 
@@ -56,7 +58,7 @@
         displayGraticule:'settings.graticule',
         displayResolution:'displayResolution'
     },
-    components: { gkInfo, gkScales, gkSearch, gkMeasure,gkFeaturedetail},
+    components: { gkInfo, gkScales, gkSearch, gkMeasure,gkFeaturedetail,gkToolbox},
     data: function () {
       return {
         scale: 0,

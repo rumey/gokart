@@ -11,6 +11,16 @@
 </template>
 
 <style>
+#map-measure button {
+    width: 48px;
+    height: 48px;
+    margin: 0;
+}
+
+#map-measure button {
+    margin-bottom: 1px;
+}
+
   .feature-icon {
     width: 24px;
     height: 24px;
@@ -46,13 +56,6 @@
       catalogue: function () { return this.$root.catalogue },
       annotations: function () { 
         return this.$root.$refs.app.$refs.annotations 
-      },
-      topPosition:function() {
-        if (!this.featuredetail || !this.featuredetail.enabled) {
-            return 180 + this.spotforecast.height + 9;
-        } else {
-            return this.featuredetail.topPosition + this.spotforecast.height + 9;
-        }
       },
       measureType: function() {
         if (["MeasureLength","MeasureArea","MeasureBearing"].indexOf(this.annotations.tool.name) >= 0) {
@@ -91,9 +94,47 @@
       measureFeature:function() {
         return this.settings.measureFeature
       },
+      height:function() {
+        if (!this.$root.toolbox || this.$root.toolbox.inToolbox(this)) {
+            return 0
+        } else if (this.showClear) {
+            return 196 + 9
+        } else {
+            return 147 + 9
+        }
+      },
+      topPosition:function() {
+        return this.featuredetail.topPosition + this.featuredetail.height;
+      },
       topPositionStyle:function() {
         return "top:" + this.topPosition + "px";
-      }
+      },
+      tools:function() {
+        return {
+            {
+                name:"measure_length",
+                title:"Measure Length",
+                icon:"/dist/static/images/measure-length.svg",
+                assistantButtons:[
+                    {name:"Clear", title:"Clear Measurements",icon:"/dist/static/images/clear.svg"}
+                ]
+            },{
+                name:"measure_area",
+                title:"Measure Area",
+                icon:"/dist/static/images/measure-area.svg",
+                assistantButtons:[
+                    {name:"Clear", title:"Clear Measurements",icon:"/dist/static/images/clear.svg"}
+                ]
+            },{
+                name:"measure_bearing",
+                title:"Measure Bearing",
+                icon:"/dist/static/images/measure-bearing.svg",
+                assistantButtons:[
+                    {name:"Clear", title:"Clear Measurements",icon:"/dist/static/images/clear.svg"}
+                ]
+            },
+        }
+      },
     },
     watch:{
         lengthUnit:function(newValue,oldValue) {
@@ -163,6 +204,12 @@
       register:function(layer,features,filter) {
         this._measureLayers = this._measureLayers || []
         this._measureLayers.push([layer["id"] || layer,features || null, filter||null,{}])
+      },
+      selectTool:function(tool) {
+        if (this.forecastSetting === tool) {
+            return
+        }
+        this.forecastSetting = tool
       },
       //layer can be layerid, layer object, and memeber of this._measureLayers
       enableLayerMeasurement:function(layer,enable) {

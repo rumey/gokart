@@ -241,6 +241,7 @@ if (result) {
           scales: function () { return this.$refs.app.$refs.map.$refs.scales },
           search: function () { return this.$refs.app.$refs.map.$refs.search },
           featuredetail: function () { return this.$refs.app.$refs.map.$refs.featuredetail },
+          toolbox: function () { return this.$refs.app.$refs.map.$refs.toolbox },
           measure: function () { return this.$refs.app.$refs.map.$refs.measure },
           info: function() { return this.$refs.app.$refs.map.$refs.info},
           active: function () { return this.$refs.app.$refs.layers.$refs.active },

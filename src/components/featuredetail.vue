@@ -1,7 +1,7 @@
 <template>
     <div style="display:none">
     <div id="featuredetail_control" class="ol-selectable ol-control" v-bind:style="topPositionStyle">
-        <button type="button" title="{{layer.title}}" v-bind:style="controlButtonStyle" @click="toggleFeaturedetail()" v-bind:class="{'selected':isControlSelected,'warning':warning}">
+        <button type="button" title="{{layer.title}}" v-bind:style="controlButtonStyle" @click="toggleTool()" v-bind:class="{'selected':isControlSelected,'warning':warning}">
             <img v-bind:src="layer.icon" width=36 height=36>
         </button>
         <button v-if="layers.length > 1" type="button" style="height:16px;border-top-left-radius:0px;border-top-right-radius:0px"  @click="showLayers=!showLayers" >
@@ -18,6 +18,12 @@
 </template>
 
 <style>
+#featuredetail_control button{
+    width: 48px;
+    height: 48px;
+    margin: 0;
+}
+
 #featuredetail_control .selected{
     background-color: #2199E8;
 }
@@ -67,18 +73,20 @@
         return this.layers.length > 1 ? "height:36px;border-bottom-left-radius:0px;border-bottom-right-radius:0px":""
       },
       height:function() {
-        if (this.layers.length === 0) {
+        if (!this.$root.toolbox || this.$root.toolbox.inToolbox(this)) {
+            return 0
+        } else if (this.layers.length === 0) {
             return 0
         } else if (this.layers.length === 1) {
-            return 48
+            return 48 + 9
         } else if (!this.showLayers) {
-            return 52
+            return 52 + 9
         } else {
-            return 52 + Math.ceil(this.layers.length / 6) * 50
+            return 52 + Math.ceil(this.layers.length / 6) * 50 + 9
         }
       },
       topPosition:function() {
-        return 180 + this.spotforecast.height + 9;
+        return this.spotforecast.topPosition + this.spotforecast.height;
       },
       topPositionStyle:function() {
         return "top:" + this.topPosition + "px";
@@ -99,13 +107,25 @@
             return false
         }
       },
+      tools:function() {
+        return this.layers
+      }
     },
     watch:{
     },
     // methods callable from inside the template
     methods: {
-      toggleFeaturedetail: function () {
-        if (!this._featuredetailTool || this.annotations.tool === this._featuredetailTool) {
+      toggleTool: function (enable) {
+        this.warning = false
+        if (!this._featuredetailTool) {
+            this.annotations.setTool(this.annotations.currentTool,true)
+        } else if (enable === true && this.annotations.tool === this._featuredetailTool) {
+            //already enabled
+            return
+        } else if (enable === false && this.annotations.tool !== this._featuredetailTool) {
+            //already disabled
+            return
+        } else if (this.annotations.tool === this._featuredetailTool) {
             this.annotations.setTool(this.annotations.currentTool,true)
         } else  {
             this.annotations.setTool(this._featuredetailTool)
@@ -117,10 +137,12 @@
                 this.active.toggleHidden(mapLayer)
             }
         }
-        this.warning = false
       },
       selectLayer:function(l) {
         this.showLayers = false
+        this.selectTool(l)
+      },
+      selectTool:function(l) {
         if (this.layer === l) {
             return
         }
@@ -145,7 +167,13 @@
             }
 
         }
-      }
+      },
+      isToolActivated:function(tool) {
+        return this.isControlSelected
+      },
+      isToolWarning:function(tool) {
+        return this.warning
+      },
     },
     ready: function () {
       var vm = this
@@ -160,16 +188,19 @@
         vm.catalogue.catalogue.forEach(function(layer){
             if (layer.tags && layer.tags.some(function(o) {return o.name === "detail_link" || o.name === "detail_dialog"} )) {
                 layer.icon = "/dist/static/images/" + layer.id.replace(":","-").toLowerCase() + ".png"
+                layer.title = layer.label
                 vm.layers.splice(0,0,layer)
             }
         })
         if (vm.layers.length) {
             vm.layer = vm.layers[0]
-
-            vm.map.mapControls["featuredetail"] = {
-                enabled:false,
-                autoenable:false,
-                controls:vm.mapControl
+            
+            if (!vm.$root.toolbox.inToolbox(vm)) {
+                vm.map.mapControls["featuredetail"] = {
+                    enabled:false,
+                    autoenable:false,
+                    controls:vm.mapControl
+                }
             }
     
             var featuredetailInter = new ol.interaction.Interaction({

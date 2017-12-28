@@ -117,16 +117,12 @@ body {
 }
 
 .ol-zoom button,
-#map-measure button,
-#spotforecast_control button,
-#featuredetail_control button,
 .ol-full-screen button {
     width: 48px;
     height: 48px;
     margin: 0;
 }
 
-#map-measure button,
 .ol-zoom button {
     margin-bottom: 1px;
 }
