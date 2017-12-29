@@ -46,7 +46,7 @@
 
             <div class="row">
               <div class="switch tiny">
-                <input class="switch-input" id="toggleDBCAResourceLabels" type="checkbox" v-bind:checked="showDBCAResource" @change="showDBCAResource = !showDBCAResource" />
+                <input class="switch-input" id="toggleDBCAResourceLabels" type="checkbox" v-bind:disabled="clippedOnly" v-bind:checked="showDBCAResource" @change="showDBCAResource = !showDBCAResource" />
                 <label class="switch-paddle" for="toggleDBCAResourceLabels">
                   <span class="show-for-sr">Show DBCA Resources</span>
                 </label>
@@ -56,7 +56,7 @@
 
             <div class="row">
               <div class="switch tiny">
-                <input class="switch-input" id="toggleDFESResourceLabels" type="checkbox" v-bind:checked="showDFESResource" @change="showDFESResource = !showDFESResource" />
+                <input class="switch-input" id="toggleDFESResourceLabels" type="checkbox" v-bind:disabled="clippedOnly" v-bind:checked="showDFESResource" @change="showDFESResource = !showDFESResource" />
                 <label class="switch-paddle" for="toggleDFESResourceLabels">
                   <span class="show-for-sr">Show DFES Resources</span>
                 </label>
@@ -66,7 +66,7 @@
 
             <div class="row">
               <div class="switch tiny">
-                <input class="switch-input" id="toggleOtherExternalResourceLabels" type="checkbox" v-bind:checked="showOtherExternalResource" @change="showOtherExternalResource = !showOtherExternalResource" />
+                <input class="switch-input" id="toggleOtherExternalResourceLabels" type="checkbox" v-bind:disabled="clippedOnly" v-bind:checked="showOtherExternalResource" @change="showOtherExternalResource = !showOtherExternalResource" />
                 <label class="switch-paddle" for="toggleOtherExternalResourceLabels">
                   <span class="show-for-sr">Show Other External Resources</span>
                 </label>
@@ -554,17 +554,23 @@
                         }
                     }
                     // CQL statement assembling logic
+                    var cql_filter = ""
                     if (deviceFilter) {
-                      vm.trackingLayer.cql_filter = deviceFilter
+                      cql_filter = deviceFilter
                     } else if (groupFilter && sourceFilter) {
-                      vm.trackingLayer.cql_filter = '(' + groupFilter + ') and (' + sourceFilter + ')'
+                      cql_filter = '(' + groupFilter + ') and (' + sourceFilter + ')'
                     } else if (groupFilter) {
-                      vm.trackingLayer.cql_filter = groupFilter
+                      cql_filter = groupFilter
                     } else if (sourceFilter) {
-                      vm.trackingLayer.cql_filter = sourceFilter
+                      cql_filter = sourceFilter
                     } else {
-                      vm.trackingLayer.cql_filter = ""
+                      cql_filter = ""
                     }
+                    if (cql_filter === vm.trackingLayer.cql_filter) {
+                        //filter not changed
+                        return
+                    }
+                    vm.trackingLayer.cql_filter = cql_filter
                     //clear device filter or change other filter
                     vm.trackingMapLayer.set('updated', moment().toLocaleString())
                     vm.trackingMapLayer.getSource().loadSource(deviceFilter?"querySavedSelection":"query")
@@ -575,7 +581,6 @@
         }
         if (wait === 0) {
             vm._updateCQLFilter.call({wait:1})
-            vm._updateCQLFilterFunc(force,callback)
         } else if (wait === undefined || wait === null) {
             vm._updateCQLFilter()
         } else {
