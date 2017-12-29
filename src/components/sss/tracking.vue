@@ -46,6 +46,36 @@
 
             <div class="row">
               <div class="switch tiny">
+                <input class="switch-input" id="toggleDBCAResourceLabels" type="checkbox" v-bind:checked="showDBCAResource" @change="showDBCAResource = !showDBCAResource" />
+                <label class="switch-paddle" for="toggleDBCAResourceLabels">
+                  <span class="show-for-sr">Show DBCA Resources</span>
+                </label>
+              </div>
+              <label for="toggleDBCAResourceLabels" class="side-label">Show DBCA Resources</label>
+            </div>
+
+            <div class="row">
+              <div class="switch tiny">
+                <input class="switch-input" id="toggleDFESResourceLabels" type="checkbox" v-bind:checked="showDFESResource" @change="showDFESResource = !showDFESResource" />
+                <label class="switch-paddle" for="toggleDFESResourceLabels">
+                  <span class="show-for-sr">Show DFES Resources</span>
+                </label>
+              </div>
+              <label for="toggleDFESResourceLabels" class="side-label">Show DFES Resources</label>
+            </div>
+
+            <div class="row">
+              <div class="switch tiny">
+                <input class="switch-input" id="toggleOtherExternalResourceLabels" type="checkbox" v-bind:checked="showOtherExternalResource" @change="showOtherExternalResource = !showOtherExternalResource" />
+                <label class="switch-paddle" for="toggleOtherExternalResourceLabels">
+                  <span class="show-for-sr">Show Other External Resources</span>
+                </label>
+              </div>
+              <label for="toggleDBCAResourceLabels" class="side-label">Show Other External Resources</label>
+            </div>
+
+            <div class="row">
+              <div class="switch tiny">
                 <input class="switch-input" id="toggleResourceLabels" type="checkbox" v-bind:checked="resourceLabels" @change="toggleResourceLabels" />
                 <label class="switch-paddle" for="toggleResourceLabels">
                   <span class="show-for-sr">Display resource labels</span>
@@ -216,6 +246,7 @@
         clippedOnly: false,
         search: '',
         groupFilter: '',
+        sourceflag:2,
         tools: [],
         history: '',
         fields: ['id', 'registration', 'rin_display', 'deviceid', 'symbol', 'district_display', 'usual_driver', 'callsign_display', 'usual_location', 'current_driver', 'contractor_details', 'source_device_type'],
@@ -276,6 +307,30 @@
           var fromDate = currentDate.subtract(val, 'milliseconds')
           this.historyFromDate = fromDate.format('YYYY-MM-DD')
           this.historyFromTime = fromDate.format('HH:mm')
+        }
+      },
+      showOtherExternalResource: {
+        get: function() {
+            return (this.sourceflag & 1) === 1
+        },
+        set: function(show) {
+            this.setSourceFlag(1,show)
+        }
+      },
+      showDBCAResource:{
+        get: function() {
+            return (this.sourceflag & 2) === 2
+        },
+        set: function(show) {
+            this.setSourceFlag(2,show)
+        }
+      },
+      showDFESResource:{
+        get: function() {
+            return (this.sourceflag & 4) === 4
+        },
+        set: function(show) {
+            this.setSourceFlag(4,show)
         }
       },
       trackingLayer: function() {
@@ -345,12 +400,47 @@
       showToggles:function(newValue,oldValue) {
         this.adjustHeight()
       },
+      sourceflag:function(newValue,oldValue) {
+        this.updateCQLFilter(1000)
+      }
     },
     methods: {
       adjustHeight:function() {
         if (this.activeMenu === "tracking") {
             $("#tracking-list").height(this.screenHeight - this.leftPanelHeadHeight - 41 - $("#tracking-list-controller-container").height() - this.hintsHeight)
         }
+      },
+      setSourceFlag: function(flag,show) {
+        if (show === null || show === undefined) {
+            //toggle 
+            this.sourceflag = this.sourceflag ^ flag
+        } else if (show && (this.sourceflag & flag) === 0) {
+            //flag is off
+            this.sourceflag += flag
+        } else if (!show && (this.sourceflag & flag) === flag) {
+            //flag is on
+            this.sourceflag -= flag
+        }
+      },
+      getSourceFilter:function() {
+        if (this.showDBCAResource && this.showDFESResource && this.showOtherExternalResource) {
+            return null
+        } else if (!this.showDBCAResource && !this.showDFESResource && !this.showOtherExternalResource) {
+            throw "Please chose at least one resource source."
+        }
+        var filter = ""
+        if (this.showDBCAResource) {
+            filter += "'iriditrak','dplus','spot','other'"
+        }
+        if (this.showDFESResource) {
+            if (filter !== "") filter += ","
+            filter += "'dfes'"
+        }
+        if (this.showOtherExternalResource) {
+            if (filter !== "") filter += ","
+            filter += "'tracplus'"
+        }
+        return "source_device_type in (" + filter + ")"
       },
       ago: function (time) {
         var now = moment()
@@ -447,34 +537,50 @@
               this.$root.catalogue.onLayerChange(historyLayer, false)
           }
       },
-      updateCQLFilter: function () {
+      updateCQLFilter: function (wait) {
         var vm = this
         if (!vm._updateCQLFilter) {
             vm._updateCQLFilter = debounce(function(updateType){
-                var groupFilter = vm.groupFilter
-                var deviceFilter = ''
-                // filter by specific devices if "Show selected only" is enabled
-                if (vm.clippedOnly) {
-                    if (vm.clippedFeatures.length > 0) {
-                      deviceFilter = 'deviceid in (\'' + vm.clippedFeatures.join('\',\'') + '\')'
-                    } else {
-                      vm.clippedOnly = false
+                try {
+                    var groupFilter = vm.groupFilter
+                    var deviceFilter = ''
+                    var sourceFilter = vm.getSourceFilter()
+                    // filter by specific devices if "Show selected only" is enabled
+                    if (vm.clippedOnly) {
+                        if (vm.clippedFeatures.length > 0) {
+                          deviceFilter = 'deviceid in (\'' + vm.clippedFeatures.join('\',\'') + '\')'
+                        } else {
+                          vm.clippedOnly = false
+                        }
                     }
+                    // CQL statement assembling logic
+                    if (deviceFilter) {
+                      vm.trackingLayer.cql_filter = deviceFilter
+                    } else if (groupFilter && sourceFilter) {
+                      vm.trackingLayer.cql_filter = '(' + groupFilter + ') and (' + sourceFilter + ')'
+                    } else if (groupFilter) {
+                      vm.trackingLayer.cql_filter = groupFilter
+                    } else if (sourceFilter) {
+                      vm.trackingLayer.cql_filter = sourceFilter
+                    } else {
+                      vm.trackingLayer.cql_filter = ""
+                    }
+                    //clear device filter or change other filter
+                    vm.trackingMapLayer.set('updated', moment().toLocaleString())
+                    vm.trackingMapLayer.getSource().loadSource(deviceFilter?"querySavedSelection":"query")
+                } catch(ex) {
+                    alert(ex)
                 }
-                // CQL statement assembling logic
-                if (deviceFilter) {
-                  vm.trackingLayer.cql_filter = deviceFilter
-                } else if (groupFilter) {
-                  vm.trackingLayer.cql_filter = groupFilter
-                } else {
-                  vm.trackingLayer.cql_filter = ""
-                }
-                //clear device filter or change other filter
-                vm.trackingMapLayer.set('updated', moment().toLocaleString())
-                vm.trackingMapLayer.getSource().loadSource(deviceFilter?"querySavedSelection":"query")
             },500)
         }
-        vm._updateCQLFilter()
+        if (wait === 0) {
+            vm._updateCQLFilter.call({wait:1})
+            vm._updateCQLFilterFunc(force,callback)
+        } else if (wait === undefined || wait === null) {
+            vm._updateCQLFilter()
+        } else {
+            vm._updateCQLFilter.call({wait:wait})
+        }
       },
       historyCQLFilter: function () {
         var vm = this
@@ -790,6 +896,7 @@
         name: 'Resource Tracking',
         id: 'dpaw:resource_tracking_live',
         features:vm._featurelist,
+        cql_filter:vm.getSourceFilter(),
         getFeatureInfo:function (f) {
             var extra_device_label = deviceExtraHoverLabel(f)
             return {name:f.get("label"), img:vm.map.getBlob(f, ['icon', 'tint']),
