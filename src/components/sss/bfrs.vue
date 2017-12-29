@@ -3450,7 +3450,8 @@
                             vm.selectedFeatures.removeAt(index)
                         }
                     }
-
+                }
+                if (vm.clippedFeatures.length > 0) {
                     for(var index = vm.clippedFeatures.length - 1;index >= 0;index--) {
                         var f = vm.clippedFeatures[index]
                         loadedFeature = features.find(function(f1){return f1.get('fire_number') === f.get('fire_number')})
