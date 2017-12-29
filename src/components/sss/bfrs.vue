@@ -811,11 +811,14 @@
         }
       },
       canDownloadAll:function() {
+        return true
+        /*
         try{
             return this.revision && this.whoami["bushfire"]["permission"]["final_authorised.modify"]
         } catch(ex) {
             return false
         }
+        */
       },
       canEdit:function(bushfire) {
         return this.revision && bushfire.get('status') !== "new" && this.isEditable(bushfire) && bushfire.get('tint') !== "modified"
