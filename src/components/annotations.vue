@@ -787,8 +787,8 @@
                         var turfPolygon = turf.polygon(ev.element.getGeometry().getCoordinates())
                         var multi = (this.multi_ == undefined)?true:this.multi_
                         selectedFeatures.clear()
-                        vm.selectable.forEach(function(layer) {
-                          if (!multi && selectedFeatures.getLength() > 0) {return true}
+                        $.each(vm.selectable,function(index,layer) {
+                          if (!multi && selectedFeatures.getLength() > 0) {return false}
                           if (layer == vm.featureOverlay) {
                               //select all annotation features except text note
                               layer.getSource().forEachFeatureIntersectingExtent(extent, function (feature) {
@@ -800,11 +800,12 @@
                                 }
                               })
                               //select text note
-                              vm.features.forEach(function(feature){
-                                if (!multi && selectedFeatures.getLength() > 0) {return}
+                              $.each(vm.features.getArray(),function(index2,feature) {
+                                if (!multi && selectedFeatures.getLength() > 0) {return false}
                                 if (feature.get('note')) {
                                   if (ev.element.getGeometry().intersectsExtent(vm.getNoteExtent(feature))) {
                                     selectedFeatures.push(feature)
+                                    return multi
                                   }
                                 }
                               })
@@ -852,10 +853,15 @@
           var dragSelectInter = new ol.interaction.DragBox({
             condition: function(ev) {
                 return (!vm._toolStatus["selectTool"] || vm._toolStatus["selectTool"] === this) && ol.events.condition.noModifierKeys(ev)
+            },
+            boxEndCondition:function(mapBrowserEvent, startPixel, endPixel) {
+                if (vm._toolStatus["selectTool"] === this) {
+                    vm._toolStatus["selectTool"] = null
+                }
+                return ol.interaction.DragBox.defaultBoxEndCondition.call(this,mapBrowserEvent, startPixel, endPixel)
             }
           })
           // modify selectedFeatures after dragging a box
-
           dragSelectInter.on('addtomap', function (ev) {
             this.setActive(true)
           })
@@ -865,10 +871,8 @@
             selectedFeatures.clear()
             var extent = event.target.getGeometry().getExtent()
             var multi = (this.multi_ == undefined)?true:this.multi_
-            vm.selectable.forEach(function(layer) {
-              vm._toolStatus["selectTool"] = null
-                
-              if (!multi && selectedFeatures.getLength() > 0) {return true}
+            $.each(vm.selectable,function(index,layer) {
+              if (!multi && selectedFeatures.getLength() > 0) {return false}
               if (layer == vm.featureOverlay) {
                   //select all annotation features except text note
                   layer.getSource().forEachFeatureIntersectingExtent(extent, function (feature) {
@@ -879,11 +883,12 @@
                     }
                   })
                   //select text note
-                  vm.features.forEach(function(feature){
-                    if (!multi && selectedFeatures.getLength() > 0) {return}
+                  $.each(vm.features.getArray(),function(index2,feature) {
+                    if (!multi && selectedFeatures.getLength() > 0) {return false}
                     if (feature.get('note')) {
                       if (ol.extent.intersects(extent,vm.getNoteExtent(feature))) {
                         selectedFeatures.push(feature)
+                        return multi
                       }
                     }
                   })
