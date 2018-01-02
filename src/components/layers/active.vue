@@ -33,7 +33,7 @@
         <div class="tool-slice row" v-if="layerRefreshConfigable()">
           <div class="columns small-3"><label class="tool-label">Refresh:<br/>{{ formattedLayerRefreshInterval }}</label></div>
           <div class="columns small-8">
-            <input class="layer-opacity" v-if="layerRefreshIntervalConfigable()" type="range" :min="layer.min_interval" :max="layer.max_interval" :step="layer.interval_step || 1" v-model="layerRefreshInterval">
+            <input class="layer-opacity" v-if="layerRefreshIntervalConfigable()" type="range" v-bind:min="layer.min_interval" v-bind:max="layer.max_interval" v-bind:step="layer.interval_step || 1" v-model="layerRefreshInterval">
           </div>
           <div class="columns small-1">
             <a title="Stop auto refresh" v-if="!layerRefreshStopped" class="button tiny secondary float-right" @click="stopLayerRefresh()" ><i class="fa fa-stop"></i></a>
@@ -118,10 +118,11 @@
       },
       layerRefreshInterval: {
         get: function () {
-          return this.layer.refresh
+          return this.refreshRevision && this.layer.refresh
         },
         set: function (val) {
           var vm = this
+          this.refreshRevision += 1
           vm.map.setRefreshInterval(vm.layer,val)
           if (vm.layerRefreshStopped) {
             return
@@ -137,7 +138,7 @@
       },
       formattedLayerRefreshInterval: function() {
         if (this.layerRefreshStopped) {
-          return "Stopped"
+          return this.refreshRevision && "Stopped"
         } else {
           var format = "H\\hm\\ms\\s"
           if (this.layer.refresh < 60) {
@@ -145,7 +146,7 @@
           } else if (this.layer.refresh < 3600) {
             format = "m\\ms\\s"
           }
-          return moment(new Date(this.layer.refresh * 1000)).utc().format(format) 
+          return this.refreshRevision && moment(new Date(this.layer.refresh * 1000)).utc().format(format) 
         }
       },
     },
@@ -198,11 +199,11 @@
       },
       layerRefreshConfigable:function(id) {
         var layer = id?this.getLayer(id):this.layer
-        return layer && (layer.type === "WFSLayer" || layer.type === "TileLayer") && layer.refresh && true
+        return (layer && this.mapLayer(layer) && (layer.type === "WFSLayer" || layer.type === "TileLayer") && layer.refresh)?true:false
       },
       layerRefreshIntervalConfigable:function(id) {
         var layer = id?this.getLayer(id):this.layer
-        return (layer.type === "WFSLayer" || layer.type === "TileLayer") && layer.refresh && layer.min_interval && layer.max_interval && true
+        return ((layer.type === "WFSLayer" || layer.type === "TileLayer") && layer.refresh && layer.min_interval && layer.max_interval)?true:false
       },
       layerRefreshProgress: function(l) {
         return this.refreshRevision && (l.progress || "")
@@ -252,6 +253,9 @@
       },
       removeLayer: function (olLayer) {
         var layer = olLayer.layer
+        if (this.layer === layer) {
+            this.layer = {}
+        }
 
         this.map.olmap.removeLayer(olLayer)
         this.map.olmap.dispatchEvent(this.map.createEvent(this.map,"removeLayer",{mapLayer:olLayer,layer:layer}))
