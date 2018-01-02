@@ -3331,6 +3331,7 @@
         features:vm._featurelist,
         min_interval:60,
         max_interval:600,
+        interval_step:60,
         dependentLayers:[
             {
                 type: 'TileLayer',
