@@ -46,7 +46,7 @@
         </div>
         <div class="tool-slice row" v-if="layer.timeline && mapLayer()">
           <div class="columns small-3"><label class="tool-label">Timeline:</label></div>
-          <div class="columns small-9"><input type="range" v-bind:max="sliderMax" min="0" step="1" v-model="sliderTimeline"></div>
+          <div class="columns small-9"><input type="range" v-bind:disabled="sliderMax < 0" v-bind:max="sliderMax" min="0" step="1" v-model="sliderTimeline" title="{{layer.timeline.length}} layers"></div>
           <div class="columns small-12"><label class="tool-label">{{ timelineTS }}</label></div>
         </div>
       </div>
@@ -99,7 +99,11 @@
       },
       timelineTS: function () {
         var mapLayer = this.mapLayer()
-        return this.refreshRevision && this.layer.timeline[mapLayer?(mapLayer.get('timeIndex') || 0):0][0]
+        try{
+            return this.refreshRevision && this.layer.timeline[mapLayer?(mapLayer.get('timeIndex') || 0):0][0]
+        } catch(ex) {
+            return this.refreshRevision && ""
+        }
       },
       sliderMax: function () {
         return this.layer.timeline.length - 1

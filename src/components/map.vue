@@ -917,9 +917,11 @@
         // hook to swap the tile layer when timeIndex changes
         tileLayer.on('propertychange', function (event) {
           if (event.key === 'timeIndex') {
-            tileSource.updateParams({
-              'layers': getLayerId(options.timeline[event.target.get(event.key)][1])
-            })
+            if (options.timeline && options.timeline.length > 0) {
+                tileSource.updateParams({
+                  'layers': getLayerId(options.timeline[event.target.get(event.key)][1])
+                })
+            }
           }
         })
 
@@ -1215,7 +1217,7 @@
         // hook to swap the tile layer when timeIndex changes
         tileLayer.on('propertychange', function (event) {
           if (event.key === 'timeIndex') {
-            if (options.timeline) {
+            if (options.timeline && options.timeline.length > 0) {
                 if (!(options.timeline[event.target.get(event.key)][2])) {
                     options.timeline[event.target.get(event.key)][2] = new ol.source.WMTS({
                       url: layer.wmts_url,
