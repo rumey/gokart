@@ -104,12 +104,15 @@
       inToolbox:function(component) {
         return this.components.findIndex(function(o){return o === component}) >= 0
       },
-      selectTool:function(tool) {
+      selectTool:function(tool,enabled) {
         this.showTools = false
+        enabled = (enabled === null || enabled === undefined)?true:enabled
         if (this.tool === tool) return
         this.tool = tool
         this.tool._component.selectTool(this.tool)
-        this.tool._component.toggleTool(true,this.tool)
+        if (enabled) {
+            this.tool._component.toggleTool(true,this.tool)
+        }
       },
       toggleTool:function() {
         this.tool._component.toggleTool(undefined,this.tool)
@@ -151,7 +154,7 @@
                 controls:vm.mapControl
             }
     
-            vm.selectTool(defaultTool)
+            vm.selectTool(defaultTool,false)
         }
         vm.revision += 1
 
