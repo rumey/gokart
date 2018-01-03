@@ -666,7 +666,7 @@
                     tool = vm.getTool(f.get('toolName'))
                     if (tool && tool.typeIcon) {
                         delete f['typeIconStyle']
-                        f.set('typeIconMetadata',undefined,true)
+                        delete f['typeIconMetadata']
                         f.changed()
                     }
                 }
@@ -1197,7 +1197,7 @@
                     tool = vm.getTool(f.get('toolName'))
                     if (tool && tool.typeIcon ) {
                         delete f['typeIconStyle']
-                        f.set('typeIconMetadata',undefined,true)
+                        delete f['typeIconMetadata']
                         f.changed()
                     }
                 }
@@ -1708,10 +1708,10 @@
             //draw typeSymbol along the line.
             //does not support geometry select mode
             if (f['typeIconStyle']) {
-                var diffs = vm.map.getScale() / f.get('typeIconMetadata')['points']['scale']
+                var diffs = vm.map.getScale() / f['typeIconMetadata']['points']['scale']
                 var typeIconTint = f['typeIconTint'] || f.get('typeIconTint') || tool['typeIconTint'] || 'default'
                 if (diffs >= 0.5 && diffs <= 1.5) {
-                    if (typeIconTint === f.get('typeIconMetadata')['points']['tint']) {
+                    if (typeIconTint === f['typeIconMetadata']['points']['tint']) {
                         typeIconStyle = f['typeIconStyle']
                     } else {
                         typeIconStyle = f['typeIconStyle']
@@ -1731,11 +1731,11 @@
                             }))
                         })
                         f['typeIconStyle'] = newStyle
-                        f.get('typeIconMetadata')['points']['tint'] = typeIconTint
+                        f['typeIconMetadata']['points']['tint'] = typeIconTint
                         typeIconStyle = newStyle
                     }
                 } else {
-                    f.get('typeIconMetadata')['points'] = false
+                    f['typeIconMetadata']['points'] = false
                 }
             } 
             if (!typeIconStyle) {
@@ -1754,10 +1754,10 @@
                 typeIconStyle = []
                 var segmentIndex = 0 
                 var segmentMetadata = null
-                var metadata = f.get('typeIconMetadata')
+                var metadata = f['typeIconMetadata']
                 if (!metadata) {
                     metadata = {}
-                    f.set('typeIconMetadata',metadata,true)
+                    f['typeIconMetadata'] = metadata
                 }
                 var perimeter = 0
                 if (!metadata['segments']) {
