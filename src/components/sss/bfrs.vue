@@ -45,7 +45,7 @@
                 <div v-show="showToggles">
                 <div class="row">
                   <div class="switch tiny">
-                    <input class="switch-input" id="toggleBushfireLabels" type="checkbox" v-bind:checked="bushfireLabels" @change="toggleBushfireLabels" v-bind:disabled="bushfireLabelsDisabled" />
+                    <input class="switch-input" id="toggleBushfireLabels" type="checkbox" v-bind:checked="bushfireLabels" @change="toggleBushfireLabels" v-bind:disabled="featureLabelDisabled" />
                     <label class="switch-paddle" for="toggleBushfireLabels">
                       <span class="show-for-sr">Display bushfire labels</span>
                     </label>
@@ -293,7 +293,7 @@
         statusFilter: "all_reports",
         region:'',
         district:'',
-        bushfireLabelsDisabled:false,
+        featureLabelDisabled:false,
         showFireboundary:false,
         tools: [],
         fields: ['fire_number', 'name'],
@@ -3537,7 +3537,7 @@
         })
 
         vm._resolutionChanged = debounce(function(ev){
-            vm.bushfireLabelsDisabled = (vm.map.olmap.getView().getResolution() > 0.003)
+            vm.featureLabelDisabled = (vm.map.olmap.getView().getResolution() >= 0.003)
         },200)
 
         vm._resolutionChanged()

@@ -76,7 +76,7 @@
 
             <div class="row">
               <div class="switch tiny">
-                <input class="switch-input" id="toggleResourceLabels" type="checkbox" v-bind:checked="resourceLabels" @change="toggleResourceLabels" />
+                <input class="switch-input" id="toggleResourceLabels" type="checkbox" v-bind:checked="resourceLabels" @change="toggleResourceLabels"  v-bind:disabled="featureLabelDisabled"/>
                 <label class="switch-paddle" for="toggleResourceLabels">
                   <span class="show-for-sr">Display resource labels</span>
                 </label>
@@ -86,7 +86,7 @@
 
             <div class="row">
               <div class="switch tiny">
-                <input class="switch-input" id="toggleResourceDirections" type="checkbox" v-bind:checked="resourceDirections" @change="toggleResourceDirections" />
+                <input class="switch-input" id="toggleResourceDirections" type="checkbox" v-bind:checked="resourceDirections" @change="toggleResourceDirections" v-bind:disabled="featureDirDisabled"/>
                 <label class="switch-paddle" for="toggleResourceDirections">
                   <span class="show-for-sr">Display resource directions</span>
                 </label>
@@ -252,6 +252,8 @@
         fields: ['id', 'registration', 'rin_display', 'deviceid', 'symbol', 'district_display', 'usual_driver', 'callsign_display', 'usual_location', 'current_driver', 'contractor_details', 'source_device_type'],
         features:new ol.Collection(),
         extentFeaturesSize:0,
+        featureLabelDisabled:false,
+        featureDirDisabled:false,
         clippedFeatures: [],
         historyFromDate: '',
         historyFromTime: '',
@@ -361,7 +363,7 @@
       },
       hasFeatureFilter: function () {
         return (this.search && this.search.trim())?true:false
-      }
+      },
     },
     watch:{
       isTrackingMapLayerHidden:function(newValue,oldValue) {
@@ -728,6 +730,7 @@
       vm._featurelist = new ol.Collection()
 
       trackingStatus.phaseBegin("initialize",20,"Initialize")
+
       var resourceTrackingStyleFunc = function(layerId){
         return function (res) {
             var feat = this
@@ -1106,6 +1109,17 @@
               vm._featurelist.clear()
           }
         })
+
+        vm._resolutionChanged = debounce(function(ev){
+            vm.featureLabelDisabled = (vm.map.olmap.getView().getResolution() >= 0.003)
+            vm.featureDirDisabled = (vm.map.olmap.getView().getResolution() >= 0.003)
+        },200)
+
+        vm._resolutionChanged()
+        vm.map.olmap.getView().on("change:resolution",function(){
+            vm._resolutionChanged()
+        })
+
         trackingStatus.phaseEnd("attach_events")
 
         trackingStatus.phaseBegin("init_tools",10,"Initialize tools")
