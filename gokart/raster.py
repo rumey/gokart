@@ -465,7 +465,8 @@ raster_datasources={
                 "pattern":"{:-.0f}",
                 "srs":"EPSG:4326",
                 "style":"text-align:right",
-            }
+            },
+            "required":True
         },
         "IDW71001_WA_Td_SFC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71001_WA_Td_SFC.nc.gz"),
@@ -488,7 +489,8 @@ raster_datasources={
                 "pattern":"{:-.0f}",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
-            }
+            },
+            #"required":True
         },
         "IDW71002_WA_MaxT_SFC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71002_WA_MaxT_SFC.nc.gz"),
@@ -727,7 +729,8 @@ raster_datasources={
                 "pattern":"{:-.0f}",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
-            }
+            },
+            "required":True
         },
         "IDW71022_WA_WindWaveHgt_SFC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71022_WA_WindWaveHgt_SFC.nc.gz"),
@@ -894,7 +897,8 @@ raster_datasources={
                 "title":"Weather",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
-            }
+            },
+            "required":True
         },
         "IDW71034_WA_WxIcon_SFC_DESC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71034_WA_WxIcon_SFC.nc.gz"),
@@ -988,7 +992,8 @@ raster_datasources={
                 "pattern":"{:-.0f}",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
-            }
+            },
+            "required":True
         },
         "IDW71072_WA_WindGustKmh_SFC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71072_WA_WindGustKmh_SFC.nc.gz"),
@@ -1012,7 +1017,8 @@ raster_datasources={
                 "pattern":"{:-.0f}",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
-            }
+            },
+            "required":True
         },
         "IDW71089_WA_Wind_Dir_SFC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71089_WA_Wind_Dir_SFC.nc.gz"),
@@ -1037,7 +1043,8 @@ raster_datasources={
                 #"pattern":"{:-.2f}",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
-            }
+            },
+            "required":True
         },
         "IDW71090_WA_DailyPoP_SFC":{
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71090_WA_DailyPoP_SFC.nc.gz"),

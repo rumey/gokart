@@ -85,13 +85,13 @@
                                         <div class="small-12">
                                             {{ column.group}}
                                             <div class="text-right float-right">
+                                                <a @click.stop.prevent="removeColumn(index,-1,column)" v-show="!column.required" class="button tiny secondary alert" title="Remove"><i class="fa fa-close"></i></a>
                                                 <a v-bind:disabled="index <= 0" @click.stop.prevent="moveUp(index,-1,column)" title="Move Up" class="button tiny secondary">
                                                     <i class="fa fa-arrow-up"></i>
                                                 </a>
                                                 <a v-bind:disabled="index >= forecastColumns.length - 1" @click.stop.prevent="moveDown(index,-1,column)" title="Move Down" class="button tiny secondary">
                                                     <i class="fa fa-arrow-down"></i>
                                                 </a>
-                                                <a @click.stop.prevent="removeColumn(index,-1,column)" class="button tiny secondary alert" title="Remove"><i class="fa fa-close"></i></a>
                                             </div>
                                         </div>
                                     </div>
@@ -100,6 +100,7 @@
                                         <div class="small-12">
                                             {{ subcolumn.name}}
                                             <div class="text-right float-right">
+                                                <a @click.stop.prevent="removeColumn(index,subindex,subcolumn)" v-show="!subcolumn.required" class="button tiny secondary alert" title="Remove"><i class="fa fa-close"></i></a>
                                                 <a v-bind:disabled="subindex <= 0" @click.stop.prevent="moveUp(index,subindex,subcolumn)" title="Move Up" class="button tiny secondary">
                                                     <i class="fa fa-arrow-up"></i>
                                                 </a>
@@ -107,7 +108,6 @@
                                                     @click.stop.prevent="moveDown(index,subindex,subcolumn)" title="Move Down" class="button tiny secondary">
                                                     <i class="fa fa-arrow-down"></i>
                                                 </a>
-                                                <a @click.stop.prevent="removeColumn(index,subindex,subcolumn)" class="button tiny secondary alert" title="Remove"><i class="fa fa-close"></i></a>
                                             </div>
                                         </div>
                                     </div>
@@ -117,13 +117,13 @@
                                         <div class="small-12">
                                             {{ column.name}}
                                             <div class="text-right float-right">
+                                                <a @click.stop.prevent="removeColumn(index,-1,column)" class="button tiny secondary alert" v-show="!column.required" title="Remove"><i class="fa fa-close"></i></a>
                                                 <a v-bind:disabled="index <= 0" @click.stop.prevent="moveUp(index,-1,column)" title="Move Up" class="button tiny secondary">
                                                     <i class="fa fa-arrow-up"></i>
                                                 </a>
                                                 <a v-bind:disabled="index >= forecastColumns.length - 1" @click.stop.prevent="moveDown(index,-1,column)" title="Move Down" class="button tiny secondary">
                                                     <i class="fa fa-arrow-down"></i>
                                                 </a>
-                                                <a @click.stop.prevent="removeColumn(index,-1,column)" class="button tiny secondary alert" title="Remove"><i class="fa fa-close"></i></a>
                                             </div>
                                         </div>
                                     </div>
@@ -174,7 +174,7 @@
                                     {{ ds.name}}
                                     <div class="text-right float-right">
                                        <div class="switch tiny" @click.stop >
-                                           <input class="switch-input ctlgsw" id="forecast_ds_{{ $index }}"  type="checkbox" @change="toggleDatasource(ds)" v-bind:checked="isDatasourceSelected(ds)"/>
+                                           <input class="switch-input ctlgsw" id="forecast_ds_{{ $index }}" v-bind:disabled="ds.required"  type="checkbox" @change="toggleDatasource(ds)" v-bind:checked="isDatasourceSelected(ds)"/>
                                            <label class="switch-paddle" for="forecast_ds_{{ $index }}">
                                                <span class="show-for-sr">Toggle</span>
                                            </label>
@@ -593,6 +593,10 @@
         this.revision += 1
 
       },
+      //toggle datasource
+      //ds: the datasource
+      //add: add if true else remove
+      //index, subindex: used to improve performance during removing
       toggleDatasource:function(ds,add,index,subindex) {
         if (ds) {
             if (add === undefined || add === null) {
@@ -610,10 +614,15 @@
                 var groupIndex = this.forecastColumns.findIndex(function(o) {return o.group?o.group === group:false})
                 if (groupIndex >= 0) {
                     //group already exist
-                    this.forecastColumns[groupIndex]["datasources"].push({workspace:ds["workspace"],id:ds["id"],name:ds["name"]})
+                    this.forecastColumns[groupIndex]["required"] = this.forecastColumns[groupIndex]["required"] || (ds["required"] || false)
+                    this.forecastColumns[groupIndex]["datasources"].push({workspace:ds["workspace"],id:ds["id"],name:ds["name"],required:ds["required"] || false})
                 } else {
                     //group does not exist
-                    this.forecastColumns.push({group:group,datasources:[{workspace:ds["workspace"],id:ds["id"],name:ds["name"]}]})
+                    this.forecastColumns.push({
+                        group:group,
+                        required:(this.forecastColumns[groupIndex]["required"] || (ds["required"] || false)),
+                        datasources:[{workspace:ds["workspace"],id:ds["id"],name:ds["name"],required:ds["required"] || false}]
+                    })
                 }
                 groupIndex = this.columnGroups.findIndex(function(o) {return o === group})
                 if (groupIndex < 0) {
@@ -622,11 +631,15 @@
                 }
             } else {
                 //no default group
-                this.forecastColumns.push({workspace:ds["workspace"],id:ds["id"],name:ds["name"]})
+                this.forecastColumns.push({workspace:ds["workspace"],id:ds["id"],name:ds["name"],required:ds["required"] || false})
             }
 
         } else {
             //remove
+            if (ds["required"]) {
+                //required column, can't remove
+                return
+            }
             if (index === null || index === undefined) {
                 $.each(this.forecastColumns,function(i,column){
                     if (column.group) {
@@ -753,6 +766,7 @@
       },
       removeColumn:function(index,subindex,column) {
         var vm = this
+        if (column.required) return
         if (column.group) {
             //remove group
             for(var subindex = column.datasources.length - 1;subindex >= 0;subindex--) {
@@ -867,22 +881,27 @@
         var vm = this
         vm.forecastColumns = columns
         vm.columnGroups.length = 0
+        var required = false
         $.each(vm._datasources["datasources"],function(index,ds){ds["selected"] = false})
 
         for(var index = vm.forecastColumns.length - 1;index >= 0;index--) {
             column = vm.forecastColumns[index]
             if (column.group){
+                required = false
                 for(var subindex = column.datasources.length - 1;subindex >= 0;subindex--) {
                     subcolumn = column.datasources[subindex]
                     var ds = vm._datasources["datasources"].find(function(o){return o["workspace"] === subcolumn["workspace"] && o["id"] === subcolumn["id"]})
                     if (ds) {
                         ds["selected"] = true
                         subcolumn["name"] = ds["name"]
+                        subcolumn["required"] = ds["required"]?true:false
+                        required = required || subcolumn["required"]
                     } else {
                         //column is unavailable
                         column.datasources.splice(subindex,1)
                     }
                 }
+                column["required"] = required
                 var groupIndex = vm.columnGroups.findIndex(function(o){return o === column["group"]})
                 if (column.datasources.length === 0) {
                     vm.forecastColumns.splice(index,1)
@@ -898,6 +917,7 @@
                 if (ds) {
                     ds["selected"] = true
                     column["name"] = ds["name"]
+                    column["required"] = ds["required"]?true:false
                 } else {
                     //column is unavailable
                     vm.forecastColumns.splice(index,1)
@@ -905,6 +925,12 @@
 
             }
         }
+        //add required columns if not added before
+        $.each(vm._datasources["datasources"],function(index,ds){
+            if (ds["required"] && !ds["selected"]) {
+                vm.toggleDatasource(ds,true) 
+            }
+        })
         this.columnGroups.sort()
         this.editingColumnTitle = ""
         this.editingColumnGroup = ""
