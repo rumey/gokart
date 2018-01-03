@@ -993,6 +993,8 @@ def downloaod(fmt):
                         subprocess.check_call(cmd) 
         
         #import ipdb;ipdb.set_trace()
+        #check whether outputfile is a single file or multiple files.
+        #if a single file is returned, outputfile will be the file ; otherwise outputfile will be none
         outputfile = None
         checkfiles = [outputdir]
         while len(checkfiles) > 0:
@@ -1009,12 +1011,14 @@ def downloaod(fmt):
 
         #import ipdb;ipdb.set_trace()
         if outputfile:
+            #only one file is returned.
             filemime = fmt["mime"]
             if filename:
                 outputfilename = os.path.basename("{}{}".format(filename,fmt["fileext"]))
             else:
                 outputfilename = os.path.basename(outputfile)
         else:
+            #multiple files are returned, use zip to compress all files into one file.
             ct = "application/zip"
             if filename:
                 zipfile = os.path.join(workdir,filename)

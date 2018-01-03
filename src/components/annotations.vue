@@ -55,7 +55,7 @@
               <div class="small-10">
                 <div class="expanded button-group">
                   <template v-for="s in pointShapes" >
-                    <a @click="setProp('shape', s)" v-bind:class="{'selected': shape && (s[0] === shape[0])}" class="button pointshape"><img v-bind:src="s[0]"/></a>
+                    <a @click="setProp('shape', s[1])" v-bind:class="{'selected': shape && (s[1] === shape)}" class="button pointshape"><img v-bind:src="s[0]"/></a>
                   </template>
                 </div>
               clippedOnly</div>
@@ -223,9 +223,9 @@
             ["dist/static/symbols/points/square.svg","Square",[null,'#000000']],
             ["dist/static/symbols/points/triangle.svg","Triangle",[null,'#000000']],
             ["dist/static/symbols/points/star.svg","Star",[null,'#000000']],
-            ["dist/static/symbols/points/plus.svg","Star",[null,'#000000']],
-            ["dist/static/symbols/points/minus.svg","Star",[null,'#000000']],
-            ["dist/static/symbols/points/Fire_Advice.svg","Star",['#000000','#000000']],
+            ["dist/static/symbols/points/plus.svg","Plus",[null,'#000000']],
+            ["dist/static/symbols/points/minus.svg","Minus",[null,'#000000']],
+            ["dist/static/symbols/points/Fire_Advice.svg","FireAdvice",['#000000','#000000']],
         ],
         shape: null,
         toolRevision:1
@@ -311,7 +311,8 @@
                 this.drawNote(this.note)
                 this.colour = this.note.colour || this.colour
             } else if (val.get('shape')) {
-                this.shape = val.get('shape') || this.shape
+                //it is a custom point
+                this.shape = val.get('shape')
                 this.colour = val.get('colour') || this.colour
             } else {
                 this.size = val.get('size') || this.size
@@ -417,7 +418,7 @@
                         if (feature.getGeometry() instanceof ol.geom.Point) {
                             vm.map.clearFeatureProperties(feature)
                             feature.set('toolName','Custom Point',true)
-                            feature.set('shape',vm.annotations.pointShapes[0],true)
+                            feature.set('shape',vm.annotations.pointShapes[0][1],true)
                             feature.set('colour',"#000000",true)
                         } else if (feature.getGeometry() instanceof ol.geom.LineString) {
                             vm.map.clearFeatureProperties(feature)
@@ -1224,7 +1225,7 @@
       },
       getCustomPointTint:function(shape,colours) {
         var tint = []
-        $.each(shape[2],function(index,srcColour) {
+        $.each(this._pointShapesMap[shape][2],function(index,srcColour) {
             var targetColour = Array.isArray(colours)?colours[index]:colours
             if (srcColour && targetColour && srcColour !== targetColour) {
                 tint.push([srcColour,targetColour])
@@ -1862,12 +1863,18 @@
     },
     ready: function () {
       var vm = this
+      var annotationStatus = this.loading.register("annotation","Annotation Component")
+      annotationStatus.phaseBegin("initialize",20,"Initialize")
+
       this._toolStatus = {}
       vm._currentTool = {}
-      vm.shape = vm.pointShapes[0]
-      var annotationStatus = this.loading.register("annotation","Annotation Component")
+      vm.shape = vm.pointShapes[0][1]
 
-      annotationStatus.phaseBegin("initialize",20,"Initialize")
+      this._pointShapesMap = {}
+      $.each(this.pointShapes,function(index,shape){
+        vm._pointShapesMap[shape[1]] = shape
+      })
+
       var map = this.map
       // collection to store all annotation features
       this.features.on('add', function (ev) {
@@ -2080,7 +2087,7 @@
         name: 'Custom Point',
         icon: function(feature){
             if (feature) {
-                return feature.get('shape')[0]
+                return vm._pointShapesMap[feature.get('shape')][0]
             } else {
                 return 'dist/static/symbols/fire/custom_point.svg'
             }
