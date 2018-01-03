@@ -426,7 +426,7 @@
         if (this.showDBCAResource && this.showDFESResource && this.showOtherExternalResource) {
             return null
         } else if (!this.showDBCAResource && !this.showDFESResource && !this.showOtherExternalResource) {
-            throw "Please chose at least one resource source."
+            throw "Please choose at least one resource source."
         }
         var filter = ""
         if (this.showDBCAResource) {
