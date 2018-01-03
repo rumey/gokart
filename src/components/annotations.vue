@@ -671,6 +671,23 @@
                     }
                 }
               })
+              var rotateAll = false
+              $.each(ev.features.getArray(),function(index,f) {
+                  if (f.getGeometry() instanceof ol.geom.LineString || f.getGeometry() instanceof ol.geom.Polygon) {
+                      rotateAll = true
+                      return false
+                  }
+              })
+              if (rotateAll) {
+                  vm._rotateAll()
+              } else {
+                  $.each(ev.features.getArray(),function(index,f) {
+                      tool = vm.getTool(f.get('toolName'))
+                      if (tool.perpendicular) {
+                        f.set('rotation', vm.getPerpendicular(f.getGeometry().getCoordinates()))
+                      }
+                })
+              }
           })
           return translateInter
         }
@@ -1189,6 +1206,23 @@
                 //console.log("Modifyend : " + feature.get('label') + "\t" + feature.geometryRevision + "\t" + feature.getGeometry().getRevision())
                 return feature.geometryRevision != feature.getGeometry().getRevision()
             }))
+            var rotateAll = false
+            $.each(modifiedFeatures.getArray(),function(index,f) {
+                if (f.getGeometry() instanceof ol.geom.LineString || f.getGeometry() instanceof ol.geom.Polygon) {
+                    rotateAll = true
+                    return false
+                }
+            });
+            if (rotateAll) {
+                vm._rotateAll()
+            } else {
+                $.each(modifiedFeatures.getArray(),function(index,f) {
+                    tool = vm.getTool(f.get('toolName'))
+                    if (tool.perpendicular) {
+                      f.set('rotation', vm.getPerpendicular(f.getGeometry().getCoordinates()))
+                    }
+              })
+            }
             modifyInter.dispatchEvent(new ol.interaction.Modify.Event("featuresmodified",modifiedFeatures,ev))
           })
           modifyInter.on("featuresmodified",function(ev){
@@ -1875,6 +1909,16 @@
         vm._pointShapesMap[shape[1]] = shape
       })
 
+      
+      this._rotateAll = debounce(function(){
+          $.each(vm.features.getArray(),function(index,f) {
+              tool = vm.getTool(f.get('toolName'))
+              if (tool.perpendicular) {
+                f.set('rotation', vm.getPerpendicular(f.getGeometry().getCoordinates()))
+              }
+          })
+        },500)
+
       var map = this.map
       // collection to store all annotation features
       this.features.on('add', function (ev) {
@@ -1882,6 +1926,10 @@
         if (tool.onAdd) {
           tool.onAdd(ev.element)
         }
+        vm._rotateAll()
+      })
+      this.features.on('remove', function (ev) {
+        vm._rotateAll()
       })
 
       // layer/source for modifying annotation features
