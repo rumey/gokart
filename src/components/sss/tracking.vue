@@ -523,7 +523,13 @@
         return this.selectedFeatures.getArray().findIndex(function(o){return f === o}) >= 0
       },
       downloadList: function () {
-        this.$root.export.exportVector(this.features.filter(this.featureFilter).sort(this.featureOrder), 'trackingdata')
+        var list = null
+        if (this.viewportOnly) {
+            list = this._featurelist.getArray().filter(function(f){return f.inViewport})
+        } else {
+            list = this._featurelist.getArray()
+        }
+        this.$root.export.exportVector(list, 'trackingdata')
       },
       downloadSelectedCSV: function () {
           var deviceFilter = ''
