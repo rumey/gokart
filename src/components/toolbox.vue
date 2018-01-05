@@ -1,14 +1,14 @@
 <template>
     <div style="display:none">
     <div id="toolbox_control" class="ol-selectable ol-control" v-bind:style="topPositionStyle">
-        <button type="button" title="{{toolTitle}}" style="width:48px;height:36px;border-bottom-left-radius:0px;border-bottom-right-radius:0px" @click="toggleTool()" v-bind:class="{'selected':isControlSelected,'warning':isControlWarning}">
+        <button type="button" id="toolbox_tool" title="{{toolTitle}}" style="width:48px;height:36px;border-bottom-left-radius:0px;border-bottom-right-radius:0px" @click="toggleTool()" v-bind:class="{'selected':isControlSelected,'warning':isControlWarning}">
             <img v-bind:src="tool.icon" width=36 height=36>
         </button>
-        <button type="button" style="height:16px;border-top-left-radius:0px;border-top-right-radius:0px"  @click="showTools=!showTools" >
+        <button type="button" id="toolbox_expand" style="height:16px;border-top-left-radius:0px;border-top-right-radius:0px"  @click="showTools=!showTools" >
             <i class="fa fa-angle-double-down" aria-hidden="true"></i>
         </button>
         <div v-show="showTools" style="position:absolute;width:200px;right:0px">
-            <button type="button" v-for="t in tools" title="{{t.title}}"  style="margin:1px;float:right" track-by="$index" @click.stop.prevent="selectTool(t)">
+            <button type="button" v-for="t in tools" title="{{t.title}}" id="{{t.name}}" style="margin:1px;float:right" track-by="$index" @click.stop.prevent="selectTool(t)">
                 <img v-bind:src="t.icon" width="36" height="36">
             </button>
         </div>
@@ -114,8 +114,8 @@
             this.tool._component.toggleTool(true,this.tool)
         }
       },
-      toggleTool:function() {
-        this.tool._component.toggleTool(undefined,this.tool)
+      toggleTool:function(enabled) {
+        this.tool._component.toggleTool(enabled,this.tool)
       },
       showAssistantButton:function(button) {
         return this.showTools?false:(this.tool._component.showAssistantButton && this.tool._component.showAssistantButton(button))

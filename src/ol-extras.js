@@ -246,6 +246,19 @@ new ol.Collection(["validateExtent_","resetExtent_"]).forEach(function(name,inde
     }()
 })
 
-
+///////////////////////////////////////////////event simulator////////////////////////////////////////
+//type is "pointermove","pointerdown" or "pointerup"
+ol.Map.prototype.simulateEvent = function(type, x, y, opt_shiftKey) {
+    var viewport = this.getViewport();
+    // calculated in case body has top < 0 (test runner with small window)
+    var position = viewport.getBoundingClientRect();
+    var shiftKey = opt_shiftKey !== undefined ? opt_shiftKey : false;
+    var event = new ol.pointer.PointerEvent(type, {
+      clientX: position.left + x,
+      clientY: position.top + y,
+      shiftKey: shiftKey
+    });
+    this.handleMapBrowserEvent(new ol.MapBrowserPointerEvent(type, this, event));
+  }
 export default ol
 

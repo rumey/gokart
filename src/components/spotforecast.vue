@@ -301,8 +301,8 @@
         reportTimes:[],
         forecastSetting:{},
         forecastSettings:[
-            {name:"default",title:"Default 4 Day Weather Outlook",icon:"/dist/static/images/default-outlook-forecast.svg"},
-            {name:"customized",title:"Customized Weather Outlook",icon:"/dist/static/images/customized-outlook-forecast.svg"}
+            {name:"weather-outlook-default",title:"Default 4 Day Weather Outlook",icon:"/dist/static/images/default-outlook-forecast.svg"},
+            {name:"weather-outlook-customized",title:"Customized Weather Outlook",icon:"/dist/static/images/customized-outlook-forecast.svg"}
         ],
         showSettings:false,
         revision:1,
