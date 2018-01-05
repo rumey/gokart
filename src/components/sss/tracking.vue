@@ -833,7 +833,13 @@
             if (now.diff(timestamp, 'hours') < 1) {
               tint = 'green'
             };
-            f.set('icon', 'dist/static/symbols/device/' + f.get('symbolid') + '.svg',true)
+            if (f.get("source_device_type") === "dfes") {
+                f.set('icon', ['dist/static/symbols/device/external_d.svg','dist/static/symbols/device/dfes_generic.svg'],true)
+            } else if (f.get("source_device_type") === "tracplus") {
+                f.set('icon', ['dist/static/symbols/device/external_e.svg','dist/static/symbols/device/' + f.get('symbolid') + '.svg'],true)
+            } else {
+                f.set('icon', 'dist/static/symbols/device/' + f.get('symbolid') + '.svg',true)
+            }
             f.set('tint', tint,true)
             f.set('originalTint', tint,true)
             f.set('label', deviceLabel(f), true)
