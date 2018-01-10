@@ -1829,7 +1829,7 @@
         }
         //console.log("originpoint filter = " + originpoint_filter)
         //console.log("bbox = " + bbox)
-        var bushfireLayer = getLayerId((downloadType === "listed")?"dpaw:bushfire_latest":"dpaw:bushfire_dev")
+        var bushfireLayer = getLayerId((downloadType === "listed")?"dpaw:bushfire_latest":"dpaw:bushfire")
         var fireboundaryLayer = getLayerId((downloadType === "listed")?"dpaw:bushfire_fireboundary_latest":"dpaw:bushfire_fireboundary")
         var options = {
             filename:"bushfires_" + downloadType + "_" + moment().format('YYYY-MM-DD-HHmm'),
