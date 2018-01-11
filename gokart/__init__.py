@@ -30,8 +30,6 @@ def server_static():
 # serve up map apps
 @bottle.route('/<app>')
 def index(app):
-    print([x for x in bottle.request.headers.items()])
-    print(bottle.request.headers.get('X-email', 'ohnoes'))
     return bottle.template('index.html', app=app,envType=ENV_TYPE)
 
 profile_re = re.compile("gokartProfile\s*=\s*(?P<profile>\{.+\})\s*;?\s*exports.+default.+gokartProfile",re.DOTALL)
