@@ -424,7 +424,7 @@ if (result) {
             id: 'himawari8:bandtc',
             source: self.env.gokartService + '/hi8/AHI_TKY_b321',
             refresh: 300,
-            base: true
+            //base: true
           /*
           }, {
             type: 'TimelineLayer',
@@ -440,7 +440,7 @@ if (result) {
             id: 'himawari8:band7',
             source: self.env.gokartService + '/hi8/AHI_TKY_b7',
             refresh: 300,
-            base: true
+            //base: true
          /*
           }, {
             type: 'TimelineLayer',
@@ -448,17 +448,17 @@ if (result) {
             id: 'himawari8:band15',
             source: self.env.gokartService + '/hi8/AHI_TKY_b15',
             refresh: 300,
-            base: true
+            //base: true
           }, {
             type: 'TileLayer',
             name: 'State Map Base',
             id: 'cddp:state_map_base',
-            base: true
+            //base: true
           }, {
             type: 'TileLayer',
             name: 'Virtual Mosaic',
             id: 'landgate:LGATE-V001',
-            base: true
+            //base: true
           }, {
             type: 'TileLayer',
             name: 'DFES Active Fireshapes',
