@@ -1001,7 +1001,7 @@
         var vm = this
         var _getSpotforecast = function(position) {
             var requestData = null;
-            if (vm.forecastSetting.name === "default") {
+            if (vm.forecastSetting.name === "weather-outlook-default") {
                 requestData = {
                     point:coordinate,
                     options: {
