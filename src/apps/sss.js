@@ -208,7 +208,7 @@ if (result) {
       }
       var settings = _extend(persistentData.settings,store?(store.settings || {}):{})
       
-      if (store["activeLayers"] && store["activeLayers"].length === 0) {
+      if (store && store["activeLayers"] && store["activeLayers"].length === 0) {
           delete store["activeLayers"]
       }
       var storedData = $.extend({}, persistentData, store || {}, volatileData)
