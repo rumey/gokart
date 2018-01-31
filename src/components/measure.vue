@@ -52,7 +52,6 @@
       map: function () { return this.$root.map },
       active: function () { return this.$root.active },
       featuredetail: function () { return this.$root.featuredetail },
-      spotforecast:function() { return this.$root.spotforecast},
       catalogue: function () { return this.$root.catalogue },
       annotations: function () { 
         return this.$root.$refs.app.$refs.annotations 

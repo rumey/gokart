@@ -7,7 +7,7 @@
 
             <div class="tool-slice row collapse">
                 <div class="small-4">
-                    <label class="tool-label">Forecast Days:</label>
+                    <label class="tool-label">Outlook Days:</label>
                 </div>
                 <div class="small-8">
                     <select name="spotforecastForecastDays" v-model="forecastDays" @change="systemsetting.saveState(10000)">
@@ -23,7 +23,7 @@
 
             <div class="tool-slice row collapse">
                 <div class="small-4">
-                    <label class="tool-label">Forecast Times:</label>
+                    <label class="tool-label">Outlook Times:</label>
                 </div>
                 <div class="small-8">
                     <select name="spotforecastReportType" v-model="reportType" @change="systemsetting.saveState(10000)">
@@ -1005,12 +1005,12 @@
                 requestData = {
                     point:coordinate,
                     options: {
-                        title:"<h3>Spot Fire Weather 4 Day Outlook for " + position + "(" + Math.round(coordinate[0] * 10000) / 10000 + "," + Math.round(coordinate[1] * 10000) / 10000 + ")</h3>",
+                        title:"<h3>4 Day Weather Outlook for " + position + "(" + Math.round(coordinate[0] * 10000) / 10000 + "," + Math.round(coordinate[1] * 10000) / 10000 + ")</h3>",
                     },
                     forecasts:[
                         {
                             days:utils.getDatetimes(["00:00:00"],4,1).map(function(dt) {return dt.format("YYYY-MM-DD")}),
-                            times:["09:00:00","15:00:00"],
+                            times:["09:00:00","12:00:00","15:00:00","18:00:00"],
                             options:{
                                 daily_title_pattern: "{date} {weather}"
                             },
@@ -1023,7 +1023,7 @@
                 requestData = {
                     point:coordinate,
                     options: {
-                        title:"<h3>Spot Fire Weather " + vm.forecastDays + " Day Outlook for " + position + "(" + Math.round(coordinate[0] * 10000) / 10000 + "," + Math.round(coordinate[1] * 10000) / 10000 + ")</h3>",
+                        title:"<h3>" + vm.forecastDays + " Day Weather Outlook for " + position + "(" + Math.round(coordinate[0] * 10000) / 10000 + "," + Math.round(coordinate[1] * 10000) / 10000 + ")</h3>",
                     },
                     forecasts:[
                         {

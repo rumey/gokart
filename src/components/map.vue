@@ -92,7 +92,6 @@
       catalogue: function () { return this.$root.catalogue },
       env: function () { return this.$root.env },
       annotations: function () { return this.$root.annotations    },
-      spotforecast: function () { return this.$root.spotforecast    },
       active: function () { return this.$root.active    },
       measure: function () { return this.$root.measure    },
       // because the viewport size changes when the tab pane opens, don't cache the map width and height
