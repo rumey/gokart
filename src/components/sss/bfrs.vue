@@ -129,26 +129,18 @@
                 </div>
     
                 <div class="row collapse">
-                  <div class="small-5">
-                    <select name="select" v-model="dateRange" v-on:change="changeDateRange()">
+                  <div class="small-4">
+                    <select name="select" v-model="dateRange" v-on:change="changeDateRange()" style="font-size:15px;">
                       <option value="" selected>Date range</option> 
-                      <!-- values in milliseconds -->
-                      <option value="1">Today</option> 
-                      <option value="2">Current week</option> 
-                      <option value="3">Current month</option> 
-                      <option value="4">Last week</option> 
-                      <option value="5">Last 4 weeks</option> 
-                      <option value="-1">Other</option> 
+                      <option value="21024">Last 24 hours </option>
+                      <option value="31007">Last 7 days </option>
+                      <option value="-1">User Defined</option> 
                     </select>
                   </div>
-                  <div class="small-3">
-                      <input type="text" id="bfrsStartDate" class="span2" v-model="startDate" placeholder="yyyy-mm-dd" v-bind:disabled="dateRange !== '-1'" style="padding-left:3px;padding-right:3px;cursor:pointer" readonly></input>
-                  </div>
-                  <div class="small-1" style="text-align:center">
+                  <div class="small-8">
+                      <input type="text" id="bfrsStartDate" class="span2" v-model="startDate" pickTime="true" placeholder="yyyy-mm-dd hh:ii" v-bind:disabled="dateRange !== '-1'" readonly></input>
                       <i class="fa fa-minus" style="margin-top:10px"></i>
-                  </div>
-                  <div class="small-3">
-                      <input type="text" id="bfrsEndDate" class="span2" v-model="endDate" placeholder="yyyy-mm-dd"  v-bind:disabled="dateRange !== '-1'" style="padding-left:3px;padding-right:3px;cursor:pointer" readonly></input>
+                      <input type="text" id="bfrsEndDate" class="span2" v-model="endDate" pickTime="true" placeholder="yyyy-mm-dd hh:ii"  v-bind:disabled="dateRange !== '-1'"  readonly></input>
                   </div>
                 </div>
 
@@ -269,6 +261,12 @@
     font-style:normal;
     font-weight:bold;
     font-size:14px;
+}
+#bfrsStartDate,#bfrsEndDate {
+    font-size:13px;
+    width:118px;
+    display:inline;
+    cursor:pointer
 }
 </style>
 <script>
@@ -521,9 +519,9 @@
         if (!this._endDatePicker) return
         try {
             if (newValue === "") {
-                this._endDatePicker.setStartDate(moment().subtract(13,"months").format("YYYY-MM-DD"))
+                this._endDatePicker.setStartDate(moment().subtract(13,"months").format("YYYY-MM-DD") + " 00:00")
             } else {
-                this._endDatePicker.setStartDate(newValue)
+                this._endDatePicker.setStartDate(moment(newValue,"YYYY-MM-DD HH:mm",true).format("YYYY-MM-DD") + " 00:00")
             }
         } catch(ex) {
         }
@@ -532,9 +530,9 @@
         if (!this._startDatePicker) return
         try {
             if (newValue === "") {
-                this._startDatePicker.setEndDate(moment().format("YYYY-MM-DD"))
+                this._startDatePicker.setEndDate(moment().format("YYYY-MM-DD")) + " 23:59"
             } else {
-                this._startDatePicker.setEndDate(newValue)
+                this._startDatePicker.setEndDate(moment(newValue,"YYYY-MM-DD HH:mm",true).format("YYYY-MM-DD") + " 23:59")
             }
         } catch(ex) {
         }
@@ -554,19 +552,19 @@
         }
       },
       dateFilter:function() {
-        if (this.endDate && this.endDate.length !== 10) {
+        if (this.endDate && this.endDate.length !== 16) {
             throw "endDate is under changing."
         }
-        if (this.startDate && this.startDate.length !== 10) {
+        if (this.startDate && this.startDate.length !== 16) {
             throw "startDate is under changing."
         }
 
-        var startDate = (this.startDate)?moment(this.startDate,"YYYY-MM-DD",true):null
+        var startDate = (this.startDate)?moment(this.startDate,"YYYY-MM-DD HH:mm",true):null
         if (startDate && !startDate.isValid()) {
             throw "startDate is under changing."
         }
 
-        var endDate = (this.endDate && this.endDate !== moment().format("YYYY-MM-DD"))?moment(this.endDate,"YYYY-MM-DD",true):null
+        var endDate = (this.endDate && this.endDate !== moment().format("YYYY-MM-DD HH:mm"))?moment(this.endDate,"YYYY-MM-DD HH:mm",true):null
         if (endDate && !endDate.isValid()) {
             throw "endDate is under changing."
         }
@@ -574,7 +572,10 @@
 
         if (startDate) {
             if (endDate) {
-                return "fire_detected_or_created BETWEEN '" + startDate.utc().format("YYYY-MM-DDTHH:mm:ssZ") + "' AND '" + endDate.add(1,"days").utc().format("YYYY-MM-DDTHH:mm:ssZ") + "'"
+                if (startDate >= endDate) {
+                    throw "Start date must be less than end date."
+                }
+                return "fire_detected_or_created BETWEEN '" + startDate.utc().format("YYYY-MM-DDTHH:mm:ssZ") + "' AND '" + utils.nextDate(endDate,"YYYY-MM-DD HH:mm").utc().format("YYYY-MM-DDTHH:mm:ssZ") + "'"
             } else {
                 return "fire_detected_or_created >= '" + startDate.utc().format("YYYY-MM-DDTHH:mm:ssZ") + "'"
             }
@@ -601,26 +602,10 @@
         } else if (this.dateRange === "") {
             this.endDate = ''
             this.startDate = ''
-        } else if (this.dateRange === "1") {
-            //today
-            this.endDate = endDate.format("YYYY-MM-DD")
-            this.startDate = endDate.format("YYYY-MM-DD")
-        } else if (this.dateRange === "2") {
-            //current week
-            this.endDate = endDate.format("YYYY-MM-DD")
-            this.startDate = endDate.startOf('week').format("YYYY-MM-DD")
-        } else if (this.dateRange === "3") {
-            //current month
-            this.endDate = endDate.format("YYYY-MM-DD")
-            this.startDate = endDate.startOf('month').format("YYYY-MM-DD")
-        } else if (this.dateRange === "4") {
-            //last week
-            this.endDate = endDate.format("YYYY-MM-DD")
-            this.startDate = endDate.subtract(6,"days").format("YYYY-MM-DD")
-        } else if (this.dateRange === "5") {
-            //last 4 weeks
-            this.endDate = endDate.format("YYYY-MM-DD")
-            this.startDate = endDate.subtract(27,"days").format("YYYY-MM-DD")
+        } else { 
+            var range = utils.getDateRange(this.dateRange,"YYYY-MM-DD HH:mm")
+            this.startDate = range[0] || ""
+            this.endDate = range[1] || ""
         }
       },
       originpointCoordinate:function(feat){
@@ -2495,6 +2480,7 @@
                     vm.bushfireMapLayer.getSource().loadSource("query",callback)
                 } catch(ex) {
                     //ignore the exception
+                    alert(ex)
                 }
             }
         }
@@ -2820,12 +2806,14 @@
 
       //init datepicket
       $('#bfrsStartDate').fdatepicker({
-	format: 'yyyy-mm-dd',
+	format: 'yyyy-mm-dd hh:ii',
 	disableDblClickSelection: true,
 	leftArrow:'<<',
 	rightArrow:'>>',
-        startDate:moment().subtract(13,"months").format("YYYY-MM-DD"),
-        endDate:moment().format("YYYY-MM-DD")
+        startDate:moment().subtract(13,"months").format("YYYY-MM-DD") + " 00:00",
+        endDate:moment().format("YYYY-MM-DD") + " 23:59",
+        pickTime:true,
+        minuteStep:1
       });
       try {
           this._startDatePicker = $("#bfrsStartDate").data().datepicker
@@ -2834,12 +2822,14 @@
       }
 
       $('#bfrsEndDate').fdatepicker({
-	format: 'yyyy-mm-dd',
+	format: 'yyyy-mm-dd hh:ii',
 	disableDblClickSelection: true,
 	leftArrow:'<<',
 	rightArrow:'>>',
-        startDate:moment().subtract(13,"months").format("YYYY-MM-DD"),
-        endDate:moment().format("YYYY-MM-DD")
+        startDate:moment().subtract(13,"months").format("YYYY-MM-DD") + " 00:00",
+        endDate:moment().format("YYYY-MM-DD") + " 23:59",
+        pickTime:true,
+        minuteStep:1
       });
 
       try {

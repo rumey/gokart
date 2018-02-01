@@ -588,3 +588,14 @@ input:disabled ~ .switch-paddle {
     padding-bottom: 4.2px;
 }
 
+.datepicker table td .hour {
+    line-height:20px;
+    height:30px;
+}
+.datepicker table td .minute {
+    line-height:20px;
+    height:30px;
+    margin:0px 0px 0px 0px;
+    width:20%;
+}
+

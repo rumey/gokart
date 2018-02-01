@@ -498,7 +498,100 @@ Utils.prototype.getDatetimes = function(timesInDay,size,strategy,startDate) {
     }
     return result
 }
-
+var _precisionMap = {}
+Utils.prototype.getDateFormatPrecision = function(format) {
+    var precision = _precisionMap[format]
+    if (!precision) {
+        var d = moment("2018-02-02 01:01:01.001","YYYY-MM-DD HH:mm:ss.SSS")
+        var d2 = moment(d.format(format),format)
+        var diff = d - d2
+        if (diff === 0) {
+            precision = "milliseconds"
+        } else if (diff === 1) {
+            precision = "seconds"
+        } else if (diff === 1001) {
+            precision = "minutes"
+        } else if (diff === 61001) {
+            precision = "hours"
+        } else if (diff === 3661001) {
+            precision = "days"
+        } else if (diff === 90061001) {
+            precision = "months"
+        } else if (diff === 2768461001) {
+            precision = "years"
+        }
+        _precisionMap[format] = precision
+    }
+    return precision
+}
+Utils.prototype.nextDate = function(d,format) {
+    var precision = this.getDateFormatPrecision(format)
+    return moment(d).add(1,precision)
+}
+//dateRange is consisted with 5 digits. XXXXX
+//The fifth digit is the range type; 1 : minute; 2: hour; 3: day; 4:week; 5: month; 6: year
+//The fourth digit is the range mode: 0: current ; 1: last
+//the first three digit is the range value
+//For example :last 24 hours; dateRange is 21024
+//return a array [startDate(inclusive),endDate(inclusive)], if endDate is current time, set endDate to null
+Utils.prototype.getDateRange = function(range,format) {
+    format = format || "YYYY-MM-DD"
+    var precision = this.getDateFormatPrecision(format)
+    var dateRange = parseInt(range)
+    var startDate = null
+    var endDate = null
+    if (isNaN(dateRange)) {
+        throw "Invalid date range '" + range + "'."
+    } else if (dateRange === -1) {
+        //customized
+        return null
+    } else if (dateRange > 21000 && dateRange <= 21999) {
+        //Last XX hours
+        endDate = moment(moment().format(format),format)
+        if (precision === "hours") {
+            startDate = moment(endDate).subtract(dateRange - 21000 - 1,"hours")
+        } else if (["milliseconds","seconds","minutes"].indexOf(precision) >= 0) {
+            startDate = moment(endDate).subtract(dateRange - 21000,"hours")
+        } else {
+            startDate = moment(endDate).subtract(dateRange - 21000,"hours")
+        }
+        endDate = null
+    } else if (dateRange === 30001) {
+        //today
+        startDate = moment().startOf('day')
+        endDate = null
+    } else if (dateRange > 31000 && dateRange <= 31999) {
+        //last XXX days
+        endDate = moment(moment().format(format),format)
+        if (precision === "days") {
+            startDate = moment(endDate).subtract(dateRange - 31000 - 1,"days")
+        } else if (["milliseconds","seconds","minutes","hours"].indexOf(precision) >= 0) {
+            startDate = moment(endDate).subtract(dateRange - 31000,"days")
+        } else {
+            startDate = moment(endDate).subtract(dateRange - 31000,"days")
+        }
+        endDate = null
+    } else if (dateRange === 40001) {
+        //current week
+        startDate = moment().startOf('week')
+        endDate = null
+    } else if (dateRange > 41000 && dateRange <= 41999) {
+        //last XXX weeks
+        endDate = moment(moment().format(format),format)
+        if (precision === "days") {
+            startDate = moment(endDate).subtract((dateRange - 41000) * 7 - 1,"days")
+        } else if (["milliseconds","seconds","minutes","hours"].indexOf(precision) >= 0) {
+            startDate = moment(endDate).subtract((dateRange - 41000) * 7,"days")
+        } else {
+            startDate = moment(endDate).subtract((dateRange - 41000) * 7,"days")
+        }
+        endDate = null
+    }  else {
+        throw "Date range '" + range + " isn't supported."
+    }
+    return [startDate?startDate.format(format):null,endDate?endDate.format(format):null]
+    
+}
 var utils = new Utils()
 
 export default utils
