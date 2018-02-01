@@ -127,12 +127,12 @@ var systemSettings = {
       bushfireLabels:true,
       viewportOnly: false,
   },
-  spotforecast:{
+  weatheroutlook:{
       reportType:3,//3 hourly
       reportHours:null,
       dailyTitle:null,
-      forecastDays:4,
-      forecastColumns:null
+      outlookDays:4,
+      outlookColumns:null
   }
 }
 
@@ -253,7 +253,7 @@ if (result) {
           settings: function () { return this.$refs.app.$refs.settings },
           systemsetting: function () { return this.$refs.app.$refs.settings.$refs.systemsetting },
           bfrs: function () { return this.$refs.app.$refs.bfrs },
-          spotforecast: function () { return this.$refs.app.$refs.settings.$refs.spotforecast },
+          weatheroutlook: function () { return this.$refs.app.$refs.settings.$refs.weatheroutlook },
           geojson: function () { return new ol.format.GeoJSON() },
           wgs84Sphere: function () { return new ol.Sphere(6378137) },
           profile: function(){return profile},

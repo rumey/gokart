@@ -5,7 +5,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob: filesystem: mediastream:;">
     <!-- Unicode is great -->
     <meta charset="utf-8" />
-    <title>Spot forecast</title>
+    <title>Weather Outlook</title>
     <!-- Disable awful IE compatibility mode -->
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <!-- Force fit-to-viewport sizing on mobile -->
@@ -29,17 +29,17 @@
           background-color: #2199e8;
         }
 
-        #spotforecast .daterow {
+        #weatheroutlook .daterow {
             background-color:#D2EEFA;
         }
 
-        #spotforecast .time-0-in-day {
+        #weatheroutlook .time-0-in-day {
             background-color:#white;
         }
-        #spotforecast .time-1-in-day {
+        #weatheroutlook .time-1-in-day {
             background-color:#D6E2E4;
         }
-        #spotforecast table,th,td {
+        #weatheroutlook table,th,td {
             border:2px solid black
         }
     </style>
@@ -47,36 +47,36 @@
   <body>
   {%- if envType != "prod" -%}
   <body style="background-image:url('/dist/static/images/for-testing.png')">
-    <div style="opacity:0.75;letter-spacing:2px;padding-left:20px;padding-right:20px;padding-top:20px;padding-bottom:20px;z-index:100" id="forecasts">
+    <div style="opacity:0.75;letter-spacing:2px;padding-left:20px;padding-right:20px;padding-top:20px;padding-bottom:20px;z-index:100" id="outlooks">
   {% else %}
   <body>
-    <div style="letter-spacing:2px;padding-left:20px;padding-right:20px;padding-top:20px;padding-bottom:20px;z-index:100;" id="forecasts">
+    <div style="letter-spacing:2px;padding-left:20px;padding-right:20px;padding-top:20px;padding-bottom:20px;z-index:100;" id="outlooks">
   {% endif %}
 
     <div >{{data.options.title|safe}}</div>
 
     <div style="font-size:small;font-weight:bold;font-style:italic">Issued at {{data.issued_time|formatDate("%I:%M %p %Z on %A %d %B %Y")}}</div>
     <div style="text-align:left;" class="bypass">
-        <img style="cursor:pointer" src="/dist/static/images/png.png" width="40px" height="40px" onclick="exportAs('forecasts','.bypass','forecast_{{data.issued_time|formatDate("%Y-%m-%d %H%M%S")}}.png')">
-        <img style="cursor:pointer;" src="/dist/static/images/pdf.png" width="40px" height="40px" onclick="exportAs('forecasts','.bypass','forecast_{{data.issued_time|formatDate("%Y-%m-%d %H%M%S")}}.pdf')">
+        <img style="cursor:pointer" src="/dist/static/images/png.png" width="40px" height="40px" onclick="exportAs('outlooks','.bypass','outlook_{{data.issued_time|formatDate("%Y-%m-%d %H%M%S")}}.png')">
+        <img style="cursor:pointer;" src="/dist/static/images/pdf.png" width="40px" height="40px" onclick="exportAs('outlooks','.bypass','outlook_{{data.issued_time|formatDate("%Y-%m-%d %H%M%S")}}.pdf')">
     </div>
-    {%- for forecast in data.forecasts -%}
+    {%- for outlook in data.outlooks -%}
     {%- if loop.index0 != 0 -%}
     <br><br>
     {% endif %}
-    <table class="hover" align="center" id="spotforecast" >
+    <table class="hover" align="center" id="weatheroutlook" >
       <thead>
         <tr>
-        {%- if forecast.has_group  -%}
+        {%- if outlook.has_group  -%}
           <th rowspan="2" style="text-align:center">Time</th>
         {% else %}
           <th style="text-align:center"> Time </th>
         {% endif %}
-        {%- for datasource in forecast.times_data -%}
+        {%- for datasource in outlook.times_data -%}
           {%- if datasource.group -%}
           <th colspan="{{datasource.columns}}" style="text-align:center"> {{ datasource.group|safe }} </th>
           {% else %}
-            {%- if forecast.has_group  -%}
+            {%- if outlook.has_group  -%}
               <th rowspan="2" style="text-align:center"> {{ datasource.options.title|safe }}</th>
             {% else %}
               <th style="text-align:center"> {{ datasource.options.title|safe }}</th>
@@ -84,9 +84,9 @@
           {% endif %}
         {% endfor %}
         </tr>
-        {%- if forecast.has_group  -%}
+        {%- if outlook.has_group  -%}
         <tr>
-          {%- for datasource in forecast.times_data -%}
+          {%- for datasource in outlook.times_data -%}
             {%- if datasource.group -%}
               {%- for ds in datasource.datasources -%}
                 <th style="text-align:center"> {{ ds.options.title|safe }}</th>
@@ -100,20 +100,20 @@
       <tbody>
         {%- set rowIndex = initValue() -%}
         {{ setValue(rowIndex,0) }}
-        {%- for day in forecast.days -%}
+        {%- for day in outlook.days -%}
           {%- set dayIndex = loop.index0 -%}
-          {%- if forecast.has_daily_group -%}
+          {%- if outlook.has_daily_group -%}
             <tr class="daterow">
-                <td colspan="{{forecast.columns}}" style="{{forecast.options.date_style|format("","text-align:left")}}">{{forecast["daily_group"][dayIndex]}}</td>
+                <td colspan="{{outlook.columns}}" style="{{outlook.options.date_style|format("","text-align:left")}}">{{outlook["daily_group"][dayIndex]}}</td>
             </tr>
             {{ setValue(rowIndex,0) }}
           {% endif %}
-          {%- for time in forecast.times[dayIndex] -%}
+          {%- for time in outlook.times[dayIndex] -%}
             {{ setValue(rowIndex,(getValue(rowIndex) + 1) % 2) }}
             {%- set timeIndex = loop.index0 -%}
             <tr class="time-{{getValue(rowIndex)}}-in-day">
-              <td style="{{forecast.options.time_style|format("","text-align:center")}}">{{time}}</td>
-            {%- for datasource in forecast.times_data -%}
+              <td style="{{outlook.options.time_style|format("","text-align:center")}}">{{time}}</td>
+            {%- for datasource in outlook.times_data -%}
               {%- if datasource.group -%}
                 {%- for ds in datasource.datasources -%}
                   {%- if ds.status -%}

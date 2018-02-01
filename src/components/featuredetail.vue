@@ -61,7 +61,7 @@
       loading: function () { return this.$root.loading },
       annotations: function () { return this.$root.annotations },
       catalogue:function() { return this.$root.catalogue},
-      spotforecast:function() { return this.$root.spotforecast},
+      weatheroutlook:function() { return this.$root.weatheroutlook},
       active:function() { return this.$root.active},
       dialog: function () { return this.$root.dialog },
       map: function () { return this.$root.map },
@@ -86,7 +86,7 @@
         }
       },
       topPosition:function() {
-        return this.spotforecast.topPosition + this.spotforecast.height;
+        return this.weatheroutlook.topPosition + this.weatheroutlook.height;
       },
       topPositionStyle:function() {
         return "top:" + this.topPosition + "px";

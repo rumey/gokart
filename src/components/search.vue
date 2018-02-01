@@ -64,9 +64,9 @@
           if (update_name) {
             $('#map-search').val(update_name)
           }
-          if (vm.$root.spotforecast && vm.annotations.tool && vm.annotations.tool.name === "SpotForecast") {
-            //spot forecast tool is activated.
-            vm.$root.spotforecast.setSpot(coords)
+          if (vm.$root.weatheroutlook && vm.annotations.tool && vm.annotations.tool.name === "WeatherOutlook") {
+            //weather outlook tool is activated.
+            vm.$root.weatheroutlook.setPosition(coords)
           } else if (!vm._setSearchPointFunc || !vm._setSearchPointFunc(searchMethod,coords,name)) {
             vm.features.clear()
             vm.features.push(new ol.Feature({

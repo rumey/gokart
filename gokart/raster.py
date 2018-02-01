@@ -2040,11 +2040,11 @@ request_options={
     "datetime_pattern":"%d/%m/%Y %H:%M:%S",
     "refresh_time_pattern":"%d/%m %H:%M",
 }
-forecast_options={
+outlook_options={
     "time_pattern":"%H:%M",
     "date_pattern":"%A %d %B",
-    "forecast_time_pattern":"%H:%M",
-    "forecast_date_pattern":"%d/%m/%Y",
+    "outlook_time_pattern":"%H:%M",
+    "outlook_date_pattern":"%d/%m/%Y",
     "time_style":"text-align:center;white-space:nowrap;",
     "date_style":"text-align:left"
 }
@@ -2067,10 +2067,10 @@ def setDefaultOptionIfMissing(options,defaultOptions):
     return options
 
 
-@bottle.route('/forecastmetadata',method="GET")
-def forecastmetadata():
+@bottle.route('/outlookmetadata',method="GET")
+def outlookmetadata():
     """
-    Get forecast metadata
+    Get weather outlook metadata
     """
     refresh = (bottle.request.query.get("refresh") or "false").lower() in ("true","yes","on")
     if refresh:
@@ -2079,20 +2079,20 @@ def forecastmetadata():
 
     bottle.response.set_header("Content-Type", "application/json")
     hasFailedDs = False
-    for ds in forecast_metadata:
+    for ds in outlook_metadata:
         if ds["loadstatus"]["status"] != "loaded":
             hasFailedDs = True
             break
 
     if hasFailedDs:
-        result = [ds for ds in forecast_metadata if ds["loadstatus"]["status"] == "loaded"]
+        result = [ds for ds in outlook_metadata if ds["loadstatus"]["status"] == "loaded"]
         return {'size':len(result),'datasources':result}
     else:
-        return {'size':len(forecast_metadata),'datasources':forecast_metadata}
+        return {'size':len(outlook_metadata),'datasources':outlook_metadata}
 
 
-@bottle.route('/spotforecast/<fmt>',method="POST")
-def spotforecast(fmt):
+@bottle.route('/weatheroutlook/<fmt>',method="POST")
+def weatheroutlook(fmt):
     """
     Get data from raster datasources
     Request datas
@@ -2130,35 +2130,35 @@ def spotforecast(fmt):
         requestData["srs"] = (requestData.get("srs") or "EPSG:4326").strip().upper()
         
         debug = (bottle.request.query.get("debug") or "false").lower() in ("true")
-        if not requestData.get("forecasts"):
-            raise Exception("Parameter 'forecasts' is missing")
+        if not requestData.get("outlooks"):
+            raise Exception("Parameter 'outlooks' is missing")
 
         if not requestData.get("point"):
             raise Exception("Parameter 'point' is missing.")
 
-        for forecast in requestData["forecasts"]:
+        for outlook in requestData["outlooks"]:
             #initialize 'days' parameter
-            if not forecast.get("days"):
+            if not outlook.get("days"):
                 raise Exception("Parameter 'days' is missing.")
-            elif not isinstance(forecast["days"],list):
-                forecast["days"] = [forecast["days"]]
+            elif not isinstance(outlook["days"],list):
+                outlook["days"] = [outlook["days"]]
 
             #initialize 'times' parameter
-            if not forecast.get("times"):
+            if not outlook.get("times"):
                 raise Exception("Parameter 'times' is  missing.")
-            elif not isinstance(forecast["times"],list):
-                forecast["times"] = [forecast["times"]]
+            elif not isinstance(outlook["times"],list):
+                outlook["times"] = [outlook["times"]]
 
-            if not forecast.get("times_data"):
+            if not outlook.get("times_data"):
                 raise Exception("Parameter 'times_data' is missing.")
                 
 
-            #forecast["times"] = [datetime.datetime.strptime(dt,"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE)  for dt in forecast["times"]]
+            #outlook["times"] = [datetime.datetime.strptime(dt,"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE)  for dt in outlook["times"]]
 
-            if not isinstance(forecast["times_data"],list):
-                forecast["times_data"] = [forecast["times_data"]]
+            if not isinstance(outlook["times_data"],list):
+                outlook["times_data"] = [outlook["times_data"]]
             #initialize 'times_data' parameter
-            for datasource in forecast["times_data"]:
+            for datasource in outlook["times_data"]:
                 if datasource.get("group"):
                     if not datasource.get("datasources"):
                         raise Exception("Property 'datasources' of group in times_data is missing.")
@@ -2170,13 +2170,13 @@ def spotforecast(fmt):
                         if ds.get("times"):
                             if not isinstance(ds["times"],list):
                                 ds["times"] = [ds["times"]]
-                            if len(ds["times"]) != len(forecast["times"]):
-                                raise Exception("The length of times of datasource in times_data's group is not equal with the length of times of forecast")
-                            ds["times"] = [[datetime.datetime.strptime("{} {}".format(day,time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in ds["times"]] for day in forecast["days"]]
+                            if len(ds["times"]) != len(outlook["times"]):
+                                raise Exception("The length of times of datasource in times_data's group is not equal with the length of times of outlook")
+                            ds["times"] = [[datetime.datetime.strptime("{} {}".format(day,time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in ds["times"]] for day in outlook["days"]]
                         else:
                             datasourceMetadata = raster_datasources.get(ds["workspace"],{}).get(ds["id"],{})
                             if datasourceMetadata.get("time"):
-                                ds["times"] = [[datetime.datetime.strptime("{} {}".format(day,datasourceMetadata["time"],time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in forecast["times"]] for day in forecast["days"]]
+                                ds["times"] = [[datetime.datetime.strptime("{} {}".format(day,datasourceMetadata["time"],time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in outlook["times"]] for day in outlook["days"]]
 
 
                 else:
@@ -2187,34 +2187,34 @@ def spotforecast(fmt):
                     if datasource.get("times"):
                         if not isinstance(datasource["times"],list):
                             datasource["times"] = [datasource["times"]]
-                        if len(datasource["times"]) != len(forecast["times"]):
-                            raise Exception("The length of times of datasource in times_data is not equal with the length of times of forecast")
-                        datasource["times"] = [[datetime.datetime.strptime("{} {}".format(day,time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in datasource["times"]] for day in forecast["days"]]
+                        if len(datasource["times"]) != len(outlook["times"]):
+                            raise Exception("The length of times of datasource in times_data is not equal with the length of times of outlook")
+                        datasource["times"] = [[datetime.datetime.strptime("{} {}".format(day,time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in datasource["times"]] for day in outlook["days"]]
                     else:
                         datasourceMetadata = raster_datasources.get(datasource["workspace"],{}).get(datasource["id"],{})
                         if datasourceMetadata.get("time"):
-                            datasource["times"] = [[datetime.datetime.strptime("{} {}".format(day,datasourceMetadata["time"],time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in forecast["times"]] for day in forecast["days"]]
+                            datasource["times"] = [[datetime.datetime.strptime("{} {}".format(day,datasourceMetadata["time"],time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in outlook["times"]] for day in outlook["days"]]
 
             #initialize 'daily_data' parameter
-            if forecast.get("daily_data"):
-                for datasource in forecast["daily_data"].itervalues():
+            if outlook.get("daily_data"):
+                for datasource in outlook["daily_data"].itervalues():
                     if not datasource.get("workspace"):
                         raise Exception("Property 'workspace' of datasource in daily_data is missing.")
                     if not datasource.get("id"):
                         raise Exception("Property 'id' of datasource in daily_data is missing.")
                     datasourceMetadata = raster_datasources.get(datasource["workspace"],{}).get(datasource["id"],{})
-                    datasource["times"] = [datetime.datetime.strptime("{} {}".format(day,datasourceMetadata.get("time","00:00:00")),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE)  for day in forecast["days"]]
+                    datasource["times"] = [datetime.datetime.strptime("{} {}".format(day,datasourceMetadata.get("time","00:00:00")),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE)  for day in outlook["days"]]
 
             #format parameter 'times' to a 2 dimension array of datatime object;the first dimension is day, the second dimension is times in a day
-            forecast["times"] = [[datetime.datetime.strptime("{} {}".format(day,time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in forecast["times"]] for day in forecast["days"]]
+            outlook["times"] = [[datetime.datetime.strptime("{} {}".format(day,time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in outlook["times"]] for day in outlook["days"]]
 
             #format the days to a array of datetime object
-            forecast["days"] = [datetime.datetime.strptime(day,"%Y-%m-%d").replace(tzinfo=PERTH_TIMEZONE)  for day in forecast["days"]]
+            outlook["days"] = [datetime.datetime.strptime(day,"%Y-%m-%d").replace(tzinfo=PERTH_TIMEZONE)  for day in outlook["days"]]
 
         #extract the data from raster dataset and save the data into 'data' property of each datasource
         #the data structure is the same as the times structure
-        for forecast in requestData["forecasts"]:
-            for datasource in forecast.get("daily_data",{}).itervalues():
+        for outlook in requestData["outlooks"]:
+            for datasource in outlook.get("daily_data",{}).itervalues():
                 datasource.update(getRasterData({
                     "datasource":datasource,
                     "point":requestData["point"],
@@ -2222,21 +2222,21 @@ def spotforecast(fmt):
                     "bandids":datasource["times"]
                 },debug))
 
-            for datasource in forecast.get("times_data",[]):
+            for datasource in outlook.get("times_data",[]):
                 if datasource.get("group"):
                     for ds in datasource["datasources"]:
                         ds.update(getRasterData({
                             "datasource":ds,
                             "point":requestData["point"],
                             "srs":requestData["srs"],
-                            "bandids":ds.get("times",forecast["times"])
+                            "bandids":ds.get("times",outlook["times"])
                         },debug))
                 else:
                     datasource.update(getRasterData({
                         "datasource":datasource,
                         "point":requestData["point"],
                         "srs":requestData["srs"],
-                        "bandids":datasource.get("times",forecast["times"])
+                        "bandids":datasource.get("times",outlook["times"])
                     },debug))
     
         result = requestData
@@ -2248,36 +2248,36 @@ def spotforecast(fmt):
         else:
             #html
             #get total columns and check whether have groups
-            for forecast in result["forecasts"]:
-                forecast["has_group"] = False
-                forecast["has_daily_group"] = True
-                forecast["columns"] = 1
-                for datasource in forecast.get("times_data",[]):
+            for outlook in result["outlooks"]:
+                outlook["has_group"] = False
+                outlook["has_daily_group"] = True
+                outlook["columns"] = 1
+                for datasource in outlook.get("times_data",[]):
                     if datasource.get("group"):
-                        forecast["has_group"] = True
+                        outlook["has_group"] = True
                         datasource["columns"] = 0
                         for ds in datasource["datasources"]:
-                            forecast["columns"] += 1
+                            outlook["columns"] += 1
                             datasource["columns"] += 1
                             ds["title"] = ds.get("title") or ds["id"]
                     else:
-                        forecast["columns"] += 1
+                        outlook["columns"] += 1
                         datasource["title"] = datasource.get("title") or datasource["id"]
-                if len(forecast.get("daily_data",{})) == 0 and len(forecast["times"][0]) < 2:
-                   forecast["has_daily_group"] = False
+                if len(outlook.get("daily_data",{})) == 0 and len(outlook["times"][0]) < 2:
+                   outlook["has_daily_group"] = False
     
             #prepare the format options
             result["options"] = setDefaultOptionIfMissing(result.get("options"),request_options)
 
-            for forecast in requestData["forecasts"]:
-                forecast["options"] = setDefaultOptionIfMissing(forecast.get("options"),forecast_options)
-                for datasource in forecast.get("daily_data",{}).itervalues():
+            for outlook in requestData["outlooks"]:
+                outlook["options"] = setDefaultOptionIfMissing(outlook.get("options"),outlook_options)
+                for datasource in outlook.get("daily_data",{}).itervalues():
                     try:
                         datasource["options"] = setDefaultOptionIfMissing(datasource.get("options"),raster_datasources[datasource["workspace"]][datasource["id"]].get("options"))
                     except:
                         pass
 
-                for datasource in forecast.get("times_data",[]):
+                for datasource in outlook.get("times_data",[]):
                     if datasource.get("group"):
                         for ds in datasource["datasources"]:
                             try:
@@ -2292,38 +2292,38 @@ def spotforecast(fmt):
 
 
             #format data if required
-            for forecast in result["forecasts"]:
+            for outlook in result["outlooks"]:
                 #format time column
                 index = 0;
-                while index < len(forecast["days"]):
+                while index < len(outlook["days"]):
                     timeIndex = 0
-                    while timeIndex < len(forecast["times"][index]):
-                        if forecast.get("has_daily_group"):
-                           forecast["times"][index][timeIndex] = formatData(forecast["times"][index][timeIndex],forecast["options"].get("forecast_time_pattern"),result["options"].get("no_data") or "")
+                    while timeIndex < len(outlook["times"][index]):
+                        if outlook.get("has_daily_group"):
+                           outlook["times"][index][timeIndex] = formatData(outlook["times"][index][timeIndex],outlook["options"].get("outlook_time_pattern"),result["options"].get("no_data") or "")
                         else:
-                           forecast["times"][index][timeIndex] = formatData(forecast["times"][index][timeIndex],forecast["options"].get("forecast_date_pattern"),result["options"].get("no_data") or "")
+                           outlook["times"][index][timeIndex] = formatData(outlook["times"][index][timeIndex],outlook["options"].get("outlook_date_pattern"),result["options"].get("no_data") or "")
                         timeIndex += 1
                     index += 1
                 
                 #format daily data
-                for datasource in forecast.get("daily_data", {}).itervalues():
+                for datasource in outlook.get("daily_data", {}).itervalues():
                     if datasource["status"] :
                         formatBandsData(datasource,result["options"].get("no_data") or "",raster_datasources[datasource["workspace"]][datasource["id"]]["metadata"]["unit"])
                 
                 #generate daily group row data
-                if forecast.get("has_daily_group"):
-                    forecast["daily_group"] = []
+                if outlook.get("has_daily_group"):
+                    outlook["daily_group"] = []
                     groupContext = {}
                     index = 0
-                    while index < len(forecast["days"]):
-                        groupContext["date"] = forecast["days"][index].strftime(forecast["options"]["date_pattern"])
-                        for name,datasource in forecast.get("daily_data",[]).iteritems():
+                    while index < len(outlook["days"]):
+                        groupContext["date"] = outlook["days"][index].strftime(outlook["options"]["date_pattern"])
+                        for name,datasource in outlook.get("daily_data",[]).iteritems():
                             groupContext[name] = datasource["data"][index][1] if datasource["status"] else (result["options"].get("no_data") or "")
-                        forecast["daily_group"].append(forecast.get("options",{}).get("daily_title_pattern","{date}").format(**groupContext))
+                        outlook["daily_group"].append(outlook.get("options",{}).get("daily_title_pattern","{date}").format(**groupContext))
                         index += 1
                 
                 #format times data
-                for datasource in forecast.get("times_data",[]):
+                for datasource in outlook.get("times_data",[]):
                     if datasource.get("group"):
                         for ds in datasource["datasources"]:
                             if ds.get("context"):
@@ -2347,7 +2347,7 @@ def spotforecast(fmt):
                             formatBandsData(datasource,result["options"].get("no_data") or "")
 
             bottle.response.set_header("Content-Type", "text/html")
-            return bottle.template('spotforecast.html',template_adapter=bottle.Jinja2Template,template_settings=jinja2settings, staticService=STATIC_SERVICE,data=result,envType=ENV_TYPE)
+            return bottle.template('weatheroutlook.html',template_adapter=bottle.Jinja2Template,template_settings=jinja2settings, staticService=STATIC_SERVICE,data=result,envType=ENV_TYPE)
 
     except:
         bottle.response.status = 400
@@ -2359,9 +2359,9 @@ def spotforecast(fmt):
     
 #load all raster datasource first
 loadAllDatasources()
-#load forecast metadata
-#forecast_metadata = {'size':len(raster_datasources["bom"]),'datasources':[]}
-forecast_metadata = []
+#load outlook metadata
+#outlook_metadata = {'size':len(raster_datasources["bom"]),'datasources':[]}
+outlook_metadata = []
 for key,value in raster_datasources["bom"].iteritems():
     data = dict(value)
     if "metadata_f" in data:
@@ -2378,7 +2378,7 @@ for key,value in raster_datasources["bom"].iteritems():
         data.pop("file")
     data["workspace"] = "bom"
     data["id"] = key
-    forecast_metadata.append(data)
+    outlook_metadata.append(data)
 
 sort_key_map={
     "weather":100,
@@ -2440,7 +2440,7 @@ def _compare_datasource(ds1,ds2):
         return -1
 
 
-forecast_metadata = sorted(forecast_metadata,cmp=_compare_datasource)
-for ds in forecast_metadata:
+outlook_metadata = sorted(outlook_metadata,cmp=_compare_datasource)
+for ds in outlook_metadata:
     ds.pop("sort_key")
 

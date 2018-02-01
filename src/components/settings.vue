@@ -4,7 +4,7 @@
       <div class="columns">
         <ul class="tabs" data-tabs id="settings-tabs">
           <li class="tabs-title is-active" menu="systemsetting"><a href="#systemsetting" aria-selected="true">System</a></li>
-          <li class="tabs-title" menu="spotforecast"><a href="#spotforecast" aria-selected="true">Weather Outlook</a></li>
+          <li class="tabs-title" menu="weatheroutlook"><a href="#weatheroutlook" aria-selected="true">Weather Outlook</a></li>
         </ul>
       </div>
     </div>
@@ -12,7 +12,7 @@
       <div class="columns">
         <div class="tabs-content vertical" data-tabs-content="settings-tabs">
           <gk-systemsetting v-ref:systemsetting></gk-systemsetting>
-          <gk-spotforecast v-ref:spotforecast></gk-spotforecast>
+          <gk-weatheroutlook v-ref:weatheroutlook></gk-weatheroutlook>
         </div>
       </div>
     </div>
@@ -21,14 +21,14 @@
 
 <script>
   import gkSystemsetting from './systemsetting.vue'
-  import gkSpotforecast from './spotforecast.vue'
+  import gkWeatheroutlook from './weatheroutlook.vue'
 
   export default { 
     store: {
         activeMenu:'activeMenu',
         activeSubmenu:'activeSubmenu'
     },
-    components: { gkSystemsetting,gkSpotforecast },
+    components: { gkSystemsetting,gkWeatheroutlook },
     computed: {
         info: function () { return this.$root.info },
     },

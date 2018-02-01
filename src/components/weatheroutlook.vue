@@ -1,16 +1,16 @@
 <template>
-  <div class="tabs-panel" id="spotforecast" v-cloak>
+  <div class="tabs-panel" id="weatheroutlook" v-cloak>
     <div class="row">
       <div class="columns">
         <div class="tabs-content vertical" data-tabs-content="setting-tabs">
-          <div id="spotforecast-settings">
+          <div id="weatheroutlook-settings">
 
             <div class="tool-slice row collapse">
                 <div class="small-4">
                     <label class="tool-label">Outlook Days:</label>
                 </div>
                 <div class="small-8">
-                    <select name="spotforecastForecastDays" v-model="forecastDays" @change="systemsetting.saveState(10000)">
+                    <select name="weatheroutlookOutlookDays" v-model="outlookDays" @change="systemsetting.saveState(10000)">
                         <option value="1">Today</option>      
                         <option value="2">2 Days</option>      
                         <option value="3">3 Days</option>      
@@ -26,7 +26,7 @@
                     <label class="tool-label">Outlook Times:</label>
                 </div>
                 <div class="small-8">
-                    <select name="spotforecastReportType" v-model="reportType" @change="systemsetting.saveState(10000)">
+                    <select name="weatheroutlookReportType" v-model="reportType" @change="systemsetting.saveState(10000)">
                         <option value="1">Hourly</option>      
                         <option value="2">2 Hourly</option>      
                         <option value="3">3 Hourly</option>      
@@ -45,29 +45,29 @@
             </div>
           </div>
 
-          <div class="tool-slice row collapse" id="spotforecast-data-config">
+          <div class="tool-slice row collapse" id="weatheroutlook-data-config">
             <div class="columns">
                 <ul class="accordion" data-accordion>
                     <li class="accordion-item" data-accordion-item>
                         <!-- Accordion tab title -->
                         <a href="#" class="accordion-title">Daily Title</a>
                         <!-- Accordion tab content: it would start in the open state due to using the `is-active` state class. -->
-                        <div class="accordion-content scroller" data-tab-content id="spotforecast-header">
+                        <div class="accordion-content scroller" data-tab-content id="weatheroutlook-header">
                             <textarea type="text" rows="4" style="width:100%;resize:vertical" id="daily-title" v-model="editingDailyTitle" placeholder="{date}" @blur="formatDailyTitle" @keyup="formatDailyTitle"> </textarea>
                             <div class="row feature-row status-row">
                                 <div class="small-4">
-                                    <div class="forecast-datasources">date</div>
+                                    <div class="outlook-datasources">date</div>
                                 </div>
                                 <div class="small-8">
-                                    <div class="forecast-datasources">forecast date</div>
+                                    <div class="outlook-datasources">outlook date</div>
                                 </div>
                             </div>
                             <div v-for="ds in dailyDatasources" track-by="id" class="row feature-row status-row" >
                                 <div class="small-4">
-                                    <div class="forecast-datasources">{{ ds.var}} </div>
+                                    <div class="outlook-datasources">{{ ds.var}} </div>
                                 </div>
                                 <div class="small-8">
-                                    <div class="forecast-datasources">{{ ds.name}}</div>
+                                    <div class="outlook-datasources">{{ ds.name}}</div>
                                 </div>
                             </div>
                         </div>
@@ -77,9 +77,9 @@
                         <a href="#" class="accordion-title">Chosen Columns</a>
                         <!-- Accordion tab content: it would start in the open state due to using the `is-active` state class. -->
                         <div class="accordion-content" data-tab-content>
-                            <div class="scroller" id="spotforecast-columns" style="margin-left:-16px;margin-right:-16px">
+                            <div class="scroller" id="weatheroutlook-columns" style="margin-left:-16px;margin-right:-16px">
                             <div style="margin-left:16px;margin-right:16px">
-                                <template v-for="(index,column) in (revision && forecastColumns)" track-by="$index" >
+                                <template v-for="(index,column) in (revision && outlookColumns)" track-by="$index" >
                                     <template v-if="column.group">
                                     <div class='row feature-row {{column===selectedColumn?"feature-selected":""}}' @click="selectColumn(index,-1,column)" id="active-column-{{index}}">
                                         <div class="small-12">
@@ -89,7 +89,7 @@
                                                 <a v-bind:disabled="index <= 0" @click.stop.prevent="moveUp(index,-1,column)" title="Move Up" class="button tiny secondary">
                                                     <i class="fa fa-arrow-up"></i>
                                                 </a>
-                                                <a v-bind:disabled="index >= forecastColumns.length - 1" @click.stop.prevent="moveDown(index,-1,column)" title="Move Down" class="button tiny secondary">
+                                                <a v-bind:disabled="index >= outlookColumns.length - 1" @click.stop.prevent="moveDown(index,-1,column)" title="Move Down" class="button tiny secondary">
                                                     <i class="fa fa-arrow-down"></i>
                                                 </a>
                                             </div>
@@ -121,7 +121,7 @@
                                                 <a v-bind:disabled="index <= 0" @click.stop.prevent="moveUp(index,-1,column)" title="Move Up" class="button tiny secondary">
                                                     <i class="fa fa-arrow-up"></i>
                                                 </a>
-                                                <a v-bind:disabled="index >= forecastColumns.length - 1" @click.stop.prevent="moveDown(index,-1,column)" title="Move Down" class="button tiny secondary">
+                                                <a v-bind:disabled="index >= outlookColumns.length - 1" @click.stop.prevent="moveDown(index,-1,column)" title="Move Down" class="button tiny secondary">
                                                     <i class="fa fa-arrow-down"></i>
                                                 </a>
                                             </div>
@@ -132,7 +132,7 @@
                             </div>
                             </div>
 
-                            <div class="row" id="spotforecast-column-editor" style="margin-left:-10px;margin-right:-10px" >
+                            <div class="row" id="weatheroutlook-column-editor" style="margin-left:-10px;margin-right:-10px" >
                                 <div class="small-4">
                                     <label class="tool-label">Title:</label>
                                 </div>
@@ -155,7 +155,7 @@
                         <!-- Accordion tab title -->
                         <a href="#" class="accordion-title">Available Columns</a>
                         <!-- Accordion tab content: it would start in the open state due to using the `is-active` state class. -->
-                        <div class="accordion-content scroller" data-tab-content id="spotforecast-datasources">
+                        <div class="accordion-content scroller" data-tab-content id="weatheroutlook-datasources">
 
                             <div class="row">
                               <div class="switch tiny">
@@ -174,27 +174,27 @@
                                     {{ ds.name}}
                                     <div class="text-right float-right">
                                        <div class="switch tiny" @click.stop >
-                                           <input class="switch-input ctlgsw" id="forecast_ds_{{ $index }}" v-bind:disabled="ds.required"  type="checkbox" @change="toggleDatasource(ds)" v-bind:checked="isDatasourceSelected(ds)"/>
-                                           <label class="switch-paddle" for="forecast_ds_{{ $index }}">
+                                           <input class="switch-input ctlgsw" id="outlook_ds_{{ $index }}" v-bind:disabled="ds.required"  type="checkbox" @change="toggleDatasource(ds)" v-bind:checked="isDatasourceSelected(ds)"/>
+                                           <label class="switch-paddle" for="outlook_ds_{{ $index }}">
                                                <span class="show-for-sr">Toggle</span>
                                            </label>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="small-6 datasource-desc">
-                                    <div class="forecast-datasources">Type: {{ ds.metadata.type }}</div>
+                                    <div class="outlook-datasources">Type: {{ ds.metadata.type }}</div>
                                 </div>
                                 <div class="small-6 datasource-desc">
-                                    <div class="forecast-datasources" v-if="isDegreeUnit(ds)">Unit: &deg;
+                                    <div class="outlook-datasources" v-if="isDegreeUnit(ds)">Unit: &deg;
                                     </div>
-                                    <div class="forecast-datasources" v-if="ds.metadata.unit && !isDegreeUnit(ds)">Unit: {{ ds.metadata.unit}}
+                                    <div class="outlook-datasources" v-if="ds.metadata.unit && !isDegreeUnit(ds)">Unit: {{ ds.metadata.unit}}
                                     </div>
                                 </div>
                                 <div class="small-12 datasource-desc">
-                                    <div class="forecast-datasources">Title: {{ ds.options.title }}</div>
+                                    <div class="outlook-datasources">Title: {{ ds.options.title }}</div>
                                 </div>
                                 <div class="small-12 datasource-desc">
-                                    <div class="forecast-datasources">Updated: {{ ds.metadata.refresh_time?ds.metadata.refresh_time.toLocaleString():"" }}</div>
+                                    <div class="outlook-datasources">Updated: {{ ds.metadata.refresh_time?ds.metadata.refresh_time.toLocaleString():"" }}</div>
                                 </div>
                               </div>
                             </template>
@@ -209,29 +209,29 @@
     </div>
 
     <div style="display:none">
-    <div id="spotforecast_control" class="ol-selectable ol-control" v-bind:style="topPositionStyle">
-        <button type="button" title="{{forecastSetting.title}}" @click="toggleTool()" v-bind:class="{'selected':isControlSelected}" style="width:48px;height:36px;border-bottom-left-radius:0px;border-bottom-right-radius:0px">
-            <img v-bind:src="forecastSetting.icon" width="36" height="36">
+    <div id="weatheroutlook_control" class="ol-selectable ol-control" v-bind:style="topPositionStyle">
+        <button type="button" title="{{outlookSetting.title}}" @click="toggleTool()" v-bind:class="{'selected':isControlSelected}" style="width:48px;height:36px;border-bottom-left-radius:0px;border-bottom-right-radius:0px">
+            <img v-bind:src="outlookSetting.icon" width="36" height="36">
         </button>
         <button type="button" style="height:16px;border-top-left-radius:0px;border-top-right-radius:0px"  @click="showSettings=!showSettings" >
             <i class="fa fa-angle-double-down" aria-hidden="true"></i>
         </button>
         <div v-show="showSettings" style="position:absolute;width:300px;right:0px">
-            <button type="button" v-for="s in forecastSettings" title="{{s.title}}"  style="margin:1px;float:right" track-by="$index" @click.stop.prevent="selectSetting(s)">
+            <button type="button" v-for="s in outlookSettings" title="{{s.title}}"  style="margin:1px;float:right" track-by="$index" @click.stop.prevent="selectSetting(s)">
                 <img v-bind:src="s.icon" width="36" height="36">
             </button>
         </div>
     </div>
     </div>
 
-    <form id="get_spotforecast" name="spotforecast" action="{{env.gokartService + '/spotforecast/html'}}" method="post" target="spotforecast">
-        <input type="hidden" name="data" id="spotforecast_data">
+    <form id="get_weatheroutlook" name="weatheroutlook" action="{{env.gokartService + '/weatheroutlook/html'}}" method="post" target="weatheroutlook">
+        <input type="hidden" name="data" id="weatheroutlook_data">
     </form>
   </div>
 </template>
 
 <style>
-#spotforecast_control button{
+#weatheroutlook_control button{
     width: 48px;
     height: 48px;
     margin: 0;
@@ -244,22 +244,22 @@
     font-size:14px;
 }
 
-#spotforecast-data-config .accordion {
+#weatheroutlook-data-config .accordion {
     background-color: transparent
 }
-#spotforecast-data-config .accordion-content {
+#weatheroutlook-data-config .accordion-content {
     background-color: transparent
 }
 #daily-title.alert{
     background-color: rgba(171, 116, 107, 0.7);
 }
-.forecast-datasources {
+.outlook-datasources {
     font-size: 100%;
 }
-#spotforecast_control .selected{
+#weatheroutlook_control .selected{
     background-color: #2199E8;
 }
-#spotforecast_control {
+#weatheroutlook_control {
     position: absolute;
     left: auto;
     right: 16px;
@@ -273,11 +273,11 @@
   import { ol,$,moment,utils} from 'src/vendor.js'
   export default {
     store: {
-        reportType:'settings.spotforecast.reportType',
-        reportHours:'settings.spotforecast.reportHours',
-        dailyTitle:'settings.spotforecast.dailyTitle',
-        forecastDays:'settings.spotforecast.forecastDays',
-        forecastColumns:'settings.spotforecast.forecastColumns',
+        reportType:'settings.weatheroutlook.reportType',
+        reportHours:'settings.weatheroutlook.reportHours',
+        dailyTitle:'settings.weatheroutlook.dailyTitle',
+        outlookDays:'settings.weatheroutlook.outlookDays',
+        outlookColumns:'settings.weatheroutlook.outlookColumns',
         screenHeight:'layout.screenHeight',
         leftPanelHeadHeight:'layout.leftPanelHeadHeight',
         activeMenu:'activeMenu',
@@ -299,10 +299,10 @@
         selectedColumn:null,
         columnGroups:[],
         reportTimes:[],
-        forecastSetting:{},
-        forecastSettings:[
-            {name:"weather-outlook-default",title:"Default 4 Day Weather Outlook",icon:"/dist/static/images/default-outlook-forecast.svg"},
-            {name:"weather-outlook-customized",title:"Customized Weather Outlook",icon:"/dist/static/images/customized-outlook-forecast.svg"}
+        outlookSetting:{},
+        outlookSettings:[
+            {name:"weather-outlook-default",title:"Default 4 Day Weather Outlook",icon:"/dist/static/images/default-weather-outlook.svg"},
+            {name:"weather-outlook-customized",title:"Customized Weather Outlook",icon:"/dist/static/images/customized-weather-outlook.svg"}
         ],
         showSettings:false,
         revision:1,
@@ -329,7 +329,7 @@
       mapControl:function() {
         if (!this._controller) {
             this._controller = new ol.control.Control({
-                element: $('#spotforecast_control').get(0),
+                element: $('#weatheroutlook_control').get(0),
         	target: $('#external-controls').get(0)
             })
         }
@@ -337,7 +337,7 @@
       },
       isControlSelected:function() {
         if (this.annotations) {
-            return this.annotations.tool === this._spotforecastTool
+            return this.annotations.tool === this._weatheroutlookTool
         } else {
             return false
         }
@@ -370,7 +370,7 @@
         } else if (!this.showSettings) {
             return 52 + 9
         } else {
-            return 52 + Math.ceil(this.forecastSettings.length / 6) * 50 + 9
+            return 52 + Math.ceil(this.outlookSettings.length / 6) * 50 + 9
         }
       },
       topPosition:function() {
@@ -380,7 +380,7 @@
         return "top:" + this.topPosition + "px";
       },
       tools:function() {
-        return this.forecastSettings
+        return this.outlookSettings
       },
     },
     watch:{
@@ -397,51 +397,51 @@
       reportHours:function(newValue,oldValue) {
         this.updateReportTimes()   
       },
-      forecastDays:function(newValue,oldValue) {
-        this.changeForecastDays()
+      outlookDays:function(newValue,oldValue) {
+        this.changeOutlookDays()
       }
     },
     // methods callable from inside the template
     methods: {
       adjustHeight:function() {
-        if (this.activeMenu === "settings" && this.activeSubmenu === "spotforecast") {
-            //the 'chosen columns' is selected by default, so the first time when the user entries into the sportforecast setting panel, the 'column editor' should have valid height value.
-            this._columnEditorHeight = this._columnEditorHeight || $("#spotforecast-column-editor").height()
-            var height = this.screenHeight - this.leftPanelHeadHeight - $("#spotforecast-settings").height() - 200
-            $("#spotforecast-header").height(height)
-            $("#spotforecast-columns").height(height - this._columnEditorHeight)
-            $("#spotforecast-datasources").height(height)
+        if (this.activeMenu === "settings" && this.activeSubmenu === "weatheroutlook") {
+            //the 'chosen columns' is selected by default, so the first time when the user entries into the sportoutlook setting panel, the 'column editor' should have valid height value.
+            this._columnEditorHeight = this._columnEditorHeight || $("#weatheroutlook-column-editor").height()
+            var height = this.screenHeight - this.leftPanelHeadHeight - $("#weatheroutlook-settings").height() - 200
+            $("#weatheroutlook-header").height(height)
+            $("#weatheroutlook-columns").height(height - this._columnEditorHeight)
+            $("#weatheroutlook-datasources").height(height)
         }
       },
-      changeForecastDays:function() {
-        this.forecastSettings[1].title = "Customised " + this.forecastDays + " Day Weather Outlook"
+      changeOutlookDays:function() {
+        this.outlookSettings[1].title = "Customised " + this.outlookDays + " Day Weather Outlook"
       },
       selectSetting:function(s) {
         this.showSettings = false
-        if (this.forecastSetting === s) {
+        if (this.outlookSetting === s) {
             return
         }
-        this.forecastSetting = s
+        this.outlookSetting = s
       },
       selectTool:function(tool) {
-        if (this.forecastSetting === tool) {
+        if (this.outlookSetting === tool) {
             return
         }
-        this.forecastSetting = tool
+        this.outlookSetting = tool
       },
       toggleTool: function (enable) {
-        if (!this._spotforecastTool) {
+        if (!this._weatheroutlookTool) {
             this.annotations.setTool(this.annotations.currentTool,true)
-        } else if (enable === true && this.annotations.tool === this._spotforecastTool) {
+        } else if (enable === true && this.annotations.tool === this._weatheroutlookTool) {
             //already enabled
             return
-        } else if (enable === false && this.annotations.tool !== this._spotforecastTool) {
+        } else if (enable === false && this.annotations.tool !== this._weatheroutlookTool) {
             //already disabled
             return
-        } else if (this.annotations.tool === this._spotforecastTool) {
+        } else if (this.annotations.tool === this._weatheroutlookTool) {
             this.annotations.setTool(this.annotations.currentTool,true)
         } else  {
-            this.annotations.setTool(this._spotforecastTool)
+            this.annotations.setTool(this._weatheroutlookTool)
         }
       },
       isToolActivated:function(tool) {
@@ -467,7 +467,7 @@
             //the selected column is a column
             this.selectedDatasource = this._datasources["datasources"].find(function(o){return o.id === column.id})
             this.editingColumnTitle = this.selectedColumnTitle
-            this.editingColumnGroup = subindex >= 0 ?this.forecastColumns[index]["group"]:""
+            this.editingColumnGroup = subindex >= 0 ?this.outlookColumns[index]["group"]:""
         }
 
         this.selectedRow.addClass("feature-selected")
@@ -501,12 +501,12 @@
 
             if (this.editingColumnGroup) {
                 //change group name
-                groupIndex = this.forecastColumns.findIndex(function(o) {return o.group?o.group === vm.editingColumnGroup:false})
+                groupIndex = this.outlookColumns.findIndex(function(o) {return o.group?o.group === vm.editingColumnGroup:false})
                 if (groupIndex >= 0) {
                     //group already exist,move the columns to existing groups
-                    this.forecastColumns[groupIndex].datasources.push.apply(this.forecastColumns[groupIndex].datasources,this.selectedColumn.datasources)
+                    this.outlookColumns[groupIndex].datasources.push.apply(this.outlookColumns[groupIndex].datasources,this.selectedColumn.datasources)
                     //remove the old group
-                    this.forecastColumns.splice(this.selectedIndex,1)
+                    this.outlookColumns.splice(this.selectedIndex,1)
                     if (this.selectedIndex < groupIndex) {
                         this.selectedIndex = groupIndex - 1
                     } else {
@@ -514,14 +514,14 @@
                     }
                     this.selectedIndex = groupIndex
                     this.selectedSubindex = -1
-                    this.selectedColumn = this.forecastColumns[groupIndex]
+                    this.selectedColumn = this.outlookColumns[groupIndex]
                     this.selectedRow = null
                     this.selectedDatasource = null
                     this.editingColumnTitle = ""
 
                 } else {
                     //group does not exist, rename the group
-                    this.forecastColumns[vm.selectedIndex]["group"] = this.editingColumnGroup
+                    this.outlookColumns[vm.selectedIndex]["group"] = this.editingColumnGroup
                     this.columnGroups.push(this.editingColumnGroup)
                     this.columnGroups.sort()
                 }
@@ -529,9 +529,9 @@
 
             } else {
                 //remove group
-                this.forecastColumns.splice(this.selectedIndex,1)
+                this.outlookColumns.splice(this.selectedIndex,1)
                 $.each(this.selectedColumn.datasources,function(index,col){
-                    vm.forecastColumns.splice(vm.selectedIndex + index,0,col)
+                    vm.outlookColumns.splice(vm.selectedIndex + index,0,col)
                 })
                 this.selectedIndex = -1
                 this.selectedSubindex = -1
@@ -543,7 +543,7 @@
             }
         } else {
             if (this.editingColumnGroup) {
-                if (this.selectedSubindex >=0  && this.forecastColumns[this.selectedIndex]["group"] === this.editingColumnGroup) {
+                if (this.selectedSubindex >=0  && this.outlookColumns[this.selectedIndex]["group"] === this.editingColumnGroup) {
                     //not changed
                     return
                 }
@@ -554,38 +554,38 @@
             //group changed
             if (this.selectedSubindex >= 0) {
                 //already in a group, remove it from old group
-                this.forecastColumns[this.selectedIndex]["datasources"].splice(this.selectedSubindex,1)
-                if (this.forecastColumns[this.selectedIndex]["datasources"].length === 0) {
+                this.outlookColumns[this.selectedIndex]["datasources"].splice(this.selectedSubindex,1)
+                if (this.outlookColumns[this.selectedIndex]["datasources"].length === 0) {
                     //group is empty, remove it
-                    var groupIndex = this.columnGroups.findIndex(function(o){return o === vm.forecastColumns[vm.selectedIndex]["group"]})
+                    var groupIndex = this.columnGroups.findIndex(function(o){return o === vm.outlookColumns[vm.selectedIndex]["group"]})
                     if (groupIndex >= 0) {
                         this.columnGroups.splice(groupIndex,1)
                     }
-                    this.forecastColumns.splice(this.selectedIndex,1)
+                    this.outlookColumns.splice(this.selectedIndex,1)
                 } else {
                     this.selectedIndex += 1
                 }
             } else {
-                //not in a group, remove it from forecastColumns
-                this.forecastColumns.splice(this.selectedIndex,1)
+                //not in a group, remove it from outlookColumns
+                this.outlookColumns.splice(this.selectedIndex,1)
             }
             if (this.editingColumnGroup) {
-                var groupIndex = this.forecastColumns.findIndex(function(o) {return o.group?o.group === vm.editingColumnGroup:false})
+                var groupIndex = this.outlookColumns.findIndex(function(o) {return o.group?o.group === vm.editingColumnGroup:false})
                 if (groupIndex >= 0) {
                     //new  group already exist, add it into the existing group
-                    this.forecastColumns[groupIndex]["datasources"].push(this.selectedColumn)
+                    this.outlookColumns[groupIndex]["datasources"].push(this.selectedColumn)
                     this.selectedIndex = groupIndex
-                    this.selectedSubindex = this.forecastColumns[groupIndex]["datasources"].length - 1
+                    this.selectedSubindex = this.outlookColumns[groupIndex]["datasources"].length - 1
                 } else {
                     //group doesn't exist, add a new group
-                    this.forecastColumns.splice(this.selectedIndex,0,{group:this.editingColumnGroup,datasources:[this.selectedColumn]})
+                    this.outlookColumns.splice(this.selectedIndex,0,{group:this.editingColumnGroup,datasources:[this.selectedColumn]})
                     this.selectedSubindex = 0
                     this.columnGroups.push(this.editingColumnGroup)
                     this.columnGroups.sort()
                 }
             } else {
                 //not in a group
-                this.forecastColumns.splice(this.selectedIndex,0,this.selectedColumn)
+                this.outlookColumns.splice(this.selectedIndex,0,this.selectedColumn)
                 this.selectedSubindex = -1
                 
             }
@@ -611,16 +611,16 @@
             if (ds["options"] && ds["options"]["group"]) {
                 //has default group
                 group = ds["options"] && ds["options"]["group"]
-                var groupIndex = this.forecastColumns.findIndex(function(o) {return o.group?o.group === group:false})
+                var groupIndex = this.outlookColumns.findIndex(function(o) {return o.group?o.group === group:false})
                 if (groupIndex >= 0) {
                     //group already exist
-                    this.forecastColumns[groupIndex]["required"] = this.forecastColumns[groupIndex]["required"] || (ds["required"] || false)
-                    this.forecastColumns[groupIndex]["datasources"].push({workspace:ds["workspace"],id:ds["id"],name:ds["name"],required:ds["required"] || false})
+                    this.outlookColumns[groupIndex]["required"] = this.outlookColumns[groupIndex]["required"] || (ds["required"] || false)
+                    this.outlookColumns[groupIndex]["datasources"].push({workspace:ds["workspace"],id:ds["id"],name:ds["name"],required:ds["required"] || false})
                 } else {
                     //group does not exist
-                    this.forecastColumns.push({
+                    this.outlookColumns.push({
                         group:group,
-                        required:(this.forecastColumns[groupIndex]["required"] || (ds["required"] || false)),
+                        required:(this.outlookColumns[groupIndex]["required"] || (ds["required"] || false)),
                         datasources:[{workspace:ds["workspace"],id:ds["id"],name:ds["name"],required:ds["required"] || false}]
                     })
                 }
@@ -631,7 +631,7 @@
                 }
             } else {
                 //no default group
-                this.forecastColumns.push({workspace:ds["workspace"],id:ds["id"],name:ds["name"],required:ds["required"] || false})
+                this.outlookColumns.push({workspace:ds["workspace"],id:ds["id"],name:ds["name"],required:ds["required"] || false})
             }
 
         } else {
@@ -641,7 +641,7 @@
                 return
             }
             if (index === null || index === undefined) {
-                $.each(this.forecastColumns,function(i,column){
+                $.each(this.outlookColumns,function(i,column){
                     if (column.group) {
                         j = column.datasources.findIndex(function(o){ return o["workspace"] === ds["workspace"] && o["id"] === ds["id"]})
                         if (j >= 0) {
@@ -657,7 +657,7 @@
                 })
             }
             if (subindex >= 0) {
-                this.forecastColumns[index]["datasources"].splice(subindex,1)
+                this.outlookColumns[index]["datasources"].splice(subindex,1)
                 if (this.selectedIndex === index && this.selectedSubindex === subindex) {
                     this.selectedIndex = -1
                     this.selectedSubindex = -1
@@ -669,18 +669,18 @@
                 } else if (this.selectedIndex === index && this.selectedSubindex > subindex) {
                     this.selectedSubindex -= 1
                 }
-                if (this.forecastColumns[index]["datasources"].length === 0) {
-                    var groupIndex = this.columnGroups.findIndex(function(o){return o === vm.forecastColumns[index]["group"]})
+                if (this.outlookColumns[index]["datasources"].length === 0) {
+                    var groupIndex = this.columnGroups.findIndex(function(o){return o === vm.outlookColumns[index]["group"]})
                     if (groupIndex >= 0) {
                         this.columnGroups.splice(groupIndex,1)
                     }
-                    this.forecastColumns.splice(index,1)
+                    this.outlookColumns.splice(index,1)
                     if (this.selectedIndex > index) {
                         this.selectedIndex -= 1
                     }
                 }
             } else if (index >= 0) {
-                this.forecastColumns.splice(index,1)
+                this.outlookColumns.splice(index,1)
                 if (this.selectedIndex === index) {
                     this.selectedIndex = -1
                     this.selectedSubindex = -1
@@ -699,28 +699,28 @@
       },
       moveDown:function(index,subindex,column) {
         if (subindex >= 0) {
-            if (index >= this.forecastColumns.length || index < 0) {
+            if (index >= this.outlookColumns.length || index < 0) {
                 return
             }
-            if (subindex >= this.forecastColumns[index]["datasources"].length - 1 || subindex < 0) {
+            if (subindex >= this.outlookColumns[index]["datasources"].length - 1 || subindex < 0) {
                 return
             }
         } else {
-            if (index >= this.forecastColumns.length - 1 || index < 0) {
+            if (index >= this.outlookColumns.length - 1 || index < 0) {
                 return
             }
         }
         if (subindex >= 0) {
-            this.forecastColumns[index]["datasources"][subindex] = this.forecastColumns[index]["datasources"][subindex + 1]
-            this.forecastColumns[index]["datasources"][subindex + 1] = column
+            this.outlookColumns[index]["datasources"][subindex] = this.outlookColumns[index]["datasources"][subindex + 1]
+            this.outlookColumns[index]["datasources"][subindex + 1] = column
             if (this.selectedSubindex === subindex ) {
                 this.selectedSubindex += 1
             } else if (this.selectedSubindex === subindex - 1) {
                 this.selectedSubindex -= 1
             }
         } else {
-            this.forecastColumns[index] = this.forecastColumns[index + 1]
-            this.forecastColumns[index + 1] = column
+            this.outlookColumns[index] = this.outlookColumns[index + 1]
+            this.outlookColumns[index + 1] = column
             if (this.selectedIndex === index ) {
                 this.selectedIndex += 1
             } else if (this.selectedIndex === index - 1) {
@@ -733,28 +733,28 @@
       },
       moveUp:function(index,subindex,column) {
         if (subindex >= 0) {
-            if (index >= this.forecastColumns.length || index < 0) {
+            if (index >= this.outlookColumns.length || index < 0) {
                 return
             }
-            if (subindex >= this.forecastColumns[index]["datasources"].length || subindex <= 0) {
+            if (subindex >= this.outlookColumns[index]["datasources"].length || subindex <= 0) {
                 return
             }
         } else {
-            if (index >= this.forecastColumns.length || index <= 0) {
+            if (index >= this.outlookColumns.length || index <= 0) {
                 return
             }
         }
         if (subindex >= 0) {
-            this.forecastColumns[index]["datasources"][subindex] = this.forecastColumns[index]["datasources"][subindex - 1]
-            this.forecastColumns[index]["datasources"][subindex - 1] = column
+            this.outlookColumns[index]["datasources"][subindex] = this.outlookColumns[index]["datasources"][subindex - 1]
+            this.outlookColumns[index]["datasources"][subindex - 1] = column
             if (this.selectedSubindex === subindex ) {
                 this.selectedSubindex -= 1
             } else if (this.selectedSubindex === subindex - 1) {
                 this.selectedSubindex += 1
             }
         } else {
-            this.forecastColumns[index] = this.forecastColumns[index - 1]
-            this.forecastColumns[index - 1] = column
+            this.outlookColumns[index] = this.outlookColumns[index - 1]
+            this.outlookColumns[index - 1] = column
             if (this.selectedIndex === index ) {
                 this.selectedIndex -= 1
             } else if (this.selectedIndex === index - 1) {
@@ -877,15 +877,15 @@
             }
         }
       },
-      setForecastColumns:function(columns) {
+      setOutlookColumns:function(columns) {
         var vm = this
-        vm.forecastColumns = columns
+        vm.outlookColumns = columns
         vm.columnGroups.length = 0
         var required = false
         $.each(vm._datasources["datasources"],function(index,ds){ds["selected"] = false})
 
-        for(var index = vm.forecastColumns.length - 1;index >= 0;index--) {
-            column = vm.forecastColumns[index]
+        for(var index = vm.outlookColumns.length - 1;index >= 0;index--) {
+            column = vm.outlookColumns[index]
             if (column.group){
                 required = false
                 for(var subindex = column.datasources.length - 1;subindex >= 0;subindex--) {
@@ -904,7 +904,7 @@
                 column["required"] = required
                 var groupIndex = vm.columnGroups.findIndex(function(o){return o === column["group"]})
                 if (column.datasources.length === 0) {
-                    vm.forecastColumns.splice(index,1)
+                    vm.outlookColumns.splice(index,1)
                     if (groupIndex >= 0) {
                         vm.columnGroups.splice(groupIndex,1)
                     }
@@ -920,7 +920,7 @@
                     column["required"] = ds["required"]?true:false
                 } else {
                     //column is unavailable
-                    vm.forecastColumns.splice(index,1)
+                    vm.outlookColumns.splice(index,1)
                 }
 
             }
@@ -943,18 +943,18 @@
       },
       loadDatasources:function() {
         var vm = this
-        this._spotforecastStatus.phaseBegin("load_datasources",80,"Load datasources")
+        this._weatheroutlookStatus.phaseBegin("load_datasources",80,"Load datasources")
         this.refreshDatasources(true,function(){
-            vm._spotforecastStatus.phaseEnd("load_datasources")
+            vm._weatheroutlookStatus.phaseEnd("load_datasources")
         },function(){
-            vm._spotforecastStatus.phaseFailed("load_datasources","Failed to loading datasources. status = " + xhr.status + " , message = " + (xhr.responseText || message))
+            vm._weatheroutlookStatus.phaseFailed("load_datasources","Failed to loading datasources. status = " + xhr.status + " , message = " + (xhr.responseText || message))
         })
       },
       refreshDatasources:function(refresh,callback,failedCallback) {
         var vm = this
         this._datasources = []
         $.ajax({
-            url: vm.env.gokartService + "/forecastmetadata" + (refresh?"?refresh=true":""),
+            url: vm.env.gokartService + "/outlookmetadata" + (refresh?"?refresh=true":""),
             method:"GET",
             dataType:"json",
             success: function (response, stat, xhr) {
@@ -969,11 +969,11 @@
                         vm._datasources["dailyDatasources"].push(ds)
                     }
                 })
-                var columns = vm.forecastColumns
-                vm.forecastColumns = null
+                var columns = vm.outlookColumns
+                vm.outlookColumns = null
                 vm.formatDailyTitle()
                 vm.revision += 1
-                vm.$nextTick(function(){vm.setForecastColumns(columns)})
+                vm.$nextTick(function(){vm.setOutlookColumns(columns)})
                 if (callback) {callback()}
             },
             error: function (xhr,status,message) {
@@ -985,29 +985,29 @@
             }
         })
       },
-      setSpot:function(coordinate) {
+      setPosition:function(coordinate) {
         this._features.clear()
         this._features.push(new ol.Feature({geometry:new ol.geom.Point(coordinate)}))
       },
-      getSpotforecast:function(coordinate) {
+      getWeatherOutlook:function(coordinate) {
         if (this.reportTimes.length === 0) {
-            alert("No spot forecast report times are configured in settings module")
+            alert("No weather outlook times are configured in settings module")
             return
         }
-        if (!this.forecastColumns || this.forecastColumns.length === 0) {
-            this.setForecastColumns(JSON.parse(JSON.stringify(this._defaultForecastColumns)))
+        if (!this.outlookColumns || this.outlookColumns.length === 0) {
+            this.setOutlookColumns(JSON.parse(JSON.stringify(this._defaultOutlookColumns)))
             this.systemsetting.saveState()
         }
         var vm = this
-        var _getSpotforecast = function(position) {
+        var _getWeatherOutlook = function(position) {
             var requestData = null;
-            if (vm.forecastSetting.name === "weather-outlook-default") {
+            if (vm.outlookSetting.name === "weather-outlook-default") {
                 requestData = {
                     point:coordinate,
                     options: {
                         title:"<h3>4 Day Weather Outlook for " + position + "(" + Math.round(coordinate[0] * 10000) / 10000 + "," + Math.round(coordinate[1] * 10000) / 10000 + ")</h3>",
                     },
-                    forecasts:[
+                    outlooks:[
                         {
                             days:utils.getDatetimes(["00:00:00"],4,1).map(function(dt) {return dt.format("YYYY-MM-DD")}),
                             times:["09:00:00","12:00:00","15:00:00","18:00:00"],
@@ -1015,7 +1015,7 @@
                                 daily_title_pattern: "{date} {weather}"
                             },
                             daily_data:{"weather":{"workspace":"bom","id":"IDW71152_WA_DailyWxIcon_SFC_DESC"}},
-                            times_data:vm._defaultForecastColumns,
+                            times_data:vm._defaultOutlookColumns,
                         }
                     ]
                 }
@@ -1023,24 +1023,24 @@
                 requestData = {
                     point:coordinate,
                     options: {
-                        title:"<h3>" + vm.forecastDays + " Day Weather Outlook for " + position + "(" + Math.round(coordinate[0] * 10000) / 10000 + "," + Math.round(coordinate[1] * 10000) / 10000 + ")</h3>",
+                        title:"<h3>" + vm.outlookDays + " Day Weather Outlook for " + position + "(" + Math.round(coordinate[0] * 10000) / 10000 + "," + Math.round(coordinate[1] * 10000) / 10000 + ")</h3>",
                     },
-                    forecasts:[
+                    outlooks:[
                         {
-                            days:utils.getDatetimes(["00:00:00"],parseInt(vm.forecastDays),1).map(function(dt) {return dt.format("YYYY-MM-DD")}),
+                            days:utils.getDatetimes(["00:00:00"],parseInt(vm.outlookDays),1).map(function(dt) {return dt.format("YYYY-MM-DD")}),
                             times:vm.reportTimes,
                             options:{
                                 daily_title_pattern: vm.dailyTitle || "{date}"
                             },
                             daily_data:vm.dailyData||{},
-                            times_data:vm.forecastColumns,
+                            times_data:vm.outlookColumns,
                         }
                     ]
                 }
             }
             if (vm.format === "json") {
                 $.ajax({
-                    url:vm.env.gokartService + "/spotforecast/json",
+                    url:vm.env.gokartService + "/weatheroutlook/json",
                     dataType:"json",
                     data:{
                         data:JSON.stringify(requestData),
@@ -1057,24 +1057,24 @@
                     }
                 })
             } else {
-                $("#spotforecast_data").val(JSON.stringify(requestData))
-                utils.submitForm("get_spotforecast",{width: (screen.width > 1890)?1890:screen.width, height:(screen.height > 1060)?1060:screen.height},true)
+                $("#weatheroutlook_data").val(JSON.stringify(requestData))
+                utils.submitForm("get_weatheroutlook",{width: (screen.width > 1890)?1890:screen.width, height:(screen.height > 1060)?1060:screen.height},true)
             }
         }
 
-        this.map.getPosition(coordinate,_getSpotforecast)
+        this.map.getPosition(coordinate,_getWeatherOutlook)
         
       },
     },
     ready: function () {
       var vm = this
-      this._spotforecastStatus = vm.loading.register("spotforecast","BOM Spot Forecast Component")
+      this._weatheroutlookStatus = vm.loading.register("weatheroutlook","BOM Spot Outlook Component")
 
-      this._spotforecastStatus.phaseBegin("initialize",20,"Initialize")
-      this.forecastSetting = this.forecastSettings[0]
+      this._weatheroutlookStatus.phaseBegin("initialize",20,"Initialize")
+      this.outlookSetting = this.outlookSettings[0]
       
       if (!vm.$root.toolbox.inToolbox(vm)) {
-          vm.map.mapControls["spotforecast"] = {
+          vm.map.mapControls["weatheroutlook"] = {
               enabled:false,
             autoenable:false,
             controls:vm.mapControl
@@ -1084,7 +1084,7 @@
       this.editingReportHours = this.reportHours
       this.editingDailyTitle = this.dailyTitle
 
-      this._defaultForecastColumns = [
+      this._defaultOutlookColumns = [
           {
               workspace:"bom",
               id:"IDW71034_WA_WxIcon_SFC_ICON",
@@ -1136,7 +1136,7 @@
           },
       ]
 
-      this.forecastColumns = (this.forecastColumns && this.forecastColumns.length > 0)?this.forecastColumns:JSON.parse(JSON.stringify(this._defaultForecastColumns))
+      this.outlookColumns = (this.outlookColumns && this.outlookColumns.length > 0)?this.outlookColumns:JSON.parse(JSON.stringify(this._defaultOutlookColumns))
 
       this.loadDatasources()
 
@@ -1144,7 +1144,7 @@
 
       this._features = new ol.Collection()
       this._features.on("add",function(event){
-        vm.getSpotforecast(event.element.getGeometry().getCoordinates())
+        vm.getWeatherOutlook(event.element.getGeometry().getCoordinates())
       })
       this._style =  new ol.style.Style({
           image: new ol.style.Icon({
@@ -1164,33 +1164,33 @@
       })
 
       //initialize the overlay and interactions
-      var spotforecastInter = new ol.interaction.Draw({
+      var weatheroutlookInter = new ol.interaction.Draw({
           source: this._source,
           type: 'Point',
           style: this._style
       });
 
-      spotforecastInter.on('drawend',function(){
+      weatheroutlookInter.on('drawend',function(){
         vm._features.clear()
       }, this)
 
-      this._spotforecastTool = {
-        name: 'SpotForecast',
+      this._weatheroutlookTool = {
+        name: 'WeatherOutlook',
         keepSelection:true,
         interactions:[
-            spotforecastInter
+            weatheroutlookInter
         ]
       }
 
-      this.annotations.tools.push(this._spotforecastTool)
+      this.annotations.tools.push(this._weatheroutlookTool)
 
       this.updateReportTimes()
 
       this.adjustHeight()
 
-      this.changeForecastDays()
+      this.changeOutlookDays()
 
-      this._spotforecastStatus.phaseEnd("initialize")
+      this._weatheroutlookStatus.phaseEnd("initialize")
 
     }
   }
