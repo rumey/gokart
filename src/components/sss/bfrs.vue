@@ -266,7 +266,9 @@
     font-size:13px;
     width:118px;
     display:inline;
-    cursor:pointer
+    cursor:pointer;
+    padding-left:4px;
+    padding-right:4px;
 }
 </style>
 <script>
