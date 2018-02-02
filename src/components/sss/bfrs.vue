@@ -130,7 +130,7 @@
     
                 <div class="row collapse">
                   <div class="small-4">
-                    <select name="select" v-model="dateRange" v-on:change="changeDateRange()" style="font-size:15px;">
+                    <select name="select" v-model="dateRange" style="font-size:15px;">
                       <option value="" selected>Date range</option> 
                       <option value="21024">Last 24 hours </option>
                       <option value="31007">Last 7 days </option>
@@ -138,9 +138,9 @@
                     </select>
                   </div>
                   <div class="small-8">
-                      <input type="text" id="bfrsStartDate" class="span2" v-model="startDate" pickTime="true" placeholder="yyyy-mm-dd hh:ii" v-bind:disabled="dateRange !== '-1'" readonly></input>
+                      <input type="text" id="bfrsStartDate" class="span2" v-model="startDate" placeholder="YYYY-MM-DD HH:mm" v-bind:disabled="dateRange !== '-1'" readonly></input>
                       <i class="fa fa-minus" style="margin-top:10px"></i>
-                      <input type="text" id="bfrsEndDate" class="span2" v-model="endDate" pickTime="true" placeholder="yyyy-mm-dd hh:ii"  v-bind:disabled="dateRange !== '-1'"  readonly></input>
+                      <input type="text" id="bfrsEndDate" class="span2" v-model="endDate" placeholder="YYYY-MM-DD HH:mm"  v-bind:disabled="dateRange !== '-1'"  readonly></input>
                   </div>
                 </div>
 
@@ -515,27 +515,14 @@
             this.updateFeatureFilter(3,0)
         }
       },
+      dateRange:function(newValue,oldValue) {
+        this.changeDateRange()
+      },
       startDate:function(newValue,oldValue) {
-        if (!this._endDatePicker) return
-        try {
-            if (newValue === "") {
-                this._endDatePicker.setStartDate(moment().subtract(13,"months").format("YYYY-MM-DD") + " 00:00")
-            } else {
-                this._endDatePicker.setStartDate(moment(newValue,"YYYY-MM-DD HH:mm",true).format("YYYY-MM-DD") + " 00:00")
-            }
-        } catch(ex) {
-        }
+        this.changeStartDate()
       },
       endDate:function(newValue,oldValue) {
-        if (!this._startDatePicker) return
-        try {
-            if (newValue === "") {
-                this._startDatePicker.setEndDate(moment().format("YYYY-MM-DD")) + " 23:59"
-            } else {
-                this._startDatePicker.setEndDate(moment(newValue,"YYYY-MM-DD HH:mm",true).format("YYYY-MM-DD") + " 23:59")
-            }
-        } catch(ex) {
-        }
+        this.changeEndDate()
       },
       region:function(newValue,oldValue) {
         this.district = ""
@@ -551,12 +538,54 @@
             return this.region?("region_id=" + this.region) : null
         }
       },
-      dateFilter:function() {
-        if (this.endDate && this.endDate.length !== 16) {
-            throw "endDate is under changing."
+      changeDateRange:function() {
+        if (this.dateRange === "-1") {
+            //customized
+            this.changeStartDate()
+            this.changeEndDate()
+        } else if (this.dateRange === "") {
+            this.endDate = ''
+            this.startDate = ''
+        } else { 
+            var range = utils.getDateRange(this.dateRange,"YYYY-MM-DD HH:mm")
+            this.startDate = range[0] || ""
+            this.endDate = range[1] || ""
         }
-        if (this.startDate && this.startDate.length !== 16) {
-            throw "startDate is under changing."
+      },
+      changeStartDate:function() {
+        if (this.dateRange !== "-1") {
+            //not in editing mode
+            return
+        }
+        if (!this._endDatePicker) return
+        try {
+            if (this.startDate === "") {
+                this._endDatePicker.setStartDate(moment().subtract(13,"months").format("YYYY-MM-DD") + " 00:00")
+            } else {
+                this._endDatePicker.setStartDate(moment(this.startDate,"YYYY-MM-DD HH:mm").format("YYYY-MM-DD") + " 00:00")
+            }
+        } catch(ex) {
+        }
+      },
+      changeEndDate:function() {
+        if (this.dateRange !== "-1") {
+            //not in editing mode
+            return
+        }
+        if (!this._startDatePicker) return
+        try {
+            if (this.endDate === "") {
+                this._startDatePicker.setEndDate(moment().format("YYYY-MM-DD") + " 23:59")
+            } else {
+                this._startDatePicker.setEndDate(this.endDate)
+            }
+        } catch(ex) {
+        }
+      },
+      dateFilter:function() {
+        if (this.dateRange !== "-1") {
+            //in predefined range, reset the startDate and endDate
+            this.changeDateRange()
         }
 
         var startDate = (this.startDate)?moment(this.startDate,"YYYY-MM-DD HH:mm",true):null
@@ -564,7 +593,7 @@
             throw "startDate is under changing."
         }
 
-        var endDate = (this.endDate && this.endDate !== moment().format("YYYY-MM-DD HH:mm"))?moment(this.endDate,"YYYY-MM-DD HH:mm",true):null
+        var endDate = (this.endDate && this.endDate < moment().format("YYYY-MM-DD HH:mm"))?moment(this.endDate,"YYYY-MM-DD HH:mm",true):null
         if (endDate && !endDate.isValid()) {
             throw "endDate is under changing."
         }
@@ -580,7 +609,7 @@
                 return "fire_detected_or_created >= '" + startDate.utc().format("YYYY-MM-DDTHH:mm:ssZ") + "'"
             }
         } else if (endDate) {
-            return "fire_detected_or_created < '" + endDate.add(1,"days").utc().format("YYYY-MM-DDTHH:mm:ssZ") + "'"
+            return "fire_detected_or_created < '" + utils.nextDate(endDate,"YYYY-MM-DD HH:mm").utc().format("YYYY-MM-DDTHH:mm:ssZ") + "'"
         } else {
             return null
         }
@@ -592,20 +621,6 @@
             return this.district?("district='" + (d?d.district:"") + "'") : null
         } else {
             return this.district?("district_id=" + this.district) : null
-        }
-      },
-      changeDateRange:function() {
-        var endDate = moment().startOf('day')
-        if (this.dateRange === "-1") {
-            //customized
-            return
-        } else if (this.dateRange === "") {
-            this.endDate = ''
-            this.startDate = ''
-        } else { 
-            var range = utils.getDateRange(this.dateRange,"YYYY-MM-DD HH:mm")
-            this.startDate = range[0] || ""
-            this.endDate = range[1] || ""
         }
       },
       originpointCoordinate:function(feat){
@@ -2804,7 +2819,7 @@
         vm.revision++
       })
 
-      //init datepicket
+      //init datepicker
       $('#bfrsStartDate').fdatepicker({
 	format: 'yyyy-mm-dd hh:ii',
 	disableDblClickSelection: true,

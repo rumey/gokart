@@ -164,26 +164,22 @@
                 <a title="Download all or selected as CSV" class="button" href="{{selectRevision&&env.resourceTrackingService}}/devices.csv?{{downloadSelectedCSV()}}" target="_blank" ><i class="fa fa-table"></i></a>
               </div>
             </div>
-            <div id="history-panel" v-if="toggleHistory">
+            <div id="history-panel" v-show="toggleHistory">
               <div class="row collapse tool-slice">
                 <div class="small-2">
                   <label for="historyFrom">From:</label>
                 </div>
-                <div class="small-4">
-                  <input type="text" v-on:blur="utils.verifyDate($event,['YY-M-D','YYYY-M-D'],'YYYY-MM-DD')" v-model="historyFromDate" placeholder="yyyy-mm-dd"></input>
+                <div class="small-5">
+                  <input type="text" id="historyFromDate" class="span2" v-model="historyFromDate" placeholder="YYYY-MM-DD HH:mm" v-bind:disabled="historyRange !== '-1'" readonly></input>
                 </div>
-                <div class="small-2">
-                  <input type="text" v-on:blur="utils.verifyDate($event,'H:m','HH:mm')" v-model="historyFromTime" placeholder="24:00"></input>
-                </div>
-                <div class="small-4">
-                  <select name="select" v-model="history" @change="historyRange = history">
-                  <option value="" selected>Date range</option> 
-                  <!-- values in milliseconds -->
-                  <option value="3600000">Last hour</option> 
-                  <option value="10800000">Last 3 hours</option> 
-                  <option value="86400000">Last day</option> 
-                  <option value="604800000">Last week</option> 
-                  <option value="2678400000">Last month</option> 
+                <div class="small-5">
+                  <select name="select" v-model="historyRange" >
+                      <option value="21001">Last hour</option> 
+                      <option value="21003">Last 3 hours</option> 
+                      <option value="21024">Last 24 hours</option> 
+                      <option value="31007">Last 7 days</option> 
+                      <option value="31030">Last 30 days</option> 
+                      <option value="-1">User Defined</option> 
                 </select>
                 </div>
               </div>
@@ -191,13 +187,10 @@
                 <div class="small-2">
                   <label for="historyTo">To:</label>
                 </div>
-                <div class="small-4">
-                  <input type="text" v-on:blur="utils.verifyDate($event,['YY-M-D','YYYY-M-D'],'YYYY-MM-DD')" v-model="historyToDate" placeholder="yyyy-mm-dd"></input>
+                <div class="small-5">
+                  <input type="text" id="historyToDate" class="span2" v-model="historyToDate" placeholder="YYYY-MM-DD HH:mm"  v-bind:disabled="historyRange !== '-1'"  readonly></input>
                 </div>
-                <div class="small-2">
-                  <input type="text" v-on:blur="utils.verifyDate($event,'H:m','HH:mm')" v-model="historyToTime" placeholder="24:00"></input>
-                </div>
-                <div class="small-2"></div>
+                <div class="small-3"></div>
                 <div class="small-2">
                   <button v-bind:disabled="queryHistoryDisabled" class="button" style="float: right" @click="historyCQLFilter">Go</button>
                 </div>
@@ -224,6 +217,11 @@
     </div>
   </div>
 </template>
+<style>
+#historyFromDate,#historyToDate {
+    cursor:pointer
+}
+</style>
 <script>
   import { ol, moment,utils } from 'src/vendor.js'
   export default {
@@ -248,7 +246,7 @@
         groupFilter: '',
         sourceflag:2,
         tools: [],
-        history: '',
+        historyRange: '21001',
         fields: ['id', 'registration', 'rin_display', 'deviceid', 'symbol', 'district_display', 'usual_driver', 'callsign_display', 'usual_location', 'current_driver', 'contractor_details', 'source_device_type'],
         features:new ol.Collection(),
         extentFeaturesSize:0,
@@ -256,10 +254,7 @@
         featureDirDisabled:false,
         clippedFeatures: [],
         historyFromDate: '',
-        historyFromTime: '',
         historyToDate: '',
-        historyToTime: '',
-        historyRangeMilliseconds: 0,
         tints: {
           'red': [[fill,'#ed2727'], [stroke,'#480000']],
           'orange': [[fill,'#ff6600'], [stroke,'#562200']],
@@ -295,21 +290,7 @@
         return this.selectRevision && this.selectedFeatures.getLength()
       },
       queryHistoryDisabled: function() {
-        return !(this.selectedFeatures && this.selectedFeatures.getLength() && this.historyFromDate && this.historyFromTime && this.historyToDate && this.historyToTime)
-      },
-      historyRange: {
-        get: function () {
-          return this.historyRangeMilliseconds
-        },
-        set: function (val) {
-          this.historyRangeMilliseconds = val
-          var currentDate = moment()
-          this.historyToDate = currentDate.format('YYYY-MM-DD')
-          this.historyToTime = currentDate.format('HH:mm')
-          var fromDate = currentDate.subtract(val, 'milliseconds')
-          this.historyFromDate = fromDate.format('YYYY-MM-DD')
-          this.historyFromTime = fromDate.format('HH:mm')
-        }
+        return !(this.selectRevision && this.selectedFeatures && this.selectedFeatures.getLength() && this.historyFromDate !== "")
       },
       showOtherExternalResource: {
         get: function() {
@@ -404,12 +385,105 @@
       },
       sourceflag:function(newValue,oldValue) {
         this.updateCQLFilter(1000)
-      }
+      },
+      historyRange:function(newValue,oldValue) {
+        this.changeHistoryRange()
+      },
+      historyFromDate:function(newValue,oldValue) {
+        this.changeHistoryFromDate()
+      },
+      historyToDate:function(newValue,oldValue) {
+        this.changeHistoryToDate()
+      },
     },
     methods: {
       adjustHeight:function() {
         if (this.activeMenu === "tracking") {
             $("#tracking-list").height(this.screenHeight - this.leftPanelHeadHeight - 41 - $("#tracking-list-controller-container").height() - this.hintsHeight)
+        }
+      },
+      changeHistoryRange:function() {
+        if (this.historyRange === "-1") {
+            //customized
+            if (!this.historyFromDate) {
+                //fromDate is null, set to default value "Last hour"
+                var range = utils.getDateRange(21001,"YYYY-MM-DD HH:mm")
+                this.historyFromDate = range[0] || ""
+                if ((range[1] || "") !== this.historyToDate) {
+                    this.historyToDate = range[1] || ""
+                } else {
+                    this.changeHistoryToDate()
+                }
+            } else {
+                this.changeHistoryFromDate()
+                this.changeHistoryToDate()
+            }
+        } else { 
+            var range = utils.getDateRange(this.historyRange,"YYYY-MM-DD HH:mm")
+            this.historyFromDate = range[0] || ""
+            this.historyToDate = range[1] || ""
+        }
+      },
+      changeHistoryFromDate:function() {
+        if (this.historyRange !== "-1") {
+            //not in editing mode
+            return
+        }
+        if (!this._historyToDatePicker) return
+        try {
+            if (this.historyFromDate === "") {
+                this._historyToDatePicker.setStartDate(moment().subtract(10,"years").format("YYYY-MM-DD") + " 00:00")
+            } else {
+                this._historyToDatePicker.setStartDate(moment(this.historyFromDate,"YYYY-MM-DD HH:mm").format("YYYY-MM-DD") + " 00:00")
+                //this._historyToDatePicker.setStartDate(this.historyFromDate)
+            }
+        } catch(ex) {
+        }
+      },
+      changeHistoryToDate:function() {
+        if (this.historyRange !== "-1") {
+            //not in editing mode
+            return
+        }
+        if (!this._historyFromDatePicker) return
+        try {
+            if (this.historyToDate === "") {
+                this._historyFromDatePicker.setEndDate(moment().format("YYYY-MM-DD") + " 23:59")
+            } else {
+                this._historyFromDatePicker.setEndDate(this.historyToDate)
+            }
+        } catch(ex) {
+        }
+      },
+      historyDateFilter:function() {
+        if (this.historyRange !== "-1") {
+            //in predefined range, reset the historyFromDate and historyToDate
+            this.changeHistoryRange()
+        }
+        var startDate = (this.historyFromDate)?moment(this.historyFromDate,"YYYY-MM-DD HH:mm",true):null
+        if (startDate && !startDate.isValid()) {
+            throw "From date is under changing."
+        }
+
+        var endDate = (this.historyToDate && this.historyToDate < moment().format("YYYY-MM-DD HH:mm"))?moment(this.historyToDate,"YYYY-MM-DD HH:mm",true):null
+        if (endDate && !endDate.isValid()) {
+            throw "To date is under changing."
+        }
+
+
+        if (startDate) {
+            if (endDate) {
+                if (startDate >= endDate) {
+                    throw "Start date must be less than end date."
+                }
+                return "seen BETWEEN '" + startDate.utc().format("YYYY-MM-DDTHH:mm:ssZ") + "' AND '" + utils.nextDate(endDate,"YYYY-MM-DD HH:mm").utc().format("YYYY-MM-DDTHH:mm:ssZ") + "'"
+            } else {
+                return "seen >= '" + startDate.utc().format("YYYY-MM-DDTHH:mm:ssZ") + "'"
+            }
+        } else if (endDate) {
+            return "seen < '" + utils.nextDate(endDate,"YYYY-MM-DD HH:mm").utc().format("YYYY-MM-DDTHH:mm:ssZ") + "'"
+        } else {
+            throw "Please speicify history range."
         }
       },
       setSourceFlag: function(flag,show) {
@@ -596,17 +670,21 @@
         }
       },
       historyCQLFilter: function () {
-        var vm = this
-        var historyLayer = this.historyLayer
-        var deviceFilter = 'deviceid in (\'' + this.selectedFeatures.getArray().map(function(o) {return o.get("deviceid")}).join('\',\'') + '\')'
-        historyLayer.cql_filter = deviceFilter + "and seen between '" + this.historyFromDate + ' ' + this.historyFromTime + ":00' and '" + this.historyToDate + ' ' + this.historyToTime + ":00'"
-        if (this.$root.catalogue.onLayerChange(historyLayer, true)) {
-            //Add history layer into the map. need to add to the hoverable
-            this.info.hoverable.push(this.historyMapLayer)
-        } else {
-            //history layer is already turned on, manually load the history source
-            var source = this.$root.map.getMapLayer(historyLayer).getSource()
-            source.loadSource("query")
+        try {
+            var vm = this
+            var historyLayer = this.historyLayer
+            var deviceFilter = 'deviceid in (\'' + this.selectedFeatures.getArray().map(function(o) {return o.get("deviceid")}).join('\',\'') + '\')'
+            historyLayer.cql_filter = deviceFilter + "and " + this.historyDateFilter()
+            if (this.$root.catalogue.onLayerChange(historyLayer, true)) {
+                //Add history layer into the map. need to add to the hoverable
+                this.info.hoverable.push(this.historyMapLayer)
+            } else {
+                //history layer is already turned on, manually load the history source
+                var source = this.$root.map.getMapLayer(historyLayer).getSource()
+                source.loadSource("query")
+            }
+        } catch(ex) {
+            alert(ex)
         }
       },
       featureFilter: function (f) {
@@ -736,6 +814,43 @@
       vm._featurelist = new ol.Collection()
 
       trackingStatus.phaseBegin("initialize",20,"Initialize")
+
+      //init datepicker
+      $('#historyFromDate').fdatepicker({
+	format: 'yyyy-mm-dd hh:ii',
+	disableDblClickSelection: true,
+	leftArrow:'<<',
+	rightArrow:'>>',
+        startDate:moment().subtract(10,"years").format("YYYY-MM-DD") + " 00:00",
+        endDate:moment().format("YYYY-MM-DD") + " 23:59",
+        pickTime:true,
+        minuteStep:1
+      });
+      try {
+          this._historyFromDatePicker = $("#historyFromDate").data().datepicker
+      } catch(ex) {
+          console.log(ex)
+          this._historyFromDatePicker = null
+      }
+
+      $('#historyToDate').fdatepicker({
+	format: 'yyyy-mm-dd hh:ii',
+	disableDblClickSelection: true,
+	leftArrow:'<<',
+	rightArrow:'>>',
+        startDate:moment().subtract(10,"years").format("YYYY-MM-DD") + " 00:00",
+        endDate:moment().format("YYYY-MM-DD") + " 23:59",
+        pickTime:true,
+        minuteStep:1
+      });
+
+      try {
+          this._historyToDatePicker = $("#historyToDate").data().datepicker
+      } catch(ex) {
+          this._historyToDatePicker = null
+      }
+
+      this.changeHistoryRange()
 
       var resourceTrackingStyleFunc = function(layerId){
         return function (res) {
