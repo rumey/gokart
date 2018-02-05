@@ -3488,7 +3488,7 @@
         }
       })
 
-      this.measure.register("dpaw:bushfirelist_latest",this.features)
+      //this.measure.register("dpaw:bushfirelist_latest",this.features)
 
       vm._bfrsStatus.phaseEnd("initialize")
 
