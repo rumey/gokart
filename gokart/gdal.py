@@ -129,7 +129,7 @@ SPATIAL_FORMAT_LIST = [
         "mime"      : "application/x-sqlite3",
         "multilayer": True,
         "multitype" : False,
-        "fileext"   : ".gpkg"
+        "fileext"   : ".gpkg",
     },
     {
         "name"      : "csv",
@@ -145,7 +145,8 @@ SPATIAL_FORMAT_LIST = [
         "mime"      : "application/vnd.geo+json",
         "multilayer": False,
         "multitype" : True,
-        "fileext"   : ".geojson"
+        "fileext"   : ".geojson",
+        "ogr2ogr_arguments":["-mapFieldType","DateTime=String"],
     },
     {
         "name"      : "json",
@@ -153,7 +154,8 @@ SPATIAL_FORMAT_LIST = [
         "mime"      : "application/vnd.geo+json",
         "multilayer": False,
         "multitype" : True,
-        "fileext"   : ".json"
+        "fileext"   : ".json",
+        "ogr2ogr_arguments":["-mapFieldType","DateTime=String"],
     },
     {
         "name"      : "gpx",
@@ -357,10 +359,10 @@ def loadDatasource(session_cookie,workdir,loadedDatasources,options):
     if sourcetype == "WFS":
         #load layer from wfs server
         if options["url"] not in loadedDatasources:
-            datasource = os.path.join(workdir,"{}.gpkg".format(options["sourcename"]))
+            datasource = os.path.join(workdir,"{}.geojson".format(options["sourcename"]))
             if not os.path.exists(os.path.dirname(datasource)):
                 os.makedirs(os.path.dirname(datasource))
-            url = "{}&outputFormat=gpkg&srsName=EPSG:4326".format(options["url"])
+            url = "{}&outputFormat=application%2Fjson&srsName=EPSG:4326".format(options["url"])
             r = requests.get(url,
                 verify=False,
                 cookies=session_cookie
@@ -462,6 +464,11 @@ def loadDatasource(session_cookie,workdir,loadedDatasources,options):
             cmd.append(options["layer"])
 
         #print " ".join(cmd)
+        if "ogr2ogr_arguments" in options["format"]:
+            index = 1
+            for arg in options["format"]["ogr2ogr_arguments"]:
+                cmd.insert(index,arg)
+                index += 1
         subprocess.check_call(cmd)
         options["datasource"] = getDatasourceFiles(filterdir,datasource)[0]
 
@@ -922,6 +929,11 @@ def downloaod(fmt):
                 else:
                     cmd = ["ogr2ogr","-skipfailures" ,"-t_srs",(layer.get("srs") or "EPSG:4326"), "-f", fmt["format"],outputDatasource, vrtFile] 
                     outputFiles.append(outputDatasource)
+                if "ogr2ogr_arguments" in fmt:
+                    index = 1
+                    for arg in fmt["ogr2ogr_arguments"]:
+                        cmd.insert(index,arg)
+                        index += 1
                 #print " ".join(cmd)
                 subprocess.check_call(cmd) 
             else:
@@ -979,6 +991,11 @@ def downloaod(fmt):
                         cmd = ["ogr2ogr","-skipfailures","-t_srs",(layer.get("srs") or "EPSG:4326"), "-f", fmt["format"],outputDatasource, vrtFile]
                         outputFiles.append(outputDatasource)
                     #print " ".join(cmd)
+                    if "ogr2ogr_arguments" in fmt:
+                        index = 1
+                        for arg in fmt["ogr2ogr_arguments"]:
+                            cmd.insert(index,arg)
+                            index += 1
                     subprocess.check_call(cmd) 
                 else:
                     for t in srcTypes:
@@ -990,6 +1007,11 @@ def downloaod(fmt):
                             cmd = ["ogr2ogr","-skipfailures","-where", where,"-t_srs",(layer.get("srs") or "EPSG:4326"), "-f", fmt["format"],outputDatasource, vrtFile]
                             outputFiles.append(outputDatasource)
                         #print " ".join(cmd)
+                        if "ogr2ogr_arguments" in fmt:
+                            index = 1
+                            for arg in fmt["ogr2ogr_arguments"]:
+                                cmd.insert(index,arg)
+                                index += 1
                         subprocess.check_call(cmd) 
         
         #import ipdb;ipdb.set_trace()
@@ -1041,6 +1063,7 @@ def downloaod(fmt):
         return traceback.format_exception_only(sys.exc_type,sys.exc_value)
     finally:
         try:
+            #print "workdir = {}".format(workdir)
             shutil.rmtree(workdir)
             pass
         except:
