@@ -117,14 +117,12 @@ body {
 }
 
 .ol-zoom button,
-#map-measure button,
 .ol-full-screen button {
     width: 48px;
     height: 48px;
     margin: 0;
 }
 
-#map-measure button,
 .ol-zoom button {
     margin-bottom: 1px;
 }
@@ -170,19 +168,6 @@ body {
     right: 16px;
 }
 
-
-#map-measure {
-    position: absolute;
-    top: 180px;
-    left: auto;
-    right: 16px;
-    bottom: auto;
-    padding: 0;
-}
-
-#map-measure .selected{
-    background-color: #2199E8;
-}
 .tooltip-measure {
     position: relative;
     background: rgba(0, 0, 0, 0.5);
@@ -595,3 +580,22 @@ input:disabled ~ .switch-paddle {
     height:32px;
     cursor:pointer;
 }
+
+.button.small.icon2x {
+    padding-left: 5px;
+    padding-right: 5px;
+    padding-top: 4.2px;
+    padding-bottom: 4.2px;
+}
+
+.datepicker table td .hour {
+    line-height:20px;
+    height:30px;
+}
+.datepicker table td .minute {
+    line-height:20px;
+    height:30px;
+    margin:0px 0px 0px 0px;
+    width:20%;
+}
+

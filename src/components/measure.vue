@@ -1,6 +1,6 @@
 <template>
   <div style="display:none">
-  <div id="map-measure" class="ol-selectable ol-control">
+  <div id="map-measure" v-bind:style="topPositionStyle" class="ol-selectable ol-control">
       <button type="button" title="Measure length" @click="toggleMeasure('MeasureLength')" v-bind:class="{'selected':isMeasureLength}"><img src="dist/static/images/measure-length.svg"></button>
       <button type="button" title="Measure area" @click="toggleMeasure('MeasureArea')" v-bind:class="{'selected':isMeasureArea}"><img src="dist/static/images/measure-area.svg"></button>
       <button type="button" title="Measure bearing" @click="toggleMeasure('MeasureBearing')" v-bind:class="{'selected':isMeasureBearing}"><img src="dist/static/images/measure-bearing.svg"></button>
@@ -11,9 +11,29 @@
 </template>
 
 <style>
+#map-measure button {
+    width: 48px;
+    height: 48px;
+    margin: 0;
+}
+
+#map-measure button {
+    margin-bottom: 1px;
+}
+
   .feature-icon {
     width: 24px;
     height: 24px;
+  }
+  #map-measure {
+    position: absolute;
+    left: auto;
+    right: 16px;
+    bottom: auto;
+    padding: 0;
+  }
+  #map-measure .selected{
+    background-color: #2199E8;
   }
 </style>
 
@@ -31,6 +51,7 @@
       loading: function () { return this.$root.loading },
       map: function () { return this.$root.map },
       active: function () { return this.$root.active },
+      featuredetail: function () { return this.$root.featuredetail },
       catalogue: function () { return this.$root.catalogue },
       annotations: function () { 
         return this.$root.$refs.app.$refs.annotations 
@@ -71,7 +92,48 @@
       },
       measureFeature:function() {
         return this.settings.measureFeature
-      }
+      },
+      height:function() {
+        if (!this.$root.toolbox || this.$root.toolbox.inToolbox(this)) {
+            return 0
+        } else if (this.showClear) {
+            return 196 + 9
+        } else {
+            return 147 + 9
+        }
+      },
+      topPosition:function() {
+        return this.featuredetail.topPosition + this.featuredetail.height;
+      },
+      topPositionStyle:function() {
+        return "top:" + this.topPosition + "px";
+      },
+      tools:function() {
+        return [
+            {
+                name:"MeasureLength",
+                title:"Measure Length",
+                icon:"/dist/static/images/measure-length.svg",
+                assistantButtons:[
+                    {name:"Clear", title:"Clear Measurements",icon:"/dist/static/images/clear.svg"}
+                ]
+            },{
+                name:"MeasureArea",
+                title:"Measure Area",
+                icon:"/dist/static/images/measure-area.svg",
+                assistantButtons:[
+                    {name:"Clear", title:"Clear Measurements",icon:"/dist/static/images/clear.svg"}
+                ]
+            },{
+                name:"MeasureBearing",
+                title:"Measure Bearing",
+                icon:"/dist/static/images/measure-bearing.svg",
+                assistantButtons:[
+                    {name:"Clear", title:"Clear Measurements",icon:"/dist/static/images/clear.svg"}
+                ]
+            },
+        ]
+      },
     },
     watch:{
         lengthUnit:function(newValue,oldValue) {
@@ -141,6 +203,21 @@
       register:function(layer,features,filter) {
         this._measureLayers = this._measureLayers || []
         this._measureLayers.push([layer["id"] || layer,features || null, filter||null,{}])
+      },
+      selectTool:function(tool) {
+      },
+      toggleTool: function (enable,tool) {
+          this.toggleMeasure(tool.name,enable)
+
+      },
+      isToolActivated:function(tool) {
+        return this.measureType !== ""
+      },
+      showAssistantButton:function(button) {
+        return this.showClear
+      },
+      clickAssistantButton:function(button) {
+        this.clearMeasure()
       },
       //layer can be layerid, layer object, and memeber of this._measureLayers
       enableLayerMeasurement:function(layer,enable) {
@@ -252,9 +329,15 @@
             vm._remeasureFeature(feature)
         }
       },
-      toggleMeasure: function (type) {
-        if (this.measureType === type) {
-            this.annotations.setTool('Pan')
+      toggleMeasure: function (type,enable) {
+        if (enable === true && this.measureType === type) {
+            //already enabled
+            return 
+        } else if (enable === false && this.measureType !== type) {
+            //already disabled
+            return
+        } else if (this.measureType === type) {
+            this.annotations.setTool(this.annotations.currentTool,true)
         } else  {
             this.annotations.setTool(type)
         }
@@ -868,7 +951,14 @@
       var measureStatus = vm.loading.register("measure","Measurement Component")
 
       measureStatus.phaseBegin("initialize",30,"Initialize")
-      var map = this.$root.map
+      if (!vm.$root.toolbox.inToolbox(vm)) {
+        vm.map.mapControls["measure"] = {
+              enabled:false,
+            autoenable:false,
+            controls:vm.mapControl
+        }
+      }
+
       //initialize the overlay and interactions
       this.features = new ol.Collection()
       this.features.on("remove",function(event){
@@ -920,11 +1010,12 @@
 
       var measureLength = {
         name: 'MeasureLength',
+        keepSelection:true,
         interactions:[
-            //map.dragPanInter,
-            //map.doubleClickZoomInter,
-            //map.keyboardPanInter,
-            //map.keyboardZoomInter,
+            //vm.map.dragPanInter,
+            //vm.map.doubleClickZoomInter,
+            //vm.map.keyboardPanInter,
+            //vm.map.keyboardZoomInter,
             measureLengthInter,
             measureSnap
         ]
@@ -945,11 +1036,12 @@
 
       var measureBearing = {
         name: 'MeasureBearing',
+        keepSelection:true,
         interactions:[
-            //map.dragPanInter,
-            //map.doubleClickZoomInter,
-            //map.keyboardPanInter,
-            //map.keyboardZoomInter,
+            //vm.map.dragPanInter,
+            //vm.map.doubleClickZoomInter,
+            //vm.map.keyboardPanInter,
+            //vm.map.keyboardZoomInter,
             measureBearingInter,
             measureSnap
         ]
@@ -966,11 +1058,12 @@
 
       var measureArea = {
         name: 'MeasureArea',
+        keepSelection:true,
         interactions:[
-            //map.dragPanInter,
-            //map.doubleClickZoomInter,
-            //map.keyboardPanInter,
-            //map.keyboardZoomInter,
+            //vm.map.dragPanInter,
+            //vm.map.doubleClickZoomInter,
+            //vm.map.keyboardPanInter,
+            //vm.map.keyboardZoomInter,
             measureAreaInter,
             measureSnap
         ]
@@ -1078,7 +1171,6 @@
               measureStatus.phaseBegin("attach_event_to_tool",5,"Attach event to tool")
               var processedInteractions = []
               $.each(vm.annotations.tools,function(index1,tool){
-                //console.log(tool.name)
                 $.each(tool.interactions,function(index2,interaction){
                     if (!processedInteractions.find(function(o){return o === interaction})) {
                         if (interaction instanceof ol.interaction.Modify) {

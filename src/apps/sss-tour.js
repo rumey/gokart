@@ -33,6 +33,10 @@ tour.addStep('welcome', {
   text: 'At the top right are common map controls for setting a scale, going full-screen, zooming, and measuring lengths and areas.',
   attachTo: '#menu-scale left',
   when: {
+    'before-show': function () {
+        $("#menu-tab-layers-label").click()
+        $("#layers-active-label").click()
+    },
     'show': function () {
       global.gokart.map.animate({center:[116, -32]},{resolution:global.gokart.map.resolutions[9]})
     }
@@ -40,9 +44,36 @@ tour.addStep('welcome', {
 }).addStep('map-search', {
     text: 'There is also a search box with support for coordinates and place names. <br/><b>Try out some of these!</b><ul><li>17 Dick Perry Avenue, Kensington</li><li>Upper Swan, Western Australia</li><li>32.00858S 115.53978E</li><li>115° 38′ 58.0″ E, 33° 20′ 52.8″ S</li><li>MGA 50 718776E 6190981N</li><li>MGA50 3816452</li><li>FD ET 79</li><li>PIL AF50</li></ul>',
     attachTo: '#map-search left'
+}).addStep('toolbox', {
+    text: 'There is also a tool box which contains lots of helpful tools, for example: weather outlook, measurement tools, etc.',
+    attachTo: '#toolbox_tool left'
+}).addStep('toolbox-expand', {
+    text: 'You can click the "double arrow" button at the bottom of the toolbox button to expand the list of tools.<br>Click the tool to choose it; for example, click on the "Measure Length" to choose it',
+    attachTo: '#toolbox_tool left',
+    when:{
+        'show': function () {
+            $("#toolbox_expand").click()
+        }
+    }
+}).addStep('toolbox-select-measurelength', {
+    text: 'You can click the tool to choose it; for example, click on the "default 4-day weather outlook" to choose it',
+    attachTo: '#toolbox_control left',
+    when:{
+        'before-show':function() {
+            $("#MeasureLength").click()
+        },
+        'after-show': function () {
+            global.gokart.toolbox.toggleTool(false)
+        }
+    }
 }).addStep('menu', {
-  text: 'To the left are the interactive panes for <b>Layers</b>, <b>Drawing Tools</b> and <b>Vehicle Tracking</b>.',
-  attachTo: '#menu-tab-layers-label right'
+  text: 'To the left are the interactive panes for <b>Layers</b>, <b>Drawing Tools</b> and <b>Vehicle Tracking</b>, <b> Bushfire Report</b>.',
+  attachTo: '#menu-tab-layers-label right',
+  when:{
+      'before-show':function() {
+          global.gokart.toolbox.toggleTool(false)
+      }
+  }
 }).addStep('layers', {
   text: 'The <b>Layers</b> pane lets you find, organise and print what is visible on the map.',
   attachTo: '#menu-tab-layers-label right',
@@ -79,6 +110,11 @@ tour.addStep('welcome', {
   attachTo: '#menu-tab-layers-label right',
   when: {
     'before-show': function () {
+      if (!global.gokart.tracking.trackingMapLayer) {
+          global.gokart.catalogue.onLayerChange(global.gokart.tracking.trackingLayer, true)
+      } else if (global.gokart.active.isHidden(global.gokart.tracking.trackingMapLayer)) {
+          global.gokart.active.toggleHidden(global.gokart.tracking.trackingMapLayer)
+      }
       $('div[data-id="dpaw:resource_tracking_live"]').click()
       Vue.nextTick(function () {
         $('#layer-config input.layer-opacity').val(30).change()
@@ -119,7 +155,9 @@ tour.addStep('welcome', {
       Vue.nextTick(function () {
         $('textarea.notecontent').height(60).val('Like this one where you\ncan set the text of a note').get(0).click()
         // the click above should cache the feature image ready to place on map
-        global.exampleFeature = new global.ol.Feature({ geometry: new global.ol.geom.Point(global.gokart.map.getCenter()) })
+        global.gokart.annotations.note.colour = "#f57900"
+        global.gokart.annotations.colour = "#f57900"
+        global.gokart.annotations.note.text = "Like this one where you\ncan set the text of a note"
       })
     }
   }
@@ -129,7 +167,10 @@ tour.addStep('welcome', {
   when: {
     'before-show': function () {
       Vue.nextTick(function () {
-        global.gokart.annotations.features.push(global.exampleFeature)
+          var pixel = global.gokart.map.olmap.getPixelFromCoordinate(global.gokart.map.olmap.getView().getCenter())
+          global.gokart.map.olmap.simulateEvent("pointermove",pixel[0],pixel[1])
+          global.gokart.map.olmap.simulateEvent("pointerdown",pixel[0],pixel[1])
+          global.gokart.map.olmap.simulateEvent("pointerup",pixel[0],pixel[1])
       })
     }
   }
@@ -139,6 +180,14 @@ tour.addStep('welcome', {
   when: {
     'before-show': function () {
       $('#menu-tab-tracking-label').click()
+    }
+  }
+}).addStep('BushfireReport', {
+  text: 'The bushfire report pane is used to find,filter and edit the bushfire report displayed on the map.',
+  attachTo: '#menu-tab-bfrs-label right',
+  when: {
+    'before-show': function () {
+      $('#menu-tab-bfrs-label').click()
     }
   }
 }).addStep('finish', {

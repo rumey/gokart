@@ -1,9 +1,10 @@
 <template>
     <div class="{{classes}} reveal" id="userdialog" data-reveal data-close-on-click='false'> 
-        <h3>{{title}}</h3>
+        <h3 v-show="title">{{title}}</h3>
         <div v-for="line in messages" class="row" track-by="$index" >
             <div v-for="message in line" class="small-{{message[1]}} columns {{message[2] || ''}}" track-by="$index">
-                 <p style="white-space:pre-wrap;">{{message[0]}}</p>
+                 <p v-show="message[3] === undefined" style="white-space:pre-wrap;">{{message[0]}}</p>
+                 <a v-show="message[3] !== undefined" href="{{message[0]}}" @click.stop.prevent="utils.editResource($event)" target="{{message[3]}}">{{message[0]}}</a>
             </div>
         </div>
 
@@ -64,10 +65,20 @@
 #userdialog .small-centered {
     text-align:center;
 }
+#userdialog .detail_name {
+    font-weight:bold;
+    text-align: right;
+    padding-right:5px;
+    background:white;
+}
+#userdialog .detail_value {
+    text-align: left;
+    padding-left:5px;
+}
 </style>
 
 <script>
-  import { $,Vue } from 'src/vendor.js'
+  import { $,Vue,utils } from 'src/vendor.js'
   export default {
     data: function () {
       return {
@@ -85,11 +96,13 @@
         callback:null,
         value:null,
         defaultValue:null,
+        targetWindow:null,
         revision:1,
       }
     },
     computed: {
       loading: function () { return this.$root.loading },
+      utils: function () { return this.$root.utils },
       hasButton:function() {
         return this.buttons.length > 0
       },
@@ -183,6 +196,10 @@
       },
       addTasks:function(newTasks) {
         this.tasks += newTasks
+      },
+      isLink:function(msg) {
+        this._linkRe = this._linkRe || /^\s*https?\:\/\/.+/i
+        return this._linkRe.test(msg)
       }
     },
     ready: function () {

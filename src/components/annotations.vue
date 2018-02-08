@@ -55,10 +55,10 @@
               <div class="small-10">
                 <div class="expanded button-group">
                   <template v-for="s in pointShapes" >
-                    <a @click="setProp('shape', s)" v-bind:class="{'selected': shape && (s[0] === shape[0])}" class="button pointshape"><img v-bind:src="s[0]"/></a>
+                    <a @click="setProp('shape', s[1])" v-bind:class="{'selected': shape && (s[1] === shape)}" class="button pointshape"><img v-bind:src="s[0]"/></a>
                   </template>
                 </div>
-              </div>
+              clippedOnly</div>
             </div>
 
             <div v-show="shouldShowSizePicker" class="tool-slice row collapse">
@@ -147,7 +147,7 @@
 </style>
 
 <script>
-  import { $, ol, Vue } from 'src/vendor.js'
+  import { $, ol, Vue,turf } from 'src/vendor.js'
   import gkDrawinglogs from './drawinglogs.vue'
 
   var noteOffset = 0
@@ -190,7 +190,7 @@
         tools: [],
         annotationTools: [],
         features: new ol.Collection(),
-        selectedFeatures: new ol.Collection(),
+        selectedFeatures:new ol.Collection(),
         // array of layers that are selectable
         selectable: [],
         featureOverlay: {},
@@ -223,11 +223,12 @@
             ["dist/static/symbols/points/square.svg","Square",[null,'#000000']],
             ["dist/static/symbols/points/triangle.svg","Triangle",[null,'#000000']],
             ["dist/static/symbols/points/star.svg","Star",[null,'#000000']],
-            ["dist/static/symbols/points/plus.svg","Star",[null,'#000000']],
-            ["dist/static/symbols/points/minus.svg","Star",[null,'#000000']],
-            ["dist/static/symbols/points/Fire_Advice.svg","Star",['#000000','#000000']],
+            ["dist/static/symbols/points/plus.svg","Plus",[null,'#000000']],
+            ["dist/static/symbols/points/minus.svg","Minus",[null,'#000000']],
+            ["dist/static/symbols/points/Fire_Advice.svg","FireAdvice",['#000000','#000000']],
         ],
-        shape: null
+        shape: null,
+        toolRevision:1
       }
     },
     computed: {
@@ -239,9 +240,13 @@
       measure: function () { return this.$root.measure },
       loading: function () { return this.$root.loading },
       drawinglogs: function () { return this.$refs.drawinglogs    },
+      activeModule: function () { return this.$root.activeModule    },
+      selectedAnnotations:function() {
+        return this.getSelectedFeatures("annotations")
+      },
       featureEditing: function() {
-        if (this.tool == this.ui.editStyle && this.selectedFeatures.getLength() > 0) {
-            return this.selectedFeatures.item(0)
+        if (this.tool == this.ui.editStyle && this.selectedAnnotations.getLength() > 0) {
+            return this.selectedAnnotations.item(0)
         } else {
             return null
         }
@@ -284,15 +289,16 @@
       },
       currentTool:{
         get:function() {
-            var t = this._currentTool[this.activeMenu]
+            var t = this._currentTool[this.activeModule]
             if (!t) {
                 t = this.ui.defaultPan
-                this._currentTool[this.activeMenu] = t
+                this._currentTool[this.activeModule] = t
             }
-            return t
+            return this.toolRevision && t
         },
         set:function(t) {
-            this._currentTool[this.activeMenu] = t
+            this.toolRevision += 1
+            this._currentTool[this.activeModule] = t
         }
       },
     },
@@ -305,7 +311,8 @@
                 this.drawNote(this.note)
                 this.colour = this.note.colour || this.colour
             } else if (val.get('shape')) {
-                this.shape = val.get('shape') || this.shape
+                //it is a custom point
+                this.shape = val.get('shape')
                 this.colour = val.get('colour') || this.colour
             } else {
                 this.size = val.get('size') || this.size
@@ -320,34 +327,44 @@
     },
     methods: {
       adjustHeight:function() {
-        if (this.activeMenu === "annotations") {
+        if (this.activeModule === "annotations") {
             $("#annotations-flexible-part").height(this.screenHeight - this.leftPanelHeadHeight - 41 - $("#annotations-fixed-part").height() - this.hintsHeight)
         }
       },
-      restoreSelectedFeatures:function() {
-        //cache the existing selected features
-        if (this._selectedFeaturesKey) {
-            if (this._selectedFeaturesKey in this._cachedSelectedFeatures) {
-                this._cachedSelectedFeatures[this._selectedFeaturesKey].length = 0
-            } else {
-                this._cachedSelectedFeatures[this._selectedFeaturesKey] = []
+      getSelectedFeatures:function(menu,submenu) {
+        var key = submenu?(menu + "." + mubmenu):menu
+        var selectedFeatures = null
+        try {
+            selectedFeatures = this._cachedSelectedFeatures[key]
+        } catch(ex){}
+        if (selectedFeatures) return selectedFeatures
+
+        var vm = this
+        selectedFeatures = new ol.Collection()
+        this._cachedSelectedFeatures = this._cachedSelectedFeatures || {}
+        this._cachedSelectedFeatures[key] = selectedFeatures
+        // add/remove selected property
+        selectedFeatures.on('add', function (ev) {
+            if (vm.selectedFeatures === selectedFeatures) {
+                vm.tintSelectedFeature(ev.element)
             }
-            if (this.selectedFeatures.getLength() > 0) {
-                this._cachedSelectedFeatures[this._selectedFeaturesKey].push.apply(this._cachedSelectedFeatures[this._selectedFeaturesKey],this.selectedFeatures.getArray())
+        })
+        selectedFeatures.on('remove', function (ev) {
+            if (vm.selectedFeatures === selectedFeatures) {
+                vm.tintUnselectedFeature(ev.element)
             }
-        }
-        if (this.selectedFeatures.getLength() > 0) {
-            this.selectedFeatures.clear()
-        }
-        //restore the cached selected features
-        this._selectedFeaturesKey = this.activeSubmenu?(this.activeMenu + "." + this.activeSubmenu):this.activeMenu
-        if (this._selectedFeaturesKey in this._cachedSelectedFeatures) {
-            this.selectedFeatures.extend(this._cachedSelectedFeatures[this._selectedFeaturesKey])
-        }
+        })
+        return selectedFeatures
       },
-      isFeaturesSelectedFromModule:function(menu,submenu) {
-        var key = submenu?(menu + "." + submenu):menu
-        return this._selectedFeaturesKey === key
+      restoreSelectedFeatures:function() {
+        var selectedFeatures = this.getSelectedFeatures(this.activeMenu,this.activeSubmenu)
+        if (this.selectedFeatures === selectedFeatures) return
+        var vm = this
+        //untint the previous selected features
+        this.selectedFeatures.forEach(function(feat){vm.tintUnselectedFeature(feat)})
+        //tint the current selected features
+        this.selectedFeatures = selectedFeatures
+        this.selectedFeatures.forEach(function(feat){vm.tintSelectedFeature(feat)})
       },
       importAnnotations:function() {
         if (this.$els.annotationsfile.files.length === 0) {
@@ -401,7 +418,7 @@
                         if (feature.getGeometry() instanceof ol.geom.Point) {
                             vm.map.clearFeatureProperties(feature)
                             feature.set('toolName','Custom Point',true)
-                            feature.set('shape',vm.annotations.pointShapes[0],true)
+                            feature.set('shape',vm.annotations.pointShapes[0][1],true)
                             feature.set('colour',"#000000",true)
                         } else if (feature.getGeometry() instanceof ol.geom.LineString) {
                             vm.map.clearFeatureProperties(feature)
@@ -621,46 +638,259 @@
           // allow translating of features by click+dragging
           var translateInter = new ol.interaction.Translate({
             layers: (tool && tool.mapLayers) || [vm.featureOverlay],
-            features: (tool && tool.selectedFeatures) || vm.selectedFeatures
+            features: (tool && tool.selectedFeatures) || vm.selectedAnnotations
           })
+
+          translateInter.handleEvent = function() {
+            var _func = translateInter.handleEvent
+            return function(ev) {
+                if ((!vm._toolStatus["selectTool"] || vm._toolStatus["selectTool"] === this) && ol.events.condition.noModifierKeys(ev)) {
+                    return _func.call(this,ev)
+                } else {
+                   return true
+                }
+            }
+          }()
 
           translateInter.on('addtomap', function (ev) {
             this.setActive(true)
           })
 
+          translateInter.on("translating",function(ev){
+              vm._toolStatus["selectTool"] = this
+          })
           translateInter.on("translateend",function(ev){
+              vm._toolStatus["selectTool"] = null
               ev.features.forEach(function(f){
                 if (f.get('toolName')) {
                     tool = vm.getTool(f.get('toolName'))
                     if (tool && tool.typeIcon) {
                         delete f['typeIconStyle']
-                        f.set('typeIconMetadata',undefined,true)
+                        delete f['typeIconMetadata']
                         f.changed()
                     }
                 }
               })
+              var rotateAll = false
+              $.each(ev.features.getArray(),function(index,f) {
+                  if (f.getGeometry() instanceof ol.geom.LineString || f.getGeometry() instanceof ol.geom.Polygon) {
+                      rotateAll = true
+                      return false
+                  }
+              })
+              if (rotateAll) {
+                  vm._rotateAll()
+              } else {
+                  $.each(ev.features.getArray(),function(index,f) {
+                      tool = vm.getTool(f.get('toolName'))
+                      if (tool.perpendicular) {
+                        f.set('rotation', vm.getPerpendicular(f.getGeometry().getCoordinates()))
+                      }
+                })
+              }
           })
           return translateInter
+        }
+      },
+      polygonSelectInterFactory: function(options) {
+        var vm = this
+        if (!vm._features4Selection) {
+            vm._features4Selection = new ol.Collection()
+            vm._listener4Selection = null
+            vm._source4Selection = new ol.source.Vector({
+                features:vm._features4Selection
+            })
+            vm._style4Selection =  new ol.style.Style({
+                fill: new ol.style.Fill({
+                    color: 'rgba(0,0,0, 0.25)'
+                }),
+                stroke: new ol.style.Stroke({
+                    color: 'rgba(0, 0, 0, 0.5)',
+                    lineDash: [5, 5],
+                    width: 2,
+                }),
+            })
+            vm._overlay4Selection = new ol.layer.Vector({
+                source: vm._source4Selection,
+                style: vm._style4Selection
+            })
+            vm._isGeometryInPolygon = function(geometry,turfPolygon) {
+                var isSelected = false
+                if (geometry instanceof ol.geom.GeometryCollection) {
+                    $.each(geometry.getGeometries(),function(index,geom){
+                        if (vm._isGeometryInPolygon(geom,turfPolygon)) {
+                            isSelected = true
+                            return false
+                        }
+                    })
+                } else if (geometry instanceof ol.geom.MultiPolygon) {
+                    $.each(geometry.getPolygons(),function(index,geom){
+                        if (vm._isGeometryInPolygon(geom,turfPolygon)) {
+                            isSelected = true
+                            return false
+                        }
+                    })
+                } else if (geometry instanceof ol.geom.MultiLineString) {
+                    $.each(geometry.getLineStrings(),function(index,geom){
+                        if (vm._isGeometryInPolygon(geom,turfPolygon)) {
+                            isSelected = true
+                            return false
+                        }
+                    })
+                } else if (geometry instanceof ol.geom.MultiPoint) {
+                    $.each(geometry.getPoints(),function(index,geom){
+                        if (vm._isGeometryInPolygon(geom,turfPolygon)) {
+                            isSelected = true
+                            return false
+                        }
+                    })
+                } else if (geometry instanceof ol.geom.Polygon) {
+                    isSelected = turf.intersect(turf.polygon(geometry.getCoordinates()),turfPolygon)
+                } else if (geometry instanceof ol.geom.LineString) {
+                    isSelected = turf.lineIntersect(turf.lineString(geometry.getCoordinates()),turfPolygon)
+                } else if (geometry instanceof ol.geom.Point) {
+                    isSelected = turf.inside(turf.point(geometry.getCoordinates()),turfPolygon)
+                } else {
+                    throw "Geometry not supported."
+                }
+                return isSelected
+            }
+        }
+        return function(tool) {
+            var selectedFeatures_ = (tool && tool.selectedFeatures) || null
+            var drawInter = new ol.interaction.Draw({
+              source: vm._source4Selection,
+              type: 'Polygon',
+              style: vm._style4Selection,
+              stopClick:true,
+              minPoints:3,
+              freehandCondition:function(mapBrowserEvent) {
+                  //ctrl and shift key
+                  var originalEvent = mapBrowserEvent.originalEvent;
+                  return (
+                        (!vm._toolStatus["selectTool"] || vm._toolStatus["selectTool"] === this) &&
+                        !originalEvent.altKey &&
+                        (ol.has.MAC ? originalEvent.metaKey : originalEvent.ctrlKey) &&
+                        originalEvent.shiftKey) ;
+              },
+              condition:ol.events.condition.platformModifierKeyOnly
+            });
+
+            drawInter.startDrawing_ = function() {
+                var _func = drawInter.startDrawing_
+                return function(event) {
+                    vm._toolStatus["selectTool"] = this
+                    _func.call(this,event)
+                }
+            }()
+
+            drawInter.abortDrawing_ = function() {
+                var _func = drawInter.abortDrawing_
+                return function() {
+                    var result =  _func.call(this)
+                    vm._toolStatus["selectTool"] = null
+                    return result
+                }
+            }()
+
+            drawInter.on("addtomap",function(ev){
+                vm._overlay4Selection.setMap(vm.map.olmap)
+                if (vm._listener4Selection) {
+                    vm._features4Selection.unByKey(vm._listener4Selection)
+                }
+                vm._listener4Selection = vm._features4Selection.on("add",function(ev){
+                    var selectedFeatures = selectedFeatures_ || vm.selectedFeatures
+                    try{
+                        var extent = ev.element.getGeometry().getExtent()
+                        var turfPolygon = turf.polygon(ev.element.getGeometry().getCoordinates())
+                        var multi = (this.multi_ == undefined)?true:this.multi_
+                        selectedFeatures.clear()
+                        $.each(vm.selectable,function(index,layer) {
+                          if (!multi && selectedFeatures.getLength() > 0) {return false}
+                          if (layer == vm.featureOverlay) {
+                              //select all annotation features except text note
+                              layer.getSource().forEachFeatureIntersectingExtent(extent, function (feature) {
+                                if (!multi && selectedFeatures.getLength() > 0) {return true}
+                                if (!feature.get('note')) {
+                                    if (!vm._isGeometryInPolygon(feature.getGeometry(),turfPolygon)) return
+                                    selectedFeatures.push(feature)
+                                    return !multi
+                                }
+                              })
+                              //select text note
+                              $.each(vm.features.getArray(),function(index2,feature) {
+                                if (!multi && selectedFeatures.getLength() > 0) {return false}
+                                if (feature.get('note')) {
+                                  if (ev.element.getGeometry().intersectsExtent(vm.getNoteExtent(feature))) {
+                                    selectedFeatures.push(feature)
+                                    return multi
+                                  }
+                                }
+                              })
+                          } else {
+                              layer.getSource().forEachFeatureIntersectingExtent(extent, function (feature) {
+                                if (!multi && selectedFeatures.getLength() > 0) {return true}
+                                if (!vm._isGeometryInPolygon(feature.getGeometry(),turfPolygon)) return
+                                selectedFeatures.push(feature)
+                                return !multi
+                              })
+                          }
+                        })
+                        if (options && options.listeners && options.listeners.selected) {
+                            options.listeners.selected(selectedFeatures)
+                        }
+                        setTimeout(function(){
+                            vm._features4Selection.clear()
+                        },100)
+                    } catch (ex) {
+                        setTimeout(function(){
+                            vm._features4Selection.clear()
+                        },10)
+                    }
+                })
+                this.setActive(true)
+            })
+            drawInter.on("removefrommap",function(ev){
+                vm._overlay4Selection.setMap(null)
+                if (vm._listener4Selection) {
+                    vm._features4Selection.unByKey(vm._listener4Selection)
+                }
+            })
+            drawInter.setMulti = function(multi) {
+                this.multi_ = multi
+            }
+          
+            return drawInter
         }
       },
       dragSelectInterFactory: function(options) {
         var vm = this
         return function(tool) {
-          selectedFeatures = (tool && tool.selectedFeatures) || vm.selectedFeatures
+          var selectedFeatures_ = (tool && tool.selectedFeatures) || null
           // allow dragbox selection of features
-          var dragSelectInter = new ol.interaction.DragBox()
+          var dragSelectInter = new ol.interaction.DragBox({
+            condition: function(ev) {
+                return (!vm._toolStatus["selectTool"] || vm._toolStatus["selectTool"] === this) && ol.events.condition.noModifierKeys(ev)
+            },
+            boxEndCondition:function(mapBrowserEvent, startPixel, endPixel) {
+                if (vm._toolStatus["selectTool"] === this) {
+                    vm._toolStatus["selectTool"] = null
+                }
+                return ol.interaction.DragBox.defaultBoxEndCondition.call(this,mapBrowserEvent, startPixel, endPixel)
+            }
+          })
           // modify selectedFeatures after dragging a box
-
           dragSelectInter.on('addtomap', function (ev) {
             this.setActive(true)
           })
 
           dragSelectInter.on('boxend', function (event) {
+            selectedFeatures = selectedFeatures_ || vm.selectedFeatures
             selectedFeatures.clear()
             var extent = event.target.getGeometry().getExtent()
             var multi = (this.multi_ == undefined)?true:this.multi_
-            vm.selectable.forEach(function(layer) {
-              if (!multi && selectedFeatures.getLength() > 0) {return true}
+            $.each(vm.selectable,function(index,layer) {
+              if (!multi && selectedFeatures.getLength() > 0) {return false}
               if (layer == vm.featureOverlay) {
                   //select all annotation features except text note
                   layer.getSource().forEachFeatureIntersectingExtent(extent, function (feature) {
@@ -671,11 +901,12 @@
                     }
                   })
                   //select text note
-                  vm.features.forEach(function(feature){
-                    if (!multi && selectedFeatures.getLength() > 0) {return}
+                  $.each(vm.features.getArray(),function(index2,feature) {
+                    if (!multi && selectedFeatures.getLength() > 0) {return false}
                     if (feature.get('note')) {
                       if (ol.extent.intersects(extent,vm.getNoteExtent(feature))) {
                         selectedFeatures.push(feature)
+                        return multi
                       }
                     }
                   })
@@ -692,8 +923,8 @@
             }
           })
           // clear selectedFeatures before dragging a box
-          dragSelectInter.on('boxstart', function () {
-            //selectedFeatures.clear()
+          dragSelectInter.on('boxdrag', function () {
+            vm._toolStatus["selectTool"] = this
           })
           dragSelectInter.setMulti = function(multi) {
             this.multi_ = multi
@@ -829,14 +1060,17 @@
       selectInterFactory:function(options) {
         var vm = this
         return function(tool) {
-          selectedFeatures = (tool && tool.selectedFeatures) || vm.selectedFeatures
+          var selectedFeatures = (tool && tool.selectedFeatures) || vm.selectedAnnotations
           // allow selecting multiple features by clicking
           var selectInter = new ol.interaction.Select({
             layers: function(layer) { 
               return vm.selectable.indexOf(layer) > -1
             },
             features: selectedFeatures,
-            condition: (options && options.condition) || ol.events.condition.singleClick
+            condition: (options && options.condition) || function(ev) {
+                var originalEvent = ev.originalEvent;
+                return !vm._toolStatus["selectTool"] && ol.events.condition.singleClick(ev) && !originalEvent.altKey && !(originalEvent.metaKey || originalEvent.ctrlKey)
+            },
           })
 
           selectInter.on('addtomap', function (ev) {
@@ -890,9 +1124,7 @@
       keyboardInterFactory:function(options) { 
         var vm = this
         // OpenLayers3 hook for keyboard input
-        vm._deleteSelected = vm._deleteSelected || function (features,selectedFeatures,interaction) {
-            features = features || this.features
-            selectedFeatures = selectedFeatures || vm.selectedFeatures
+        vm._deleteSelected = vm._deleteSelected || function (features,selectedFeatures) {
             if (vm.tool.selectMode === "feature") {
                 selectedFeatures.forEach(function (feature) {
                   features.remove(feature)
@@ -974,6 +1206,23 @@
                 //console.log("Modifyend : " + feature.get('label') + "\t" + feature.geometryRevision + "\t" + feature.getGeometry().getRevision())
                 return feature.geometryRevision != feature.getGeometry().getRevision()
             }))
+            var rotateAll = false
+            $.each(modifiedFeatures.getArray(),function(index,f) {
+                if (f.getGeometry() instanceof ol.geom.LineString || f.getGeometry() instanceof ol.geom.Polygon) {
+                    rotateAll = true
+                    return false
+                }
+            });
+            if (rotateAll) {
+                vm._rotateAll()
+            } else {
+                $.each(modifiedFeatures.getArray(),function(index,f) {
+                    tool = vm.getTool(f.get('toolName'))
+                    if (tool.perpendicular) {
+                      f.set('rotation', vm.getPerpendicular(f.getGeometry().getCoordinates()))
+                    }
+              })
+            }
             modifyInter.dispatchEvent(new ol.interaction.Modify.Event("featuresmodified",modifiedFeatures,ev))
           })
           modifyInter.on("featuresmodified",function(ev){
@@ -982,7 +1231,7 @@
                     tool = vm.getTool(f.get('toolName'))
                     if (tool && tool.typeIcon ) {
                         delete f['typeIconStyle']
-                        f.set('typeIconMetadata',undefined,true)
+                        delete f['typeIconMetadata']
                         f.changed()
                     }
                 }
@@ -1010,7 +1259,7 @@
       },
       getCustomPointTint:function(shape,colours) {
         var tint = []
-        $.each(shape[2],function(index,srcColour) {
+        $.each(this._pointShapesMap[shape][2],function(index,srcColour) {
             var targetColour = Array.isArray(colours)?colours[index]:colours
             if (srcColour && targetColour && srcColour !== targetColour) {
                 tint.push([srcColour,targetColour])
@@ -1034,50 +1283,44 @@
       getTool: function (toolName) {
         return (toolName)?this.tools.filter(function (t) {return t.name === toolName })[0]:null
       },
-      setTool: function (t) {
+      setTool: function (t,keepSelection) {
         var vm = this
+        keepSelection = keepSelection || false
         if (!t) {
-            if (this._previousActiveMenu && this._previousActiveMenu !== this.activeMenu && this._previousTool) {
-                //before switching to other menu, if a non-pan tool was enabled, choose the 'pan' tool for the current menu to preseve the changes(for example, the selected features) made by the previous non-pan tool
-                t = this.ui.defaultPan
-            } else {
-                t = this.currentTool
+            //called when change components
+            if (!this.tool.scope || this.tool.scope.length === 0) {
+                //it is a common tool, no need to change it
+                return
             }
+            t = this.currentTool
+            keepSelection = true
         }
         if (typeof t == 'string') {
           t = this.getTool(t)
         }
-        if ((this.tool === t) && (t === this.ui.defaultPan || this._previousActiveMenu === this.activeMenu)) {
+        if (this.tool === t){
             //choose the same tool, do nothing,
-            this.currentTool = t
+            if (this.tool.scope && this.tool.scope.length > 0) {
+                this.currentTool = t
+            }
             return
         } else if(this.tool.onUnset) {
             this.tool.onUnset()
         }
         var map = this.map
         // remove all custom tool interactions from map
-        this.tools.forEach(function (tool) {
-          tool.interactions.forEach(function (inter) {
+        if (this.tool && this.tool.interactions) {
+          this.tool.interactions.forEach(function (inter) {
             map.olmap.removeInteraction(inter)
+            inter.dispatchEvent(vm.map.createEvent(inter,"removefrommap"))
           })
-        })
+        }
 
         // add interactions for this tool
         t.interactions.forEach(function (inter) {
           map.olmap.addInteraction(inter)
           inter.dispatchEvent(vm.map.createEvent(inter,"addtomap"))
         })
-
-        // remove selections
-        if (t !== this.ui.defaultPan) {
-            //remove selections only if the tool is not Pan
-            if ((this._previousActiveMenu && this._previousActiveMenu !== this.activeMenu) || (this._previousTool && this._previousTool !== t && !t.keepSelection)) {
-                //remove selections only if the current tool is not the same tool as the previous tool.
-                this.selectedFeatures.clear()
-            }
-            this._previousTool = t
-            this._previousActiveMenu = this.activeMenu
-        }
 
         //change the cursor
         if (t.cursor && typeof t.cursor === 'string') {
@@ -1090,11 +1333,20 @@
             $(map.olmap.getTargetElement()).find(".ol-viewport").css('cursor','default')
         }
         
+        if ((keepSelection || t.keepSelection) && t.selectMode !== this.tool.selectMode){
+            this.selectedFeatures.forEach(function(f){f.changed()})
+        }
 
         this.tool = t
-        this.currentTool = t
-        if (t.selectMode !== this.tool.selectMode){
-            this.selectedFeatures.forEach(function(f){f.changed()})
+        if (this.tool.scope && this.tool.scope.length > 0) {
+            //new tool is not a common tool,
+            this.currentTool = t
+        }
+
+        // remove selections
+        if (!(keepSelection || t.keepSelection)) {
+            //remove selections only if the current tool is not the same tool as the previous tool.
+            this.selectedFeatures.clear()
         }
 
         if (t.onSet) { t.onSet(this.tool) }
@@ -1490,10 +1742,10 @@
             //draw typeSymbol along the line.
             //does not support geometry select mode
             if (f['typeIconStyle']) {
-                var diffs = vm.map.getScale() / f.get('typeIconMetadata')['points']['scale']
+                var diffs = vm.map.getScale() / f['typeIconMetadata']['points']['scale']
                 var typeIconTint = f['typeIconTint'] || f.get('typeIconTint') || tool['typeIconTint'] || 'default'
                 if (diffs >= 0.5 && diffs <= 1.5) {
-                    if (typeIconTint === f.get('typeIconMetadata')['points']['tint']) {
+                    if (typeIconTint === f['typeIconMetadata']['points']['tint']) {
                         typeIconStyle = f['typeIconStyle']
                     } else {
                         typeIconStyle = f['typeIconStyle']
@@ -1513,11 +1765,11 @@
                             }))
                         })
                         f['typeIconStyle'] = newStyle
-                        f.get('typeIconMetadata')['points']['tint'] = typeIconTint
+                        f['typeIconMetadata']['points']['tint'] = typeIconTint
                         typeIconStyle = newStyle
                     }
                 } else {
-                    f.get('typeIconMetadata')['points'] = false
+                    f['typeIconMetadata']['points'] = false
                 }
             } 
             if (!typeIconStyle) {
@@ -1536,10 +1788,10 @@
                 typeIconStyle = []
                 var segmentIndex = 0 
                 var segmentMetadata = null
-                var metadata = f.get('typeIconMetadata')
+                var metadata = f['typeIconMetadata']
                 if (!metadata) {
                     metadata = {}
-                    f.set('typeIconMetadata',metadata,true)
+                    f['typeIconMetadata'] = metadata
                 }
                 var perimeter = 0
                 if (!metadata['segments']) {
@@ -1645,12 +1897,28 @@
     },
     ready: function () {
       var vm = this
-      this._cachedSelectedFeatures = {}
-      vm._currentTool = {}
-      vm.shape = vm.pointShapes[0]
       var annotationStatus = this.loading.register("annotation","Annotation Component")
-
       annotationStatus.phaseBegin("initialize",20,"Initialize")
+
+      this._toolStatus = {}
+      vm._currentTool = {}
+      vm.shape = vm.pointShapes[0][1]
+
+      this._pointShapesMap = {}
+      $.each(this.pointShapes,function(index,shape){
+        vm._pointShapesMap[shape[1]] = shape
+      })
+
+      
+      this._rotateAll = debounce(function(){
+          $.each(vm.features.getArray(),function(index,f) {
+              tool = vm.getTool(f.get('toolName'))
+              if (tool.perpendicular) {
+                f.set('rotation', vm.getPerpendicular(f.getGeometry().getCoordinates()))
+              }
+          })
+        },500)
+
       var map = this.map
       // collection to store all annotation features
       this.features.on('add', function (ev) {
@@ -1658,15 +1926,12 @@
         if (tool.onAdd) {
           tool.onAdd(ev.element)
         }
+        vm._rotateAll()
+      })
+      this.features.on('remove', function (ev) {
+        vm._rotateAll()
       })
 
-      // add/remove selected property
-      this.selectedFeatures.on('add', function (ev) {
-        vm.tintSelectedFeature(ev.element)
-      })
-      this.selectedFeatures.on('remove', function (ev) {
-        vm.tintUnselectedFeature(ev.element)
-      })
       // layer/source for modifying annotation features
       this.featureOverlay = new ol.layer.Vector({
         source: new ol.source.Vector({
@@ -1683,6 +1948,7 @@
 
       this.ui.translateInter = this.translateInterFactory()()
       this.ui.dragSelectInter = this.dragSelectInterFactory()()
+      this.ui.polygonSelectInter = this.polygonSelectInterFactory()()
       this.ui.selectInter = this.selectInterFactory()()
       this.ui.keyboardInter = this.keyboardInterFactory()()
       this.ui.modifyInter = this.modifyInterFactory()()
@@ -1693,6 +1959,7 @@
         icon: 'fa-hand-paper-o',
         cursor:['-webkit-grab','-moz-grab'],
         scope:["annotation"],
+        keepSelection:true,
         interactions: [
           map.dragPanInter,
           map.doubleClickZoomInter,
@@ -1736,9 +2003,11 @@
         name: 'Select',
         icon: 'fa-mouse-pointer',
         scope:["annotation"],
+        keepSelection:true,
         interactions: [
           this.ui.keyboardInter,
           this.ui.dragSelectInter,
+          this.ui.polygonSelectInter,
           this.ui.selectInter,
           this.ui.translateInter
         ],
@@ -1746,16 +2015,17 @@
             vm.ui.dragSelectInter.setMulti(true)
             vm.ui.selectInter.setMulti(true)
         },
-        /*
         comments:[
           {
               name:"Tips",
               description:[
-                  "Select features using keyboard or mouse."
+                  "Select all features using shortcut key 'Ctrl + A'",
+                  "Select features using mouse.",
+                  "Hold 'Ctrl' to enable polygon selection",
+                  "Delete selected features using key 'Del'"
               ]
           }
         ]
-        */
       }
       this.ui.defaultEdit = {
         name: 'Edit Geometry',
@@ -1865,7 +2135,7 @@
         name: 'Custom Point',
         icon: function(feature){
             if (feature) {
-                return feature.get('shape')[0]
+                return vm._pointShapesMap[feature.get('shape')][0]
             } else {
                 return 'dist/static/symbols/fire/custom_point.svg'
             }

@@ -33,7 +33,9 @@
       return {}
     },
     computed: {
-      env: function () { return this.$root.env }
+      env: function () { return this.$root.env },
+      map: function () { return this.$root.map },
+      annotations: function () { return this.$root.annotations },
     },
     methods: {
       searchKeyFix: function (ev) {
@@ -62,7 +64,10 @@
           if (update_name) {
             $('#map-search').val(update_name)
           }
-          if (!vm._setSearchPointFunc || !vm._setSearchPointFunc(searchMethod,coords,name)) {
+          if (vm.$root.weatheroutlook && vm.annotations.tool && vm.annotations.tool.name === "WeatherOutlook") {
+            //weather outlook tool is activated.
+            vm.$root.weatheroutlook.setPosition(coords)
+          } else if (!vm._setSearchPointFunc || !vm._setSearchPointFunc(searchMethod,coords,name)) {
             vm.features.clear()
             vm.features.push(new ol.Feature({
               geometry: new ol.geom.Point(coords),
@@ -198,7 +203,21 @@
     },
     ready: function () {
       var vm = this
-      var map = this.$root.map
+
+      vm.map.mapControls["search"] = {
+          enabled:false,
+          controls: [
+              new ol.control.Control({
+                  element: $('#map-search').get(0),
+                  target: $('#external-controls').get(0)
+              }),
+              new ol.control.Control({
+                  element: $('#map-search-button').get(0),
+                  target: $('#external-controls').get(0)
+              })
+          ]
+      }
+
       this._wa_bbox = [112.50,-36.0,129.00,-13.0]
       this._wa_perth = [115.8605,-31.9527]
 
@@ -237,7 +256,7 @@
       })
 
       this.$on('gk-init', function () {
-        this.overlay.setMap(map.olmap)
+        this.overlay.setMap(vm.map.olmap)
       })
     }
   }

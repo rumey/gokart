@@ -9,7 +9,7 @@ var env = {
     wmtsService:"https://kmi.dbca.wa.gov.au/geoserver/gwc/service/wmts",
     wmsService:"https://kmi.dbca.wa.gov.au/geoserver/wms",
     wfsService:"https://kmi.dbca.wa.gov.au/geoserver/wfs",
-    legendSrc:"https://kmi.dbca.wa.gov.au/geoserver/gwc/service/wms?REQUEST=GetLegendGraphic&VERSION=1.0.0&FORMAT=image/png&LAYER=",
+    legendSrc:"https://kmi.dbca.wa.gov.au/geoserver/gwc/service/wms?REQUEST=GetLegendGraphic&VERSION=1.0.0&FORMAT=image/png&legend_options=fontName:Times%20New%20Roman;fontAntiAliasing:true;fontSize:14;bgColor:0xFFFFEE;dpi:120;labelMargin:10&LAYER=",
 
     gokartService:"https://sss-dev.dbca.wa.gov.au",
     resourceTrackingService:"https://resourcetracking-uat.dbca.wa.gov.au",
@@ -18,12 +18,19 @@ var env = {
 
     s3Service:"http://gokart.dpaw.io/",
 
-    bushfireLayer:"dpaw:bushfire_latest_dev",
-    finalFireboundaryLayer:"dpaw:bushfire_final_fireboundary_latest_dev",
-    fireboundaryLayer:"dpaw:bushfire_fireboundary_latest_dev",
-
-    allBushfireLayer:"dpaw:bushfire_dev",
-    allFireboundaryLayer:"dpaw:bushfire_fireboundary_dev"
+    appMapping:{
+        sss:"sss_dev",
+    },
+    layerMapping:{
+        "dpaw:bushfirelist_latest"                  : "dpaw:bushfirelist_latest_dev",
+        "dpaw:bushfire_latest"                      : "dpaw:bushfire_latest_dev",
+        "dpaw:bushfire_final_fireboundary_latest"   : "dpaw:bushfire_final_fireboundary_latest_dev",
+        "dpaw:bushfire_fireboundary_latest"         : "dpaw:bushfire_fireboundary_latest_dev",
+        "dpaw:bushfire"                             : "dpaw:bushfire_dev",
+        "dpaw:bushfire_fireboundary"                : "dpaw:bushfire_fireboundary_dev",
+        "dpaw:resource_tracking_live"               : "dpaw:resource_tracking_live_uat",
+        "dpaw:resource_tracking_history"            : "dpaw:resource_tracking_history_uat"
+    },
 
 };
 

@@ -1,16 +1,8 @@
 <template>
-  <div class="tabs-panel" id="menu-tab-setting" v-cloak>
-    <div class="row collapse">
-      <div class="columns">
-        <ul class="tabs" id="setting-tabs">
-          <li class="tabs-title is-active"><a class="label" aria-selected="true">System Settings</a></li>
-        </ul>
-      </div>
-    </div>
-    <div class="row collapse" id="setting-tab-panels">
+  <div class="tabs-panel is-active" id="systemsetting" v-cloak>
+    <div class="row " >
       <div class="columns">
         <div class="tabs-content vertical" data-tabs-content="setting-tabs">
-          <div class="tabs-panel is-active" id="system-settings" v-cloak>
 
             <div class="tool-slice row collapse">
               <div class="switch tiny">
@@ -150,7 +142,6 @@
                 <p><b>DISCLAIMER:</b> The Department of Parks and Wildlife does not guarantee that this map is without flaw of any kind and disclaims all liability for any error, or loss or other consequence which may arise from relying on any information depicted. Apart from any use permitted under the Copyright Act, no part of this map may be reproduced by any process without the written permission of the authors. Crown copyright reserved.</p>
               </div>
             </div>
-          </div>
         </div>
       </div>
     </div>
@@ -206,7 +197,7 @@
     },
     data: function () {
       return {
-        configuredUndoLimit:0
+        configuredUndoLimit:0,
       }
     },
     computed: {
@@ -268,8 +259,14 @@
       setup: function() {
         this.annotations.setTool()
       },
-      saveState:function() {
-        this.export.saveState()
+      saveState:function(wait) {
+        var vm = this
+        wait = wait || 1
+        this._saveState = this._saveState || debounce(function(){
+            vm.export.saveState()
+        },wait)
+
+        this._saveState.call({wait:wait})
       },
       enableUndo:function(enable) {
         if (enable) {
@@ -285,7 +282,7 @@
       },
       showRightHandTools: function (show) {
         var vm = this
-        $.each(vm.map.mapControls,function(key,control){
+        $.each(vm.map.mapControls,function(key,control) {
             if (["overviewMap","fullScreen","search","mousePosition","attribution"].indexOf(key) < 0) {
                 vm.map.enableControl(key,show)
             }
@@ -337,9 +334,9 @@
       var settingStatus = this.loading.register("setting","Setting Component")
       this.configuredUndoLimit = this.undoLimit
      
-      settingStatus.phaseBegin("gk-init",80,"Listen 'gk-init' event",true,true)
-      this.$on('gk-init', function() {
-        settingStatus.phaseEnd("gk-init")
+      settingStatus.phaseBegin("gk-postinit",80,"Listen 'gk-postinit' event",true,true)
+      this.$on('gk-postinit', function() {
+        settingStatus.phaseEnd("gk-postinit")
 
         settingStatus.phaseBegin("initialize",20,"Initialize",true,false)
         vm.showOverviewMap(vm.overviewMap)

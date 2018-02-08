@@ -219,8 +219,18 @@ Utils.prototype.checkPermission = function(url,method,callback) {
     }
     $.ajax(url ,ajaxSetting)
 }
-
-Utils.prototype.editResource = function(event,options,url,target) {
+var defaultWinOptions = [
+    ["scrollbars","yes"],
+    ["locationbar","no"],
+    ["menubar","no"],
+    ["statusbar","yes"],
+    ["toolbar","no"],
+    ["personalbar","no"],
+    ["centerscreen","yes"],
+    ["width",function(){return Math.floor(window.innerWidth * 0.95)}],
+    ["height",function(){return Math.floor(window.innerHeight * 0.95)}]
+]
+Utils.prototype.editResource = function(event,options,url,target,reopen) {
     if (!url) {
         var targetElement = (event.target.nodeName == "A")?event.target:event.target.parentNode;
         url = targetElement.href
@@ -232,26 +242,55 @@ Utils.prototype.editResource = function(event,options,url,target) {
     if (env.appType == "cordova") {
         window.open(url,"_system");
     } else {
-        options = options || "scrollbars=yes,locationbar=no,menubar=no,statusbar=yes,toolbar=no,personalbar=no,centerscreen=yes,width=" + Math.floor(window.innerWidth * 0.95) + ",height=" + Math.floor(window.innerHeight * 0.95)
-        var  win = window.open(url,target,options);
-        setTimeout(function(){win.focus()},500)
+        options = options || {}
+        var winOptions = defaultWinOptions.map(function(option){return option[0] + "=" + (options[option[0]] || ((typeof option[1] === "function")?option[1]():option[1]) )}).join(",")
+        if (reopen) {
+            var win = window.open("",target,winOptions)
+            try{
+                if (win.location.href !== "about:blank") {
+                    //already opened before, close it first
+                    win.close()
+                }
+            } catch (ex) {
+                //already opened before, close it first
+                win.close()
+            }
+            window.open(url,target,winOptions)
+        } else {
+            var  win = window.open(url,target,winOptions);
+            setTimeout(function(){win.focus()},500)
+        }
     }
 }
 
-Utils.prototype.submitForm = function(formid,options) {
+Utils.prototype.submitForm = function(formid,options,reopen) {
     var form = $("#" + formid)
 
     if (env.appType == "cordova") {
         form.submit()
     } else {
         var target = form.attr("target") || "_blank"
-        options = options || "scrollbars=yes,locationbar=no,menubar=no,statusbar=yes,toolbar=no,personalbar=no,centerscreen=yes,width=" + Math.floor(window.innerWidth * 0.95) + ",height=" + Math.floor(window.innerHeight * 0.95)
-        var win = null;
-        if (target !== "_blank" ) {
-            win = window.open("",target,options);
+        options = options || {}
+        var winOptions = defaultWinOptions.map(function(option){return option[0] + "=" + (options[option[0]] || ((typeof option[1] === "function")?option[1]():option[1]) )}).join(",")
+        var win = window.open("",target,winOptions);
+        if (reopen) {
+            try{
+                if (win.location.href !== "about:blank") {
+                    //already opened before, close it first
+                    win.close()
+                    win = null
+                }
+            } catch (ex) {
+                //already opened before, close it first
+                win.close()
+                win = null
+            }
+            if (win === null) {
+                win = window.open("",target,winOptions);
+            }
         }
         form.submit()
-        if (win) {
+        if (target === "_blank"  || !reopen) {
             setTimeout(function(){win.focus()},500)
         }
     }
@@ -411,6 +450,148 @@ Utils.prototype.verifyDate = function(event,inputPattern,pattern) {
     }
 }
 
+//Return a list of moment object whose time is specified in timesInDay array
+//timesInDay: specify the time part in format "HH:mm:ss" ,required
+//size: the number of the datetimes , required
+//stragegy: the way to get the first datetime, default is 2
+//  1: The first datetime is consisted with current date and first time in timesInDay
+//  2: The first datetime is consisted with current date and the nearest time before current time in timesInDay 
+//  3: The first datetime is consisted with current date and the nearest time after current time in timesInDay 
+//startDate: the start datetime of the forecast,if missing, current datetime will be used
+Utils.prototype.getDatetimes = function(timesInDay,size,strategy,startDate) {
+    startDate = startDate || moment().tz("Australia/Perth");
+    var currentDate = startDate.format("YYYY-MM-DD");
+    strategy = strategy || 2;
+
+    var result = [];
+    var timeIndex = -1;
+    if (strategy === 2 || strategy === 3) {
+        $.each(timesInDay,function(index,time){
+            if (strategy === 2 && startDate < moment.tz(currentDate + " " + time,"Australia/Perth") ) {
+                if (index === 0) {
+                    timeIndex = timesInDay.length - 1;
+                    startDate.date(startDate.date() - 1);
+                } else {
+                    timeIndex = index - 1;
+                }
+                return false;
+            } else if (strategy === 3 && startDate < moment.tz(currentDate + " " + time,"Australia/Perth") ) {
+                furstIndex = index;
+                return false;
+            }
+        })
+        if (strategy === 3 && timeIndex === -1) {
+            timeIndex = 0;
+            startDate.date(startDate.date() + 1);
+        }
+    } else {
+        timeIndex = 0;
+    }
+    var result = [];
+    while (result.length < size) {
+        result.push( moment.tz(startDate.format("YYYY-MM-DD") + " " + timesInDay[timeIndex],"Australia/Perth") );
+        timeIndex += 1;
+        if (timeIndex >= timesInDay.length) {
+            timeIndex = 0;
+            startDate.date(startDate.date() + 1);
+        }
+    }
+    return result
+}
+var _precisionMap = {}
+Utils.prototype.getDateFormatPrecision = function(format) {
+    var precision = _precisionMap[format]
+    if (!precision) {
+        var d = moment("2018-02-02 01:01:01.001","YYYY-MM-DD HH:mm:ss.SSS")
+        var d2 = moment(d.format(format),format)
+        var diff = d - d2
+        if (diff === 0) {
+            precision = "milliseconds"
+        } else if (diff === 1) {
+            precision = "seconds"
+        } else if (diff === 1001) {
+            precision = "minutes"
+        } else if (diff === 61001) {
+            precision = "hours"
+        } else if (diff === 3661001) {
+            precision = "days"
+        } else if (diff === 90061001) {
+            precision = "months"
+        } else if (diff === 2768461001) {
+            precision = "years"
+        }
+        _precisionMap[format] = precision
+    }
+    return precision
+}
+Utils.prototype.nextDate = function(d,format) {
+    var precision = this.getDateFormatPrecision(format)
+    return moment(d).add(1,precision)
+}
+//dateRange is consisted with 5 digits. XXXXX
+//The fifth digit is the range type; 1 : minute; 2: hour; 3: day; 4:week; 5: month; 6: year
+//The fourth digit is the range mode: 0: current ; 1: last
+//the first three digit is the range value
+//For example :last 24 hours; dateRange is 21024
+//return a array [startDate(inclusive),endDate(inclusive)], if endDate is current time, set endDate to null
+Utils.prototype.getDateRange = function(range,format) {
+    format = format || "YYYY-MM-DD"
+    var precision = this.getDateFormatPrecision(format)
+    var dateRange = parseInt(range)
+    var startDate = null
+    var endDate = null
+    if (isNaN(dateRange)) {
+        throw "Invalid date range '" + range + "'."
+    } else if (dateRange === -1) {
+        //customized
+        return null
+    } else if (dateRange > 21000 && dateRange <= 21999) {
+        //Last XX hours
+        endDate = moment(moment().format(format),format)
+        if (precision === "hours") {
+            startDate = moment(endDate).subtract(dateRange - 21000 - 1,"hours")
+        } else if (["milliseconds","seconds","minutes"].indexOf(precision) >= 0) {
+            startDate = moment(endDate).subtract(dateRange - 21000,"hours")
+        } else {
+            startDate = moment(endDate).subtract(dateRange - 21000,"hours")
+        }
+        endDate = null
+    } else if (dateRange === 30001) {
+        //today
+        startDate = moment().startOf('day')
+        endDate = null
+    } else if (dateRange > 31000 && dateRange <= 31999) {
+        //last XXX days
+        endDate = moment(moment().format(format),format)
+        if (precision === "days") {
+            startDate = moment(endDate).subtract(dateRange - 31000 - 1,"days")
+        } else if (["milliseconds","seconds","minutes","hours"].indexOf(precision) >= 0) {
+            startDate = moment(endDate).subtract(dateRange - 31000,"days")
+        } else {
+            startDate = moment(endDate).subtract(dateRange - 31000,"days")
+        }
+        endDate = null
+    } else if (dateRange === 40001) {
+        //current week
+        startDate = moment().startOf('week')
+        endDate = null
+    } else if (dateRange > 41000 && dateRange <= 41999) {
+        //last XXX weeks
+        endDate = moment(moment().format(format),format)
+        if (precision === "days") {
+            startDate = moment(endDate).subtract((dateRange - 41000) * 7 - 1,"days")
+        } else if (["milliseconds","seconds","minutes","hours"].indexOf(precision) >= 0) {
+            startDate = moment(endDate).subtract((dateRange - 41000) * 7,"days")
+        } else {
+            startDate = moment(endDate).subtract((dateRange - 41000) * 7,"days")
+        }
+        endDate = null
+    }  else {
+        throw "Date range '" + range + " isn't supported."
+    }
+    return [startDate?startDate.format(format):null,endDate?endDate.format(format):null]
+    
+}
 var utils = new Utils()
 
 export default utils

@@ -271,7 +271,7 @@ div.ol-previewmap.ol-uncollapsible {
             }
             
             l.systemid = l.id;
-            l.id = l.identifier;
+            l.id = getIndependentLayerId(l.identifier);
             // add the base flag for layers tagged 'basemap'
             l.base = l.tags.some(function (t) {return t.name === 'basemap'})
             // set the opacity to 50% for layers tagged 'overlaymap'
@@ -311,7 +311,7 @@ div.ol-previewmap.ol-uncollapsible {
             console.error(msg)
           }
         }
-        req.open('GET', vm.env.cswService + "?format=json&application__name=" + this.app.toLowerCase())
+        req.open('GET', vm.env.cswService + "?format=json&application__name=" + getAppId(this.app.toLowerCase()))
         req.send()
       },
       getLayer: function (id) {
@@ -334,7 +334,7 @@ div.ol-previewmap.ol-uncollapsible {
         l.name = l.name || l.title
         l.type = l.type || 'TileLayer'
         if (l.type === 'TileLayer') {
-          l.legend = (l.legend && (vm.env.catalogueAdminService + l.legend))|| ((l.service_type === "WFS")?(vm.env.legendSrc + l.id):null)
+          l.legend = (l.legend && (vm.env.catalogueAdminService + l.legend))|| ((l.service_type === "WFS")?(vm.env.legendSrc + getLayerId(l.id)):null)
         }
         l.mapLayerId = l.mapLayerId || l.id
         if (l.dependentLayers) {

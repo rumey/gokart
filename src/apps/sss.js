@@ -16,6 +16,31 @@ import profile from './sss-profile.js'
 import gokartListener from './gokart-listener.js'
 
 global.tour = tour
+//Return an environment dependent layer id
+global.getLayerId = function(id) {
+    return (env && env.layerMapping && env.layerMapping[id]) || id
+}
+//sometimes we use a different layer to get the detail layer information.
+global.getDetailLayerId = function(id) {
+    return (env && env.detailLayerMapping && env.detailLayerMapping[id]) || (env && env.layerMapping && env.layerMapping[id]) || id
+}
+//Return an environment independent layer id
+global.getIndependentLayerId = function(id) {
+    if (!env || !env.layerMapping) {
+        return id
+    } 
+    var independentId = id
+    $.each(env.layerMapping,function(key,value){
+        if (value === id) {
+            independentId = key
+            return false
+        }
+    })
+    return independentId
+}
+global.getAppId = function(id) {
+    return (env && env.appMapping && env.appMapping[id]) || id
+}
 
 global.debounce = function (func, wait, immediate) {
   // Returns a function, that, as long as it continues to be invoked, will not
@@ -101,6 +126,13 @@ var systemSettings = {
   bfrs:{
       bushfireLabels:true,
       viewportOnly: false,
+  },
+  weatheroutlook:{
+      reportType:3,//3 hourly
+      reportHours:null,
+      dailyTitle:null,
+      outlookDays:4,
+      outlookColumns:null
   }
 }
 
@@ -143,7 +175,42 @@ if (result) {
     utils.checkVersion(profile)
     Vue.use(VueStash)
     localforage.getItem('sssOfflineStore').then(function (store) {
-      var settings = $.extend({},persistentData.settings,store?(store.settings || {}):{})
+      var _extend = function() {
+          if (arguments.length === 0) {
+              return {}
+          } else if (arguments.length === 1) {
+              return arguments[0]
+          } else {
+              var o = arguments[0]
+              var _arguments = arguments
+              $.each(o,function(key,value){
+                  if (value !== null && value !== undefined && typeof(value) === "object" && !Array.isArray(value)) {
+                      var args = []
+                      for(var index = 0;index < _arguments.length;index++) {
+                          if (_arguments[index] && key in _arguments[index]) {
+                              args.push(_arguments[index][key])
+                          }
+                      }
+                      o[key] = _extend.apply(null,args)
+                  } else {
+                      for(var index = _arguments.length - 1;index > 0;index--) {
+                          if (_arguments[index]) {
+                              if (key in _arguments[index]) {
+                                  o[key] = _arguments[index][key]
+                                  break
+                              }
+                          }
+                      }
+                  }
+              })
+              return o
+          }
+      }
+      var settings = _extend(persistentData.settings,store?(store.settings || {}):{})
+      
+      if (store && store["activeLayers"] && store["activeLayers"].length === 0) {
+          delete store["activeLayers"]
+      }
       var storedData = $.extend({}, persistentData, store || {}, volatileData)
       storedData.settings = settings
     
@@ -159,6 +226,7 @@ if (result) {
           fixedLayers:[],
           saved: null,
           touring: false,
+          menuRevision:1,
           tints: {
             'selectedPoint': [['#b43232', '#2199e8']],
             'selectedDivision': [['#000000', '#2199e8'], ['#7c3100','#2199e8'], ['#ff6600', '#ffffff']],
@@ -172,6 +240,8 @@ if (result) {
           map: function () { return this.$refs.app.$refs.map },
           scales: function () { return this.$refs.app.$refs.map.$refs.scales },
           search: function () { return this.$refs.app.$refs.map.$refs.search },
+          featuredetail: function () { return this.$refs.app.$refs.map.$refs.featuredetail },
+          toolbox: function () { return this.$refs.app.$refs.map.$refs.toolbox },
           measure: function () { return this.$refs.app.$refs.map.$refs.measure },
           info: function() { return this.$refs.app.$refs.map.$refs.info},
           active: function () { return this.$refs.app.$refs.layers.$refs.active },
@@ -180,8 +250,10 @@ if (result) {
           export: function () { return this.$refs.app.$refs.layers.$refs.export },
           annotations: function () { return this.$refs.app.$refs.annotations },
           tracking: function () { return this.$refs.app.$refs.tracking },
-          setting: function () { return this.$refs.app.$refs.setting },
+          settings: function () { return this.$refs.app.$refs.settings },
+          systemsetting: function () { return this.$refs.app.$refs.settings.$refs.systemsetting },
           bfrs: function () { return this.$refs.app.$refs.bfrs },
+          weatheroutlook: function () { return this.$refs.app.$refs.settings.$refs.weatheroutlook },
           geojson: function () { return new ol.format.GeoJSON() },
           wgs84Sphere: function () { return new ol.Sphere(6378137) },
           profile: function(){return profile},
@@ -229,10 +301,14 @@ if (result) {
                     vm.setHintsHeight()
                 })
             },
-            activeModule:function(newValue,oldValue) {
+            menuRevision:function(newValue,oldValue) {
                 var vm = this
+                //var module = this.store.activeSubmenu || this.store.activeMenu
+                //if (this[module]["adjustHeight"]) {
+                //    this[module]["adjustHeight"]()
+                //}
                 this.$nextTick(function(){
-                    vm.store.layout.leftPanelHeadHeight = $("#" + newValue + "-tabs").height() || 90
+                    vm.store.layout.leftPanelHeadHeight = $("#" + vm.activeModule + "-tabs").height() || 90
                     vm.setHintsHeight()
                 })
             },
@@ -250,6 +326,9 @@ if (result) {
                 this.store.layout.hintsHeight = (this.isShowHints?$("#hints").height():0) + (this.hasHints?32:0)
                 this[this.activeModule]["adjustHeight"]()
             }
+          },
+          menuChanged:function() {
+              this.menuRevision += 1
           },
           takeTour: function() {
               this.store.settings.tourVersion = tour.version
@@ -345,7 +424,7 @@ if (result) {
             id: 'himawari8:bandtc',
             source: self.env.gokartService + '/hi8/AHI_TKY_b321',
             refresh: 300,
-            base: true
+            //base: true
           /*
           }, {
             type: 'TimelineLayer',
@@ -361,7 +440,7 @@ if (result) {
             id: 'himawari8:band7',
             source: self.env.gokartService + '/hi8/AHI_TKY_b7',
             refresh: 300,
-            base: true
+            //base: true
          /*
           }, {
             type: 'TimelineLayer',
@@ -369,17 +448,17 @@ if (result) {
             id: 'himawari8:band15',
             source: self.env.gokartService + '/hi8/AHI_TKY_b15',
             refresh: 300,
-            base: true
+            //base: true
           }, {
             type: 'TileLayer',
             name: 'State Map Base',
             id: 'cddp:state_map_base',
-            base: true
+            //base: true
           }, {
             type: 'TileLayer',
             name: 'Virtual Mosaic',
             id: 'landgate:LGATE-V001',
-            base: true
+            //base: true
           }, {
             type: 'TileLayer',
             name: 'DFES Active Fireshapes',
@@ -392,7 +471,7 @@ if (result) {
             id: 'bom:forest_fire_danger_index',
             timelineRefresh:300,
             fetchTimelineUrl:function(lastUpdatetime){
-                return "/bom/bom:IDZ71117?basetimelayer=bom:IDZ71117_datetime&timelinesize=72&layertimespan=3600&updatetime=" + lastUpdatetime
+                return "/bom/IDZ71117?basetimelayer=bom:IDZ71117_datetime&timelinesize=72&layertimespan=3600&updatetime=" + lastUpdatetime
             }
           }, {
             type: 'TileLayer',
@@ -400,7 +479,7 @@ if (result) {
             id: 'bom:maximum_forest_fire_danger_index',
             timelineRefresh:300,
             fetchTimelineUrl:function(lastUpdatetime){
-                return "/bom/bom:IDZ71118?basetimelayer=bom:IDZ71118_datetime&timelinesize=4&layertimespan=86400&updatetime=" + lastUpdatetime
+                return "/bom/IDZ71118?basetimelayer=bom:IDZ71118_datetime&timelinesize=4&layertimespan=86400&updatetime=" + lastUpdatetime
             }
           }, {
             type: 'TileLayer',
@@ -408,7 +487,7 @@ if (result) {
             id: 'bom:grass_fire_danger_index',
             timelineRefresh:300,
             fetchTimelineUrl:function(lastUpdatetime){
-                return "/bom/bom:IDZ71122?basetimelayer=bom:IDZ71122_datetime&timelinesize=72&layertimespan=3600&updatetime=" + lastUpdatetime
+                return "/bom/IDZ71122?basetimelayer=bom:IDZ71122_datetime&timelinesize=72&layertimespan=3600&updatetime=" + lastUpdatetime
             }
           }, {
             type: 'TileLayer',
@@ -416,7 +495,15 @@ if (result) {
             id: 'bom:maximum_grass_fire_danger_index',
             timelineRefresh:300,
             fetchTimelineUrl:function(lastUpdatetime){
-                return "/bom/bom:IDZ71123?basetimelayer=bom:IDZ71123_datetime&timelinesize=4&layertimespan=86400&updatetime=" + lastUpdatetime
+                return "/bom/IDZ71123?basetimelayer=bom:IDZ71123_datetime&timelinesize=4&layertimespan=86400&updatetime=" + lastUpdatetime
+            }
+          }, {
+            type: 'TileLayer',
+            name: 'Continuous Haines',
+            id: 'bom:continuous_haines',
+            timelineRefresh:300,
+            fetchTimelineUrl:function(lastUpdatetime){
+                return "/bom/IDZ71115?basetimelayer=bom:IDZ71115_datetime&timelinesize=56&layertimespan=10800&updatetime=" + lastUpdatetime
             }
           }])
     
