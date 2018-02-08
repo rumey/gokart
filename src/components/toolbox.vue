@@ -150,7 +150,7 @@
         vm._toolboxStatus.phaseBegin("initialize",20,"Initialize",true,false)
         
         var defaultTool = null;
-        var nonTool = {name:"deselect-tool",title:"Deselect tool",icon:"/dist/static/images/non-tool.svg",_component:vm,assistantButtons:[]}
+        var nonTool = {name:"deselect-tool",title:"",icon:"/dist/static/images/non-tool.svg",_component:vm,assistantButtons:[]}
         vm.tools.push(nonTool)
         defaultTool = nonTool
         var index = 1
