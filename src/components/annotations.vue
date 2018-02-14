@@ -332,7 +332,7 @@
         }
       },
       getSelectedFeatures:function(menu,submenu) {
-        var key = submenu?(menu + "." + mubmenu):menu
+        var key = submenu?(menu + "." + submenu):menu
         var selectedFeatures = null
         try {
             selectedFeatures = this._cachedSelectedFeatures[key]
