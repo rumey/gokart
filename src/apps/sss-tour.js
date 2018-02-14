@@ -12,6 +12,18 @@ tour.version = 0.2
 
 global.tour = tour
 
+tour.start = function() {
+    var _start = tour.start
+    return function() {
+        if (this.getCurrentStep()) {
+            //already started
+            alert("You already started a tour.")
+        } else {
+            _start.call(this)
+        }
+    }
+}()
+
 tour.on('cancel', function () {
   global.gokart.touring = false
 })
@@ -45,26 +57,53 @@ tour.addStep('welcome', {
     text: 'There is also a search box with support for coordinates and place names. <br/><b>Try out some of these!</b><ul><li>17 Dick Perry Avenue, Kensington</li><li>Upper Swan, Western Australia</li><li>32.00858S 115.53978E</li><li>115° 38′ 58.0″ E, 33° 20′ 52.8″ S</li><li>MGA 50 718776E 6190981N</li><li>MGA50 3816452</li><li>FD ET 79</li><li>PIL AF50</li></ul>',
     attachTo: '#map-search left'
 }).addStep('toolbox', {
-    text: 'There is also a tool box which contains lots of helpful tools, for example: weather outlook, measurement tools, etc.',
-    attachTo: '#toolbox_tool left'
-}).addStep('toolbox-expand', {
-    text: 'You can click the "double arrow" button at the bottom of the toolbox button to expand the list of tools.<br>Click the tool to choose it; for example, click on the "Measure Length" to choose it',
-    attachTo: '#toolbox_tool left',
+    text: 'There is also a tool box which contains lots of helpful tools, for example: weather outlook, measurement tools, etc.<br>You can click the "toolbox" button to expand the list of tools.',
+    attachTo: '#toolbox_expand left',
     when:{
-        'show': function () {
+        'before-show': function () {
+            global.gokart.toolbox.showTools = false
+        },
+    }
+}).addStep('toolbox-expanded', {
+    text: 'This panel lists all the tools you can use.',
+    attachTo: '#deselect-tool left',
+    beforeShowPromise:function(resolve,reject){
+        return new Promise(function(resolve,reject){
             $("#toolbox_expand").click()
-        }
+            var func = function() {
+                if ($("#toolbox_tools").is(":visible")) {
+                    resolve()
+                } else {
+                    setTimeout(func,10)
+                }
+            }
+            setTimeout(func,10)
+        })
+    },
+    when:{
     }
 }).addStep('toolbox-select-measurelength', {
-    text: 'You can click the tool to choose it; for example, click on the "default 4-day weather outlook" to choose it',
-    attachTo: '#toolbox_control left',
+    text: 'You can click the tool "Measure Length" to choose it.',
+    attachTo: '#MeasureLength left',
     when:{
-        'before-show':function() {
+    }
+}).addStep('toolbox-measurelength-selected', {
+    text: 'The tool "Measure Length" is chosed and ready to use.',
+    attachTo: '#toolbox_tool left',
+    beforeShowPromise:function(resolve,reject){
+        return new Promise(function(resolve,reject){
             $("#MeasureLength").click()
-        },
-        'after-show': function () {
-            global.gokart.toolbox.toggleTool(false)
-        }
+            var func = function() {
+                if ($("#toolbox_tool").is(":visible")) {
+                    resolve()
+                } else {
+                    setTimeout(func,10)
+                }
+            }
+            setTimeout(func,10)
+        })
+    },
+    when:{
     }
 }).addStep('menu', {
   text: 'To the left are the interactive panes for <b>Layers</b>, <b>Drawing Tools</b> and <b>Vehicle Tracking</b>, <b> Bushfire Report</b>.',
