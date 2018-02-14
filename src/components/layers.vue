@@ -31,6 +31,11 @@
         activeMenu:'activeMenu',
         activeSubmenu:'activeSubmenu'
     },
+    data: function () {
+      return {
+        menu:null
+      }
+    },
     components: { gkActive, gkCatalogue, gkExport },
     computed: {
         info: function () { return this.$root.info },
@@ -38,8 +43,15 @@
     methods:{
         setup: function() {
             this.$root.annotations.setTool()
+            this.switchMenu(this.menu)
+        },
+        teardown:function() {
+            if (this.activeSubmenu && this.$root[this.activeSubmenu].teardown) {
+                this.$root[activeSubmenu].teardown()
+            }
         },
         switchMenu:function(menu) {
+            menu = menu || "active"
             if ((this.activeSubmenu === menu) || (!this.activeSubmenu && !menu)) {
                 //new active submenu is equal to current active submenu, do nothing
                 return
@@ -47,10 +59,11 @@
             if (this.activeSubmenu && this.$root[this.activeSubmenu].teardown) {
                 this.$root[this.activeSubmenu].teardown()
             }
-            this.activeSubmenu = menu || null
+            this.activeSubmenu = menu
             if (this.activeSubmenu && this.$root[this.activeSubmenu].setup) {
                 this.$root[this.activeSubmenu].setup()
             }
+            this.menu = menu
         }
     }, 
     ready: function () {

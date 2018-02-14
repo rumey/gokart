@@ -106,24 +106,14 @@
             if (this.activeMenu && this.$root[this.activeMenu].teardown) {
                 this.$root[this.activeMenu].teardown()
             }
-            if (this.activeMenu === "layers" && menu !== "layers") {
-                this._activeSubmenu = this.activeSubmenu
-                this.layers.switchMenu(null)
-            } else if(this.activeMenu === "settings" && menu !== "settings") {
-                this._activeSubmenu = this.activeSubmenu
-                this.settings.switchMenu(null)
-            }
             this.activeMenu = menu || null
+            this.activeSubmenu = null
 
             if (this.activeMenu && this.$root[this.activeMenu].setup) {
                 this.$root[this.activeMenu].setup()
             }
-            if (menu === "layers") {
-                this.layers.switchMenu(this._activeSubmenu)
-                this._activeSubmenu = null
-            } else if (menu === "settings") {
-                this.settings.switchMenu(this._activeSubmenu)
-                this._activeSubmenu = null
+            if (["layers","settings"].indexOf(menu) < 0) {
+                this.activeSubmenu = null
             }
             this.$root.menuChanged()
         }
