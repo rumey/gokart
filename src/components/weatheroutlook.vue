@@ -413,6 +413,20 @@
             $("#weatheroutlook-datasources").height(height)
         }
       },
+      open:function(options) {
+        //active this module
+        if (this.activeMenu !== "settings") {
+            $("#menu-tab-settings-label").trigger("click")
+        }
+        if (this.activeSubmenu !== "weatheroutlook") {
+            $("#weatheroutlook-label").trigger("click")
+        }
+        if(!$('#offCanvasLeft').hasClass('reveal-responsive')){
+            $('#offCanvasLeft').toggleClass('reveal-responsive')
+            this.map.olmap.updateSize()
+        }
+
+      },
       changeOutlookDays:function() {
         this.outlookSettings[1].title = "Customised " + this.outlookDays + " Day Weather Outlook"
       },
@@ -424,6 +438,9 @@
         this.outlookSetting = s
       },
       selectTool:function(tool) {
+        if (tool.name === "weather-outlook-customized") {
+            this.open()
+        }
         if (this.outlookSetting === tool) {
             return
         }

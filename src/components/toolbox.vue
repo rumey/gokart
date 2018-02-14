@@ -1,13 +1,13 @@
 <template>
     <div style="display:none">
     <div id="toolbox_control" class="ol-selectable ol-control" v-bind:style="topPositionStyle">
-        <button type="button" id="toolbox_expand" style="margin-bottom:1px"  @click="showTools=!showTools" >
+        <button type="button" id="toolbox_expand" style="margin-bottom:1px"  @click="showTools=!showTools" title="Toolbox" >
             <img src="/dist/static/images/toolbox.svg" width=36 height=36>
         </button>
         <button type="button" id="toolbox_tool" title="{{toolTitle}}" v-show="showTool"  @click="toggleTool()" v-bind:class="{'selected':isControlActivated,'warning':isControlWarning}">
             <img v-bind:src="tool.icon" width=48 height=48>
         </button>
-        <div v-show="showTools" style="position:absolute;width:200px;right:0px">
+        <div v-show="showTools" style="position:absolute;width:200px;right:0px" id="toolbox_tools">
             <button type="button" v-for="t in tools" title="{{t.title}}" id="{{t.name}}" style="margin-left:2px;margin-bottom:1px;float:right" track-by="$index" @click.stop.prevent="selectTool(t)" v-bind:class="{'selected':isToolSelected(t)}">
                 <img v-bind:src="t.icon" width="36" height="36">
             </button>
@@ -110,7 +110,6 @@
       selectTool:function(tool,enabled) {
         this.showTools = false
         enabled = (enabled === null || enabled === undefined)?true:enabled
-        if (this.tool === tool) return
         if ((!tool._component) || tool._component === this) {
             //select a non tool
             if (this.isControlActivated) {
