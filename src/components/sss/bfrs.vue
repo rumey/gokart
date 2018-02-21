@@ -652,7 +652,7 @@
         this._refreshSelectedFinalFireboundaryLayer = this._refreshSelectedFinalFireboundaryLayer || debounce(function(){
           if (!vm.selectedFinalFireboundaryMapLayer) return
 
-          var selectedFinalBushfires = selectedFeatures.getArray().filter(function(f) {return !vm.isFireboundaryDrawable(f)})
+          var selectedFinalBushfires = vm.selectedFeatures.getArray().filter(function(f) {return !vm.isFireboundaryDrawable(f)})
           if (selectedFinalBushfires.length === 0) {
             if (vm.selectedFinalFireboundaryMapLayer.show) {
                 vm.map.enableDependentLayer(vm.bushfireMapLayer,"dpaw:bushfire_final_fireboundary_latest" + "_selected",false)
