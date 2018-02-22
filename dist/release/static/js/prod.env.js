@@ -1,6 +1,6 @@
 var env = {
     envType: "prod",
-    envVersion:"2007-09-08 14:46",
+    envVersion:"2008-02-21 21:48",
     appType: (window.location.protocol == "file:")?"cordova":"webapp",
 
     cswService:"https://oim.dpaw.wa.gov.au/catalogue/api/records/",
@@ -18,12 +18,8 @@ var env = {
 
     s3Service:"http://gokart.dpaw.io/",
 
-    bushfireListLayer:"dpaw:bushfirelist_latest",
-
-    bushfireLayer:"dpaw:bushfire_latest",
-    finalFireboundaryLayer:"dpaw:bushfire_final_fireboundary_latest",
-    fireboundaryLayer:"dpaw:bushfire_fireboundary_latest",
-
-    allBushfireLayer:"dpaw:bushfire",
-    allFireboundaryLayer:"dpaw:bushfire_fireboundary"
+    appMapping:{
+    },
+    layerMapping:{
+    },
 };
