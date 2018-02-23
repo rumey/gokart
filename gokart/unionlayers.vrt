@@ -13,7 +13,7 @@
         <FieldStrategy>{{fieldStrategy}}</FieldStrategy>
     {%- elif fields %}
         {%- for field in fields %}
-        <Field name="{{field[0]}}"/>
+        <Field name="{{field}}"/>
         {%- endfor %}
     {%- endif %}
     </OGRVRTUnionLayer>

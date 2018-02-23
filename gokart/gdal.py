@@ -624,7 +624,10 @@ def downloaod(fmt):
         #set field strategy and ignore_if_empty for layers
         if layers:
             for layer in layers:
-                if layer.get("fields") and not layer.get("fieldStrategy"):
+                if layer.get("fields"):
+                    if "fieldStrategy" in layer:
+                        del layer["fieldStrategy"]
+                elif not layer.get("fieldStrategy"):
                     layer["fieldStrategy"] = "Intersection"
                 layer["ignore_if_empty"] = layer.get("ignore_if_empty") or False
 
