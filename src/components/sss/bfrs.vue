@@ -174,6 +174,7 @@
                     </div>
                     <a v-show="canDownloadAll()" class="button bfrsbutton" @click="downloadList('gpkg','all')" title="Export Bushfire as GeoPackage"><i class="fa fa-download" aria-hidden="true"></i><br><span style='white-space:nowrap'>Download All</span><br>(gpkg) </a>
                     <a class="button bfrsbutton" @click="downloadList('gpkg','listed')" title="Export Bushfire as GeoPackage"><i class="fa fa-download" aria-hidden="true"></i><br>Download<br>(gpkg)</a>
+                    <a class="button bfrsbutton" @click="downloadList('geojson','history')" title="Export Bushfire as GeoPackage"><i class="fa fa-download" aria-hidden="true"></i><br>Export<br>(geojson)</a>
                   </div>
                 </div>
     
@@ -1781,7 +1782,7 @@
         var bbox = ""
         var originpoint_filter = ""
         var fireboundary_filter = ""
-        if (downloadType === "listed") {
+        if (downloadType === "listed" || downloadType === "history" ) {
             if (
                 this.clippedOnly || 
                 (
@@ -1833,38 +1834,61 @@
         //console.log("bbox = " + bbox)
         var bushfireLayer = getLayerId((downloadType === "listed")?"dpaw:bushfire_latest":"dpaw:bushfire")
         var fireboundaryLayer = getLayerId((downloadType === "listed")?"dpaw:bushfire_fireboundary_latest":"dpaw:bushfire_fireboundary")
-        var options = {
-            filename:"bushfires_" + downloadType + "_" + moment().format('YYYY-MM-DD-HHmm'),
-            srs:"EPSG:4326",
-            layers:[{
-                layer:"initial_bushfire_originpoint",
-                ignore_if_empty:true,
-                sourcelayers:{
-                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + bushfireLayer + originpoint_filter  + bbox,
-                    where:"report_status='Initial Fire Report'",
-                }
-            },{
-                layer:"final_bushfire_originpoint",
-                ignore_if_empty:true,
-                sourcelayers:{
-                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + bushfireLayer + originpoint_filter + bbox,
-                    where:"report_status<>'Initial Fire Report'",
-                }
-            },{
-                layer:"initial_bushfire_fireboundary",
-                ignore_if_empty:true,
-                sourcelayers:{
-                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
-                    where:"report_status='Initial Fire Report'",
-                }
-            },{
-                layer:"final_bushfire_fireboundary",
-                ignore_if_empty:true,
-                sourcelayers:{
-                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
-                    where:"report_status<>'Initial Fire Report'",
-                }
-            }]
+        var options = null
+        if (downloadType === "history" ) {
+            options = {
+                filename:"bushfires_" + downloadType + "_" + moment().format('YYYY-MM-DD-HHmm'),
+                srs:"EPSG:4326",
+                layers:[{
+                    layer:"bushfire_fireboundary",
+                    ignore_if_empty:true,
+                    sourcelayers:{
+                        url:vm.env.wfsService + "/wfs?servicea=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
+                    },
+                    fields:["fire_number","name","district","financial_year","fire_detected_date","cause","dfes_incident_no","other_info","creator"],
+                    geometry_column:{name:"fire_boundary",type:"MULTIPOLYGON"}
+
+                }]
+            }
+        } else {
+            options = {
+                filename:"bushfires_" + downloadType + "_" + moment().format('YYYY-MM-DD-HHmm'),
+                srs:"EPSG:4326",
+                layers:[{
+                    layer:"initial_bushfire_originpoint",
+                    ignore_if_empty:true,
+                    sourcelayers:{
+                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + bushfireLayer + originpoint_filter  + bbox,
+                        where:"report_status='Initial Fire Report'",
+                    },
+                    geometry_column:{name:"origin_point",type:"POINT"}
+                },{
+                    layer:"final_bushfire_originpoint",
+                    ignore_if_empty:true,
+                    sourcelayers:{
+                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + bushfireLayer + originpoint_filter + bbox,
+                        where:"report_status<>'Initial Fire Report'",
+                    },
+                    geometry_column:{name:"origin_point",type:"POINT"}
+                },{
+                    layer:"initial_bushfire_fireboundary",
+                    ignore_if_empty:true,
+                    sourcelayers:{
+                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
+                        where:"report_status='Initial Fire Report'",
+                    },
+                    geometry_column:{name:"fire_boundary",type:"MULTIPOLYGON"}
+                },{
+                    layer:"final_bushfire_fireboundary",
+                    ignore_if_empty:true,
+                    sourcelayers:{
+                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
+                        where:"report_status<>'Initial Fire Report'",
+                    },
+                    geometry_column:{name:"fire_boundary",type:"MULTIPOLYGON"},
+
+                }]
+            }
         }
 
         if (downloadType === 'listed') {
@@ -1896,7 +1920,8 @@
                     sourcelayers:{
                         parameter:"newBushfiresOriginPoint",
                         srs:"EPSG:4326"
-                    }
+                    },
+                    geometry_column:{name:"origin_point",type:"POINT"}
                 })
             }
             if (newBushfiresBoundary.length > 0 ) {
@@ -1907,7 +1932,8 @@
                     sourcelayers:{
                         parameter:"newBushfiresFireboundary",
                         srs:"EPSG:4326"
-                    }
+                    },
+                    geometry_column:{name:"fire_boundary",type:"MULTIPOLYGON"}
                 })
             }
         }

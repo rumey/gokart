@@ -235,8 +235,9 @@ def getDatasourceFiles(workdir,datasourcefile):
     return datasourcefiles
 
 layer_re = re.compile("[\r\n]+Layer name:")
-layer_info_re = re.compile("[\r\n]+(?P<key>[a-zA-Z0-9_\-][a-zA-Z0-9_\- ]*)[ \t]*:(?P<value>[^\r\n]*([\r\n]+(([ \t]+[^\r\n]*)|(GEOGCS[^\r\n]*)))*)")
+layer_info_re = re.compile("[\r\n]+(?P<key>[a-zA-Z0-9_\-][a-zA-Z0-9_\- ]*)[ \t]*[:=](?P<value>[^\r\n]*([\r\n]+(([ \t]+[^\r\n]*)|(GEOGCS[^\r\n]*)))*)")
 extent_re = re.compile("\s*\(\s*(?P<minx>-?[0-9\.]+)\s*\,\s*(?P<miny>-?[0-9\.]+)\s*\)\s*\-\s*\(\s*(?P<maxx>-?[0-9\.]+)\s*\,\s*(?P<maxy>-?[0-9\.]+)\s*\)\s*")
+field_re = re.compile("[ \t]*(?P<type>[a-zA-Z0-9]+)[ \t]*(\([ \t]*(?P<width>[0-9]+)\.(?P<precision>[0-9]+)\))?[ \t]*")
 def getLayers(datasource,layer=None,srs=None,defaultSrs=None,featureType=None):
     # needs gdal 1.10+
     infoIter = None
@@ -259,26 +260,36 @@ def getLayers(datasource,layer=None,srs=None,defaultSrs=None,featureType=None):
     def getLayerInfo(layerInfo):
         info = {"fields":[],"srs":srs}
         for m in layer_info_re.finditer(layerInfo):
-            key = m.group("key").lower()
+            key = m.group("key")
+            lkey = key.lower()
             value = m.group("value").strip()
-            if key in ("info","metadata","layer srs wkt","ogrinfo"): 
+            if lkey in ("info","metadata","layer srs wkt","ogrinfo"): 
                 continue
-            if key == "layer name":
+            if lkey == "layer name":
                 info["layer"] = value
-            elif key == "geometry":
+            elif lkey == "geometry":
                 info["geometry"] = value.replace(" ","").upper()
-            elif key == "feature count":
+            elif lkey == "feature count":
                 try:
                     info["features"] = int(value)
                 except:
                     info["features"] = 0
-            elif key == "extent":
+            elif lkey == "extent":
                 try:
-                    info["extent"] = [float(v) for v in extent_re.find(value).groups()]
+                    info["extent"] = [float(v) for v in extent_re.search(value).groups()]
                 except:
                     pass
+            elif lkey == "fid column":
+                info["fid_column"] = value
+            elif lkey == "geometry column":
+                info["geometry_column"] = value
             else:
-                info["fields"].append((key,value))
+                m = field_re.search(value)
+                info["fields"].append((lkey,m.group('type'),m.group('width'),m.group('precision')))
+
+        if "geometry_column" not in info:
+            info["geometry_column"] = "geom"
+
         return info
     info = subprocess.check_output(cmd)
     layers = []
@@ -535,6 +546,16 @@ def ogrinfo():
             pass
 
 
+GEOMETRY_TYPE_MAP={
+    "POINT":"wkbPoint",
+    "LINESTRING":"wkbLineString",
+    "POLYGON":"wkbPolygon",
+    "MULTIPOINT":"wkbMultiPoint",
+    "MULTILINESTRING":"wkbMultiLineString",
+    "MULTIPOLYGON":"wkbMultiPolygon",
+    "GEOMETRYCOLLECTION":"wkbGeometryCollection"
+}
+
 @bottle.route("/download/<fmt>", method="POST")
 def downloaod(fmt):
     """
@@ -561,6 +582,8 @@ def downloaod(fmt):
                 layer: layer name,required if datasource include multiple layers
                 where: filter the features 
             },
+            field_strategy: default is Intersection
+            fields: optional
         },
     datasources:a datasource or a list of datasource
         {
@@ -575,6 +598,8 @@ def downloaod(fmt):
             defautl_srs:default srs; optional
             datasource: used if sourcetype is "UPLOAD" and uploaded file contains multiple datasources
             ignore_if_empty: empty layer will not be returned if true; default is false
+            field_strategy: default is Intersection
+            fields: optional
         }
     
     filename:optional, used when multiple output datasources are downloaded
@@ -625,16 +650,30 @@ def downloaod(fmt):
         if layers:
             for layer in layers:
                 if layer.get("fields"):
-                    if "fieldStrategy" in layer:
-                        del layer["fieldStrategy"]
-                elif not layer.get("fieldStrategy"):
-                    layer["fieldStrategy"] = "Intersection"
+                    if "field_strategy" in layer:
+                        del layer["field_strategy"]
+                elif not layer.get("field_strategy"):
+                    layer["field_strategy"] = "Intersection"
                 layer["ignore_if_empty"] = layer.get("ignore_if_empty") or False
+                #if geometry column, change it to a dict
+                if layer.get("geometry_column") and isinstance(layer["geometry_column"],basestring):
+                    layer["geometry_column"] = {name:layer["geometry_column"]}
+
+                if layer.get("geometry_column",{}).get("type"):
+                    if layer["geometry_column"]["type"].upper() in GEOMETRY_TYPE_MAP:
+                        layer["geometry_column"]["type"] = GEOMETRY_TYPE_MAP[layer["geometry_column"]["type"].upper()]
+                    else:
+                        del layer["geometry_column"]["type"]
 
         #set datasource's ignore_if_empty
         if datasources:
             for datasource in datasources:
                 datasource["ignore_if_empty"] = datasource.get("ignore_if_empty") or False
+                if datasource.get("fields"):
+                    if "field_strategy" in datasource:
+                        del datasource["field_strategy"]
+                elif not datasource.get("field_strategy"):
+                    datasource["field_strategy"] = "Intersection"
 
     
         def setDatasourceType(ds):
@@ -765,6 +804,12 @@ def downloaod(fmt):
                             "sourcelayers":[sourcelayer],
                             "ignore_if_empty":datasource["ignore_if_empty"]
                         }
+                        if "field_strategy" in sourcelayer:
+                            layer["field_strategy"]  = sourcelayer["field_strategy"]
+                            del sourcelayer["field_strategy"]
+                        if "fields" in sourcelayer:
+                            layer["fields"]  = sourcelayer["fields"]
+                            del sourcelayer["fields"]
                         if sourcelayer["format"]["name"] in ["geojson","json"]:
                             layer["layer"] = getBaseDatafileName(sourcelayer["datasource"][1],False)
                         else:
@@ -921,6 +966,48 @@ def downloaod(fmt):
                 vrtFile = os.path.join(vrtdir,"{}.vrt".format(layer["layer"]))
             if not os.path.exists(os.path.dirname(vrtFile)):
                 os.makedirs(os.path.dirname(vrtFile))
+            if "field_strategy" not in layer:
+                #Only some fields are required, need to get fields definition first.
+                layer["field_strategy"] = "Intersection"
+                vrt = UNIONLAYERS_TEMPLATE.render(layer)
+                with open(vrtFile,"wb") as f:
+                    f.write(vrt)
+                layerInfo = getLayers(vrtFile)[0]
+                fields = []
+                for f in layer["fields"]:
+                    try:
+                        fields.append(next(o for o in layerInfo["fields"] if o[0] == f.lower()))
+                    except StopIteration:
+                        pass
+                if len(fields) == 0:
+                    #all required fields does not exist in datasource, return all fields.
+                    del layer["fields"]
+                    if layer.get("geometry_column"):
+                        layer["geometry_field"] = {"name":layer["geometry_column"]["name"],"src":layer["geometry_column"]["name"]}
+                        if layer["geometry_column"].get("type"):
+                            layer["geometry_field"]["type"] = layer["geometry_column"]["type"]
+                        for sourceLayer in layer["sourcelayers"]:
+                            sourceLayer["geometry_field"] = {"name":layer["geometry_column"]["name"],"src":sourceLayer["meta"]["geometry_column"]}
+                else:
+                    layer["fields"] = fields
+                    if layer.get("geometry_column"):
+                        layer["geometry_field"] = {"name":layer["geometry_column"]["name"],"src":layer["geometry_column"]["name"]}
+                        if layer["geometry_column"].get("type"):
+                            layer["geometry_field"]["type"] = layer["geometry_column"]["type"]
+                        for sourceLayer in layer["sourcelayers"]:
+                            sourceLayer["geometry_field"] = {"name":layer["geometry_column"]["name"],"src":sourceLayer["meta"]["geometry_column"]}
+                    else:
+                        layer["geometry_field"] = {"name":layerInfo["geometry_column"],"src":layerInfo["geometry_column"]}
+                        for sourceLayer in layer["sourcelayers"]:
+                            sourceLayer["geometry_field"] = {"name":layerInfo["geometry_column"],"src":sourceLayer["meta"]["geometry_column"]}
+                    del layer["field_strategy"]
+            elif layer.get("geometry_column"):
+                layer["geometry_field"] = {"name":layer["geometry_column"]["name"],"src":layer["geometry_column"]["name"]}
+                if layer.get("geometry_column",{}).get("type"):
+                    layer["geometry_field"]["type"] = layer["geometry_column"]["type"]
+                for sourceLayer in layer["sourcelayers"]:
+                    sourceLayer["geometry_field"] = {"name":layer["geometry_column"]["name"],"src":sourceLayer["meta"]["geometry_column"]}
+
             vrt = UNIONLAYERS_TEMPLATE.render(layer)
             with open(vrtFile,"wb") as f:
                 f.write(vrt)
@@ -1057,7 +1144,7 @@ def downloaod(fmt):
 
         output = open(outputfile)
         bottle.response.set_header("Content-Type", filemime)
-        bottle.response.set_header("Content-Disposition", "attachment;filename='{}'".format(os.path.basename(outputfile)))
+        bottle.response.set_header("Content-Disposition", "attachment;filename='{}'".format(os.path.basename(outputfilename)))
         return output
     except:
         bottle.response.status = 400
