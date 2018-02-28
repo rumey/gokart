@@ -285,10 +285,7 @@ def getLayers(datasource,layer=None,srs=None,defaultSrs=None,featureType=None):
                 info["geometry_column"] = value
             else:
                 m = field_re.search(value)
-                info["fields"].append((lkey,m.group('type'),m.group('width'),m.group('precision')))
-
-        if "geometry_column" not in info:
-            info["geometry_column"] = "geom"
+                info["fields"].append([lkey,m.group('type'),m.group('width'),m.group('precision')])
 
         return info
     info = subprocess.check_output(cmd)
@@ -641,18 +638,33 @@ def downloaod(fmt):
         #If a source layer is not a union layer, changed it to a union layer which only have one sub layer
         if layers:
             for layer in layers:
+                if layer.get("fields"): 
+                    index = 0
+                    while  index < len(layer["fields"]):
+                        if isinstance(layer["fields"][index],basestring):
+                            layer["fields"][index] = {"name":layer["fields"][index],"src":layer["fields"][index]}
+                        index += 1
+
                 if not layer.get("sourcelayers"):
                     raise Exception("Missing 'sourcelayers' in layer ({})".format(json.dumps(layer)))
                 elif not isinstance(layer["sourcelayers"],list):
                     layer["sourcelayers"] = [layer["sourcelayers"]]
 
+                for slayer in layer["sourcelayers"]:
+                    if slayer.get("fields"): 
+                        index = 0
+                        while  index < len(slayer["fields"]):
+                            if isinstance(slayer["fields"][index],basestring):
+                                slayer["fields"][index] = {"name":slayer["fields"][index],"src":slayer["fields"][index]}
+                            index += 1
+                    elif layer.get("fields"):
+                        slayer["fields"] = layer["fields"]
+
+
         #set field strategy and ignore_if_empty for layers
         if layers:
             for layer in layers:
-                if layer.get("fields"):
-                    if "field_strategy" in layer:
-                        del layer["field_strategy"]
-                elif not layer.get("field_strategy"):
+                if not layer.get("field_strategy"):
                     layer["field_strategy"] = "Intersection"
                 layer["ignore_if_empty"] = layer.get("ignore_if_empty") or False
                 #if geometry column, change it to a dict
@@ -670,9 +682,12 @@ def downloaod(fmt):
             for datasource in datasources:
                 datasource["ignore_if_empty"] = datasource.get("ignore_if_empty") or False
                 if datasource.get("fields"):
-                    if "field_strategy" in datasource:
-                        del datasource["field_strategy"]
-                elif not datasource.get("field_strategy"):
+                    while  index < len(datasource["fields"]):
+                        if isinstance(datasource["fields"][index],basestring):
+                            datasource["fields"][index] = {"name":datasource["fields"][index],"src":datasource["fields"][index]}
+                        index += 1
+
+                if not datasource.get("field_strategy"):
                     datasource["field_strategy"] = "Intersection"
 
     
@@ -807,9 +822,6 @@ def downloaod(fmt):
                         if "field_strategy" in sourcelayer:
                             layer["field_strategy"]  = sourcelayer["field_strategy"]
                             del sourcelayer["field_strategy"]
-                        if "fields" in sourcelayer:
-                            layer["fields"]  = sourcelayer["fields"]
-                            del sourcelayer["fields"]
                         if sourcelayer["format"]["name"] in ["geojson","json"]:
                             layer["layer"] = getBaseDatafileName(sourcelayer["datasource"][1],False)
                         else:
@@ -966,47 +978,27 @@ def downloaod(fmt):
                 vrtFile = os.path.join(vrtdir,"{}.vrt".format(layer["layer"]))
             if not os.path.exists(os.path.dirname(vrtFile)):
                 os.makedirs(os.path.dirname(vrtFile))
-            if "field_strategy" not in layer:
-                #Only some fields are required, need to get fields definition first.
-                layer["field_strategy"] = "Intersection"
-                vrt = UNIONLAYERS_TEMPLATE.render(layer)
-                with open(vrtFile,"wb") as f:
-                    f.write(vrt)
-                layerInfo = getLayers(vrtFile)[0]
-                fields = []
-                for f in layer["fields"]:
-                    try:
-                        fields.append(next(o for o in layerInfo["fields"] if o[0] == f.lower()))
-                    except StopIteration:
-                        pass
-                if len(fields) == 0:
-                    #all required fields does not exist in datasource, return all fields.
-                    del layer["fields"]
-                    if layer.get("geometry_column"):
-                        layer["geometry_field"] = {"name":layer["geometry_column"]["name"],"src":layer["geometry_column"]["name"]}
-                        if layer["geometry_column"].get("type"):
-                            layer["geometry_field"]["type"] = layer["geometry_column"]["type"]
-                        for sourceLayer in layer["sourcelayers"]:
-                            sourceLayer["geometry_field"] = {"name":layer["geometry_column"]["name"],"src":sourceLayer["meta"]["geometry_column"]}
-                else:
-                    layer["fields"] = fields
-                    if layer.get("geometry_column"):
-                        layer["geometry_field"] = {"name":layer["geometry_column"]["name"],"src":layer["geometry_column"]["name"]}
-                        if layer["geometry_column"].get("type"):
-                            layer["geometry_field"]["type"] = layer["geometry_column"]["type"]
-                        for sourceLayer in layer["sourcelayers"]:
-                            sourceLayer["geometry_field"] = {"name":layer["geometry_column"]["name"],"src":sourceLayer["meta"]["geometry_column"]}
-                    else:
-                        layer["geometry_field"] = {"name":layerInfo["geometry_column"],"src":layerInfo["geometry_column"]}
-                        for sourceLayer in layer["sourcelayers"]:
-                            sourceLayer["geometry_field"] = {"name":layerInfo["geometry_column"],"src":sourceLayer["meta"]["geometry_column"]}
-                    del layer["field_strategy"]
-            elif layer.get("geometry_column"):
-                layer["geometry_field"] = {"name":layer["geometry_column"]["name"],"src":layer["geometry_column"]["name"]}
-                if layer.get("geometry_column",{}).get("type"):
-                    layer["geometry_field"]["type"] = layer["geometry_column"]["type"]
-                for sourceLayer in layer["sourcelayers"]:
-                    sourceLayer["geometry_field"] = {"name":layer["geometry_column"]["name"],"src":sourceLayer["meta"]["geometry_column"]}
+
+            if layer.get("geometry_column"):
+                layer["geometry_field"] = {"name":layer["geometry_column"]["name"]}
+
+            for slayer in layer["sourcelayers"]:
+                #populate fields
+                if slayer.get("fields"):
+                    index = len(slayer["fields"]) - 1
+                    while index >= 0:
+                        try:
+                            slayer["fields"][index] = [slayer["fields"][index]["name"]] + next(o for o in slayer["meta"]["fields"] if o[0].lower() == slayer["fields"][index]["src"].lower())
+                        except StopIteration:
+                            pass
+                        index -= 1
+                    if len(slayer["fields"]) == 0:
+                            del slayer["fields"]
+                #populate geometry column
+                if layer.get("geometry_column"):
+                    slayer["geometry_field"] = {"name":layer["geometry_column"]["name"]}
+                    if slayer["meta"].get("geometry_column"):
+                        slayer["geometry_field"]["src"] = slayer["meta"]["geometry_column"]
 
             vrt = UNIONLAYERS_TEMPLATE.render(layer)
             with open(vrtFile,"wb") as f:
@@ -1154,7 +1146,7 @@ def downloaod(fmt):
     finally:
         try:
             #print "workdir = {}".format(workdir)
-            shutil.rmtree(workdir)
+            #shutil.rmtree(workdir)
             pass
         except:
             pass
