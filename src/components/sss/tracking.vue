@@ -54,7 +54,7 @@
               <label for="toggleDBCAResourceLabels" class="side-label">Show DBCA Resources</label>
             </div>
 
-            <!--div class="row">
+            <div class="row">
               <div class="switch tiny">
                 <input class="switch-input" id="toggleDFESResourceLabels" type="checkbox" v-bind:disabled="clippedOnly" v-bind:checked="showDFESResource" @change="showDFESResource = !showDFESResource" />
                 <label class="switch-paddle" for="toggleDFESResourceLabels">
@@ -62,7 +62,7 @@
                 </label>
               </div>
               <label for="toggleDFESResourceLabels" class="side-label">Show DFES Resources</label>
-            </div-->
+            </div>
 
             <div class="row">
               <div class="switch tiny">
@@ -499,8 +499,8 @@
         }
       },
       getSourceFilter:function() {
-        //if (this.showDBCAResource && this.showDFESResource && this.showOtherExternalResource) {
-        if (this.showDBCAResource && this.showOtherExternalResource) {
+        if (this.showDBCAResource && this.showDFESResource && this.showOtherExternalResource) {
+        //if (this.showDBCAResource && this.showOtherExternalResource) {
             return null
         } else if (!this.showDBCAResource && !this.showDFESResource && !this.showOtherExternalResource) {
             throw "Please choose at least one resource source."
