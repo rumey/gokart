@@ -1136,6 +1136,11 @@
                 var fire_position_task = null
                 var region_task = null
                 var district_task = null
+                var plantation_task = null
+
+                if (feat.get('status') === 'new' && originPoint)  {
+                    plantation_task = vm._taskManager.addTask(feat,"getSpatialData","plantation","Find the plantations within 3kms",utils.WAITING)
+                }
                 if (originPoint && (modifyType & 1) === 1) {
                     tenure_origin_point_task = vm._taskManager.addTask(feat,"getSpatialData","tenure_origin_point","Locate bushfire's dpaw tenure",utils.WAITING)
                     fire_position_task = vm._taskManager.addTask(feat,"getSpatialData","fire_position","Get the fire position",utils.WAITING)
@@ -1353,6 +1358,38 @@
                 }
             } catch(ex) {
                 vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+            }
+
+            if (plantation_task) {
+                plantation_task.setStatus(utils.RUNNING)
+                var point_buffer = turf.buffer({
+                    type:"Feature",
+                    properties:{},
+                    geometry:{
+                        type:"Point",
+                        coordinates:originPoint
+                    }
+                },3,"kilometers").geometry.coordinates[0]
+                var url = vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:plantation_annual_report") + "&outputFormat=json&cql_filter=INTERSECTS(wkb_geometry,POLYGON((" + point_buffer.map(function(p){return p[1] + " " + p[0]}).join("%2C") + ")))"
+                console.log(url)
+                $.ajax({
+                    url:url,
+                    dataType:"json",
+                    success: function (response, stat, xhr) {
+                        if (response.totalFeatures > 0) {
+                            spatialData["plantation"] = response.features
+                        }
+                        plantation_task.setStatus(utils.SUCCEED)
+                        vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                    },
+                    error: function (xhr,status,message) {
+                        plantation_task.setStatus(utils.FAILED,xhr.status + " : " + (xhr.responseText || message))
+                        vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                    },
+                    xhrFields: {
+                        withCredentials: true
+                    }
+                })
             }
         }
 
