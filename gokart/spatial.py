@@ -211,7 +211,6 @@ def calculateArea(session_cookies,results,features,options):
                 area_data["other_area"] = area_data["total_area"] - total_area
 
     
-@bottle.route("/spatial", method="POST")
 def spatial():
     # needs gdal 1.10+
     try:
