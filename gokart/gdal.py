@@ -17,7 +17,6 @@ from .settings import *
 gdalinfo = subprocess.check_output(["gdalinfo", "--version"])
 
 # PDF renderer, accepts a JPG
-@bottle.route("/gdal/<fmt>", method="POST")
 def gdal(fmt):
     # needs gdal 1.10+
     extent = bottle.request.forms.get("extent").split(" ")
@@ -504,7 +503,6 @@ def loadDatasource(session_cookie,workdir,loadedDatasources,options):
         else:
             raise Exception("Multiple layers are found in datasource({})".format(options["sourcename"]))
     
-@bottle.route("/ogrinfo", method="POST")
 def ogrinfo():
     # needs gdal 1.10+
     #import ipdb;ipdb.set_trace()
@@ -553,8 +551,7 @@ GEOMETRY_TYPE_MAP={
     "GEOMETRYCOLLECTION":"wkbGeometryCollection"
 }
 
-@bottle.route("/download/<fmt>", method="POST")
-def downloaod(fmt):
+def download(fmt):
     """
     form data:
     layers: a layer or a list of layer
