@@ -274,7 +274,7 @@ def prepareDatasource(datasource):
     
             filename = os.path.split(datasource["file"])
     
-            fileLock = FileLock(os.path.join(filename[0],".{}.lock".format(filename[1])),300,0.1)
+            fileLock = FileLock(os.path.join(filename[0],".{}.lock".format(filename[1])), 0.1, 0.02)
     
             if datasource.get("datasource"):
                 #loaded before
@@ -295,6 +295,7 @@ def prepareDatasource(datasource):
                     datasource["datasource"] = None
     
             if not datasource.get("datasource"):
+                print(repr(datasource))
                 try:
                     fileLock.acquire()
                     #check whether the file is decompressed before
@@ -2067,7 +2068,6 @@ def setDefaultOptionIfMissing(options,defaultOptions):
     return options
 
 
-@bottle.route('/outlookmetadata',method="GET")
 def outlookmetadata():
     """
     Get weather outlook metadata
@@ -2091,7 +2091,6 @@ def outlookmetadata():
         return {'size':len(outlook_metadata),'datasources':outlook_metadata}
 
 
-@bottle.route('/weatheroutlook/<fmt>',method="POST")
 def weatheroutlook(fmt):
     """
     Get data from raster datasources
