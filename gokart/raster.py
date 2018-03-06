@@ -274,7 +274,7 @@ def prepareDatasource(datasource):
     
             filename = os.path.split(datasource["file"])
     
-            fileLock = FileLock(os.path.join(filename[0],".{}.lock".format(filename[1])), 0.1, 0.02)
+            fileLock = FileLock(os.path.join(filename[0],".{}.lock".format(filename[1])), 120, 0.02)
     
             if datasource.get("datasource"):
                 #loaded before
