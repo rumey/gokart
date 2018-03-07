@@ -1022,7 +1022,7 @@
                 requestData = {
                     point:coordinate,
                     options: {
-                        title:"<h3>4 Day Weather Outlook for " + position + "(" + Math.round(coordinate[0] * 10000) / 10000 + "," + Math.round(coordinate[1] * 10000) / 10000 + ")</h3>",
+                        title:"4 Day Weather Outlook for " + position + "(" + Math.round(coordinate[0] * 10000) / 10000 + "," + Math.round(coordinate[1] * 10000) / 10000 + ")",
                     },
                     outlooks:[
                         {
@@ -1040,7 +1040,7 @@
                 requestData = {
                     point:coordinate,
                     options: {
-                        title:"<h3>" + vm.outlookDays + " Day Weather Outlook for " + position + "(" + Math.round(coordinate[0] * 10000) / 10000 + "," + Math.round(coordinate[1] * 10000) / 10000 + ")</h3>",
+                        title:vm.outlookDays + " Day Weather Outlook for " + position + "(" + Math.round(coordinate[0] * 10000) / 10000 + "," + Math.round(coordinate[1] * 10000) / 10000 + ")",
                     },
                     outlooks:[
                         {
