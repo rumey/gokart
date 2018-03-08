@@ -637,7 +637,6 @@
                     //group does not exist
                     this.outlookColumns.push({
                         group:group,
-                        required:(this.outlookColumns[groupIndex]["required"] || (ds["required"] || false)),
                         datasources:[{workspace:ds["workspace"],id:ds["id"],name:ds["name"],required:ds["required"] || false}]
                     })
                 }
