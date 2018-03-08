@@ -2242,6 +2242,9 @@ def weatheroutlook(fmt):
                     "srs":requestData["srs"],
                     "bandids":datasource["times"]
                 },debug))
+                if "context" in datasource and datasource["context"]["refresh_time"]:
+                    if "latest_refresh_time" not in  requestData or requestData["latest_refresh_time"] < datasource["context"]["refresh_time"]:
+                        requestData["latest_refresh_time"] = datasource["context"]["refresh_time"]
 
             for datasource in outlook.get("times_data",[]):
                 if datasource.get("group"):
@@ -2252,6 +2255,9 @@ def weatheroutlook(fmt):
                             "srs":requestData["srs"],
                             "bandids":ds.get("times",outlook["times"])
                         },debug))
+                        if "context" in ds and ds["context"]["refresh_time"]:
+                            if "latest_refresh_time" not in  requestData or requestData["latest_refresh_time"] < ds["context"]["refresh_time"]:
+                                requestData["latest_refresh_time"] = ds["context"]["refresh_time"]
                 else:
                     datasource.update(getRasterData({
                         "datasource":datasource,
@@ -2259,6 +2265,9 @@ def weatheroutlook(fmt):
                         "srs":requestData["srs"],
                         "bandids":datasource.get("times",outlook["times"])
                     },debug))
+                    if "context" in datasource and datasource["context"]["refresh_time"]:
+                        if "latest_refresh_time" not in  requestData or requestData["latest_refresh_time"] < datasource["context"]["refresh_time"]:
+                            requestData["latest_refresh_time"] = datasource["context"]["refresh_time"]
     
         result = requestData
         result["issued_time"] = datetime.datetime.now(PERTH_TIMEZONE)
