@@ -2084,6 +2084,28 @@ def outlookmetadata():
             hasFailedDs = True
             break
 
+    """
+    #test meta data refresh feature
+    metadata = [] 
+    ds1 = None
+    import random
+    for ds in outlook_metadata:
+        ds1 = dict(ds)
+        ds1["metadata"] = dict(ds1["metadata"])
+        ds1["metadata"]["refresh_time"] = datetime.datetime.now()
+        ds1["loadstatus"] = dict(ds1["loadstatus"])
+        if ds1["loadstatus"]["status"] == "loaded":
+            if random.randint(0,4) == -1:
+                ds1["loadstatus"]["status"] = "loadfailed"
+                hasFailedDs = True
+        metadata.append(ds1)
+    if hasFailedDs:
+        result = [ds for ds in metadata if ds["loadstatus"]["status"] == "loaded"]
+        return {'size':len(result),'datasources':result}
+    else:
+        return {'size':len(metadata),'datasources':metadata}
+    """
+
     if hasFailedDs:
         result = [ds for ds in outlook_metadata if ds["loadstatus"]["status"] == "loaded"]
         return {'size':len(result),'datasources':result}
