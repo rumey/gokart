@@ -856,7 +856,7 @@
         }
       },
       saveUrl:function(feat) {
-        return this.env.bfrsService + "/api/v1/bushfire/" + feat.get('id') + "/?format=json" 
+        return this.env.bfrsService + "/api/v1/bushfirespatial/" + feat.get('id') + "/?format=json" 
       },
       deleteUrl:function(feat) {
         return this.env.bfrsService + "/delete/" + feat.get('id')
