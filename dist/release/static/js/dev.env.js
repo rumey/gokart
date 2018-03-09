@@ -1,9 +1,9 @@
 var env = {
     envType:"dev",
-    envVersion:"2007-09-08 10:26",
+    envVersion:"2008-03-09 17:54",
     appType: (window.location.protocol == "file:")?"cordova":"webapp",
 
-    cswService:"https://oim.dbca.wa.gov.au/catalogue/api/records/",
+    cswService:"https://csw.dbca.wa.gov.au/catalogue/api/records/",
     catalogueAdminService:"https://oim.dbca.wa.gov.au",
 
     wmtsService:"https://kmi.dbca.wa.gov.au/geoserver/gwc/service/wmts",
