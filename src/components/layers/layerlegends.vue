@@ -182,8 +182,11 @@
       loadLegendFailed:function(index,l) {
         this.legendLayers.splice(index,1)
         l.loadLegendFailed = true
-        if(!this.hiddenLayers[l.id]) {
-            this.filteredLegendLayers.splice(this.filteredLegendLayers.indexOf(l),1)
+        if(this.filteredLegendLayers ) {
+            var index = this.filteredLegendLayers.indexOf(l)
+            if (index >= 0) {
+                this.filteredLegendLayers.splice(index,1)
+            }
         }
         
       },
