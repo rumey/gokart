@@ -1,10 +1,10 @@
 var env = {
     envType: "prod",
-    envVersion:"2008-03-09 17:54",
+    envVersion:"2008-03-09 21:54",
     appType: (window.location.protocol == "file:")?"cordova":"webapp",
 
     cswService:"https://csw.dpaw.wa.gov.au/catalogue/api/records/",
-    catalogueAdminService:"https://oim.dpaw.wa.gov.au",
+    catalogueAdminService:"https://csw.dpaw.wa.gov.au",
 
     wmtsService:"https://kmi.dpaw.wa.gov.au/geoserver/gwc/service/wmts",
     wmsService:"https://kmi.dpaw.wa.gov.au/geoserver/wms",
