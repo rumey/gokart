@@ -334,7 +334,13 @@ div.ol-previewmap.ol-uncollapsible {
         l.name = l.name || l.title
         l.type = l.type || 'TileLayer'
         if (l.type === 'TileLayer') {
-          l.legend = (l.legend && (vm.env.catalogueAdminService + l.legend))|| ((l.service_type === "WFS")?(vm.env.legendSrc + getLayerId(l.id)):null)
+          if (l.legend) {
+            if (!(l.legend.toLowerCase().startsWith("https://"))) {
+                l.legend = vm.env.catalogueAdminService + l.legend
+            }
+          } else {
+            l.legend = (l.service_type === "WFS")?(vm.env.legendSrc + getLayerId(l.id)):null
+          }
         }
         l.mapLayerId = l.mapLayerId || l.id
         if (l.dependentLayers) {
