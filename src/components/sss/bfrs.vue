@@ -1126,6 +1126,7 @@
                     fireboundary = (fireboundary && fireboundary.getPolygons().length > 0)?fireboundary.getCoordinates():null
         
                     spatialData["fire_boundary"] = fireboundary
+                    spatialData["area"] = null
                 }
         
                 var tenure_area_task = null
