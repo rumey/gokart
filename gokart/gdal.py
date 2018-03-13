@@ -987,7 +987,8 @@ def download(fmt):
                         try:
                             slayer["fields"][index] = [slayer["fields"][index]["name"]] + next(o for o in slayer["meta"]["fields"] if o[0].lower() == slayer["fields"][index]["src"].lower())
                         except StopIteration:
-                            pass
+                            #field does not exist, remove it
+                            del slayer["fields"][index]
                         index -= 1
                     if len(slayer["fields"]) == 0:
                             del slayer["fields"]
