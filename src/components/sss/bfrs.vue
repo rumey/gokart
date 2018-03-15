@@ -1118,6 +1118,7 @@
                     spatialData["origin_point_mga"] = vm.map.getMGA(originPoint)
                     spatialData["tenure_ignition_point"]  = null
                     spatialData["fire_position"]  = null
+                    spatialData["plantations"]  = null
                 }
         
                 if ((modifyType & 2) === 2) {
@@ -1378,7 +1379,7 @@
                     dataType:"json",
                     success: function (response, stat, xhr) {
                         if (response.totalFeatures > 0) {
-                            spatialData["plantation"] = response.features
+                            spatialData["plantations"] = response.features
                         }
                         plantation_task.setStatus(utils.SUCCEED)
                         vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
