@@ -1118,7 +1118,6 @@
                     spatialData["origin_point_mga"] = vm.map.getMGA(originPoint)
                     spatialData["tenure_ignition_point"]  = null
                     spatialData["fire_position"]  = null
-                    spatialData["plantations"]  = null
                 }
         
                 if ((modifyType & 2) === 2) {
@@ -1140,8 +1139,11 @@
                 var district_task = null
                 var plantation_task = null
 
-                if (feat.get('status') === 'new' && originPoint)  {
-                    plantation_task = vm._taskManager.addTask(feat,"getSpatialData","plantation","Find the plantations within 3kms",utils.WAITING)
+                if (["new","initial"].indexOf(feat.get('status')) >= 0 )  {
+                    spatialData["plantations"]  = null
+                    if (originPoint)  {
+                        plantation_task = vm._taskManager.addTask(feat,"getSpatialData","plantation","Find the plantations within 3kms",utils.WAITING)
+                    }
                 }
                 if (originPoint && (modifyType & 1) === 1) {
                     tenure_origin_point_task = vm._taskManager.addTask(feat,"getSpatialData","tenure_origin_point","Locate bushfire's dpaw tenure",utils.WAITING)
