@@ -1139,8 +1139,11 @@
                 var district_task = null
                 var plantation_task = null
 
-                if (feat.get('status') === 'new' && originPoint)  {
-                    plantation_task = vm._taskManager.addTask(feat,"getSpatialData","plantation","Find the plantations within 3kms",utils.WAITING)
+                if (["new","initial"].indexOf(feat.get('status')) >= 0 )  {
+                    spatialData["plantations"]  = null
+                    if (originPoint)  {
+                        plantation_task = vm._taskManager.addTask(feat,"getSpatialData","plantation","Find the plantations within 3kms",utils.WAITING)
+                    }
                 }
                 if (originPoint && (modifyType & 1) === 1) {
                     tenure_origin_point_task = vm._taskManager.addTask(feat,"getSpatialData","tenure_origin_point","Locate bushfire's dpaw tenure",utils.WAITING)
@@ -1378,7 +1381,17 @@
                     dataType:"json",
                     success: function (response, stat, xhr) {
                         if (response.totalFeatures > 0) {
-                            spatialData["plantation"] = response.features
+                            //only send the properties to bfrs
+                            spatialData["plantations"] = response.features.map(function(o){
+                                return {
+                                    "ogc_fid":o.properties["ogc_fid"],
+                                    "species":o.properties["species"],
+                                    "sp_type":o.properties["sp_type"],
+                                    "area_ha":o.properties["area_ha"],
+                                    "classifica":o.properties["classifica"]
+
+                                }
+                            })
                         }
                         plantation_task.setStatus(utils.SUCCEED)
                         vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
@@ -1444,6 +1457,16 @@
                     data:JSON.stringify(spatialData),
                     contentType:"application/json",
                     success: function (response, stat, xhr) {
+                        if (xhr.status === 280) {
+                            //bushfire is invalidated, the new fire_number and id are returned 
+                            if (response.fire_number && response.id) {
+                                feat.set("fire_number",response.fire_number)
+                                feat.set("id",response.id)
+                            } else {
+                                task.setStatus(utils.FAILED,"The bushfire report is invalidated ,but the new fire_number and id are not returned.")
+                                callback(feat,utils.FAILED,task.message)
+                            }
+                        }
                         if (!vm.isFireboundaryDrawable(feat)) {
                             if ((feat.get('modifyType') & 2) === 2) {
                                 var originPoint = feat.getGeometry().getGeometries().find(function(g) {return g instanceof ol.geom.Point}) || null
