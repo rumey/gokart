@@ -28,6 +28,9 @@ var env = {
         "dpaw:bushfire_fireboundary_latest"         : "dpaw:bushfire_fireboundary_latest_uat",
         "dpaw:bushfire"                             : "dpaw:bushfire_uat",
         "dpaw:bushfire_fireboundary"                : "dpaw:bushfire_fireboundary_uat",
+        "dpaw:resource_tracking_live"               : "dpaw:resource_tracking_live_uat",
+        "dpaw:resource_tracking_history"            : "dpaw:resource_tracking_history_uat"
+
     },
 
 }
