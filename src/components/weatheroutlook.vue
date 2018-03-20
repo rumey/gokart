@@ -270,7 +270,7 @@
 </style>
 
 <script>
-  import { ol,$,moment,utils} from 'src/vendor.js'
+  import { ol,saveAs,$,moment,utils} from 'src/vendor.js'
   export default {
     store: {
         reportType:'settings.weatheroutlook.reportType',
@@ -302,7 +302,8 @@
         outlookSetting:{},
         outlookSettings:[
             {name:"weather-outlook-default",title:"Default 4 Day Weather Outlook",icon:"/dist/static/images/weather-outlook-default.svg"},
-            {name:"weather-outlook-customized",title:"Customized Weather Outlook",icon:"/dist/static/images/weather-outlook-customized.svg"}
+            {name:"weather-outlook-customized",title:"Customized Weather Outlook",icon:"/dist/static/images/weather-outlook-customized.svg"},
+            {name:"weather-outlook-amicus",title:"Weather Outlook Amicus Export",icon:"/dist/static/images/weather-outlook-amicus.svg"}
         ],
         showSettings:false,
         revision:1,
@@ -1017,6 +1018,7 @@
         var vm = this
         var _getWeatherOutlook = function(position) {
             var requestData = null;
+            var format = vm.format
             if (vm.outlookSetting.name === "weather-outlook-default") {
                 requestData = {
                     point:coordinate,
@@ -1035,6 +1037,27 @@
                         }
                     ]
                 }
+            } else if (vm.outlookSetting.name === "weather-outlook-amicus") {
+                requestData = {
+                    point:coordinate,
+                    options: {
+                        title:"2 Day Weather Outlook for " + position + "(" + Math.round(coordinate[0] * 10000) / 10000 + "," + Math.round(coordinate[1] * 10000) / 10000 + ")",
+                        position:position,
+                        latitude:Math.round(coordinate[1] * 10000) / 10000,
+                        longitude:Math.round(coordinate[0] * 10000) / 10000
+                    },
+                    outlooks:[
+                        {
+                            days:utils.getDatetimes(["00:00:00"],2,1).map(function(dt) {return dt.format("YYYY-MM-DD")}),
+                            times:["00:00:00","01:00:00","02:00:00","03:00:00","04:00:00","05:00:00","06:00:00","07:00:00","08:00:00","09:00:00","10:00:00","11:00:00","12:00:00","13:00:00","14:00:00","15:00:00","16:00:00","17:00:00","18:00:00","19:00:00","20:00:00","21:00:00","22:00:00","23:00:00"],
+                            options:{
+                                expired:1 //unit:hour, the exipre time of each outlook in times
+                            },
+                            times_data:vm._amicusOutlookColumns,
+                        }
+                    ]
+                }
+                format = "amicus"
             } else {
                 requestData = {
                     point:coordinate,
@@ -1054,27 +1077,44 @@
                     ]
                 }
             }
-            if (vm.format === "json") {
-                $.ajax({
-                    url:vm.env.gokartService + "/weatheroutlook/json",
-                    dataType:"json",
-                    data:{
-                        data:JSON.stringify(requestData),
-                    },
-                    method:"POST",
-                    success: function (response, stat, xhr) {
-                        console.log(response)
-                    },
-                    error: function (xhr,status,message) {
-                        alert(xhr.status + " : " + (xhr.responseText || message))
-                    },
-                    xhrFields: {
-                        withCredentials: true
-                    }
-                })
-            } else {
+            if (format === "html") {
                 $("#weatheroutlook_data").val(JSON.stringify(requestData))
                 utils.submitForm("get_weatheroutlook",{width: (screen.width > 1890)?1890:screen.width, height:(screen.height > 1060)?1060:screen.height},true)
+            } else {
+                try{
+                    var req = new window.XMLHttpRequest()
+                    req.open('POST', vm.env.gokartService + "/weatheroutlook/" + format)
+                    req.responseType = 'blob'
+                    req.withCredentials = true
+                    req.onload = function (event) {
+                        try{
+                            if (req.status >= 400) {
+                                var reader = new FileReader()
+                                reader.addEventListener("loadend",function(e){
+                                    alert(e.target.result)
+                                })
+                                reader.readAsText(req.response)
+                            } else {
+                                var filename = null
+                                if (req.getResponseHeader("Content-Disposition")) {
+                                    var matches = vm._filename_re.exec(req.getResponseHeader("Content-Disposition"))
+                                    filename = (matches && matches[1])? matches[1]: null
+                                }
+                                if (!filename) {
+                                    filename = "weather_outlook_" + moment().format("YYYYMMDD_HHmm") + "." + format ;
+                                }
+                                saveAs(req.response, filename)
+                            }
+                        } catch(ex) {
+                            alert(ex.message || ex)
+                        }
+                    }
+                    var formData = new window.FormData()
+                    formData.append('data', JSON.stringify(requestData))
+                    req.send(formData)
+                }catch(ex) {
+                    callback(false,ex.message || ex)
+                }
             }
         }
 
@@ -1084,6 +1124,7 @@
     },
     ready: function () {
       var vm = this
+      this._filename_re = new RegExp("filename=[\'\"](.+)[\'\"]")
       this._weatheroutlookStatus = vm.loading.register("weatheroutlook","BOM Spot Outlook Component")
 
       this._weatheroutlookStatus.phaseBegin("initialize",20,"Initialize")
@@ -1141,6 +1182,45 @@
           {
               workspace:"bom",
               id:"IDW71139_WA_Curing_SFC",
+          },
+          {
+              workspace:"bom",
+              id:"IDW71117_WA_FFDI_SFC",
+          },
+          {
+              workspace:"bom",
+              id:"IDW71122_WA_GFDI_SFC",
+          },
+      ]
+
+      this._amicusOutlookColumns = [
+          {
+              workspace:"bom",
+              id:"IDW71000_WA_T_SFC",
+          },
+          {
+              workspace:"bom",
+              id:"IDW71001_WA_Td_SFC",
+          },
+          {
+              workspace:"bom",
+              id:"IDW71018_WA_RH_SFC",
+          },
+          {
+              workspace:"bom",
+              id:"IDW71089_WA_Wind_Dir_SFC",
+          },
+          {
+              workspace:"bom",
+              id:"IDW71071_WA_WindMagKmh_SFC",
+          },
+          {
+              workspace:"bom",
+              id:"IDW71072_WA_WindGustKmh_SFC",
+          },
+          {
+              workspace:"bom",
+              id:"IDW71110_WA_WindMagKmh_1500mAMSL",
           },
           {
               workspace:"bom",

@@ -497,7 +497,7 @@ raster_datasources={
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71002_WA_MaxT_SFC.nc.gz"),
             "name":"Maximum temperature",
             "sort_key":("weather","temperature"),
-            "time":"14:00:00",
+            "time_mapping":{"00:00:00":"14:00:00"},
             "var":"max_temp",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
@@ -522,7 +522,7 @@ raster_datasources={
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71003_WA_MinT_SFC.nc.gz"),
             "name":"Minimum temperature",
             "sort_key":("weather","temperature"),
-            "time":"06:00:00",
+            "time_mapping":{"00:00:00":"06:00:00"},
             "var":"min_temp",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
@@ -1749,7 +1749,7 @@ raster_datasources={
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71152_WA_DailyWxIcon_SFC.nc.gz"),
             "name":"Weather icon",
             "sort_key":("weather",),
-            "time":"12:00:00",
+            "time_mapping":{"00:00:00":"12:00:00"},
             "var":"weather_icon",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
@@ -1774,7 +1774,7 @@ raster_datasources={
             "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71152_WA_DailyWxIcon_SFC.nc.gz"),
             "name":"Weather",
             "sort_key":("weather",),
-            "time":"12:00:00",
+            "time_mapping":{"00:00:00":"12:00:00"},
             "var":"weather",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
@@ -2067,6 +2067,73 @@ def setDefaultOptionIfMissing(options,defaultOptions):
 
     return options
 
+def get_outlook_times(outlook,datasource = None):
+    """
+    get the times of datasource to outlook
+    outlook: outlook configuration dictionary object
+    datasource: the datasource which outlook times will be returned; if datasource is None, standard times will be returned
+    return the times if it is different than the standard time used in outlook; otherwise return none if the standard times will be used for this datasource
+    """
+    datasource_timemapping = None
+    if datasource and not datasource.get("times"):
+        datasource_timemapping = raster_datasources.get(datasource["workspace"],{}).get(datasource["id"],{}).get("time_mapping")
+        if not datasource_timemapping:
+            #use the standard times
+            return None
+
+    day_index = 0
+    time_index = 0
+    result = []
+    daily_result = None
+    outlook_days = outlook["days"]
+    outlook_times = outlook["times"]
+    min_time = outlook.get("min_time")
+    max_time = outlook.get("max_time")
+    datasource_times = datasource.get("times") if datasource else None
+    
+    while day_index < len(outlook_days):
+        time_index = 0
+        daily_result = []
+        while time_index < len(outlook_times):
+            try:
+                time = datetime.datetime.strptime("{} {}".format(outlook_days[day_index],outlook_times[time_index]),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE)
+                if min_time and min_time > time:
+                    continue
+                if max_time and max_time < time:
+                    #exit
+                    day_index = len(outlook_days)
+                    break
+                if datasource_times:
+                    daily_result.append(datetime.datetime.strptime("{} {}".format(outlook_days[day_index],datasource_times[time_index]),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE))
+                elif datasource_timemapping:
+                    daily_result.append(datetime.datetime.strptime("{} {}".format(outlook_days[day_index],(datasource_timemapping.get(outlook_times[time_index]) or outlook_times[time_index])),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE))
+                else:
+                    daily_result.append(time)
+            finally:
+                time_index += 1
+        if len(daily_result) > 0:
+            result.append(daily_result)
+        day_index += 1
+    return result
+
+
+def get_outlook_dailytimes(outlook,datasource = None):
+    """
+    get daily times of datasource to outlook
+    before invocation, outlook["times"] should already be formated to two dimension array
+    return a array of times for each day
+    """
+    datasource_timemapping = raster_datasources.get(datasource["workspace"],{}).get(datasource["id"],{}).get("time_mapping") if datasource else None
+
+    result = []
+    for dailytimes in outlook["times"]:
+        day = dailytimes[0].strftime("%Y-%m-%d")
+        if datasource_timemapping:
+            result.append(datetime.datetime.strptime("{} {}".format(day,(datasource_timemapping.get("00:00:00") or "00:00:00")),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE))
+        else:
+            result.append(datetime.datetime.strptime("{} {}".format(day,"00:00:00"),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE))
+    return result
+
 
 def outlookmetadata():
     """
@@ -2119,26 +2186,54 @@ def weatheroutlook(fmt):
     Request datas
         point: the coordinate of the point whose data will be retrieved from raster datasources
         srs: the spatial reference system of the coordinate, if missing, epsg:4326 will be used
-        datasources:  raster datasources and related options
+        outlooks:  raster datasources and related options
           {
-            workspace: the workspace of the datasource; for example:bom
-            {
-                datasource : bands(a band identity or a array of band identities; its value dependents on workspace).
-            }
-          {
-    Response: json or html
-        {
-            workspace: 
-            {
-                datasource:  
+            days: the outlook days
+            times: the outlook time each day
+            min_time: the earlist time to outlook if exist; if not exist, its value is the first time of the first day
+            max_time: the latest time to outlook if exit; if not exist, its value is the last time of the last day
+            options: a dictionary object
                 {
-                    status:true/false
-                    message: error message if failed
-                    data: a array of data retrieved from band; null represent no value or invalid band. datas has the same length as bands
+                    daily_title_pattern: the pattern of daily title
                 }
-            }
+            daily_data: a dictionary object to contain all the variable used in the dail_title_pattern
+            times_data:A array of datasources or groups to outlook each time
+                for datasources
+                {
+                    workspace: the workspace of datasource
+                    id: the identity of datasource
+                    options: dictionary object{
+                        title: the configured datasource title            
+                    }
+                    
+                }
+                for groups
+                {
+                    group: group name
+                    datasources: a array of datasource belonging to group
+                }
+          {
+    After process before foramt
+        The following properties will add to request data
+            latest_refresh_time: the latest refresh time of datasources outlooked by this request
+            issued_time: the current time
 
-        }
+        for each outlook, the following properties are changed
+            times: changed to a dimension array. the first array is day, the second array is all the times in that day
+
+        for each datasource in daily data, the following proeprties are added or changed:
+            status: true: processed successfully; otherwise false
+            times: a array of datatimes to outlook
+            context: merge with datasource's metadata
+            data:a array of data which is a array with 2 members: [layer index, value]
+
+        for each datasource in times data, the following properties are added or changed:
+            status: true: processed successfully; otherwise false
+            times: two dimension array, the first array is a day, the second array is the outlook times in that day
+            context: merge with datasource's metadata
+            data: three dimension array, the first araray is a day, the second array is the data for each outlook time in that day, the third array is a array with 2 members: [layer index, value]
+            
+    Response: json or html or others
     """
     fmt = (fmt or "json").lower()
     try:
@@ -2172,6 +2267,13 @@ def weatheroutlook(fmt):
 
             if not outlook.get("times_data"):
                 raise Exception("Parameter 'times_data' is missing.")
+
+            if outlook.get("min_time"):
+                outlook["min_time"] = datetime.datetime.strptime(outlook["min_time"],"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE)
+            outlook["min_time"] = datetime.datetime.now(tz=PERTH_TIMEZONE)
+                
+            if outlook.get("max_time"):
+                outlook["max_time"] = datetime.datetime.strptime(outlook["max_time"],"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE)
                 
 
             #outlook["times"] = [datetime.datetime.strptime(dt,"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE)  for dt in outlook["times"]]
@@ -2193,11 +2295,9 @@ def weatheroutlook(fmt):
                                 ds["times"] = [ds["times"]]
                             if len(ds["times"]) != len(outlook["times"]):
                                 raise Exception("The length of times of datasource in times_data's group is not equal with the length of times of outlook")
-                            ds["times"] = [[datetime.datetime.strptime("{} {}".format(day,time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in ds["times"]] for day in outlook["days"]]
-                        else:
-                            datasourceMetadata = raster_datasources.get(ds["workspace"],{}).get(ds["id"],{})
-                            if datasourceMetadata.get("time"):
-                                ds["times"] = [[datetime.datetime.strptime("{} {}".format(day,datasourceMetadata["time"],time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in outlook["times"]] for day in outlook["days"]]
+                        times = get_outlook_times(outlook,ds)
+                        if times:
+                            ds["times"] = times
 
 
                 else:
@@ -2210,12 +2310,22 @@ def weatheroutlook(fmt):
                             datasource["times"] = [datasource["times"]]
                         if len(datasource["times"]) != len(outlook["times"]):
                             raise Exception("The length of times of datasource in times_data is not equal with the length of times of outlook")
-                        datasource["times"] = [[datetime.datetime.strptime("{} {}".format(day,time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in datasource["times"]] for day in outlook["days"]]
-                    else:
-                        datasourceMetadata = raster_datasources.get(datasource["workspace"],{}).get(datasource["id"],{})
-                        if datasourceMetadata.get("time"):
-                            datasource["times"] = [[datetime.datetime.strptime("{} {}".format(day,datasourceMetadata["time"],time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in outlook["times"]] for day in outlook["days"]]
+                    times = get_outlook_times(outlook,datasource)
+                    if times:
+                        datasource["times"] = times
 
+            #format parameter 'times' to a 2 dimension array of datatime object;the first dimension is day, the second dimension is times in a day
+            outlook["times"] = get_outlook_times(outlook)
+
+            #format the days to a array of datetime object
+            outlook["days"] = get_outlook_dailytimes(outlook)
+
+            if not outlook.get("min_time"):
+                outlook["min_time"] = outlook["times"][0][0]
+                
+            if not outlook.get("max_time"):
+                outlook["max_time"] = outlook["times"][-1][-1]
+                
             #initialize 'daily_data' parameter
             if outlook.get("daily_data"):
                 for datasource in outlook["daily_data"].itervalues():
@@ -2223,14 +2333,7 @@ def weatheroutlook(fmt):
                         raise Exception("Property 'workspace' of datasource in daily_data is missing.")
                     if not datasource.get("id"):
                         raise Exception("Property 'id' of datasource in daily_data is missing.")
-                    datasourceMetadata = raster_datasources.get(datasource["workspace"],{}).get(datasource["id"],{})
-                    datasource["times"] = [datetime.datetime.strptime("{} {}".format(day,datasourceMetadata.get("time","00:00:00")),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE)  for day in outlook["days"]]
-
-            #format parameter 'times' to a 2 dimension array of datatime object;the first dimension is day, the second dimension is times in a day
-            outlook["times"] = [[datetime.datetime.strptime("{} {}".format(day,time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in outlook["times"]] for day in outlook["days"]]
-
-            #format the days to a array of datetime object
-            outlook["days"] = [datetime.datetime.strptime(day,"%Y-%m-%d").replace(tzinfo=PERTH_TIMEZONE)  for day in outlook["days"]]
+                    datasource["times"] = get_outlook_dailytimes(outlook,datasource)
 
         #extract the data from raster dataset and save the data into 'data' property of each datasource
         #the data structure is the same as the times structure
@@ -2274,6 +2377,7 @@ def weatheroutlook(fmt):
 
         if fmt == "json":
             bottle.response.set_header("Content-Type", "application/json")
+            bottle.response.set_header("Content-Disposition", "attachment;filename='weather_outlook_{}.json'".format(datetime.datetime.strftime(datetime.datetime.now(),"%Y%m%d_%H%M%S")))
             return result
         else:
             #html
@@ -2323,17 +2427,18 @@ def weatheroutlook(fmt):
 
             #format data if required
             for outlook in result["outlooks"]:
-                #format time column
-                index = 0;
-                while index < len(outlook["days"]):
-                    timeIndex = 0
-                    while timeIndex < len(outlook["times"][index]):
-                        if outlook.get("has_daily_group"):
-                           outlook["times"][index][timeIndex] = formatData(outlook["times"][index][timeIndex],outlook["options"].get("outlook_time_pattern"),result["options"].get("no_data") or "")
-                        else:
-                           outlook["times"][index][timeIndex] = formatData(outlook["times"][index][timeIndex],outlook["options"].get("outlook_date_pattern"),result["options"].get("no_data") or "")
-                        timeIndex += 1
-                    index += 1
+                if fmt == "html":
+                    #format time column
+                    index = 0;
+                    while index < len(outlook["times"]):
+                        timeIndex = 0
+                        while timeIndex < len(outlook["times"][index]):
+                            if outlook.get("has_daily_group"):
+                               outlook["times"][index][timeIndex] = formatData(outlook["times"][index][timeIndex],outlook["options"].get("outlook_time_pattern"),result["options"].get("no_data") or "")
+                            else:
+                               outlook["times"][index][timeIndex] = formatData(outlook["times"][index][timeIndex],outlook["options"].get("outlook_date_pattern"),result["options"].get("no_data") or "")
+                            timeIndex += 1
+                        index += 1
                 
                 #format daily data
                 for datasource in outlook.get("daily_data", {}).itervalues():
@@ -2347,7 +2452,7 @@ def weatheroutlook(fmt):
                     index = 0
                     while index < len(outlook["days"]):
                         groupContext["date"] = outlook["days"][index].strftime(outlook["options"]["date_pattern"])
-                        for name,datasource in outlook.get("daily_data",[]).iteritems():
+                        for name,datasource in outlook.get("daily_data",{}).iteritems():
                             groupContext[name] = datasource["data"][index][1] if datasource["status"] else (result["options"].get("no_data") or "")
                         outlook["daily_group"].append(outlook.get("options",{}).get("daily_title_pattern","{date}").format(**groupContext))
                         index += 1
@@ -2359,9 +2464,10 @@ def weatheroutlook(fmt):
                             if ds.get("context"):
                                 formatContext(ds["context"],result["options"])
                                 ds["options"]["title"] = ds["options"]["title"].format(**ds["context"])
-                                unit = raster_datasources[ds["workspace"]][ds["id"]].get("metadata",{}).get("unit")
-                                if html_unit_map.get(unit,unit):
-                                    ds["options"]["title"] = "{}<br>({})".format(ds["options"]["title"],html_unit_map.get(unit,unit))
+                                if fmt == "html":
+                                    unit = raster_datasources[ds["workspace"]][ds["id"]].get("metadata",{}).get("unit")
+                                    if html_unit_map.get(unit,unit):
+                                        ds["options"]["title"] = "{}<br>({})".format(ds["options"]["title"],html_unit_map.get(unit,unit))
 
                             if ds["status"]:
                                 formatBandsData(ds,result["options"].get("no_data") or "")
@@ -2369,15 +2475,21 @@ def weatheroutlook(fmt):
                         if datasource.get("context"):
                             formatContext(datasource["context"],result["options"])
                             datasource["options"]["title"] = datasource["options"]["title"].format(**datasource["context"])
-                            unit = raster_datasources[datasource["workspace"]][datasource["id"]].get("metadata",{}).get("unit")
-                            if html_unit_map.get(unit,unit):
-                                datasource["options"]["title"] = "{}<br>({})".format(datasource["options"]["title"],html_unit_map.get(unit,unit))
+                            if fmt == "html":
+                                unit = raster_datasources[datasource["workspace"]][datasource["id"]].get("metadata",{}).get("unit")
+                                if html_unit_map.get(unit,unit):
+                                    datasource["options"]["title"] = "{}<br>({})".format(datasource["options"]["title"],html_unit_map.get(unit,unit))
 
                         if datasource["status"] :
                             formatBandsData(datasource,result["options"].get("no_data") or "")
 
-            bottle.response.set_header("Content-Type", "text/html")
-            return bottle.template('weatheroutlook.html',template_adapter=bottle.Jinja2Template,template_settings=jinja2settings, staticService=STATIC_SERVICE,data=result,envType=ENV_TYPE)
+            if fmt == "amicus":
+                bottle.response.set_header("Content-Type", "application/xml")
+                bottle.response.set_header("Content-Disposition", "attachment;filename='weather_outlook_for_amicus_{}.xml'".format(datetime.datetime.strftime(datetime.datetime.now(),"%Y%m%d_%H%M%S")))
+                return bottle.template('weatheroutlook_amicus.xml',template_adapter=bottle.Jinja2Template,template_settings=jinja2settings, staticService=STATIC_SERVICE,data=result,envType=ENV_TYPE)
+            else:
+                bottle.response.set_header("Content-Type", "text/html")
+                return bottle.template('weatheroutlook.html',template_adapter=bottle.Jinja2Template,template_settings=jinja2settings, staticService=STATIC_SERVICE,data=result,envType=ENV_TYPE)
 
     except:
         bottle.response.status = 400
