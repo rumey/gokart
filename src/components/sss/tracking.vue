@@ -244,7 +244,7 @@
         clippedOnly: false,
         search: '',
         groupFilter: '',
-        sourceflag:2,
+        sourceflag:3,
         tools: [],
         historyRange: '21001',
         fields: ['id', 'registration', 'rin_display', 'deviceid', 'symbol', 'district_display', 'usual_driver', 'callsign_display', 'usual_location', 'current_driver', 'contractor_details', 'source_device_type'],
