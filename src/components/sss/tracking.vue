@@ -68,10 +68,10 @@
               <div class="switch tiny">
                 <input class="switch-input" id="toggleOtherExternalResourceLabels" type="checkbox" v-bind:disabled="clippedOnly" v-bind:checked="showOtherExternalResource" @change="showOtherExternalResource = !showOtherExternalResource" />
                 <label class="switch-paddle" for="toggleOtherExternalResourceLabels">
-                  <span class="show-for-sr">Show Other External Resources</span>
+                  <span class="show-for-sr">Show Other Aviation Resources</span>
                 </label>
               </div>
-              <label for="toggleDBCAResourceLabels" class="side-label">Show Other External Resources</label>
+              <label for="toggleDBCAResourceLabels" class="side-label">Show Other Aviation Resources</label>
             </div>
 
             <div class="row">
