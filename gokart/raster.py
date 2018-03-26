@@ -2270,7 +2270,6 @@ def weatheroutlook(fmt):
 
             if outlook.get("min_time"):
                 outlook["min_time"] = datetime.datetime.strptime(outlook["min_time"],"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE)
-            outlook["min_time"] = datetime.datetime.now(tz=PERTH_TIMEZONE)
                 
             if outlook.get("max_time"):
                 outlook["max_time"] = datetime.datetime.strptime(outlook["max_time"],"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE)
@@ -2380,7 +2379,6 @@ def weatheroutlook(fmt):
             bottle.response.set_header("Content-Disposition", "attachment;filename='weather_outlook_{}.json'".format(datetime.datetime.strftime(datetime.datetime.now(),"%Y%m%d_%H%M%S")))
             return result
         else:
-            #html
             #get total columns and check whether have groups
             for outlook in result["outlooks"]:
                 outlook["has_group"] = False
@@ -2428,7 +2426,7 @@ def weatheroutlook(fmt):
             #format data if required
             for outlook in result["outlooks"]:
                 if fmt == "html":
-                    #format time column
+                    #format time column only if output format is html
                     index = 0;
                     while index < len(outlook["times"]):
                         timeIndex = 0
@@ -2465,6 +2463,7 @@ def weatheroutlook(fmt):
                                 formatContext(ds["context"],result["options"])
                                 ds["options"]["title"] = ds["options"]["title"].format(**ds["context"])
                                 if fmt == "html":
+                                    #add unit to datasource title only if output format is html
                                     unit = raster_datasources[ds["workspace"]][ds["id"]].get("metadata",{}).get("unit")
                                     if html_unit_map.get(unit,unit):
                                         ds["options"]["title"] = "{}<br>({})".format(ds["options"]["title"],html_unit_map.get(unit,unit))
@@ -2476,6 +2475,7 @@ def weatheroutlook(fmt):
                             formatContext(datasource["context"],result["options"])
                             datasource["options"]["title"] = datasource["options"]["title"].format(**datasource["context"])
                             if fmt == "html":
+                                #add unit to datasource title only if output format is html
                                 unit = raster_datasources[datasource["workspace"]][datasource["id"]].get("metadata",{}).get("unit")
                                 if html_unit_map.get(unit,unit):
                                     datasource["options"]["title"] = "{}<br>({})".format(datasource["options"]["title"],html_unit_map.get(unit,unit))

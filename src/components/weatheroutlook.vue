@@ -1044,12 +1044,14 @@
                         title:"2 Day Weather Outlook for " + position + "(" + Math.round(coordinate[0] * 10000) / 10000 + "," + Math.round(coordinate[1] * 10000) / 10000 + ")",
                         position:position,
                         latitude:Math.round(coordinate[1] * 10000) / 10000,
-                        longitude:Math.round(coordinate[0] * 10000) / 10000
+                        longitude:Math.round(coordinate[0] * 10000) / 10000,
+                        no_data:""
                     },
                     outlooks:[
                         {
                             days:utils.getDatetimes(["00:00:00"],2,1).map(function(dt) {return dt.format("YYYY-MM-DD")}),
                             times:["00:00:00","01:00:00","02:00:00","03:00:00","04:00:00","05:00:00","06:00:00","07:00:00","08:00:00","09:00:00","10:00:00","11:00:00","12:00:00","13:00:00","14:00:00","15:00:00","16:00:00","17:00:00","18:00:00","19:00:00","20:00:00","21:00:00","22:00:00","23:00:00"],
+                            min_time:moment().format("YYYY-MM-DD HH:00:00"),
                             options:{
                                 expired:1 //unit:hour, the exipre time of each outlook in times
                             },
@@ -1197,38 +1199,72 @@
           {
               workspace:"bom",
               id:"IDW71000_WA_T_SFC",
+              options:{
+                title:"air_temperature"
+              }
           },
           {
               workspace:"bom",
               id:"IDW71001_WA_Td_SFC",
+              options:{
+                title:"dewpoint_temperature"
+              }
           },
           {
               workspace:"bom",
               id:"IDW71018_WA_RH_SFC",
+              options:{
+                title:"relative_humidity"
+              }
           },
           {
               workspace:"bom",
               id:"IDW71089_WA_Wind_Dir_SFC",
+              options:{
+                title:"wind_direction"
+              }
           },
           {
               workspace:"bom",
               id:"IDW71071_WA_WindMagKmh_SFC",
+              options:{
+                title:"wind_speed"
+              }
           },
           {
               workspace:"bom",
               id:"IDW71072_WA_WindGustKmh_SFC",
+              options:{
+                title:"wind_gust_speed"
+              }
+          },
+          {
+              workspace:"bom",
+              id:"IDW71111_WA_Wind_Dir_1500mAMSL",
+              options:{
+                title:"wind_direction_850hpa"
+              }
           },
           {
               workspace:"bom",
               id:"IDW71110_WA_WindMagKmh_1500mAMSL",
+              options:{
+                title:"wind_speed_850hpa"
+              }
           },
           {
               workspace:"bom",
               id:"IDW71117_WA_FFDI_SFC",
+              options:{
+                title:"forest_fire_danger_index"
+              }
           },
           {
               workspace:"bom",
               id:"IDW71122_WA_GFDI_SFC",
+              options:{
+                title:"grassland_fire_danger_index"
+              }
           },
       ]
 

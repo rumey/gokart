@@ -22,8 +22,9 @@
         <phase></phase>
     </amoc>
     <forecast>
+    {%- for outlook in data.outlooks -%}
         <area aac="WA_FA001" description="Western Australia" type="region">
-            <forecast-period start-time-local="{{data.min_time|formatDate('%Y-%m-%dT%H:%M:%S%z')}}" end-time-local="{{data.max_time|formatDate('%Y-%m-%dT%H:%M:%S%z')}}" start-time-utc="{{data.min_time|formatDate('%Y-%m-%dT%H:%M:%SZ',timezone='UTC')}}" end-time-utc="{{data.min_time|formatDate('%Y-%m-%dT%H:%M:%S%Z',timezone='UTC')}}">
+            <forecast-period start-time-local="{{outlook.min_time|formatDate('%Y-%m-%dT%H:%M:%S%z')}}" end-time-local="{{outlook.max_time|formatDate('%Y-%m-%dT%H:%M:%S%z')}}" start-time-utc="{{outlook.min_time|formatDate('%Y-%m-%dT%H:%M:%SZ',timezone='UTC')}}" end-time-utc="{{outlook.max_time|formatDate('%Y-%m-%dT%H:%M:%S%Z',timezone='UTC')}}">
                 <element type="event_name"></element>
                 <element type="event_type"></element>
                 <element type="event_number"></element>
@@ -51,7 +52,6 @@
                 <element type="fuel_loading"></element>
                 <text type="forecast"></text>
             </forecast-period>
-    {%- for outlook in data.outlooks -%}
         {%- for day in outlook.days -%}
           {%- set dayIndex = loop.index0 -%}
           {%- for time in outlook.times[dayIndex] -%}
@@ -62,7 +62,7 @@
                 {%- if datasource.status -%}
                     <element type="{{datasource.options.title|safe}}">{{datasource.data[dayIndex][timeIndex][1]}}</element>
                 {%- else -%}
-                    <element type="air_temperature">{{data.options.no_data}}</element>
+                    <element type="{{datasource.options.title|safe}}">{{data.options.no_data}}</element>
                 {% endif %}
             {% endfor %}
             </forecast-period>
