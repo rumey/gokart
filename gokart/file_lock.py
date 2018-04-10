@@ -76,8 +76,10 @@ class FileLock(object):
                     if metadata:
                         raise FileLockException("Lock is required by process ({}) at time ({}),and failed to release it within {} seconds".format(metadata["pid"],datetime.fromtimestamp(os.path.getmtime(self.lockfile)),self.timeout))
                     else:
-                        raise FileLockException("Lock is required by other process, but failed to release it within {} seconds".format(self.timeout))
-            else:
+                        locked = False
+                        print("Lock is required by other process, but failed to release it within {} seconds, automatically releast it.".format(self.timeout))
+
+            if not locked:
                 try:
                     os.remove(self.lockfile)
                 except:
