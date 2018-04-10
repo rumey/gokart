@@ -1375,7 +1375,6 @@
                     }
                 },3,"kilometers").geometry.coordinates[0]
                 var url = vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:plantation_annual_report") + "&outputFormat=json&cql_filter=INTERSECTS(wkb_geometry,POLYGON((" + point_buffer.map(function(p){return p[1] + " " + p[0]}).join("%2C") + ")))"
-                console.log(url)
                 $.ajax({
                     url:url,
                     dataType:"json",
