@@ -12,7 +12,7 @@ import traceback
 from jinja2 import Template
 
 from . import s3
-from .settings import *
+import settings
 
 gdalinfo = subprocess.check_output(["gdalinfo", "--version"])
 
@@ -99,7 +99,7 @@ def detectEpsg(filename):
 
 
 #initialize vrt template
-with open(os.path.join(BASE_PATH,"unionlayers.vrt")) as f:
+with open(os.path.join(settings.BASE_PATH,"unionlayers.vrt")) as f:
     UNIONLAYERS_TEMPLATE = Template(f.read())
 
 # Vector translation using ogr
@@ -234,8 +234,9 @@ def getDatasourceFiles(workdir,datasourcefile):
     return datasourcefiles
 
 layer_re = re.compile("[\r\n]+Layer name:")
-layer_info_re = re.compile("[\r\n]+(?P<key>[a-zA-Z0-9_\-][a-zA-Z0-9_\- ]*)[ \t]*:(?P<value>[^\r\n]*([\r\n]+(([ \t]+[^\r\n]*)|(GEOGCS[^\r\n]*)))*)")
+layer_info_re = re.compile("[\r\n]+(?P<key>[a-zA-Z0-9_\-][a-zA-Z0-9_\- ]*)[ \t]*[:=](?P<value>[^\r\n]*([\r\n]+(([ \t]+[^\r\n]*)|(GEOGCS[^\r\n]*)))*)")
 extent_re = re.compile("\s*\(\s*(?P<minx>-?[0-9\.]+)\s*\,\s*(?P<miny>-?[0-9\.]+)\s*\)\s*\-\s*\(\s*(?P<maxx>-?[0-9\.]+)\s*\,\s*(?P<maxy>-?[0-9\.]+)\s*\)\s*")
+field_re = re.compile("[ \t]*(?P<type>[a-zA-Z0-9]+)[ \t]*(\([ \t]*(?P<width>[0-9]+)\.(?P<precision>[0-9]+)\))?[ \t]*")
 def getLayers(datasource,layer=None,srs=None,defaultSrs=None,featureType=None):
     # needs gdal 1.10+
     infoIter = None
@@ -258,26 +259,33 @@ def getLayers(datasource,layer=None,srs=None,defaultSrs=None,featureType=None):
     def getLayerInfo(layerInfo):
         info = {"fields":[],"srs":srs}
         for m in layer_info_re.finditer(layerInfo):
-            key = m.group("key").lower()
+            key = m.group("key")
+            lkey = key.lower()
             value = m.group("value").strip()
-            if key in ("info","metadata","layer srs wkt","ogrinfo"): 
+            if lkey in ("info","metadata","layer srs wkt","ogrinfo"): 
                 continue
-            if key == "layer name":
+            if lkey == "layer name":
                 info["layer"] = value
-            elif key == "geometry":
+            elif lkey == "geometry":
                 info["geometry"] = value.replace(" ","").upper()
-            elif key == "feature count":
+            elif lkey == "feature count":
                 try:
                     info["features"] = int(value)
                 except:
                     info["features"] = 0
-            elif key == "extent":
+            elif lkey == "extent":
                 try:
-                    info["extent"] = [float(v) for v in extent_re.find(value).groups()]
+                    info["extent"] = [float(v) for v in extent_re.search(value).groups()]
                 except:
                     pass
+            elif lkey == "fid column":
+                info["fid_column"] = value
+            elif lkey == "geometry column":
+                info["geometry_column"] = value
             else:
-                info["fields"].append((key,value))
+                m = field_re.search(value)
+                info["fields"].append([lkey,m.group('type'),m.group('width'),m.group('precision')])
+
         return info
     info = subprocess.check_output(cmd)
     layers = []
@@ -533,6 +541,16 @@ def ogrinfo():
             pass
 
 
+GEOMETRY_TYPE_MAP={
+    "POINT":"wkbPoint",
+    "LINESTRING":"wkbLineString",
+    "POLYGON":"wkbPolygon",
+    "MULTIPOINT":"wkbMultiPoint",
+    "MULTILINESTRING":"wkbMultiLineString",
+    "MULTIPOLYGON":"wkbMultiPolygon",
+    "GEOMETRYCOLLECTION":"wkbGeometryCollection"
+}
+
 def download(fmt):
     """
     form data:
@@ -558,6 +576,11 @@ def download(fmt):
                 layer: layer name,required if datasource include multiple layers
                 where: filter the features 
             },
+            geometry_column: dictionary
+                name: geometry column name
+                type: geometry column type
+            field_strategy: default is Intersection
+            fields: optional
         },
     datasources:a datasource or a list of datasource
         {
@@ -572,6 +595,8 @@ def download(fmt):
             defautl_srs:default srs; optional
             datasource: used if sourcetype is "UPLOAD" and uploaded file contains multiple datasources
             ignore_if_empty: empty layer will not be returned if true; default is false
+            field_strategy: default is Intersection
+            fields: optional
         }
     
     filename:optional, used when multiple output datasources are downloaded
@@ -613,22 +638,57 @@ def download(fmt):
         #If a source layer is not a union layer, changed it to a union layer which only have one sub layer
         if layers:
             for layer in layers:
+                if layer.get("fields"): 
+                    index = 0
+                    while  index < len(layer["fields"]):
+                        if isinstance(layer["fields"][index],basestring):
+                            layer["fields"][index] = {"name":layer["fields"][index],"src":layer["fields"][index]}
+                        index += 1
+
                 if not layer.get("sourcelayers"):
                     raise Exception("Missing 'sourcelayers' in layer ({})".format(json.dumps(layer)))
                 elif not isinstance(layer["sourcelayers"],list):
                     layer["sourcelayers"] = [layer["sourcelayers"]]
 
+                for slayer in layer["sourcelayers"]:
+                    if slayer.get("fields"): 
+                        index = 0
+                        while  index < len(slayer["fields"]):
+                            if isinstance(slayer["fields"][index],basestring):
+                                slayer["fields"][index] = {"name":slayer["fields"][index],"src":slayer["fields"][index]}
+                            index += 1
+                    elif layer.get("fields"):
+                        slayer["fields"] = layer["fields"]
+
+
         #set field strategy and ignore_if_empty for layers
         if layers:
             for layer in layers:
-                if layer.get("fields") and not layer.get("fieldStrategy"):
-                    layer["fieldStrategy"] = "Intersection"
+                if not layer.get("field_strategy"):
+                    layer["field_strategy"] = "Intersection"
                 layer["ignore_if_empty"] = layer.get("ignore_if_empty") or False
+                #if geometry column is a string, change it to a dict
+                if layer.get("geometry_column") and isinstance(layer["geometry_column"],basestring):
+                    layer["geometry_column"] = {name:layer["geometry_column"]}
+
+                if layer.get("geometry_column",{}).get("type"):
+                    if layer["geometry_column"]["type"].upper() in GEOMETRY_TYPE_MAP:
+                        layer["geometry_column"]["type"] = GEOMETRY_TYPE_MAP[layer["geometry_column"]["type"].upper()]
+                    else:
+                        del layer["geometry_column"]["type"]
 
         #set datasource's ignore_if_empty
         if datasources:
             for datasource in datasources:
                 datasource["ignore_if_empty"] = datasource.get("ignore_if_empty") or False
+                if datasource.get("fields"):
+                    while  index < len(datasource["fields"]):
+                        if isinstance(datasource["fields"][index],basestring):
+                            datasource["fields"][index] = {"name":datasource["fields"][index],"src":datasource["fields"][index]}
+                        index += 1
+
+                if not datasource.get("field_strategy"):
+                    datasource["field_strategy"] = "Intersection"
 
     
         def setDatasourceType(ds):
@@ -650,24 +710,24 @@ def download(fmt):
             if "sourcename" in ds:
                 name = ds["sourcename"]
                 if unique and "where" in ds:
-                    name = "{}-{}".format(name,getMd5(ds["where"]))
+                    name = "{}-{}".format(name,settings.get_md5(ds["where"]))
             elif ds["type"] == "WFS":
-                name = typename(ds["url"])
+                name = settings.typename(ds["url"])
                 if not name:
-                    name = getMd5(ds["url"])
+                    name = settings.get_md5(ds["url"])
                     if unique and "where" in ds:
-                        name = "{}-{}".format(name,getMd5(ds["where"]))
+                        name = "{}-{}".format(name,settings.get_md5(ds["where"]))
                 else:
                     name = name.replace(":","_")
                     if unique:
                         if "where" in ds:
-                            name = "{}-{}-{}".format(name,getMd5(ds["url"]),getMd5(ds["where"]))
+                            name = "{}-{}-{}".format(name,settings.get_md5(ds["url"]),settings.get_md5(ds["where"]))
                         else:
-                            name = "{}-{}".format(name,getMd5(ds["url"]))
+                            name = "{}-{}".format(name,settings.get_md5(ds["url"]))
             elif ds["type"] == "FORM":
                 name = ds["parameter"]
                 if unique and "where" in ds:
-                    name = "{}-{}".format(name,getMd5(ds["where"]))
+                    name = "{}-{}".format(name,settings.get_md5(ds["where"]))
             elif ds["type"] == "UPLOAD":
                 filename = bottle.request.files.get(ds["parameter"]).filename
                 filename = os.path.split(filename)[1]
@@ -679,7 +739,7 @@ def download(fmt):
                 if not name:
                     name = os.path.splitext(filename)[0]
                 if unique and "where" in ds:
-                    name = "{}-{}".format(name,getMd5(ds["where"]))
+                    name = "{}-{}".format(name,settings.get_md5(ds["where"]))
 
 
             return name
@@ -724,8 +784,8 @@ def download(fmt):
         #load data sources
         workdir = tempfile.mkdtemp()
 
-        session_cookie = get_session_cookie()
-        cookies={sso_cookie_name:session_cookie}
+        session_cookie = settings.get_session_cookie()
+        cookies={settings.sso_cookie_name:session_cookie}
 
         loaddir = os.path.join(workdir,"load")
         os.mkdir(loaddir)
@@ -759,6 +819,9 @@ def download(fmt):
                             "sourcelayers":[sourcelayer],
                             "ignore_if_empty":datasource["ignore_if_empty"]
                         }
+                        if "field_strategy" in sourcelayer:
+                            layer["field_strategy"]  = sourcelayer["field_strategy"]
+                            del sourcelayer["field_strategy"]
                         if sourcelayer["format"]["name"] in ["geojson","json"]:
                             layer["layer"] = getBaseDatafileName(sourcelayer["datasource"][1],False)
                         else:
@@ -915,6 +978,29 @@ def download(fmt):
                 vrtFile = os.path.join(vrtdir,"{}.vrt".format(layer["layer"]))
             if not os.path.exists(os.path.dirname(vrtFile)):
                 os.makedirs(os.path.dirname(vrtFile))
+
+            if layer.get("geometry_column"):
+                layer["geometry_field"] = {"name":layer["geometry_column"]["name"]}
+
+            for slayer in layer["sourcelayers"]:
+                #populate fields
+                if slayer.get("fields"):
+                    index = len(slayer["fields"]) - 1
+                    while index >= 0:
+                        try:
+                            slayer["fields"][index] = [slayer["fields"][index]["name"]] + next(o for o in slayer["meta"]["fields"] if o[0].lower() == slayer["fields"][index]["src"].lower())
+                        except StopIteration:
+                            #field does not exist, remove it
+                            del slayer["fields"][index]
+                        index -= 1
+                    if len(slayer["fields"]) == 0:
+                            del slayer["fields"]
+                #populate geometry column
+                if layer.get("geometry_column"):
+                    slayer["geometry_field"] = {"name":layer["geometry_column"]["name"]}
+                    if slayer["meta"].get("geometry_column"):
+                        slayer["geometry_field"]["src"] = slayer["meta"]["geometry_column"]
+
             vrt = UNIONLAYERS_TEMPLATE.render(layer)
             with open(vrtFile,"wb") as f:
                 f.write(vrt)
@@ -1051,7 +1137,7 @@ def download(fmt):
 
         output = open(outputfile)
         bottle.response.set_header("Content-Type", filemime)
-        bottle.response.set_header("Content-Disposition", "attachment;filename='{}'".format(os.path.basename(outputfile)))
+        bottle.response.set_header("Content-Disposition", "attachment;filename='{}'".format(os.path.basename(outputfilename)))
         return output
     except:
         bottle.response.status = 400

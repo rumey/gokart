@@ -352,7 +352,7 @@
       exportVector: function(features, name,format) {
         var vm = this
         //add applicaiton name and timestamp
-        var name = (name || '') + "." + this.$root.profile.name + "_export_" + moment().format("YYYYMMDD_HHmm")
+        var name = (name || '') + "." + this.$root.profile.name + "_export_" + moment().format("YYYYMMDD_HHmmss")
         var result = this.$root.geojson.writeFeatures(features)
         format = format || this.vectorFormat
         if (format === 'geojson') {

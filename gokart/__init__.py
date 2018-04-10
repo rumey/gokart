@@ -207,28 +207,50 @@ def saveas():
 # Landgate tile servers, round robin
 FIREWATCH_SERVICE = "/mapproxy/firewatch/service"
 FIREWATCH_GETCAPS = FIREWATCH_SERVICE + "?service=wms&request=getcapabilities"
-FIREWATCH_HTTPS_VERIFY = settings.Setting.getBool("FIREWATCH_HTTPS_VERIFY", True)
+FIREWATCH_HTTPS_VERIFY = settings.get_bool("FIREWATCH_HTTPS_VERIFY", True)
 
 
 @bottle.route("/hi8/<target>")
 def himawari8(target):
-    baseUrl = bottle.request.url[0: bottle.request.url.find("/hi8")]
+    last_updatetime = bottle.request.query.get("updatetime")
+    baseUrl = bottle.request.url[0:bottle.request.url.find("/hi8")]
+    key = "himawari8.{}".format(target)
+    result = None
+    getcaps = None
     if uwsgi.cache_exists("himawari8"):
-        getcaps = uwsgi.cache_get("himawari8")
+        if uwsgi.cache_exists(key):
+            result = json.loads(uwsgi.cache_get(key))
+        else:
+            getcaps = uwsgi.cache_get("himawari8")
     else:
-        getcaps = requests.get("{}{}".format(baseUrl, FIREWATCH_GETCAPS), verify=FIREWATCH_HTTPS_VERIFY).content
+        res = requests.get("{}{}".format(baseUrl,FIREWATCH_GETCAPS),verify=FIREWATCH_HTTPS_VERIFY)
+        res.raise_for_status()
+        getcaps = res.content
+        getcaps = getcaps.decode("utf-8")
         uwsgi.cache_set("himawari8", getcaps, 60*10)  # cache for 10 mins
-    getcaps = getcaps.decode("utf-8")
-    layernames = re.findall("\w+HI8\w+{}\.\w+".format(target), getcaps)
-    layers = []
-    for layer in layernames:
-        layers.append([settings.PERTH_TIMEZONE.localize(datetime.datetime.strptime(re.findall("\w+_(\d+)_\w+", layer)[0], "%Y%m%d%H%M")).isoformat(), layer])
-    result = {
-        "servers": [baseUrl + FIREWATCH_SERVICE],
-        "layers": layers
-    }
-    return result
 
+    if not result:
+        layernames = re.findall("\w+HI8\w+{}\.\w+".format(target), getcaps)
+        layers = []
+        for layer in layernames:
+            layers.append([settings.PERTH_TIMEZONE.localize(datetime.datetime.strptime(re.findall("\w+_(\d+)_\w+", layer)[0], "%Y%m%d%H%M")), layer])
+        layers = sorted(layers,key=lambda layer:layer[0])
+        for layer in layers:
+            layer[0] = (layer[0]).strftime("%a %b %d %Y %H:%M:%S AWST")
+        result = {
+            "servers": [baseUrl + FIREWATCH_SERVICE],
+            "layers": layers,
+            "updatetime":layers[len(layers) - 1][0]
+        }
+        uwsgi.cache_set(key, json.dumps(result), 60*10)  # cache for 10 mins
+
+    if len(result["layers"]) == 0:
+        return bottle.HTTPResponse(status=404)
+    elif last_updatetime and last_updatetime == result["updatetime"]:
+        bottle.response.status = 290
+        return "{}"
+    else:
+        return result
 
 basetime_url = os.environ.get("BOM_BASETIME_URL") or "https://kmi.dbca.wa.gov.au/geoserver/bom/wms?service=WMS&version=1.1.0&request=GetMap&styles=&bbox=70.0,-55.0, 195.0, 20.0&width=768&height=460&srs=EPSG:4283&format=image%2Fgif&layers={}"
 basetime_re = re.compile("(\d{4})-(\d{2})-(\d{2})\s*(\d{2})\D*(\d{2})\s*(UTC)")

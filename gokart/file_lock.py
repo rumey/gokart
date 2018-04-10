@@ -24,21 +24,27 @@ class FileLock(object):
 
     @property
     def is_locked(self):
-        if not self.acquired_lock_time:
-            #not locked
-            return False
-        elif time.time() - self.acquired_lock_time < self.timeout:
-            #acquired the lock and is not timeout
-            return True
-        elif self.acquired_lock_time != os.path.getmtime(self.lockfile):
-            #acquired the lock, but is already timeout, and lockfile is modified
-            self.acquired_lock_time = None
-            return False
-        else:
-            #acquired the lock, but is already timeout, and lockfile is not modified, renew the lock
-            os.utime(self.lockfile,None)
-            self.acquired_lock_time = os.path.getmtime(self.lockfile)
-            return True
+        try:
+            if not self.acquired_lock_time:
+                #not locked
+                return False
+            elif time.time() - self.acquired_lock_time < self.timeout:
+                #acquired the lock and is not timeout
+                return True
+            elif self.acquired_lock_time != os.path.getmtime(self.lockfile):
+                #acquired the lock, but is already timeout, and lockfile is modified
+                self.acquired_lock_time = None
+                return False
+            else:
+                #acquired the lock, but is already timeout, and lockfile is not modified, renew the lock
+                os.utime(self.lockfile,None)
+                self.acquired_lock_time = os.path.getmtime(self.lockfile)
+                return True
+        except OSError as e:
+            if e.errno == errno.ENOENT:
+                #lock file does not exist
+                return False
+            raise
         
 
     @property
@@ -56,37 +62,44 @@ class FileLock(object):
 
     @property
     def is_locked_by_others(self):
-        if os.path.exists(self.lockfile):
-            locked = True
-            try:
+        try:
+            if os.path.exists(self.lockfile):
+                locked = True
                 metadata = self.lock_metadata
-                if metadata:
-                    if os.path.exists(os.path.join("/proc",str(metadata["pid"]))) and metadata["process_start_time"] == os.path.getmtime(os.path.join("/proc",str(metadata["pid"]),"cmdline")):
-                        #process exist and also the create time of the process is the same as the meta data
-                        locked = True
-                    else:
-                        locked = False
-            except:
-                traceback.print_exc()
-                pass
-
-            if locked:
-                #check timeout
-                if time.time() - os.path.getmtime(self.lockfile) >= self.timeout:
-                    if metadata:
-                        raise FileLockException("Lock is required by process ({}) at time ({}),and failed to release it within {} seconds".format(metadata["pid"],datetime.fromtimestamp(os.path.getmtime(self.lockfile)),self.timeout))
-                    else:
-                        raise FileLockException("Lock is required by other process, but failed to release it within {} seconds".format(self.timeout))
-            else:
                 try:
-                    os.remove(self.lockfile)
+                    if metadata:
+                        if os.path.exists(os.path.join("/proc",str(metadata["pid"]))) and metadata["process_start_time"] == os.path.getmtime(os.path.join("/proc",str(metadata["pid"]),"cmdline")):
+                            #process exist and also the create time of the process is the same as the meta data
+                            locked = True
+                        else:
+                            locked = False
                 except:
+                    traceback.print_exc()
                     pass
+    
+                if locked:
+                    #check timeout
+                    if time.time() - os.path.getmtime(self.lockfile) >= self.timeout:
+                        if metadata:
+                            raise FileLockException("Lock is required by process ({}) at time ({}),and failed to release it within {} seconds".format(metadata["pid"],datetime.fromtimestamp(os.path.getmtime(self.lockfile)),self.timeout))
+                        else:
+                            raise FileLockException("Lock is required by other process, but failed to release it within {} seconds, automatically releast it.".format(self.timeout))
+    
+                if not locked:
+                    try:
+                        os.remove(self.lockfile)
+                    except:
+                        pass
+    
+                return locked
+            else:
+                return False
+        except OSError as e:
+            if e.errno == errno.ENOENT:
+                #lock file does not exist
+                return False
+            raise
 
-            return locked
-        else:
-            return False
- 
     def waitUntilRelease(self):
         """ Wait until no one hold the lock, if possible. 
             If the lock is in use, it check again every `wait` seconds. 
@@ -121,8 +134,13 @@ class FileLock(object):
                 self.acquired_lock_time = os.path.getmtime(self.lockfile)
                 break;
             except OSError as e:
-                if e.errno != errno.EEXIST:
+                if e.errno == errno.ENOENT:
+                    #folder does not exist,create it and continue
+                    os.makedirs(os.path.dirname(self.lockfile))
+                    continue
+                elif e.errno != errno.EEXIST:
                     raise 
+
                 if not self.is_locked_by_others:
                     #no one acquire the lock, try again
                     continue
@@ -141,8 +159,7 @@ class FileLock(object):
         """
         if self.is_locked:
             try:
-                if os.path.exists(self.lockfile):
-                    os.remove(self.lockfile)
+                os.remove(self.lockfile)
             except:
                 pass
             self.acquired_lock_time = None

@@ -220,10 +220,12 @@ function getDataUrl(image) {
 
 }
 
-function convertHtmlToPdfContent(element,ignoreElements,content) {
+function convertHtmlToPdfContent(element,ignoreElements,content,filter) {
     content = content || [];
     $.each(element.childNodes,function(index,node){
-        if (node.nodeName === "#text") {
+        if (filter && !filter(node)) {
+            return
+        } else if (node.nodeName === "#text") {
             if (node.data.trim() === "") {
                 return
             }
@@ -310,7 +312,18 @@ function convertHtmlToPdfContent(element,ignoreElements,content) {
                 content["widths"][content["context"]["columnIndex"]] = 'auto'
             }
             //add cell value to pdf
-            var cellBody = convertHtmlToPdfContent(node,ignoreElements,[])
+            var cellBody = null
+            if (node.nodeName.toUpperCase() === "TH") {
+                cellBody = convertHtmlToPdfContent(node,ignoreElements,[],function(node){
+                    if (node.nodeName.toUpperCase() === "BR") {
+                        return false
+                    } else {
+                        return true
+                    }
+                })
+            } else {
+                cellBody = convertHtmlToPdfContent(node,ignoreElements,[])
+            }
             content["body"][content["context"]["rowIndex"]].push({stack:cellBody,colSpan:colSpan,rowSpan:rowSpan,alignment:$(node).css('text-align'),fillColor:content["context"]["rowColor"],margin:[0,0,0,0]})
 
             //set the context rowSpan array value
@@ -368,7 +381,6 @@ function exportAsPdf(elementId,ignoreElementSelector,filename) {
         content:convertHtmlToPdfContent(rootElement,ignoreElements)
     }
     pdfMake.createPdf(docDefinition).download(filename);
-    console.log(docDefinition)
 }
 
 function exportAs(elementId,ignoreElementsSelector,filename) {
@@ -412,7 +424,12 @@ function exportAs(elementId,ignoreElementsSelector,filename) {
             }
         }
     } else if (format === "pdf") {
-        exportAsPdf(elementId,ignoreElementsSelector,filename)
+        try{
+            $("#" + elementId).addClass(elementId + "-print")
+            exportAsPdf(elementId,ignoreElementsSelector,filename)
+        } finally {
+            $("#" + elementId).removeClass(elementId + "-print")
+        }
     } else {
         alert("File format(" + format + ") Not Support")
     }

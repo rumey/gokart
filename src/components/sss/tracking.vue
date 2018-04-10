@@ -54,7 +54,7 @@
               <label for="toggleDBCAResourceLabels" class="side-label">Show DBCA Resources</label>
             </div>
 
-            <!--div class="row">
+            <div class="row">
               <div class="switch tiny">
                 <input class="switch-input" id="toggleDFESResourceLabels" type="checkbox" v-bind:disabled="clippedOnly" v-bind:checked="showDFESResource" @change="showDFESResource = !showDFESResource" />
                 <label class="switch-paddle" for="toggleDFESResourceLabels">
@@ -62,16 +62,16 @@
                 </label>
               </div>
               <label for="toggleDFESResourceLabels" class="side-label">Show DFES Resources</label>
-            </div-->
+            </div>
 
             <div class="row">
               <div class="switch tiny">
                 <input class="switch-input" id="toggleOtherExternalResourceLabels" type="checkbox" v-bind:disabled="clippedOnly" v-bind:checked="showOtherExternalResource" @change="showOtherExternalResource = !showOtherExternalResource" />
                 <label class="switch-paddle" for="toggleOtherExternalResourceLabels">
-                  <span class="show-for-sr">Show Other External Resources</span>
+                  <span class="show-for-sr">Show Other Aviation Resources</span>
                 </label>
               </div>
-              <label for="toggleDBCAResourceLabels" class="side-label">Show Other External Resources</label>
+              <label for="toggleDBCAResourceLabels" class="side-label">Show Other Aviation Resources</label>
             </div>
 
             <div class="row">
@@ -203,7 +203,7 @@
               <template v-for="f in featurelist" track-by="get('id')">
               <div class="row feature-row" v-if="showFeature(f)" v-bind:class="{'feature-selected': isFeatureSelected(f) }" @click="toggleSelect(f)">
                 <div class="columns">
-                  <a v-if="whoami.editVehicle && f.get('source_device_type') != 'tracplus'" @click.stop.prevent="utils.editResource($event)" title="Edit resource" href="{{env.resourceTrackingService}}/sss_admin/tracking/device/{{ f.get('id') }}/change/" target="{{env.resourceTrackingService}}" class="button tiny secondary float-right"><i class="fa fa-pencil"></i></a>
+                  <a v-if="whoami.editVehicle && ['tracplus','dfes'].indexOf(f.get('source_device_type')) < 0" @click.stop.prevent="utils.editResource($event)" title="Edit resource" href="{{env.resourceTrackingService}}/sss_admin/tracking/device/{{ f.get('id') }}/change/" target="{{env.resourceTrackingService}}" class="button tiny secondary float-right"><i class="fa fa-pencil"></i></a>
                   <div class="feature-title"><img class="feature-icon" id="device-icon-{{f.get('id')}}" v-bind:src="featureIconSrc(f)" /> {{ f.get('label') }} <i><small>({{ ago(f.get('seen')) }})</small></i>
                   </div>
                 </div>
@@ -244,7 +244,7 @@
         clippedOnly: false,
         search: '',
         groupFilter: '',
-        sourceflag:2,
+        sourceflag:3,
         tools: [],
         historyRange: '21001',
         fields: ['id', 'registration', 'rin_display', 'deviceid', 'symbol', 'district_display', 'usual_driver', 'callsign_display', 'usual_location', 'current_driver', 'contractor_details', 'source_device_type'],
@@ -499,8 +499,8 @@
         }
       },
       getSourceFilter:function() {
-        //if (this.showDBCAResource && this.showDFESResource && this.showOtherExternalResource) {
-        if (this.showDBCAResource && this.showOtherExternalResource) {
+        if (this.showDBCAResource && this.showDFESResource && this.showOtherExternalResource) {
+        //if (this.showDBCAResource && this.showOtherExternalResource) {
             return null
         } else if (!this.showDBCAResource && !this.showDFESResource && !this.showOtherExternalResource) {
             throw "Please choose at least one resource source."

@@ -174,6 +174,7 @@
                     </div>
                     <a v-show="canDownloadAll()" class="button bfrsbutton" @click="downloadList('gpkg','all')" title="Export Bushfire as GeoPackage"><i class="fa fa-download" aria-hidden="true"></i><br><span style='white-space:nowrap'>Download All</span><br>(gpkg) </a>
                     <a class="button bfrsbutton" @click="downloadList('gpkg','listed')" title="Export Bushfire as GeoPackage"><i class="fa fa-download" aria-hidden="true"></i><br>Download<br>(gpkg)</a>
+                    <a class="button bfrsbutton" @click="downloadList('geojson','history')" title="Export Bushfire as GeoPackage"><i class="fa fa-download" aria-hidden="true"></i><br>Export<br>(geojson)</a>
                   </div>
                 </div>
     
@@ -855,7 +856,7 @@
         }
       },
       saveUrl:function(feat) {
-        return this.env.bfrsService + "/api/v1/bushfire/" + feat.get('id') + "/?format=json" 
+        return this.env.bfrsService + "/api/v1/bushfirespatial/" + feat.get('id') + "/?format=json" 
       },
       deleteUrl:function(feat) {
         return this.env.bfrsService + "/delete/" + feat.get('id')
@@ -1125,6 +1126,7 @@
                     fireboundary = (fireboundary && fireboundary.getPolygons().length > 0)?fireboundary.getCoordinates():null
         
                     spatialData["fire_boundary"] = fireboundary
+                    spatialData["area"] = null
                 }
         
                 var tenure_area_task = null
@@ -1135,6 +1137,14 @@
                 var fire_position_task = null
                 var region_task = null
                 var district_task = null
+                var plantation_task = null
+
+                if (["new","initial"].indexOf(feat.get('status')) >= 0 )  {
+                    spatialData["plantations"]  = null
+                    if (originPoint)  {
+                        plantation_task = vm._taskManager.addTask(feat,"getSpatialData","plantation","Find the plantations within 3kms",utils.WAITING)
+                    }
+                }
                 if (originPoint && (modifyType & 1) === 1) {
                     tenure_origin_point_task = vm._taskManager.addTask(feat,"getSpatialData","tenure_origin_point","Locate bushfire's dpaw tenure",utils.WAITING)
                     fire_position_task = vm._taskManager.addTask(feat,"getSpatialData","fire_position","Get the fire position",utils.WAITING)
@@ -1353,6 +1363,48 @@
             } catch(ex) {
                 vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
             }
+
+            if (plantation_task) {
+                plantation_task.setStatus(utils.RUNNING)
+                var point_buffer = turf.buffer({
+                    type:"Feature",
+                    properties:{},
+                    geometry:{
+                        type:"Point",
+                        coordinates:originPoint
+                    }
+                },3,"kilometers").geometry.coordinates[0]
+                var url = vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:plantation_annual_report") + "&outputFormat=json&cql_filter=INTERSECTS(wkb_geometry,POLYGON((" + point_buffer.map(function(p){return p[1] + " " + p[0]}).join("%2C") + ")))"
+                console.log(url)
+                $.ajax({
+                    url:url,
+                    dataType:"json",
+                    success: function (response, stat, xhr) {
+                        if (response.totalFeatures > 0) {
+                            //only send the properties to bfrs
+                            spatialData["plantations"] = response.features.map(function(o){
+                                return {
+                                    "ogc_fid":o.properties["ogc_fid"],
+                                    "species":o.properties["species"],
+                                    "sp_type":o.properties["sp_type"],
+                                    "area_ha":o.properties["area_ha"],
+                                    "classifica":o.properties["classifica"]
+
+                                }
+                            })
+                        }
+                        plantation_task.setStatus(utils.SUCCEED)
+                        vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                    },
+                    error: function (xhr,status,message) {
+                        plantation_task.setStatus(utils.FAILED,xhr.status + " : " + (xhr.responseText || message))
+                        vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                    },
+                    xhrFields: {
+                        withCredentials: true
+                    }
+                })
+            }
         }
 
         try {
@@ -1405,6 +1457,16 @@
                     data:JSON.stringify(spatialData),
                     contentType:"application/json",
                     success: function (response, stat, xhr) {
+                        if (xhr.status === 280) {
+                            //bushfire is invalidated, the new fire_number and id are returned 
+                            if (response.fire_number && response.id) {
+                                feat.set("fire_number",response.fire_number)
+                                feat.set("id",response.id)
+                            } else {
+                                task.setStatus(utils.FAILED,"The bushfire report is invalidated ,but the new fire_number and id are not returned.")
+                                callback(feat,utils.FAILED,task.message)
+                            }
+                        }
                         if (!vm.isFireboundaryDrawable(feat)) {
                             if ((feat.get('modifyType') & 2) === 2) {
                                 var originPoint = feat.getGeometry().getGeometries().find(function(g) {return g instanceof ol.geom.Point}) || null
@@ -1781,7 +1843,7 @@
         var bbox = ""
         var originpoint_filter = ""
         var fireboundary_filter = ""
-        if (downloadType === "listed") {
+        if (downloadType === "listed" || downloadType === "history" ) {
             if (
                 this.clippedOnly || 
                 (
@@ -1833,38 +1895,61 @@
         //console.log("bbox = " + bbox)
         var bushfireLayer = getLayerId((downloadType === "listed")?"dpaw:bushfire_latest":"dpaw:bushfire")
         var fireboundaryLayer = getLayerId((downloadType === "listed")?"dpaw:bushfire_fireboundary_latest":"dpaw:bushfire_fireboundary")
-        var options = {
-            filename:"bushfires_" + downloadType + "_" + moment().format('YYYY-MM-DD-HHmm'),
-            srs:"EPSG:4326",
-            layers:[{
-                layer:"initial_bushfire_originpoint",
-                ignore_if_empty:true,
-                sourcelayers:{
-                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + bushfireLayer + originpoint_filter  + bbox,
-                    where:"report_status='Initial Fire Report'",
-                }
-            },{
-                layer:"final_bushfire_originpoint",
-                ignore_if_empty:true,
-                sourcelayers:{
-                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + bushfireLayer + originpoint_filter + bbox,
-                    where:"report_status<>'Initial Fire Report'",
-                }
-            },{
-                layer:"initial_bushfire_fireboundary",
-                ignore_if_empty:true,
-                sourcelayers:{
-                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
-                    where:"report_status='Initial Fire Report'",
-                }
-            },{
-                layer:"final_bushfire_fireboundary",
-                ignore_if_empty:true,
-                sourcelayers:{
-                    url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
-                    where:"report_status<>'Initial Fire Report'",
-                }
-            }]
+        var options = null
+        if (downloadType === "history" ) {
+            options = {
+                filename:"bushfires_" + downloadType + "_" + moment().format('YYYY-MM-DD-HHmm'),
+                srs:"EPSG:4326",
+                layers:[{
+                    layer:"bushfire_fireboundary",
+                    ignore_if_empty:true,
+                    sourcelayers:{
+                        url:vm.env.wfsService + "/wfs?servicea=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
+                        fields:["fire_number","name","district","financial_year","fire_detected_date","cause","dfes_incident_no","other_info",{name:"author",src:"fireboundary_uploaded_by"}],
+                    },
+                    geometry_column:{name:"fire_boundary",type:"MULTIPOLYGON"},
+
+                }]
+            }
+        } else {
+            options = {
+                filename:"bushfires_" + downloadType + "_" + moment().format('YYYY-MM-DD-HHmm'),
+                srs:"EPSG:4326",
+                layers:[{
+                    layer:"initial_bushfire_originpoint",
+                    ignore_if_empty:true,
+                    sourcelayers:{
+                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + bushfireLayer + originpoint_filter  + bbox,
+                        where:"report_status='Initial Fire Report'",
+                    },
+                    geometry_column:{name:"origin_point",type:"POINT"},
+                },{
+                    layer:"final_bushfire_originpoint",
+                    ignore_if_empty:true,
+                    sourcelayers:{
+                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + bushfireLayer + originpoint_filter + bbox,
+                        where:"report_status<>'Initial Fire Report'",
+                    },
+                    geometry_column:{name:"origin_point",type:"POINT"},
+                },{
+                    layer:"initial_bushfire_fireboundary",
+                    ignore_if_empty:true,
+                    sourcelayers:{
+                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
+                        where:"report_status='Initial Fire Report'",
+                    },
+                    geometry_column:{name:"fire_boundary",type:"MULTIPOLYGON"},
+                },{
+                    layer:"final_bushfire_fireboundary",
+                    ignore_if_empty:true,
+                    sourcelayers:{
+                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
+                        where:"report_status<>'Initial Fire Report'",
+                    },
+                    geometry_column:{name:"fire_boundary",type:"MULTIPOLYGON"},
+
+                }]
+            }
         }
 
         if (downloadType === 'listed') {
@@ -1896,7 +1981,8 @@
                     sourcelayers:{
                         parameter:"newBushfiresOriginPoint",
                         srs:"EPSG:4326"
-                    }
+                    },
+                    geometry_column:{name:"origin_point",type:"POINT"}
                 })
             }
             if (newBushfiresBoundary.length > 0 ) {
@@ -1907,7 +1993,8 @@
                     sourcelayers:{
                         parameter:"newBushfiresFireboundary",
                         srs:"EPSG:4326"
-                    }
+                    },
+                    geometry_column:{name:"fire_boundary",type:"MULTIPOLYGON"}
                 })
             }
         }

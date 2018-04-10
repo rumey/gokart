@@ -879,6 +879,160 @@
         }
         tileLayer.getSource().load()
       },
+      refreshTimelineFunc:function(layerOptions,postFetchTimelineFunc) {
+        var vm = this
+        var _func = null
+        var layer = layerOptions
+        //return the refresh time, if need refresh,otherwise return null
+        var _getRefreshTime = function() {
+            if (!layer.lastTimelineRefreshTime) {
+                return moment.tz("Australia/Perth")
+            } else if ( moment.tz("Australia/Perth") - layer.lastTimelineRefreshTime > layer.timelineRefresh * 1000) {
+                return moment.tz("Australia/Perth")
+            } else {
+                return null
+            }
+        }
+        var _getNextRefreshTime = function() {
+            var nextTime = null;
+            if (!layer.lastTimelineRefreshTime) {
+                nextTime = moment.tz("Australia/Perth")
+            } else if ( moment.tz("Australia/Perth") - layer.lastTimelineRefreshTime > layer.timelineRefresh * 1000) {
+                nextTime = moment.tz("Australia/Perth")
+            } else {
+                nextTime = moment(layer.lastTimelineRefreshTime)
+            }
+            nextTime.seconds(nextTime.seconds() + layer.timelineRefresh )
+            return nextTime
+        }
+        var _setTimeIndex = function(tileLayer,previousTimeline) {
+            if (!layer.timeline) {
+                return
+            }
+            var _func = function(layer,tileLayer,perviousTimeline) {
+                var d = null
+                if (previousTimeline && previousTimeline.length > 0 && tileLayer.get('timeIndex') && tileLayer.get('timeIndex') < previousTimeline.length && tileLayer.get('timeIndex') >= 0) {
+                    d = moment.fromLocaleString(previousTimeline[tileLayer.get('timeIndex')][0])
+                } else {
+                    d = moment.tz("Australia/Perth")
+                }
+                var timddiff = 0
+                var timeIndex = null
+                $.each(layer.timeline,function(index,timelineLayer) {
+                    timediff = d - moment.fromLocaleString(timelineLayer[0])
+                    if (timediff < 0) {
+                        timeIndex = (index == 0)?0:index - 1
+                        return false
+                    } else if (timediff === 0) {
+                        timeIndex = index
+                        return false
+                    }
+                })
+                timeIndex = (timeIndex == null)?(layer.timeline.length - 1):timeIndex
+                tileLayer.set('timeIndex',timeIndex)
+            }
+            if (layer.setTimeIndex) {
+                layer.setTimeIndex(layer,tileLayer,previousTimeline,_func)
+            } else {
+                _func(layer,tileLayer,previousTimeline)
+            }
+        }
+        var _fetchTimelineFailed = function(layer,tileLayer,auto,status,statusText){
+            if (!layer.previewLayer && vm.getMapLayer(layer) !== tileLayer) {
+                //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Stop run because " + layer.name + " is removed from map" )
+                return
+            }
+            if (!tileLayer.get("timeIndex")) { _setTimeIndex(tileLayer)}
+            if (layer.previewLayer) {return}
+            tileLayer.progress = "error"
+            tileLayer.set('updated',layer.lastUpdatetime + "\r\n" + status + " : " + statusText)
+            vm.active.refreshRevision += 1
+            //console.warn(moment().toLocaleString() + " : Update the timeline of " + layer.name + " failed. code = " + status + ", reason = " + statusText )
+            if (!auto) {return}
+            var waitTimes = _getNextRefreshTime() - moment()
+            tileLayer.autoTimelineRefresh = setTimeout(function(){_func(true)},waitTimes)
+            //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Next timeline refresh time for " + layer.name + " is " + waitTimes + " milliseconds later" )
+        }
+        var _timelineNotChanged = function(layer,tileLayer,auto){
+            if (!layer.previewLayer && vm.getMapLayer(layer) !== tileLayer) {
+                //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Stop run because " + layer.name + " is removed from map" )
+                return
+            }
+            if (!tileLayer.get("timeIndex")) { _setTimeIndex(tileLayer)}
+            if (layer.previewLayer) {return}
+            tileLayer.progress = ""
+            tileLayer.set('updated',layer.lastUpdatetime )
+            vm.active.refreshRevision += 1
+            if (!auto) {return}
+            var waitTimes = _getNextRefreshTime() - moment()
+            tileLayer.autoTimelineRefresh = setTimeout(function(){_func(true)},waitTimes)
+            //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Next timeline refresh time for " + layer.name + " is " + waitTimes + " milliseconds later" )
+        }
+        var _processTimeline = function(layer,tileLayer,auto,timeline){
+            if (!layer.previewLayer && vm.getMapLayer(layer) !== tileLayer) {
+                //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Stop run because " + layer.name + " is removed from map" )
+                return
+            }
+            tileLayer.progress = ""
+            if (postFetchTimelineFunc) {
+                postFetchTimelineFunc(layer,tileLayer,timeline)
+            }
+            var previousTimeline = layer.timeline
+            layer.timeline = timeline.layers
+
+            //get new time index for current displayed timeline layer
+            _setTimeIndex(tileLayer,previousTimeline)
+
+            tileLayer.set('updated',layer.lastUpdatetime)
+            vm.active.refreshRevision += 1
+
+            if (layer.previewLayer) {return}
+            if (!auto) {return}
+            var waitTimes = _getNextRefreshTime() - moment()
+            tileLayer.autoTimelineRefresh = setTimeout(function(){_func(true)},waitTimes)
+            //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Next timeline refresh time for " + layer.name + " is " + waitTimes + " milliseconds later" )
+        }
+
+        _func = function(auto) {
+            var tileLayer = layer.mapLayer
+            //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Begin to refresh the timeline of " + layer.name)
+            if (!tileLayer) throw "Maplayer is null."
+            var currentRefreshTime = _getRefreshTime()
+            if (currentRefreshTime === null) {
+                if (!tileLayer.get("timeIndex")) { _setTimeIndex(tileLayer)}
+                if (layer.previewLayer) {return}
+                if (!auto) {return}
+                var waitTimes = _getNextRefreshTime() - moment()
+                tileLayer.autoTimelineRefresh = setTimeout(function(){_func(true)},waitTimes)
+                //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Next timeline refresh time for " + layer.name + " is " + waitTimes + " milliseconds later" )
+            } else {
+                //console.log(moment().toLocaleString() + " : refresh timeline " + layer.id + "'s timeline. ")
+                var layerTime = moment(currentRefreshTime)
+                var layerId = null
+                layer.lastTimelineRefreshTime = currentRefreshTime
+                tileLayer.progress = "loading"
+                $.ajax(layer.fetchTimelineUrl(layer.lastUpdatetime || "") ,{
+                    xhrFields:{
+                        withCredentials: true
+                    },
+                    dataType:"json",
+                    success:function(data,status,jqXHR) {
+                        if (jqXHR.status === 290) {
+                            _timelineNotChanged(layer,tileLayer,auto)
+                            return
+                        }
+                        layer.lastUpdatetime = data.updatetime
+                        _processTimeline(layer,tileLayer,auto,data)
+                    },
+                    error:function(jqXHR) {
+                        _fetchTimelineFailed(layer,tileLayer,auto,jqXHR.status,(jqXHR.responseText || jqXHR.statusText))
+                    }
+                })
+            }
+
+        }
+        return _func
+      },
       // loader for layers with a "time" axis, e.g. live satellite imagery
       createTimelineLayer: function (options) {
         if (options.mapLayer) return options.mapLayer
@@ -905,10 +1059,6 @@
           source: tileSource
         })
 
-        tileLayer.postRemove = function () {
-            vm._postRemove(this)
-        }
-
         // hook the tile loading function to update progress indicator
         tileLayer.progress = ''
         tileSource.setTileLoadFunction(this.tileLoaderHook(tileSource, tileLayer))
@@ -924,19 +1074,12 @@
           }
         })
 
-        // helper function to update the time index
-        options.updateTimeline = options.updateTimeline || function (layer,tileLayer) {
-          // fetch the latest timestamp-to-layerID map from the source URL
-          $.getJSON(layer.source, function (data) {
-            tileLayer.set('updated', moment().toLocaleString())
-            tileLayer.getSource().setUrls(data.servers)
-            layer.timeline = data.layers.reverse()
-            tileLayer.set('timeIndex', layer.timeIndex || layer.timeline.length - 1)
-            vm.$root.active.update()
-          })
+        if (!options.refreshTimeline && options.timelineRefresh && options.fetchTimelineUrl) {
+            options.refreshTimeline = vm.refreshTimelineFunc(options,function(layer,tileLayer,timeline){
+                tileLayer.getSource().setUrls(timeline.servers)
+            })
         }
 
-        options.updateTimeline(options,tileLayer)
 
         // set properties for use in layer selector
         tileLayer.set('name', options.name)
@@ -945,11 +1088,10 @@
         options.mapLayer = tileLayer
 
         tileLayer.refresh = function () {
-          if (options.refresh) {
-              this.set('updated', moment().toLocaleString())
-              vm.$root.active.refreshRevision += 1
-          }
-          options.updateTimeline(options,tileLayer)
+            if (!this.refreshTimeline) {
+                this.set('updated', moment().toLocaleString())
+                vm.$root.active.refreshRevision += 1
+            }
         }
 
         tileLayer.stopAutoRefresh = function() {
@@ -963,12 +1105,28 @@
         // if the "refresh" option is set, set a timer
         // to update the source
         tileLayer.postAdd = function() {
+            if (options.refreshTimeline) {
+                if (tileLayer.autoTimelineRefresh) {
+                    clearInterval(tileLayer.autoTimelineRefresh)
+                    tileLayer.autoTimelineRefresh = null
+                }
+                options.refreshTimeline(true)
+            }
+
             if (options.refresh) {
               this.set('updated', moment().toLocaleString())
               vm.$root.active.refreshRevision += 1
             }
             this.startAutoRefresh()
         }
+        tileLayer.postRemove = function () {
+            vm._postRemove(this)
+            if (this.autoTimelineRefresh) {
+                clearInterval(this.autoTimelineRefresh)
+                this.autoTimelineRefresh = null
+            }
+        }
+
         return tileLayer
       },
       // loader for vector layers with hover querying
@@ -1179,22 +1337,6 @@
         // hook the tile loading function to update progress indicator
         tileLayer.progress = ''
 
-        tileLayer.postRemove = function () {
-          vm._postRemove(this)
-          if (this.autoTimelineRefresh) {
-              clearInterval(this.autoTimelineRefresh)
-              this.autoTimelineRefresh = null
-          }
-        }   
-
-        tileLayer.refresh = function() {
-            if (!this.refreshTimeline) {
-                this.set('updated', moment().toLocaleString())
-                vm.$root.active.refreshRevision += 1
-            }
-            vm.refreshLayerTile(this)
-        }
-
         // set properties for use in layer selector
         tileLayer.set('name', layer.name,false)
         tileLayer.set('id', layer.mapLayerId,false)
@@ -1203,14 +1345,6 @@
 
         if (options.lastUpdatetime) {
             tileLayer.set('updated',layer.lastUpdatetime)
-        }
-
-        tileLayer.stopAutoRefresh = function() {
-            vm._stopAutoRefresh(this)
-        }
-
-        tileLayer.startAutoRefresh = function() {
-            vm._startAutoRefresh(this)
         }
 
         // hook to swap the tile layer when timeIndex changes
@@ -1242,149 +1376,19 @@
         })
 
         if (!options.refreshTimeline && options.timelineRefresh && options.fetchTimelineUrl) {
-            options.refreshTimeline = function(){
-                var _func = null
-                options.getCurrentRefreshTime = function() {
-                    if (!options.lastTimelineRefreshTime) {
-                        return moment.tz("Australia/Perth")
-                    } else if ( moment.tz("Australia/Perth") - options.lastTimelineRefreshTime > options.timelineRefresh * 1000) {
-                        return moment.tz("Australia/Perth")
-                    } else {
-                        return options.lastTimelineRefreshTime
-                    }
-                }
-                options.getNextRefreshTime = function() {
-                    var nextTime = moment(options.getCurrentRefreshTime())
-                    nextTime.seconds(nextTime.seconds() + options.timelineRefresh )
-                    return nextTime
-                }
-                options.getTimeIndexForTime = function(d) {
-                    if (!options.timeline) {
-                        return null
-                    }
-                    d = d || moment.tz("Australia/Perth")
-                    $.each(options.timeline,function(index,timelineLayer) {
-                        var timediff = d - moment.fromLocaleString(timelineLayer[0])
-                        if (timediff < 0) {
-                            timeIndex = (index == 0)?0:index - 1
-                            return false
-                        } else if (timediff === 0) {
-                            timeIndex = index
-                            return false
+            options.refreshTimeline = vm.refreshTimelineFunc(options,function(layer,tileLayer,timeline){
+                if (layer.timeline) {
+                    //reuse already created tile source
+                    $.each(timeline.layers,function(index,timelineLayer) {
+                        if (layer.timeline.length > index && layer.timeline[index][2] && layer.timeline[index][1] === timelineLayer[1]) {
+                            timelineLayer[2] = layer.timeline[index][2]
+                            //clear browser cache and tile cache
+                            vm.setUrlTimestamp(timelineLayer[2],moment.utc().unix())
+                            timelineLayer[2].tileCache.clear()
                         }
                     })
-                    timeIndex = (timeIndex == null)?(options.timeline.length - 1):timeIndex
-                    return timeIndex
                 }
-                _func = function(layer,tileLayer,auto) {
-                    //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Begin to refresh the timeline of " + layer.name)
-                    var currentRefreshTime = layer.getCurrentRefreshTime()
-                    if (layer.lastTimelineRefreshTime && currentRefreshTime - layer.lastTimelineRefreshTime === 0) {
-                        if (!tileLayer.get("timeIndex")) { tileLayer.set('timeIndex',layer.getTimeIndexForTime())}
-                        if (layer.previewLayer) {return}
-                        if (!auto) {return}
-                        var waitTimes = layer.getNextRefreshTime() - moment()
-                        tileLayer.autoTimelineRefresh = setTimeout(function(){_func(layer,tileLayer,true)},waitTimes)
-                        //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Next timeline refresh time for " + layer.name + " is " + waitTimes + " milliseconds later" )
-                    } else {
-                        //console.log(moment().toLocaleString() + " : refresh timeline " + layer.id + "'s timeline. ")
-                        var layerTime = moment(currentRefreshTime)
-                        var layerId = null
-                        var choosedTimelineLayerTime= null
-                        if (layer.lastTimelineRefreshTime && tileLayer.get('timeIndex')) {
-                            choosedTimelineLayerTime = moment.fromLocaleString(layer.timeline[tileLayer.get('timeIndex')][0])
-                        }
-                        var fetchTimelineFailed = function(status,statusText){
-                            if (!layer.previewLayer && vm.getMapLayer(layer) !== tileLayer) {
-                                //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Stop run because " + layer.name + " is removed from map" )
-                                return
-                            }
-                            if (!tileLayer.get("timeIndex")) { tileLayer.set('timeIndex',layer.getTimeIndexForTime())}
-                            if (layer.previewLayer) {return}
-                            tileLayer.progress = "error"
-                            tileLayer.set('updated',layer.lastUpdatetime + "\r\n" + status + " : " + statusText)
-                            vm.active.refreshRevision += 1
-                            //console.warn(moment().toLocaleString() + " : Update the timeline of " + layer.name + " failed. code = " + status + ", reason = " + statusText )
-                            if (!auto) {return}
-                            var waitTimes = layer.getNextRefreshTime() - moment()
-                            tileLayer.autoTimelineRefresh = setTimeout(function(){_func(layer,tileLayer,true)},waitTimes)
-                            layer.lastTimelineRefreshTime = null
-                            //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Next timeline refresh time for " + layer.name + " is " + waitTimes + " milliseconds later" )
-                        }
-                        var timelineNotChanged = function(){
-                            if (!layer.previewLayer && vm.getMapLayer(layer) !== tileLayer) {
-                                //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Stop run because " + layer.name + " is removed from map" )
-                                return
-                            }
-                            if (!tileLayer.get("timeIndex")) { tileLayer.set('timeIndex',layer.getTimeIndexForTime())}
-                            if (layer.previewLayer) {return}
-                            tileLayer.progress = ""
-                            tileLayer.set('updated',layer.lastUpdatetime )
-                            vm.active.refreshRevision += 1
-                            if (!auto) {return}
-                            var waitTimes = layer.getNextRefreshTime() - moment()
-                            tileLayer.autoTimelineRefresh = setTimeout(function(){_func(layer,tileLayer,true)},waitTimes)
-                            //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Next timeline refresh time for " + layer.name + " is " + waitTimes + " milliseconds later" )
-                        }
-                        var processTimeline = function(timeline){
-                            if (!layer.previewLayer && vm.getMapLayer(layer) !== tileLayer) {
-                                //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Stop run because " + layer.name + " is removed from map" )
-                                return
-                            }
-                            tileLayer.progress = ""
-                            if (layer.timeline) {
-                                //reuse already created tile source
-                                $.each(timeline,function(index,timelineLayer) {
-                                    if (layer.timeline.length > index && layer.timeline[index][2] && layer.timeline[index][1] === timelineLayer[1]) {
-                                        timelineLayer[2] = layer.timeline[index][2]
-                                        //clear browser cache and tile cache
-                                        vm.setUrlTimestamp(timelineLayer[2],moment.utc().unix())
-                                        timelineLayer[2].tileCache.clear()
-                                    }
-                                })
-                            }
-                            layer.timeline = timeline
-
-                            //get new time index for current displayed timeline layer
-                            var timeIndex = layer.getTimeIndexForTime(choosedTimelineLayerTime)
-                            tileLayer.set('timeIndex', timeIndex)
-
-                            tileLayer.set('updated',layer.lastUpdatetime)
-                            vm.active.refreshRevision += 1
-
-                            if (layer.previewLayer) {return}
-                            if (!auto) {return}
-                            var waitTimes = layer.getNextRefreshTime() - moment()
-                            tileLayer.autoTimelineRefresh = setTimeout(function(){_func(layer,tileLayer,true)},waitTimes)
-                            //console.log(moment().toLocaleString() + " : " + tileLayer.autoTimelineRefresh + " - Next timeline refresh time for " + layer.name + " is " + waitTimes + " milliseconds later" )
-                        }
-
-                        layer.lastTimelineRefreshTime = currentRefreshTime
-                        tileLayer.progress = "loading"
-                        $.ajax(layer.fetchTimelineUrl(layer.lastUpdatetime || "") ,{
-                            xhrFields:{
-                                withCredentials: true
-                            },
-                            dataType:"json",
-                            success:function(data,status,jqXHR) {
-                                if (jqXHR.status === 290) {
-                                    timelineNotChanged()
-                                    return
-                                }
-                                layer.lastUpdatetime = data.updatetime
-                                processTimeline(data.layers)
-                            },
-                            error:function(jqXHR) {
-                                fetchTimelineFailed(jqXHR.status,jqXHR.statusText)
-                            }
-                        })
-        
-                    }
-
-                }
-                
-                return _func
-           }()
+            })  
         }
 
         tileLayer.postAdd = function() {
@@ -1393,7 +1397,7 @@
                     clearInterval(tileLayer.autoTimelineRefresh)
                     tileLayer.autoTimelineRefresh = null
                 }
-                options.refreshTimeline(options,tileLayer,true)
+                options.refreshTimeline(true)
             } else {
                 tileSource.setTileLoadFunction(vm.tileLoaderHook(tileSource, tileLayer))
             }
@@ -1405,6 +1409,30 @@
               tileLayer.set('updated', moment().toLocaleString())
               vm.$root.active.refreshRevision += 1
             }
+        }
+
+        tileLayer.postRemove = function () {
+          vm._postRemove(this)
+          if (this.autoTimelineRefresh) {
+              clearInterval(this.autoTimelineRefresh)
+              this.autoTimelineRefresh = null
+          }
+        }   
+
+        tileLayer.refresh = function() {
+            if (!this.refreshTimeline) {
+                this.set('updated', moment().toLocaleString())
+                vm.$root.active.refreshRevision += 1
+            }
+            vm.refreshLayerTile(this)
+        }
+
+        tileLayer.stopAutoRefresh = function() {
+            vm._stopAutoRefresh(this)
+        }
+
+        tileLayer.startAutoRefresh = function() {
+            vm._startAutoRefresh(this)
         }
 
         return tileLayer

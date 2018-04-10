@@ -13,7 +13,7 @@ from shapely import ops
 from functools import partial
 from logging import Logger
 
-from .settings import *
+import settings
 
 def getGeometryArea(geometry,unit):
     geometry_aea = ops.transform(
@@ -203,9 +203,9 @@ def calculateArea(session_cookies,results,features,options):
                 traceback.print_exc()
                 bottle.response.status = 490
                 if not result["valid"] and result["valid_message"]:
-                    raise Exception("Calculate intersection area between fire boundary and layer '{}' failed.{}".format(typename(layer["url"]) or layer["id"],"\r\n".join(result["valid_message"])))
+                    raise Exception("Calculate intersection area between fire boundary and layer '{}' failed.{}".format(settings.typename(layer["url"]) or layer["id"],"\r\n".join(result["valid_message"])))
                 else:
-                    raise Exception("Calculate intersection area between fire boundary and layer '{}' failed.{}".format(typename(layer["url"]) or layer["id"],traceback.format_exception_only(sys.exc_type,sys.exc_value)))
+                    raise Exception("Calculate intersection area between fire boundary and layer '{}' failed.{}".format(settings.typename(layer["url"]) or layer["id"],traceback.format_exception_only(sys.exc_type,sys.exc_value)))
     
             if not overlap and total_area < area_data["total_area"]:
                 area_data["other_area"] = area_data["total_area"] - total_area
@@ -221,8 +221,8 @@ def spatial():
         else:
             options = {}
 
-        session_cookie = get_session_cookie()
-        cookies={sso_cookie_name:session_cookie}
+        session_cookie = settings.get_session_cookie()
+        cookies={settings.sso_cookie_name:session_cookie}
         results = []
 
         features = features["features"] or []

@@ -5,13 +5,14 @@ import subprocess
 import math
 import traceback
 import datetime
+import os
 from osgeo import ogr, osr, gdal
 from affine import Affine
 
 import json
 import bottle
 
-from .settings import *
+import settings
 from .jinja2settings import settings as jinja2settings
 from .file_lock import FileLock
 
@@ -22,9 +23,9 @@ def convertEpochTimeToDatetime(t):
     if t:
         datetimes = t.split()
         if len(datetimes) == 1:
-            return datetime.datetime.fromtimestamp(long(datetimes[0]),PERTH_TIMEZONE)
+            return datetime.datetime.fromtimestamp(long(datetimes[0]),settings.PERTH_TIMEZONE)
         elif (len(datetimes) == 3 and datetimes[1].lower() == "sec" and datetimes[2].upper() == 'UTC'):
-            return datetime.datetime.fromtimestamp(long(datetimes[0]),PERTH_TIMEZONE)
+            return datetime.datetime.fromtimestamp(long(datetimes[0]),settings.PERTH_TIMEZONE)
         else:
             raise "Invalid epoch time '{}'".format(t)
 
@@ -274,7 +275,7 @@ def prepareDatasource(datasource):
     
             filename = os.path.split(datasource["file"])
     
-            fileLock = FileLock(os.path.join(filename[0],".{}.lock".format(filename[1])), 120, 0.02)
+            fileLock = FileLock(os.path.join("{}.lock".format(filename[0]),"{}.lock".format(filename[1])), 120, 0.02)
     
             if datasource.get("datasource"):
                 #loaded before
@@ -446,7 +447,7 @@ def getWeather(band,data):
 raster_datasources={
     "bom":{
         "IDW71000_WA_T_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71000_WA_T_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71000_WA_T_SFC.nc.gz"),
             "name":"Surface Temperature",
             "sort_key":("weather","temperature"),
             "metadata_f":{
@@ -470,7 +471,7 @@ raster_datasources={
             "required":True
         },
         "IDW71001_WA_Td_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71001_WA_Td_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71001_WA_Td_SFC.nc.gz"),
             "name":"Dewpoint temperature",
             "sort_key":("weather","temperature"),
             "metadata_f":{
@@ -494,10 +495,10 @@ raster_datasources={
             #"required":True
         },
         "IDW71002_WA_MaxT_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71002_WA_MaxT_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71002_WA_MaxT_SFC.nc.gz"),
             "name":"Maximum temperature",
             "sort_key":("weather","temperature"),
-            "time":"14:00:00",
+            "time_mapping":{"00:00:00":"14:00:00"},
             "var":"max_temp",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
@@ -519,10 +520,10 @@ raster_datasources={
             }
         },
         "IDW71003_WA_MinT_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71003_WA_MinT_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71003_WA_MinT_SFC.nc.gz"),
             "name":"Minimum temperature",
             "sort_key":("weather","temperature"),
-            "time":"06:00:00",
+            "time_mapping":{"00:00:00":"06:00:00"},
             "var":"min_temp",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
@@ -544,7 +545,7 @@ raster_datasources={
             }
         },
         "IDW71005_WA_DailyPrecip_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71005_WA_DailyPrecip_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71005_WA_DailyPrecip_SFC.nc.gz"),
             "name":"Precipitation",
             "sort_key":("weather","precipitation"),
             "var":"precip",
@@ -568,7 +569,7 @@ raster_datasources={
             }
         },
         "IDW71006_WA_Wind_Mag_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71006_WA_Wind_Mag_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71006_WA_Wind_Mag_SFC.nc.gz"),
             "name":"Wind speed (knots)",
             "sort_key":("weather","wind"),
             "metadata_f":{
@@ -592,7 +593,7 @@ raster_datasources={
             }
         },
         "IDW71013_WA_PoP_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71013_WA_PoP_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71013_WA_PoP_SFC.nc.gz"),
             "name":"Probability of precipitation at least 0.2mm",
             "sort_key":("weather","precipitation"),
             "metadata_f":{
@@ -615,7 +616,7 @@ raster_datasources={
             }
         },
         "IDW71014_WA_DailyPrecip25Pct_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71014_WA_DailyPrecip25Pct_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71014_WA_DailyPrecip25Pct_SFC.nc.gz"),
             "name":"25% Confidence Precipitation Amount",
             "sort_key":("weather","precipitation"),
             "var":"precip_25%",
@@ -639,7 +640,7 @@ raster_datasources={
             }
         },
         "IDW71015_WA_DailyPrecip50Pct_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71015_WA_DailyPrecip50Pct_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71015_WA_DailyPrecip50Pct_SFC.nc.gz"),
             "name":"50% Confidence Precipitation Amount",
             "sort_key":("weather","precipitation"),
             "var":"precip_50%",
@@ -663,7 +664,7 @@ raster_datasources={
             }
         },
         "IDW71016_WA_DailyPrecip75Pct_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71016_WA_DailyPrecip75Pct_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71016_WA_DailyPrecip75Pct_SFC.nc.gz"),
             "name":"75% Confidence Precipitation Amount",
             "sort_key":("weather","precipitation"),
             "var":"precip_75%",
@@ -687,7 +688,7 @@ raster_datasources={
             }
         },
         "IDW71017_WA_Sky_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71017_WA_Sky_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71017_WA_Sky_SFC.nc.gz"),
             "name":"Sky condition",
             "sort_key":("weather",),
             "metadata_f":{
@@ -710,7 +711,7 @@ raster_datasources={
             }
         },
         "IDW71018_WA_RH_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71018_WA_RH_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71018_WA_RH_SFC.nc.gz"),
             "name":"Relative humidity",
             "sort_key":("weather","other"),
             "metadata_f":{
@@ -734,7 +735,7 @@ raster_datasources={
             "required":True
         },
         "IDW71022_WA_WindWaveHgt_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71022_WA_WindWaveHgt_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71022_WA_WindWaveHgt_SFC.nc.gz"),
             "name":"Wind wave height",
             "sort_key":("weather","wind"),
             "metadata_f":{
@@ -757,7 +758,7 @@ raster_datasources={
             }
         },
         "IDW71023_WA_Swell_Mag_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71023_WA_Swell_Mag_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71023_WA_Swell_Mag_SFC.nc.gz"),
             "name":"Swell magnitude",
             "sort_key":("weather","other"),
             "metadata_f":{
@@ -781,7 +782,7 @@ raster_datasources={
             }
         },
         "IDW71030_WA_DailyPrecip10Pct_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71030_WA_DailyPrecip10Pct_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71030_WA_DailyPrecip10Pct_SFC.nc.gz"),
             "name":"10% Confidence Precipitation Amount",
             "sort_key":("weather","percipitation"),
             "var":"rainfall_10%",
@@ -805,7 +806,7 @@ raster_datasources={
             }
         },
         "IDW71031_WA_Precip10Pct_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71031_WA_Precip10Pct_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71031_WA_Precip10Pct_SFC.nc.gz"),
             "name":"10% Confidence Precipitation Amount",
             "sort_key":("weather","percipitation"),
             "metadata_f":{
@@ -829,7 +830,7 @@ raster_datasources={
             }
         },
         "IDW71032_WA_Precip25Pct_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71032_WA_Precip25Pct_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71032_WA_Precip25Pct_SFC.nc.gz"),
             "name":"25% Confidence Precipitation Amount",
             "sort_key":("weather","percipitation"),
             "metadata_f":{
@@ -853,7 +854,7 @@ raster_datasources={
             }
         },
         "IDW71033_WA_Precip50Pct_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71033_WA_Precip50Pct_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71033_WA_Precip50Pct_SFC.nc.gz"),
             "name":"50% Confidence Precipitation Amount",
             "sort_key":("weather","percipitation"),
             "metadata_f":{
@@ -877,7 +878,7 @@ raster_datasources={
             }
         },
         "IDW71034_WA_WxIcon_SFC_ICON":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71034_WA_WxIcon_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71034_WA_WxIcon_SFC.nc.gz"),
             "name":"Weather icon",
             "sort_key":("weather",),
             "metadata_f":{
@@ -902,7 +903,7 @@ raster_datasources={
             "required":True
         },
         "IDW71034_WA_WxIcon_SFC_DESC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71034_WA_WxIcon_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71034_WA_WxIcon_SFC.nc.gz"),
             "name":"Weather",
             "sort_key":("weather",),
             "metadata_f":{
@@ -926,7 +927,7 @@ raster_datasources={
             }
         },
         "IDW71068_WA_ApparentT_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71068_WA_ApparentT_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71068_WA_ApparentT_SFC.nc.gz"),
             "name":"Apparent temperature",
             "sort_key":("weather","temperature"),
             "metadata_f":{
@@ -949,7 +950,7 @@ raster_datasources={
             }
         },
         "IDW71069_WA_SigWaveHgt_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71069_WA_SigWaveHgt_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71069_WA_SigWaveHgt_SFC.nc.gz"),
             "name":"Total significant wave height",
             "sort_key":("weather","other"),
             "metadata_f":{
@@ -972,7 +973,7 @@ raster_datasources={
             }
         },
         "IDW71071_WA_WindMagKmh_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71071_WA_WindMagKmh_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71071_WA_WindMagKmh_SFC.nc.gz"),
             "name":"Wind speed (km/h)",
             "sort_key":("weather","wind"),
             "metadata_f":{
@@ -997,7 +998,7 @@ raster_datasources={
             "required":True
         },
         "IDW71072_WA_WindGustKmh_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71072_WA_WindGustKmh_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71072_WA_WindGustKmh_SFC.nc.gz"),
             "name":"Wind gust",
             "sort_key":("weather","wind"),
             "metadata_f":{
@@ -1022,7 +1023,7 @@ raster_datasources={
             "required":True
         },
         "IDW71089_WA_Wind_Dir_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71089_WA_Wind_Dir_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71089_WA_Wind_Dir_SFC.nc.gz"),
             "name":"Wind direction",
             "sort_key":("weather","wind"),
             "metadata_f":{
@@ -1048,7 +1049,7 @@ raster_datasources={
             "required":True
         },
         "IDW71090_WA_DailyPoP_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71090_WA_DailyPoP_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71090_WA_DailyPoP_SFC.nc.gz"),
             "name":"Probability of precipitation at least 0.2mm",
             "sort_key":("weather","precipitation"),
             "var" :"precip_chance",
@@ -1072,7 +1073,7 @@ raster_datasources={
             }
         },
         "IDW71092_WA_Swell_Dir_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71092_WA_Swell_Dir_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71092_WA_Swell_Dir_SFC.nc.gz"),
             "name":"Swell direction",
             "sort_key":("weather","other"),
             "metadata_f":{
@@ -1096,7 +1097,7 @@ raster_datasources={
             }
         },
         "IDW71094_WA_WxThunderstorms_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71094_WA_WxThunderstorms_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71094_WA_WxThunderstorms_SFC.nc.gz"),
             "name":"Thunderstorms",
             "sort_key":("weather","other"),
             "metadata_f":{
@@ -1119,7 +1120,7 @@ raster_datasources={
             }
         },
         "IDW71096_WA_WxPrecipitationFrozen_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71096_WA_WxPrecipitationFrozen_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71096_WA_WxPrecipitationFrozen_SFC.nc.gz"),
             "name":"Frozen precipitation",
             "sort_key":("weather","other"),
             "metadata_f":{
@@ -1142,7 +1143,7 @@ raster_datasources={
             }
         },
         "IDW71097_WA_WxPrecipitation_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71097_WA_WxPrecipitation_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71097_WA_WxPrecipitation_SFC.nc.gz"),
             "name":"Precipitation",
             "sort_key":("weather","precipitation"),
             "metadata_f":{
@@ -1165,7 +1166,7 @@ raster_datasources={
             }
         },
         "IDW71102_WA_WxFog_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71102_WA_WxFog_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71102_WA_WxFog_SFC.nc.gz"),
             "name":"Fog",
             "sort_key":("weather","other"),
             "metadata_f":{
@@ -1188,7 +1189,7 @@ raster_datasources={
             }
         },
         "IDW71107_WA_WxFrost_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71107_WA_WxFrost_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71107_WA_WxFrost_SFC.nc.gz"),
             "name":"Frost",
             "sort_key":("weather","other"),
             "metadata_f":{
@@ -1211,7 +1212,7 @@ raster_datasources={
             }
         },
         "IDW71109_WA_MixHgt_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71109_WA_MixHgt_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71109_WA_MixHgt_SFC.nc.gz"),
             "name":"Mixing height",
             "sort_key":("weather","other"),
             "metadata_f":{
@@ -1234,7 +1235,7 @@ raster_datasources={
             }
         },
         "IDW71110_WA_WindMagKmh_1500mAMSL":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71110_WA_WindMagKmh_1500mAMSL.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71110_WA_WindMagKmh_1500mAMSL.nc.gz"),
             "name":"1500m wind speed",
             "sort_key":("weather","wind"),
             "metadata_f":{
@@ -1258,7 +1259,7 @@ raster_datasources={
             }
         },
         "IDW71111_WA_Wind_Dir_1500mAMSL":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71111_WA_Wind_Dir_1500mAMSL.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71111_WA_Wind_Dir_1500mAMSL.nc.gz"),
             "name":"1500m wind direction",
             "sort_key":("weather","wind"),
             "metadata_f":{
@@ -1283,7 +1284,7 @@ raster_datasources={
             }
         },
         "IDW71112_WA_WindMagKmh_3000mAMSL":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71112_WA_WindMagKmh_3000mAMSL.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71112_WA_WindMagKmh_3000mAMSL.nc.gz"),
             "name":"3000m wind speed",
             "sort_key":("weather","wind"),
             "metadata_f":{
@@ -1307,7 +1308,7 @@ raster_datasources={
             }
         },
         "IDW71113_WA_Wind_Dir_3000mAMSL":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71113_WA_Wind_Dir_3000mAMSL.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71113_WA_Wind_Dir_3000mAMSL.nc.gz"),
             "name":"3000m wind direction",
             "sort_key":("weather","wind"),
             "metadata_f":{
@@ -1332,7 +1333,7 @@ raster_datasources={
             }
         },
         "IDW71114_WA_LAL2_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71114_WA_LAL2_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71114_WA_LAL2_SFC.nc.gz"),
             "name":"Thunderstorm activity level",
             "sort_key":("weather","other"),
             "metadata_f":{
@@ -1355,7 +1356,7 @@ raster_datasources={
             }
         },
         "IDW71115_WA_CHaines_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71115_WA_CHaines_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71115_WA_CHaines_SFC.nc.gz"),
             "name":"Continuous Haines index",
             "sort_key":("weather","other"),
             "metadata_f":{
@@ -1378,7 +1379,7 @@ raster_datasources={
             }
         },
         "IDW71116_WA_MaxFDI_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71116_WA_MaxFDI_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71116_WA_MaxFDI_SFC.nc.gz"),
             "name":"Maximum fire danger index",
             "sort_key":("bushfire",),
             "metadata_f":{
@@ -1401,7 +1402,7 @@ raster_datasources={
             }
         },
         "IDW71117_WA_FFDI_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71117_WA_FFDI_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71117_WA_FFDI_SFC.nc.gz"),
             "name":"Forest fire danger index",
             "sort_key":("bushfire",'forest'),
             "metadata_f":{
@@ -1424,7 +1425,7 @@ raster_datasources={
             }
         },
         "IDW71118_WA_MaxFFDI_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71118_WA_MaxFFDI_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71118_WA_MaxFFDI_SFC.nc.gz"),
             "name":"Maximum forest fire danger index",
             "sort_key":("bushfire",'forest'),
             "metadata_f":{
@@ -1447,7 +1448,7 @@ raster_datasources={
             }
         },
         "IDW71119_WA_Hrs50FFDI_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71119_WA_Hrs50FFDI_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71119_WA_Hrs50FFDI_SFC.nc.gz"),
             "name":"Hours of FFDI above 50 threshold",
             "sort_key":("bushfire",'forest'),
             "metadata_f":{
@@ -1470,7 +1471,7 @@ raster_datasources={
             }
         },
         "IDW71120_WA_Hrs75FFDI_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71120_WA_Hrs75FFDI_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71120_WA_Hrs75FFDI_SFC.nc.gz"),
             "name":"Hours of FFDI above 75 threshold",
             "sort_key":("bushfire",'forest'),
             "metadata_f":{
@@ -1493,7 +1494,7 @@ raster_datasources={
             }
         },
         "IDW71121_WA_Hrs100FFDI_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71121_WA_Hrs100FFDI_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71121_WA_Hrs100FFDI_SFC.nc.gz"),
             "name":"Hours of FFDI above 100 threshold",
             "sort_key":("bushfire",'forest'),
             "metadata_f":{
@@ -1516,7 +1517,7 @@ raster_datasources={
             }
         },
         "IDW71122_WA_GFDI_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71122_WA_GFDI_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71122_WA_GFDI_SFC.nc.gz"),
             "name":"Grassland fire danger index",
             "sort_key":("bushfire","grassland"),
             "metadata_f":{
@@ -1539,7 +1540,7 @@ raster_datasources={
             }
         },
         "IDW71123_WA_MaxGFDI_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71123_WA_MaxGFDI_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71123_WA_MaxGFDI_SFC.nc.gz"),
             "name":"Maximum grassland fire danger index",
             "sort_key":("bushfire","grassland"),
             "metadata_f":{
@@ -1562,7 +1563,7 @@ raster_datasources={
             }
         },
         "IDW71124_WA_Hrs50GFDI_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71124_WA_Hrs50GFDI_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71124_WA_Hrs50GFDI_SFC.nc.gz"),
             "name":"Hours of GFDI above 50 threshold",
             "sort_key":("bushfire","grassland"),
             "metadata_f":{
@@ -1585,7 +1586,7 @@ raster_datasources={
             }
         },
         "IDW71125_WA_Hrs75GFDI_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71125_WA_Hrs75GFDI_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71125_WA_Hrs75GFDI_SFC.nc.gz"),
             "name":"Hours of GFDI above 75 threshold",
             "sort_key":("bushfire","grassland"),
             "metadata_f":{
@@ -1608,7 +1609,7 @@ raster_datasources={
             }
         },
         "IDW71126_WA_Hrs100GFDI_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71126_WA_Hrs100GFDI_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71126_WA_Hrs100GFDI_SFC.nc.gz"),
             "name":"Hours of GFDI above 100 threshold",
             "sort_key":("bushfire","grassland"),
             "metadata_f":{
@@ -1631,7 +1632,7 @@ raster_datasources={
             }
         },
         "IDW71127_WA_DF_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71127_WA_DF_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71127_WA_DF_SFC.nc.gz"),
             "name":"Drought factor",
             "sort_key":("bushfire",),
             "metadata_f":{
@@ -1654,7 +1655,7 @@ raster_datasources={
             }
         },
         "IDW71132_WA_Hrs32GFDI_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71132_WA_Hrs32GFDI_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71132_WA_Hrs32GFDI_SFC.nc.gz"),
             "name":"Hours of GFDI above 32 threshold",
             "sort_key":("bushfire","grassland"),
             "metadata_f":{
@@ -1677,7 +1678,7 @@ raster_datasources={
             }
         },
         "IDW71139_WA_Curing_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71139_WA_Curing_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71139_WA_Curing_SFC.nc.gz"),
             "name":"Grassland curing index",
             "sort_key":("bushfire","grassland"),
             "metadata_f":{
@@ -1700,7 +1701,7 @@ raster_datasources={
             }
         },
         "IDW71144_WA_GrassFuelLoad_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71144_WA_GrassFuelLoad_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71144_WA_GrassFuelLoad_SFC.nc.gz"),
             "name":"Grassland fuel load",
             "sort_key":("bushfire","grassland"),
             "metadata_f":{
@@ -1723,7 +1724,7 @@ raster_datasources={
             }
         },
         "IDW71147_WA_KBDI_SFC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71147_WA_KBDI_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71147_WA_KBDI_SFC.nc.gz"),
             "name":"Keetch-Byram drought index (Observed)",
             "sort_key":("bushfire",),
             "metadata_f":{
@@ -1746,10 +1747,10 @@ raster_datasources={
             }
         },
         "IDW71152_WA_DailyWxIcon_SFC_ICON":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71152_WA_DailyWxIcon_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71152_WA_DailyWxIcon_SFC.nc.gz"),
             "name":"Weather icon",
             "sort_key":("weather",),
-            "time":"12:00:00",
+            "time_mapping":{"00:00:00":"12:00:00"},
             "var":"weather_icon",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
@@ -1771,10 +1772,10 @@ raster_datasources={
             }
         },
         "IDW71152_WA_DailyWxIcon_SFC_DESC":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71152_WA_DailyWxIcon_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71152_WA_DailyWxIcon_SFC.nc.gz"),
             "name":"Weather",
             "sort_key":("weather",),
-            "time":"12:00:00",
+            "time_mapping":{"00:00:00":"12:00:00"},
             "var":"weather",
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
@@ -1796,7 +1797,7 @@ raster_datasources={
             }
         },
         "IDW71199_WA_WindMagKmh_1000mAMSL":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71199_WA_WindMagKmh_1000mAMSL.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71199_WA_WindMagKmh_1000mAMSL.nc.gz"),
             "name":"1000m wind speed",
             "sort_key":("weather","wind"),
             "metadata_f":{
@@ -1820,7 +1821,7 @@ raster_datasources={
             }
         },
         "IDW71200_WA_Wind_Dir_1000mAMSL":{
-            "file":os.path.join(Setting.getString("BOM_HOME","/var/www/bom_data"),"adfd","IDW71200_WA_Wind_Dir_1000mAMSL.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71200_WA_Wind_Dir_1000mAMSL.nc.gz"),
             "name":"1000m wind direction",
             "sort_key":("weather","wind"),
             "metadata_f":{
@@ -2067,6 +2068,73 @@ def setDefaultOptionIfMissing(options,defaultOptions):
 
     return options
 
+def get_outlook_times(outlook,datasource = None):
+    """
+    get the times of datasource to outlook
+    outlook: outlook configuration dictionary object
+    datasource: the datasource which outlook times will be returned; if datasource is None, standard times will be returned
+    return the times if it is different than the standard time used in outlook; otherwise return none if the standard times will be used for this datasource
+    """
+    datasource_timemapping = None
+    if datasource and not datasource.get("times"):
+        datasource_timemapping = raster_datasources.get(datasource["workspace"],{}).get(datasource["id"],{}).get("time_mapping")
+        if not datasource_timemapping:
+            #use the standard times
+            return None
+
+    day_index = 0
+    time_index = 0
+    result = []
+    daily_result = None
+    outlook_days = outlook["days"]
+    outlook_times = outlook["times"]
+    min_time = outlook.get("min_time")
+    max_time = outlook.get("max_time")
+    datasource_times = datasource.get("times") if datasource else None
+    
+    while day_index < len(outlook_days):
+        time_index = 0
+        daily_result = []
+        while time_index < len(outlook_times):
+            try:
+                time = datetime.datetime.strptime("{} {}".format(outlook_days[day_index],outlook_times[time_index]),"%Y-%m-%d %H:%M:%S").replace(tzinfo=settings.PERTH_TIMEZONE)
+                if min_time and min_time > time:
+                    continue
+                if max_time and max_time < time:
+                    #exit
+                    day_index = len(outlook_days)
+                    break
+                if datasource_times:
+                    daily_result.append(datetime.datetime.strptime("{} {}".format(outlook_days[day_index],datasource_times[time_index]),"%Y-%m-%d %H:%M:%S").replace(tzinfo=settings.PERTH_TIMEZONE))
+                elif datasource_timemapping:
+                    daily_result.append(datetime.datetime.strptime("{} {}".format(outlook_days[day_index],(datasource_timemapping.get(outlook_times[time_index]) or outlook_times[time_index])),"%Y-%m-%d %H:%M:%S").replace(tzinfo=settings.PERTH_TIMEZONE))
+                else:
+                    daily_result.append(time)
+            finally:
+                time_index += 1
+        if len(daily_result) > 0:
+            result.append(daily_result)
+        day_index += 1
+    return result
+
+
+def get_outlook_dailytimes(outlook,datasource = None):
+    """
+    get daily times of datasource to outlook
+    before invocation, outlook["times"] should already be formated to two dimension array
+    return a array of times for each day
+    """
+    datasource_timemapping = raster_datasources.get(datasource["workspace"],{}).get(datasource["id"],{}).get("time_mapping") if datasource else None
+
+    result = []
+    for dailytimes in outlook["times"]:
+        day = dailytimes[0].strftime("%Y-%m-%d")
+        if datasource_timemapping:
+            result.append(datetime.datetime.strptime("{} {}".format(day,(datasource_timemapping.get("00:00:00") or "00:00:00")),"%Y-%m-%d %H:%M:%S").replace(tzinfo=settings.PERTH_TIMEZONE))
+        else:
+            result.append(datetime.datetime.strptime("{} {}".format(day,"00:00:00"),"%Y-%m-%d %H:%M:%S").replace(tzinfo=settings.PERTH_TIMEZONE))
+    return result
+
 
 def outlookmetadata():
     """
@@ -2084,6 +2152,28 @@ def outlookmetadata():
             hasFailedDs = True
             break
 
+    """
+    #test meta data refresh feature
+    metadata = [] 
+    ds1 = None
+    import random
+    for ds in outlook_metadata:
+        ds1 = dict(ds)
+        ds1["metadata"] = dict(ds1["metadata"])
+        ds1["metadata"]["refresh_time"] = datetime.datetime.now()
+        ds1["loadstatus"] = dict(ds1["loadstatus"])
+        if ds1["loadstatus"]["status"] == "loaded":
+            if random.randint(0,4) == -1:
+                ds1["loadstatus"]["status"] = "loadfailed"
+                hasFailedDs = True
+        metadata.append(ds1)
+    if hasFailedDs:
+        result = [ds for ds in metadata if ds["loadstatus"]["status"] == "loaded"]
+        return {'size':len(result),'datasources':result}
+    else:
+        return {'size':len(metadata),'datasources':metadata}
+    """
+
     if hasFailedDs:
         result = [ds for ds in outlook_metadata if ds["loadstatus"]["status"] == "loaded"]
         return {'size':len(result),'datasources':result}
@@ -2097,26 +2187,54 @@ def weatheroutlook(fmt):
     Request datas
         point: the coordinate of the point whose data will be retrieved from raster datasources
         srs: the spatial reference system of the coordinate, if missing, epsg:4326 will be used
-        datasources:  raster datasources and related options
+        outlooks:  raster datasources and related options
           {
-            workspace: the workspace of the datasource; for example:bom
-            {
-                datasource : bands(a band identity or a array of band identities; its value dependents on workspace).
-            }
-          {
-    Response: json or html
-        {
-            workspace: 
-            {
-                datasource:  
+            days: the outlook days
+            times: the outlook time each day
+            min_time: the earlist time to outlook if exist; if not exist, its value is the first time of the first day
+            max_time: the latest time to outlook if exit; if not exist, its value is the last time of the last day
+            options: a dictionary object
                 {
-                    status:true/false
-                    message: error message if failed
-                    data: a array of data retrieved from band; null represent no value or invalid band. datas has the same length as bands
+                    daily_title_pattern: the pattern of daily title
                 }
-            }
+            daily_data: a dictionary object to contain all the variable used in the dail_title_pattern
+            times_data:A array of datasources or groups to outlook each time
+                for datasources
+                {
+                    workspace: the workspace of datasource
+                    id: the identity of datasource
+                    options: dictionary object{
+                        title: the configured datasource title            
+                    }
+                    
+                }
+                for groups
+                {
+                    group: group name
+                    datasources: a array of datasource belonging to group
+                }
+          {
+    After process before foramt
+        The following properties will add to request data
+            latest_refresh_time: the latest refresh time of datasources outlooked by this request
+            issued_time: the current time
 
-        }
+        for each outlook, the following properties are changed
+            times: changed to a dimension array. the first array is day, the second array is all the times in that day
+
+        for each datasource in daily data, the following proeprties are added or changed:
+            status: true: processed successfully; otherwise false
+            times: a array of datatimes to outlook
+            context: merge with datasource's metadata
+            data:a array of data which is a array with 2 members: [layer index, value]
+
+        for each datasource in times data, the following properties are added or changed:
+            status: true: processed successfully; otherwise false
+            times: two dimension array, the first array is a day, the second array is the outlook times in that day
+            context: merge with datasource's metadata
+            data: three dimension array, the first araray is a day, the second array is the data for each outlook time in that day, the third array is a array with 2 members: [layer index, value]
+            
+    Response: json or html or others
     """
     fmt = (fmt or "json").lower()
     try:
@@ -2150,9 +2268,15 @@ def weatheroutlook(fmt):
 
             if not outlook.get("times_data"):
                 raise Exception("Parameter 'times_data' is missing.")
+
+            if outlook.get("min_time"):
+                outlook["min_time"] = datetime.datetime.strptime(outlook["min_time"],"%Y-%m-%d %H:%M:%S").replace(tzinfo=settings.PERTH_TIMEZONE)
+                
+            if outlook.get("max_time"):
+                outlook["max_time"] = datetime.datetime.strptime(outlook["max_time"],"%Y-%m-%d %H:%M:%S").replace(tzinfo=settings.PERTH_TIMEZONE)
                 
 
-            #outlook["times"] = [datetime.datetime.strptime(dt,"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE)  for dt in outlook["times"]]
+            #outlook["times"] = [datetime.datetime.strptime(dt,"%Y-%m-%d %H:%M:%S").replace(tzinfo=settings.PERTH_TIMEZONE)  for dt in outlook["times"]]
 
             if not isinstance(outlook["times_data"],list):
                 outlook["times_data"] = [outlook["times_data"]]
@@ -2171,11 +2295,9 @@ def weatheroutlook(fmt):
                                 ds["times"] = [ds["times"]]
                             if len(ds["times"]) != len(outlook["times"]):
                                 raise Exception("The length of times of datasource in times_data's group is not equal with the length of times of outlook")
-                            ds["times"] = [[datetime.datetime.strptime("{} {}".format(day,time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in ds["times"]] for day in outlook["days"]]
-                        else:
-                            datasourceMetadata = raster_datasources.get(ds["workspace"],{}).get(ds["id"],{})
-                            if datasourceMetadata.get("time"):
-                                ds["times"] = [[datetime.datetime.strptime("{} {}".format(day,datasourceMetadata["time"],time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in outlook["times"]] for day in outlook["days"]]
+                        times = get_outlook_times(outlook,ds)
+                        if times:
+                            ds["times"] = times
 
 
                 else:
@@ -2188,12 +2310,22 @@ def weatheroutlook(fmt):
                             datasource["times"] = [datasource["times"]]
                         if len(datasource["times"]) != len(outlook["times"]):
                             raise Exception("The length of times of datasource in times_data is not equal with the length of times of outlook")
-                        datasource["times"] = [[datetime.datetime.strptime("{} {}".format(day,time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in datasource["times"]] for day in outlook["days"]]
-                    else:
-                        datasourceMetadata = raster_datasources.get(datasource["workspace"],{}).get(datasource["id"],{})
-                        if datasourceMetadata.get("time"):
-                            datasource["times"] = [[datetime.datetime.strptime("{} {}".format(day,datasourceMetadata["time"],time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in outlook["times"]] for day in outlook["days"]]
+                    times = get_outlook_times(outlook,datasource)
+                    if times:
+                        datasource["times"] = times
 
+            #format parameter 'times' to a 2 dimension array of datatime object;the first dimension is day, the second dimension is times in a day
+            outlook["times"] = get_outlook_times(outlook)
+
+            #format the days to a array of datetime object
+            outlook["days"] = get_outlook_dailytimes(outlook)
+
+            if not outlook.get("min_time"):
+                outlook["min_time"] = outlook["times"][0][0]
+                
+            if not outlook.get("max_time"):
+                outlook["max_time"] = outlook["times"][-1][-1]
+                
             #initialize 'daily_data' parameter
             if outlook.get("daily_data"):
                 for datasource in outlook["daily_data"].itervalues():
@@ -2201,14 +2333,7 @@ def weatheroutlook(fmt):
                         raise Exception("Property 'workspace' of datasource in daily_data is missing.")
                     if not datasource.get("id"):
                         raise Exception("Property 'id' of datasource in daily_data is missing.")
-                    datasourceMetadata = raster_datasources.get(datasource["workspace"],{}).get(datasource["id"],{})
-                    datasource["times"] = [datetime.datetime.strptime("{} {}".format(day,datasourceMetadata.get("time","00:00:00")),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE)  for day in outlook["days"]]
-
-            #format parameter 'times' to a 2 dimension array of datatime object;the first dimension is day, the second dimension is times in a day
-            outlook["times"] = [[datetime.datetime.strptime("{} {}".format(day,time),"%Y-%m-%d %H:%M:%S").replace(tzinfo=PERTH_TIMEZONE) for time in outlook["times"]] for day in outlook["days"]]
-
-            #format the days to a array of datetime object
-            outlook["days"] = [datetime.datetime.strptime(day,"%Y-%m-%d").replace(tzinfo=PERTH_TIMEZONE)  for day in outlook["days"]]
+                    datasource["times"] = get_outlook_dailytimes(outlook,datasource)
 
         #extract the data from raster dataset and save the data into 'data' property of each datasource
         #the data structure is the same as the times structure
@@ -2220,6 +2345,9 @@ def weatheroutlook(fmt):
                     "srs":requestData["srs"],
                     "bandids":datasource["times"]
                 },debug))
+                if "context" in datasource and datasource["context"].get("refresh_time"):
+                    if "latest_refresh_time" not in  requestData or requestData["latest_refresh_time"] < datasource["context"]["refresh_time"]:
+                        requestData["latest_refresh_time"] = datasource["context"]["refresh_time"]
 
             for datasource in outlook.get("times_data",[]):
                 if datasource.get("group"):
@@ -2230,6 +2358,9 @@ def weatheroutlook(fmt):
                             "srs":requestData["srs"],
                             "bandids":ds.get("times",outlook["times"])
                         },debug))
+                        if "context" in ds and ds["context"].get("refresh_time"):
+                            if "latest_refresh_time" not in  requestData or requestData["latest_refresh_time"] < ds["context"]["refresh_time"]:
+                                requestData["latest_refresh_time"] = ds["context"]["refresh_time"]
                 else:
                     datasource.update(getRasterData({
                         "datasource":datasource,
@@ -2237,15 +2368,18 @@ def weatheroutlook(fmt):
                         "srs":requestData["srs"],
                         "bandids":datasource.get("times",outlook["times"])
                     },debug))
+                    if "context" in datasource and datasource["context"].get("refresh_time"):
+                        if "latest_refresh_time" not in  requestData or requestData["latest_refresh_time"] < datasource["context"]["refresh_time"]:
+                            requestData["latest_refresh_time"] = datasource["context"]["refresh_time"]
     
         result = requestData
-        result["issued_time"] = datetime.datetime.now(PERTH_TIMEZONE)
+        result["issued_time"] = datetime.datetime.now(settings.PERTH_TIMEZONE)
 
         if fmt == "json":
             bottle.response.set_header("Content-Type", "application/json")
+            bottle.response.set_header("Content-Disposition", "attachment;filename='weather_outlook_{}.json'".format(datetime.datetime.strftime(datetime.datetime.now(),"%Y%m%d_%H%M%S")))
             return result
         else:
-            #html
             #get total columns and check whether have groups
             for outlook in result["outlooks"]:
                 outlook["has_group"] = False
@@ -2292,17 +2426,18 @@ def weatheroutlook(fmt):
 
             #format data if required
             for outlook in result["outlooks"]:
-                #format time column
-                index = 0;
-                while index < len(outlook["days"]):
-                    timeIndex = 0
-                    while timeIndex < len(outlook["times"][index]):
-                        if outlook.get("has_daily_group"):
-                           outlook["times"][index][timeIndex] = formatData(outlook["times"][index][timeIndex],outlook["options"].get("outlook_time_pattern"),result["options"].get("no_data") or "")
-                        else:
-                           outlook["times"][index][timeIndex] = formatData(outlook["times"][index][timeIndex],outlook["options"].get("outlook_date_pattern"),result["options"].get("no_data") or "")
-                        timeIndex += 1
-                    index += 1
+                if fmt == "html":
+                    #format time column only if output format is html
+                    index = 0;
+                    while index < len(outlook["times"]):
+                        timeIndex = 0
+                        while timeIndex < len(outlook["times"][index]):
+                            if outlook.get("has_daily_group"):
+                               outlook["times"][index][timeIndex] = formatData(outlook["times"][index][timeIndex],outlook["options"].get("outlook_time_pattern"),result["options"].get("no_data") or "")
+                            else:
+                               outlook["times"][index][timeIndex] = formatData(outlook["times"][index][timeIndex],outlook["options"].get("outlook_date_pattern"),result["options"].get("no_data") or "")
+                            timeIndex += 1
+                        index += 1
                 
                 #format daily data
                 for datasource in outlook.get("daily_data", {}).itervalues():
@@ -2316,7 +2451,7 @@ def weatheroutlook(fmt):
                     index = 0
                     while index < len(outlook["days"]):
                         groupContext["date"] = outlook["days"][index].strftime(outlook["options"]["date_pattern"])
-                        for name,datasource in outlook.get("daily_data",[]).iteritems():
+                        for name,datasource in outlook.get("daily_data",{}).iteritems():
                             groupContext[name] = datasource["data"][index][1] if datasource["status"] else (result["options"].get("no_data") or "")
                         outlook["daily_group"].append(outlook.get("options",{}).get("daily_title_pattern","{date}").format(**groupContext))
                         index += 1
@@ -2328,9 +2463,11 @@ def weatheroutlook(fmt):
                             if ds.get("context"):
                                 formatContext(ds["context"],result["options"])
                                 ds["options"]["title"] = ds["options"]["title"].format(**ds["context"])
-                                unit = raster_datasources[ds["workspace"]][ds["id"]].get("metadata",{}).get("unit")
-                                if html_unit_map.get(unit,unit):
-                                    ds["options"]["title"] = "{}<br>({})".format(ds["options"]["title"],html_unit_map.get(unit,unit))
+                                if fmt == "html":
+                                    #add unit to datasource title only if output format is html
+                                    unit = raster_datasources[ds["workspace"]][ds["id"]].get("metadata",{}).get("unit")
+                                    if html_unit_map.get(unit,unit):
+                                        ds["options"]["title"] = "{}<br>({})".format(ds["options"]["title"],html_unit_map.get(unit,unit))
 
                             if ds["status"]:
                                 formatBandsData(ds,result["options"].get("no_data") or "")
@@ -2338,15 +2475,22 @@ def weatheroutlook(fmt):
                         if datasource.get("context"):
                             formatContext(datasource["context"],result["options"])
                             datasource["options"]["title"] = datasource["options"]["title"].format(**datasource["context"])
-                            unit = raster_datasources[datasource["workspace"]][datasource["id"]].get("metadata",{}).get("unit")
-                            if html_unit_map.get(unit,unit):
-                                datasource["options"]["title"] = "{}<br>({})".format(datasource["options"]["title"],html_unit_map.get(unit,unit))
+                            if fmt == "html":
+                                #add unit to datasource title only if output format is html
+                                unit = raster_datasources[datasource["workspace"]][datasource["id"]].get("metadata",{}).get("unit")
+                                if html_unit_map.get(unit,unit):
+                                    datasource["options"]["title"] = "{}<br>({})".format(datasource["options"]["title"],html_unit_map.get(unit,unit))
 
                         if datasource["status"] :
                             formatBandsData(datasource,result["options"].get("no_data") or "")
 
-            bottle.response.set_header("Content-Type", "text/html")
-            return bottle.template('weatheroutlook.html',template_adapter=bottle.Jinja2Template,template_settings=jinja2settings, staticService=STATIC_SERVICE,data=result,envType=ENV_TYPE)
+            if fmt == "amicus":
+                bottle.response.set_header("Content-Type", "application/xml")
+                bottle.response.set_header("Content-Disposition", "attachment;filename='weather_outlook_for_amicus_{}.xml'".format(datetime.datetime.strftime(datetime.datetime.now(),"%Y%m%d_%H%M%S")))
+                return bottle.template('weatheroutlook_amicus.xml',template_adapter=bottle.Jinja2Template,template_settings=jinja2settings, staticService=settings.STATIC_SERVICE,data=result,envType=settings.ENV_TYPE)
+            else:
+                bottle.response.set_header("Content-Type", "text/html")
+                return bottle.template('weatheroutlook.html',template_adapter=bottle.Jinja2Template,template_settings=jinja2settings, staticService=settings.STATIC_SERVICE,data=result,envType=settings.ENV_TYPE)
 
     except:
         bottle.response.status = 400

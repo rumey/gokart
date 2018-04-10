@@ -413,33 +413,104 @@ if (result) {
             type: 'TimelineLayer',
             name: 'Himawari-8 Hotspots',
             id: 'himawari8:hotspots',
-            source: self.env.gokartService + '/hi8/AHI_TKY_FHS',
             params: {
               FORMAT: 'image/png'
             },
-            refresh: 300
+            timelineRefresh:300,
+            fetchTimelineUrl:function(lastUpdatetime){
+                return self.env.gokartService + '/hi8/AHI_TKY_FHS?updatetime=' + lastUpdatetime
+            },
+            setTimeIndex:function(layer,tileLayer,previousTimeline,defaultFunc) {
+                var timeIndex = null
+                if (previousTimeline && previousTimeline.length > 1 && tileLayer.get('timeIndex') && tileLayer.get('timeIndex') < previousTimeline.length && tileLayer.get('timeIndex') >= 1) {
+                    timeIndex = tileLayer.get('timeIndex')
+                }
+                if (timeIndex == null || timeIndex == previousTimeline.length - 1) {
+                    var newTimeIndex = layer.timeline.length - 1
+                    if (previousTimeline && previousTimeline[timeIndex][0] === layer.timeline[newTimeIndex][0]) {
+                        tileLayer.set('timeIndex',layer.timeline.length - 1,true)
+                    } else {
+                        tileLayer.set('timeIndex',layer.timeline.length - 1)
+                    }
+                } else {
+                    var newTimeIndex = layer.timeline.findIndex(function(o) {return o[0] === previousTimeline[timeIndex][0]})
+                    if (newTimeIndex >= 0) {
+                        tileLayer.set('timeIndex',newTimeIndex,true)
+                    } else {
+                        defaultFunc(layer,tileLayer,previousTimeline)
+                    }
+                }
+            }
           }, {
             type: 'TimelineLayer',
             name: 'Himawari-8 True Colour',
             id: 'himawari8:bandtc',
-            source: self.env.gokartService + '/hi8/AHI_TKY_b321',
-            refresh: 300,
+            timelineRefresh:300,
+            fetchTimelineUrl:function(lastUpdatetime){
+                return self.env.gokartService + '/hi8/AHI_TKY_b321?updatetime=' + lastUpdatetime
+            },
+            setTimeIndex:function(layer,tileLayer,previousTimeline,defaultFunc) {
+                var timeIndex = null
+                if (previousTimeline && previousTimeline.length > 1 && tileLayer.get('timeIndex') && tileLayer.get('timeIndex') < previousTimeline.length && tileLayer.get('timeIndex') >= 1) {
+                    timeIndex = tileLayer.get('timeIndex')
+                }
+                if (timeIndex == null || timeIndex == previousTimeline.length - 1) {
+                    var newTimeIndex = layer.timeline.length - 1
+                    if (previousTimeline && previousTimeline[timeIndex][0] === layer.timeline[newTimeIndex][0]) {
+                        tileLayer.set('timeIndex',layer.timeline.length - 1,true)
+                    } else {
+                        tileLayer.set('timeIndex',layer.timeline.length - 1)
+                    }
+                } else {
+                    var newTimeIndex = layer.timeline.findIndex(function(o) {return o[0] === previousTimeline[timeIndex][0]})
+                    if (newTimeIndex >= 0) {
+                        tileLayer.set('timeIndex',newTimeIndex,true)
+                    } else {
+                        defaultFunc(layer,tileLayer,previousTimeline)
+                    }
+                }
+            }
             //base: true
           /*
           }, {
             type: 'TimelineLayer',
             name: 'Himawari-8 Band 3',
             id: 'himawari8:band3',
-            source: self.env.gokartService + '/hi8/AHI_TKY_b3',
-            refresh: 300,
+            timelineRefresh:300,
+            fetchTimelineUrl:function(lastUpdatetime){
+                return self.env.gokartService + '/hi8/AHI_TKY_b3?updatetime=' + lastUpdatetime
+            }
             base: true
           */
           }, {
             type: 'TimelineLayer',
             name: 'Himawari-8 Band 7',
             id: 'himawari8:band7',
-            source: self.env.gokartService + '/hi8/AHI_TKY_b7',
-            refresh: 300,
+            timelineRefresh:300,
+            fetchTimelineUrl:function(lastUpdatetime){
+                return self.env.gokartService + '/hi8/AHI_TKY_b7?updatetime=' + lastUpdatetime
+            },
+            setTimeIndex:function(layer,tileLayer,previousTimeline,defaultFunc) {
+                var timeIndex = null
+                if (previousTimeline && previousTimeline.length > 1 && tileLayer.get('timeIndex') && tileLayer.get('timeIndex') < previousTimeline.length && tileLayer.get('timeIndex') >= 1) {
+                    timeIndex = tileLayer.get('timeIndex')
+                }
+                if (timeIndex == null || timeIndex == previousTimeline.length - 1) {
+                    var newTimeIndex = layer.timeline.length - 1
+                    if (previousTimeline && previousTimeline[timeIndex][0] === layer.timeline[newTimeIndex][0]) {
+                        tileLayer.set('timeIndex',layer.timeline.length - 1,true)
+                    } else {
+                        tileLayer.set('timeIndex',layer.timeline.length - 1)
+                    }
+                } else {
+                    var newTimeIndex = layer.timeline.findIndex(function(o) {return o[0] === previousTimeline[timeIndex][0]})
+                    if (newTimeIndex >= 0) {
+                        tileLayer.set('timeIndex',newTimeIndex,true)
+                    } else {
+                        defaultFunc(layer,tileLayer,previousTimeline)
+                    }
+                }
+            }
             //base: true
          /*
           }, {

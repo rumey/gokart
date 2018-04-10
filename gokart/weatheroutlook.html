@@ -39,8 +39,23 @@
         #weatheroutlook .time-1-in-day {
             background-color:#D6E2E4;
         }
-        #weatheroutlook table,th,td {
+        #weatheroutlook th,#weatheroutlook td {
             border:2px solid black
+        }
+        .outlook-title {
+            font-weight:bold;
+            font-size:1.5rem;
+        }
+        .outlooks-print table thead {
+            font-size:0.6rem;
+            font-weight:bold;
+        }
+        .outlooks-print table tbody {
+            font-size:0.6rem;
+        }
+        .outlooks-print .outlook-title {
+            font-weight:bold;
+            font-size:1.0rem;
         }
     </style>
   </head>
@@ -53,9 +68,9 @@
     <div style="letter-spacing:2px;padding-left:20px;padding-right:20px;padding-top:20px;padding-bottom:20px;z-index:100;" id="outlooks">
   {% endif %}
 
-    <div >{{data.options.title|safe}}</div>
+    <div><h5 class="outlook-title">{{data.options.title}}</h5></div>
 
-    <div style="font-size:small;font-weight:bold;font-style:italic">Issued at {{data.issued_time|formatDate("%I:%M %p %Z on %A %d %B %Y")}}</div>
+    <div style="font-size:small;font-weight:bold;font-style:italic">Issued at {{data.issued_time|formatDate("%I:%M %p %Z on %A %d %B %Y")}}(Fetched from BoM:{{data.latest_refresh_time|formatDate("%d/%m/%Y %H:%M")}})</div>
     <div style="text-align:left;" class="bypass">
         <img style="cursor:pointer" src="/dist/static/images/png.png" width="40px" height="40px" onclick="exportAs('outlooks','.bypass','outlook_{{data.issued_time|formatDate("%Y-%m-%d %H%M%S")}}.png')">
         <img style="cursor:pointer;" src="/dist/static/images/pdf.png" width="40px" height="40px" onclick="exportAs('outlooks','.bypass','outlook_{{data.issued_time|formatDate("%Y-%m-%d %H%M%S")}}.pdf')">
