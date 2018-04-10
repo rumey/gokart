@@ -4,7 +4,6 @@ import bottle
 import re
 import pytz
 import subprocess
-import re
 import hashlib
 import base64
 import json
@@ -26,18 +25,15 @@ STATIC_SERVICE=os.environ.get("STATIC_SERVICE") or "https://static.dbca.wa.gov.a
 
 PERTH_TIMEZONE = datetime.datetime.now(pytz.timezone('Australia/Perth')).tzinfo
 
-class Setting(object):
-    @staticmethod
-    def getBool(name,defaultValue=None):
-        value = os.environ.get(name)
-        if value is None:
-            return defaultValue
-        else:
-            return True if value.lower() in ("true","yes","t","y") else False
+def get_bool(name,defaultValue=None):
+    value = os.environ.get(name)
+    if value is None:
+        return defaultValue
+    else:
+        return True if value.lower() in ("true","yes","t","y") else False
 
-    @staticmethod
-    def getString(name,defaultValue=None):
-        return os.environ.get(name,defaultValue)
+def get_string(name,defaultValue=None):
+    return os.environ.get(name,defaultValue)
 
 session_key_header = "X-Session-Key"
 sso_cookie_name = os.environ.get("SSO_COOKIE_NAME") or "dbca_wa_gov_au_sessionid"
@@ -66,7 +62,7 @@ def get_file_md5(f):
     return get_md5_output[0].split()[0]
 
 
-def getMd5(data):
+def get_md5(data):
     m = hashlib.md5()
     m.update(data)
     data = base64.urlsafe_b64encode(m.digest())

@@ -12,7 +12,7 @@ import traceback
 from jinja2 import Template
 
 from . import s3
-from .settings import *
+import settings
 
 gdalinfo = subprocess.check_output(["gdalinfo", "--version"])
 
@@ -99,7 +99,7 @@ def detectEpsg(filename):
 
 
 #initialize vrt template
-with open(os.path.join(BASE_PATH,"unionlayers.vrt")) as f:
+with open(os.path.join(settings.BASE_PATH,"unionlayers.vrt")) as f:
     UNIONLAYERS_TEMPLATE = Template(f.read())
 
 # Vector translation using ogr
@@ -576,6 +576,9 @@ def download(fmt):
                 layer: layer name,required if datasource include multiple layers
                 where: filter the features 
             },
+            geometry_column: dictionary
+                name: geometry column name
+                type: geometry column type
             field_strategy: default is Intersection
             fields: optional
         },
@@ -664,7 +667,7 @@ def download(fmt):
                 if not layer.get("field_strategy"):
                     layer["field_strategy"] = "Intersection"
                 layer["ignore_if_empty"] = layer.get("ignore_if_empty") or False
-                #if geometry column, change it to a dict
+                #if geometry column is a string, change it to a dict
                 if layer.get("geometry_column") and isinstance(layer["geometry_column"],basestring):
                     layer["geometry_column"] = {name:layer["geometry_column"]}
 
@@ -707,24 +710,24 @@ def download(fmt):
             if "sourcename" in ds:
                 name = ds["sourcename"]
                 if unique and "where" in ds:
-                    name = "{}-{}".format(name,getMd5(ds["where"]))
+                    name = "{}-{}".format(name,settings.get_md5(ds["where"]))
             elif ds["type"] == "WFS":
-                name = typename(ds["url"])
+                name = settings.typename(ds["url"])
                 if not name:
-                    name = getMd5(ds["url"])
+                    name = settings.get_md5(ds["url"])
                     if unique and "where" in ds:
-                        name = "{}-{}".format(name,getMd5(ds["where"]))
+                        name = "{}-{}".format(name,settings.get_md5(ds["where"]))
                 else:
                     name = name.replace(":","_")
                     if unique:
                         if "where" in ds:
-                            name = "{}-{}-{}".format(name,getMd5(ds["url"]),getMd5(ds["where"]))
+                            name = "{}-{}-{}".format(name,settings.get_md5(ds["url"]),settings.get_md5(ds["where"]))
                         else:
-                            name = "{}-{}".format(name,getMd5(ds["url"]))
+                            name = "{}-{}".format(name,settings.get_md5(ds["url"]))
             elif ds["type"] == "FORM":
                 name = ds["parameter"]
                 if unique and "where" in ds:
-                    name = "{}-{}".format(name,getMd5(ds["where"]))
+                    name = "{}-{}".format(name,settings.get_md5(ds["where"]))
             elif ds["type"] == "UPLOAD":
                 filename = bottle.request.files.get(ds["parameter"]).filename
                 filename = os.path.split(filename)[1]
@@ -736,7 +739,7 @@ def download(fmt):
                 if not name:
                     name = os.path.splitext(filename)[0]
                 if unique and "where" in ds:
-                    name = "{}-{}".format(name,getMd5(ds["where"]))
+                    name = "{}-{}".format(name,settings.get_md5(ds["where"]))
 
 
             return name
@@ -781,8 +784,8 @@ def download(fmt):
         #load data sources
         workdir = tempfile.mkdtemp()
 
-        session_cookie = get_session_cookie()
-        cookies={sso_cookie_name:session_cookie}
+        session_cookie = settings.get_session_cookie()
+        cookies={settings.sso_cookie_name:session_cookie}
 
         loaddir = os.path.join(workdir,"load")
         os.mkdir(loaddir)
@@ -1144,7 +1147,7 @@ def download(fmt):
     finally:
         try:
             #print "workdir = {}".format(workdir)
-            #shutil.rmtree(workdir)
+            shutil.rmtree(workdir)
             pass
         except:
             pass
