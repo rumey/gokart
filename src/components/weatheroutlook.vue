@@ -302,8 +302,8 @@
         outlookSetting:{},
         outlookSettings:[
             {name:"weather-outlook-default",title:"Default 4 Day Weather Outlook",icon:"/dist/static/images/weather-outlook-default.svg"},
-            {name:"weather-outlook-customized",title:"Customized Weather Outlook",icon:"/dist/static/images/weather-outlook-customized.svg"}
-            //{name:"weather-outlook-amicus",title:"Weather Outlook Amicus Export",icon:"/dist/static/images/weather-outlook-amicus.svg"}
+            {name:"weather-outlook-customized",title:"Customized Weather Outlook",icon:"/dist/static/images/weather-outlook-customized.svg"},
+            {name:"weather-outlook-amicus",title:"Weather Outlook Amicus Export",icon:"/dist/static/images/weather-outlook-amicus.svg"}
         ],
         showSettings:false,
         revision:1,
