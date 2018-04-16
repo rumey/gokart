@@ -8,7 +8,7 @@
             <img v-bind:src="tool.icon" width=48 height=48>
         </button>
         <div v-show="showTools" style="position:absolute;width:200px;right:0px" id="toolbox_tools">
-            <button type="button" v-for="t in tools" title="{{t.title}}" id="{{t.name}}" style="margin-left:2px;margin-bottom:1px;float:right" track-by="$index" @click.stop.prevent="selectTool(t)" v-bind:class="{'selected':isToolSelected(t)}">
+            <button type="button" v-for="t in tools" title="{{t.title}}" id="{{t.toolid}}" style="margin-left:2px;margin-bottom:1px;float:right" track-by="$index" @click.stop.prevent="selectTool(t)" v-bind:class="{'selected':isToolSelected(t)}">
                 <img v-bind:src="t.icon" width="36" height="36">
             </button>
         </div>
@@ -149,7 +149,7 @@
         vm._toolboxStatus.phaseBegin("initialize",20,"Initialize",true,false)
         
         var defaultTool = null;
-        var nonTool = {name:"deselect-tool",title:"",icon:"/dist/static/images/non-tool.svg",_component:vm,assistantButtons:[]}
+        var nonTool = {toolid:"deselect-tool",title:"",icon:"/dist/static/images/non-tool.svg",_component:vm,assistantButtons:[]}
         vm.tools.push(nonTool)
         defaultTool = nonTool
         var index = 1

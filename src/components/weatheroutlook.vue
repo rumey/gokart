@@ -301,9 +301,9 @@
         reportTimes:[],
         outlookSetting:{},
         outlookSettings:[
-            {name:"weather-outlook-default",title:"Default 4 Day Weather Outlook",icon:"/dist/static/images/weather-outlook-default.svg"},
-            {name:"weather-outlook-customized",title:"Customized Weather Outlook",icon:"/dist/static/images/weather-outlook-customized.svg"},
-            {name:"weather-outlook-amicus",title:"Weather Outlook Amicus Export",icon:"/dist/static/images/weather-outlook-amicus.svg"}
+            {toolid:"weather-outlook-default",title:"Default 4 Day Weather Outlook",icon:"/dist/static/images/weather-outlook-default.svg"},
+            {toolid:"weather-outlook-customized",title:"Customized Weather Outlook",icon:"/dist/static/images/weather-outlook-customized.svg"},
+            {toolid:"weather-outlook-amicus",title:"Weather Outlook Amicus Export",icon:"/dist/static/images/weather-outlook-amicus.svg"}
         ],
         showSettings:false,
         revision:1,
@@ -439,7 +439,7 @@
         this.outlookSetting = s
       },
       selectTool:function(tool) {
-        if (tool.name === "weather-outlook-customized") {
+        if (tool.toolid === "weather-outlook-customized") {
             this.open()
         }
         if (this.outlookSetting === tool) {
@@ -1019,7 +1019,7 @@
         var _getWeatherOutlook = function(position) {
             var requestData = null;
             var format = vm.format
-            if (vm.outlookSetting.name === "weather-outlook-default") {
+            if (vm.outlookSetting.toolid === "weather-outlook-default") {
                 requestData = {
                     point:coordinate,
                     options: {
@@ -1037,7 +1037,7 @@
                         }
                     ]
                 }
-            } else if (vm.outlookSetting.name === "weather-outlook-amicus") {
+            } else if (vm.outlookSetting.toolid === "weather-outlook-amicus") {
                 requestData = {
                     point:coordinate,
                     options: {

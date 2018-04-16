@@ -111,21 +111,21 @@
       tools:function() {
         return [
             {
-                name:"MeasureLength",
+                toolid:"MeasureLength",
                 title:"Measure Length",
                 icon:"/dist/static/images/measure-length.svg",
                 assistantButtons:[
                     {name:"Clear", title:"Clear Measurements",icon:"/dist/static/images/clear.svg"}
                 ]
             },{
-                name:"MeasureArea",
+                toolid:"MeasureArea",
                 title:"Measure Area",
                 icon:"/dist/static/images/measure-area.svg",
                 assistantButtons:[
                     {name:"Clear", title:"Clear Measurements",icon:"/dist/static/images/clear.svg"}
                 ]
             },{
-                name:"MeasureBearing",
+                toolid:"MeasureBearing",
                 title:"Measure Bearing",
                 icon:"/dist/static/images/measure-bearing.svg",
                 assistantButtons:[
@@ -207,7 +207,7 @@
       selectTool:function(tool) {
       },
       toggleTool: function (enable,tool) {
-          this.toggleMeasure(tool.name,enable)
+          this.toggleMeasure(tool.toolid,enable)
 
       },
       isToolActivated:function(tool) {
