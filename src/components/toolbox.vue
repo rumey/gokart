@@ -173,8 +173,6 @@
     
             vm.selectTool(defaultTool,false)
         }
-        vm.revision += 1
-
         vm._toolboxStatus.phaseEnd("initialize")
       })
         

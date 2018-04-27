@@ -175,38 +175,7 @@ if (result) {
     utils.checkVersion(profile)
     Vue.use(VueStash)
     localforage.getItem('sssOfflineStore').then(function (store) {
-      var _extend = function() {
-          if (arguments.length === 0) {
-              return {}
-          } else if (arguments.length === 1) {
-              return arguments[0]
-          } else {
-              var o = arguments[0]
-              var _arguments = arguments
-              $.each(o,function(key,value){
-                  if (value !== null && value !== undefined && typeof(value) === "object" && !Array.isArray(value)) {
-                      var args = []
-                      for(var index = 0;index < _arguments.length;index++) {
-                          if (_arguments[index] && key in _arguments[index]) {
-                              args.push(_arguments[index][key])
-                          }
-                      }
-                      o[key] = _extend.apply(null,args)
-                  } else {
-                      for(var index = _arguments.length - 1;index > 0;index--) {
-                          if (_arguments[index]) {
-                              if (key in _arguments[index]) {
-                                  o[key] = _arguments[index][key]
-                                  break
-                              }
-                          }
-                      }
-                  }
-              })
-              return o
-          }
-      }
-      var settings = _extend(persistentData.settings,store?(store.settings || {}):{})
+      var settings = utils.extend(persistentData.settings,store?(store.settings || {}):{})
       
       if (store && store["activeLayers"] && store["activeLayers"].length === 0) {
           delete store["activeLayers"]
