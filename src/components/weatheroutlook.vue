@@ -62,7 +62,7 @@
                         <a href="#" class="accordion-title">Daily Title</a>
                         <!-- Accordion tab content: it would start in the open state due to using the `is-active` state class. -->
                         <div class="accordion-content scroller" data-tab-content id="weatheroutlook-header">
-                            <textarea type="text" rows="4" style="width:100%;resize:vertical" id="daily-title" v-model="dailyTitle" placeholder="{date}" @blur="checkDailyTitle" @keyup="checkDailyTitle" v-bind:disabled="isDailyTitleDisabled"> </textarea>
+                            <textarea type="text" rows="4" style="width:100%;resize:vertical" id="daily-title" v-model="dailyTitle" placeholder="{date}" @blur="checkDailyTitle" @keyup="checkDailyTitle" v-bind:readonly="isDailyTitleReadonly"> </textarea>
                             <div class="row feature-row status-row">
                                 <div class="small-4">
                                     <div class="outlook-datasources">date</div>
@@ -181,9 +181,9 @@
                               <div v-if="isShow(ds)" class="row feature-row status-row" >
                                 <div class="small-12">
                                     {{ ds.name}}
-                                    <div class="text-right float-right" v-show="!isColumnsReadonly">
+                                    <div class="text-right float-right" >
                                        <div class="switch tiny" @click.stop >
-                                           <input class="switch-input ctlgsw" id="outlook_ds_{{ $index }}" v-bind:disabled="ds.required"  type="checkbox" @change="toggleDatasource(ds)" v-bind:checked="isDatasourceSelected(ds)"/>
+                                           <input class="switch-input ctlgsw" id="outlook_ds_{{ $index }}" v-bind:disabled="isColumnsReadonly || ds.required"  type="checkbox" @change="toggleDatasource(ds)" v-bind:checked="isDatasourceSelected(ds)"/>
                                            <label class="switch-paddle" for="outlook_ds_{{ $index }}">
                                                <span class="show-for-sr">Toggle</span>
                                            </label>
@@ -333,11 +333,14 @@
       isDayReadonly:function() {
         return this.outlookTool.toolid === "weather-outlook-default"
       },
+      isDailyTitleReadonly:function() {
+        return this.outlookTool.toolid !== "weather-outlook-customized"
+      },
       isTimeReadonly:function() {
         return this.outlookTool.toolid === "weather-outlook-default"
       },
       isColumnsReadonly:function() {
-        return this.outlookTool.toolid !== "weather-outlook-customized"
+        return !this.initialized || this.outlookTool.toolid !== "weather-outlook-customized"
       },
       outlookTitle:function() {
         return this.outlookTool.title
@@ -475,6 +478,9 @@
       },
       outlookTool:function(newValue,oldValue) {
         this.adjustHeight()
+      },
+      outlookSetting:function(newValue,oldValue) {
+        this.editingReportHours = newValue?newValue.reportHours:""
       },
       reportType:function(newValue,oldValue) {
         if (newValue === 0 || oldValue === 0) {
