@@ -756,7 +756,7 @@
             vm._updateViewport = debounce(function(){
                 var viewportExtent = vm.map.extent
                 vm.features.forEach(function(feat) {
-                    feat.inViewport = ol.extent.containsCoordinate(viewportExtent,feat.getGeometry().getCoordinates())
+                    feat.inViewport = feat.getGeometry() && ol.extent.containsCoordinate(viewportExtent,feat.getGeometry().getCoordinates())
                 })
                 vm.setExtentFeatureSize()
                 if (vm.viewportOnly) {
