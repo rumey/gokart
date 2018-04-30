@@ -590,7 +590,7 @@
       getOutlookDays:function(toolid){
         var outlookSetting = toolid?this.getOutlookSetting(toolid):this.outlookSetting
         toolid = toolid || this.outlookTool.toolid
-        if (!outlookSetting.outlookDays) {
+        if (!(outlookSetting.outlookDays)) {
             if (toolid === "weather-outlook-default") {
                 this.setOutlookDays(4,toolid) // 4 days
             } else if (toolid === "weather-outlook-customized") {
@@ -599,7 +599,7 @@
                 this.setOutlookDays(2,toolid) // 2 days
             }
         }
-        return this.outlookSetting.outlookDays
+        return outlookSetting.outlookDays
       },
       setOutlookDays:function(value,toolid) {
         var outlookSetting = toolid?this.getOutlookSetting(toolid):this.outlookSetting
@@ -1468,7 +1468,7 @@
             var requestData = null;
             var format = vm.format
             var dailyData = vm.getDailyData()
-            if (dailyData[2] !== null && !confirm("The variables (" + unavailableVars + ") are unavailable.\r\nDo you want to continue?")) {
+            if (dailyData[2] !== null && dailyData[2] !== "" && !confirm("The variables (" + dailyData[2] + ") are unavailable.\r\nDo you want to continue?")) {
                 return
             }
             if (vm.outlookTool.toolid === "weather-outlook-amicus") {
@@ -1629,7 +1629,6 @@
 
       this.adjustHeight()
 
-      this.changeOutlookToolTitle()
       var vm = this
       $.each(this.outlookTools,function(index,tool){
           vm.changeOutlookToolTitle(tool.toolid)
