@@ -606,6 +606,9 @@ Utils.prototype.extend = function() {
         var vm = this
         while (index < arguments.length) {
             $.each(arguments[index],function(key,value) {
+                if (value === undefined) {
+                    return
+                }
                 if (key in o) {
                     //key exist in the result object
                     if (value !== null && value !== undefined && typeof(value) === "object" && !Array.isArray(value)) {
@@ -618,7 +621,7 @@ Utils.prototype.extend = function() {
                             o[key] = value
                         }
                     } else {
-                        //is not a json object
+                        //is not a json object 
                         //overrite it
                         o[key] = value
                     }
@@ -633,7 +636,33 @@ Utils.prototype.extend = function() {
         return o
     }
 }
-
+//extract the property value from a json object and set to json object template
+//if a property in json object template does not exist in json object, the property's value will be removed from the result
+//if a property in json object template has a undefined value in json object, the property will be removed from the result
+//if a property whose value is a non empty json object in json object template, recusive call extract method with property value in json object template and json object.
+Utils.prototype.extract = function(jsonTemplate,obj) {
+    var result = {}
+    var vm = this
+    $.each(jsonTemplate,function(key,value){
+        if (value !== null && value !== undefined && typeof(value) === "object" && !Array.isArray(value)) {
+            //is a json object
+            if (obj[key] === undefined) {
+                return
+            } else if (obj[key] === null) {
+                result[key] = null
+            } else if (Object.keys(value).length === 0) {
+                //is a empty json object, use the value from obj 
+                result[key] = obj[key]
+            } else {
+                //contain some properties in json object template, only extract the predefined property's value
+                result[key] = vm.extract(jsonTemplate[key],obj[key])
+            }
+        } else if (obj[key] !== undefined){
+            result[key] = obj[key]
+        }
+    })
+    return result
+}
 var utils = new Utils()
 
 export default utils
