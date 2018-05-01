@@ -117,15 +117,6 @@
                </div>
 
                <div class="small-3">
-                   <label class="tool-label">Version:</label>
-               </div>
-               <div class="small-9">
-                  <div class="expanded button-group">
-                    <a id="take-tour" class="button" title="Check new version" @click="$root.utils.checkVersion($root.profile,true)"> Check New Version</a>
-                  </div>
-               </div>
-
-               <div class="small-3">
                    <label class="tool-label">Logout:</label>
                </div>
                <div class="small-9">

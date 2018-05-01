@@ -18,8 +18,10 @@ bottle.debug(True)
 bottle.BaseRequest.MEMFILE_MAX = 20 * 1024 * 1024
 
 BASE_PATH = os.path.dirname(__file__)
-BASE_DIST_PATH = os.path.join(os.path.dirname(BASE_PATH),"dist")
 ENV_TYPE = (os.environ.get("ENV_TYPE") or "prod").lower()
+DIST_TYPE = (os.environ.get("DIST_TYPE") or "release").lower()
+BASE_DIST_PATH = os.path.join(os.path.dirname(BASE_PATH),"dist")
+DIST_PATH = os.path.join(os.path.dirname(BASE_PATH),"dist",DIST_TYPE)
 
 STATIC_SERVICE=os.environ.get("STATIC_SERVICE") or "https://static.dbca.wa.gov.au"
 
