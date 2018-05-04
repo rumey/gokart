@@ -47,14 +47,13 @@
                       <input type="text" v-model="editingReportHours" placeholder="hours(0-23) separated by ','" @blur="formatReportHours" @keyup="formatReportHours" v-bind:disabled="isTimeReadonly">
                     </div>
                 </div>
-            </div>
-
-            <div class="tool-slice row collapse">
-                <hr class="small-12"/>
+                <div class="small-12"  v-show="outlookTool.toolid != 'weather-outlook-amicus'">
+                    <hr class="small-12"/>
+                </div>
             </div>
           </div>
 
-          <div class="tool-slice row collapse" id="weatheroutlook-data-config">
+          <div class="tool-slice row collapse" id="weatheroutlook-data-config" v-show="outlookTool.toolid != 'weather-outlook-amicus'">
             <div class="columns">
                 <ul class="accordion" data-accordion>
                     <li class="accordion-item" data-accordion-item>
