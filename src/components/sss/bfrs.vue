@@ -273,7 +273,7 @@
 }
 </style>
 <script>
-  import { ol, moment,hash,turf,utils } from 'src/vendor.js'
+  import { ol,$, moment,hash,turf,utils } from 'src/vendor.js'
   export default {
     store: {
         bushfireLabels:'settings.bfrs.bushfireLabels',
@@ -1082,8 +1082,43 @@
                     }
                 }
 
-                //console.log( JSON.stringify(spatialData ) )
-                callback(spatialData)
+                
+
+                if (caller === "import" && spatialData["fire_boundary"]) {
+                    //single feature importing mode, ask user the capture method
+                    vm.loadCapturemethods(function(){
+                        console.log(vm.whoami["bushfire"]["capturemethod_dialogmessage"])
+                        vm.dialog.show({
+                            "title":"Capture Methods",
+                            "messages":vm.whoami["bushfire"]["capturemethod_dialogmessage"],
+                            "buttons":[
+                                [true,"Select","",true,function(button,data){
+                                    if (data["capturemethod"] === vm.whoami["bushfire"]["othermethod_id"] && data["other_capturemethod"].length === 0) {
+                                        alert("Please input the other capture method.")
+                                        return false
+                                    }
+                                }],
+                                [false,"Cancel","",false]
+                            ],
+                            "callback":function(isOk,data) {
+                                if (isOk) {
+                                    spatialData["capturemethod"] = data["capturemethod"]
+                                    spatialData["other_capturemethod"] = data["other_capturemethod"] || null
+                                    if (!spatialData["capturemethod"]) {
+                                        alert("Please choose 'Capture Method'.")
+                                    } else {
+                                        callback(spatialData)
+                                    }
+
+                                }
+                            }
+                        })
+                    })
+                } else {
+                    //console.log( JSON.stringify(spatialData ) )
+                    callback(spatialData)
+                }
+
             } else if (vm._taskManager.allTasksFinished(feat,"getSpatialData")) {
                 if (failedCallback) {
                     failedCallback("")
@@ -2799,6 +2834,56 @@
             }
         })
       },
+
+      loadCapturemethods:function(callback) {
+        var vm = this
+        if (vm.whoami["bushfire"]["capturemethods"]) {
+            //already loaded
+            callback()
+            return
+        }
+        var selectCaptureMethod = function(ev) {
+            $("#userdialog-button-true").prop("disabled",false);
+            $("#userdialog input[name='other_capturemethod']").prop("disabled",$(ev.target).val() !== vm.whoami["bushfire"]["othermethod_id"].toString())
+        }
+        $.ajax({
+            url: vm.env.bfrsService + "/api/v1/capturemethod/?format=json",
+            method:"GET",
+            dataType:"json",
+            success: function (response, stat, xhr) {
+                vm.whoami["bushfire"]["capturemethods"] = response
+                dialogmessages = []
+                othermessage = null
+                $.each(vm.whoami["bushfire"]["capturemethods"],function(index,method){
+                    dialogmessage = []
+                    dialogmessage.push([method["id"],1,"","radio","capturemethod",false,selectCaptureMethod])
+                    if (method["code"] === "999") {
+                        dialogmessage.push(["Other",3])
+                        dialogmessage.push(["",8,"","text","other_capturemethod",true])
+                        othermessage = dialogmessage
+                    } else {
+                        dialogmessage.push([method["code"],3])
+                        dialogmessage.push([method["desc"],8])
+                        dialogmessages.push(dialogmessage)
+                    }
+                })
+                if (othermessage) {
+                    dialogmessages.push(othermessage)
+                    vm.whoami["bushfire"]["othermethod_id"] = othermessage[0][0]
+                }
+                vm.whoami["bushfire"]["capturemethod_dialogmessage"] = dialogmessages
+                callback()
+
+            },
+            error: function (xhr,status,message) {
+                alert(xhr.status + " : " + (xhr.responseText || message))
+            },
+            xhrFields: {
+              withCredentials: true
+            }
+        })
+      },
+
       loadRegions:function() {
         var vm = this
         vm._bfrsStatus.phaseBegin("load_regions",20,"Load regions")

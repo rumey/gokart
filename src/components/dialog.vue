@@ -3,8 +3,10 @@
         <h3 v-show="title">{{title}}</h3>
         <div v-for="line in messages" class="row" track-by="$index" >
             <div v-for="message in line" class="small-{{message[1]}} columns {{message[2] || ''}}" track-by="$index">
-                 <p v-show="message[3] === undefined" style="white-space:pre-wrap;">{{message[0]}}</p>
-                 <a v-show="message[3] !== undefined" href="{{message[0]}}" @click.stop.prevent="utils.editResource($event)" target="{{message[3]}}">{{message[0]}}</a>
+                 <p v-if="message[3] === undefined" style="white-space:pre-wrap;">{{message[0]}}</p>
+                 <a v-if="message[3] === 'link'" href="{{message[0]}}" @click.stop.prevent="utils.editResource($event)" target="{{message[4]}}">{{message[0]}}</a>
+                 <input v-if="['radio','checkbox'].indexOf(message[3]) >= 0" type="{{message[3]}}" name="{{message[4]}}" value="{{message[0]}}" @click.stop="processEvent(message,$event)" :disabled="message[5]">
+                 <input v-if="message[3] === 'text'" type="text" name="{{message[4]}}"  :disabled="message[5]">
             </div>
         </div>
 
@@ -43,7 +45,7 @@
         <br>
         <div class="row align-center" v-if="hasButton">
             <div class="small-12 columns small-centered" >
-                <button  v-for="button in buttons" class="button {{button[2] || ''}}" @click="close(button[0])" track-by="$index">
+                <button  v-for="button in buttons" class="button {{button[2] || ''}}" @click="close(button)" track-by="$index" id="userdialog-button-{{button[0]}}" :disabled="button[3]">
                     {{button[1]}}
                 </button>
             </div>
@@ -117,15 +119,15 @@
       },
       fillstyle:function() {
         return "width:" + (this.completedTasks / this.tasks) * 100 + "%"
-      }
+      },
     },
     methods: {
       //options
       //title: dialog title
       //messages: 
       // 1. string. 
-      // 2. array of string or [string, columns, classes]
-      //buttons: array of [value,"button name"]
+      // 2. array of string or [message(string), columns, classes,type(link, radio, checkbox,input,text(default)), name for (input) window for link, disable status for input,event for input  ]
+      //buttons: array of [value,"button name",button class,disable status,click event]
       //defaultOption: used if user close the dialog 
       //callback: called if user click one button or have a defaultOption
       show:function(options) {
@@ -159,8 +161,13 @@
         $("#userdialog").foundation('open')
         this.revision += 1
       },
-      close:function(option) {
-        this.option = (option === undefined)?this.defaultOption:option
+      close:function(button) {
+        if (button[4]) {
+            if (button[4](button,this.getData()) === false) {
+                return
+            }
+        }
+        this.option = (button[0] === undefined)?this.defaultOption:button[0]
         $("#userdialog").foundation('close')
       },
       addMessage:function(message) {
@@ -200,6 +207,36 @@
       isLink:function(msg) {
         this._linkRe = this._linkRe || /^\s*https?\:\/\/.+/i
         return this._linkRe.test(msg)
+      },
+      getData:function(){
+        result = {}
+        $("#userdialog input").each(function(index){
+            if ($(this).prop("disabled")) {
+                //is disabled,ignore
+                return
+            } else if ( $(this).val().trim().length === 0) {
+                //is empty,ignore
+                return
+            } else if ( ["radio","checkbox"].indexOf($(this).prop("type").toLowerCase()) >= 0 && !($(this).prop("checked")) ) {
+                //is not checked
+            } else if (!($(this).prop("name") in result)) {
+                // is not in results
+                result[$(this).prop("name")] = $(this).val().trim()
+            } else if ( typeof result[$(this).prop("name")] === "string") {
+                //is string value, change it to array
+                result[$(this).prop("name")] = [result[$(this).prop("name")],$(this).val().trim()]
+            } else {
+                //is array value, append the new value
+                result[$(this).prop("name")].push($(this).val().trim())
+            }
+        })
+        return result
+      },
+      processEvent:function(msg,ev) {
+        console.log(msg)
+        if (msg[6]) {
+            msg[6](ev)
+        }
       }
     },
     ready: function () {
@@ -212,7 +249,7 @@
         if (vm.callback) {
             var value = ((vm.option === null || vm.option === undefined )?vm.defaultOption:vm.option)
             if (value !== null && value !== undefined) {
-                vm.callback(value)
+                vm.callback(value,vm.getData())
             }
             vm.callback = null
         }
