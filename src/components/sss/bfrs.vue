@@ -1039,7 +1039,7 @@
       getSpatialData:function(feat,caller,callback,failedCallback) {
         caller = caller || "get"
         var vm = this
-        vm._getSpatialDataCallback = vm._getSpatialDataCallback || function(feat,callback,failedCallback,spatialData) {
+        vm._getSpatialDataCallback = vm._getSpatialDataCallback || function(feat,caller,callback,failedCallback,spatialData) {
             if (vm._taskManager.allTasksSucceed(feat,"getSpatialData")) {
                 if ("region" in spatialData && "district" in spatialData) {
                     var region = null
@@ -1087,19 +1087,19 @@
                 if (caller === "import" && spatialData["fire_boundary"]) {
                     //single feature importing mode, ask user the capture method
                     vm.loadCapturemethods(function(){
-                        console.log(vm.whoami["bushfire"]["capturemethod_dialogmessage"])
                         vm.dialog.show({
                             "title":"Capture Methods",
                             "messages":vm.whoami["bushfire"]["capturemethod_dialogmessage"],
                             "buttons":[
                                 [true,"Select","",true,function(button,data){
-                                    if (data["capturemethod"] === vm.whoami["bushfire"]["othermethod_id"] && data["other_capturemethod"].length === 0) {
+                                    if (parseInt(data["capturemethod"]) === vm.whoami["bushfire"]["othermethod_id"] && (!data["other_capturemethod"])) {
                                         alert("Please input the other capture method.")
                                         return false
                                     }
                                 }],
                                 [false,"Cancel","",false]
                             ],
+                            "defaultOption":false,
                             "callback":function(isOk,data) {
                                 if (isOk) {
                                     spatialData["capturemethod"] = data["capturemethod"]
@@ -1110,9 +1110,23 @@
                                         callback(spatialData)
                                     }
 
+                                } else {
+                                    if (failedCallback) {
+                                        failedCallback("Import cancelled")
+                                    } else {
+                                        alert("Import cancelled.")
+                                    }
                                 }
                             }
                         })
+                    },
+                    function(msg){
+                        if (failedCallback) {
+                            failedCallback(msg)
+                        } else {
+                            alert(msg)
+                        }
+
                     })
                 } else {
                     //console.log( JSON.stringify(spatialData ) )
@@ -1189,7 +1203,7 @@
                     }
                 }
                 //need to call the callback first because the callback will not be called if no tasks are required.
-                vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                 if (tenure_area_task) {
                     tenure_area_task.setStatus(utils.RUNNING)
                     $.ajax({
@@ -1254,13 +1268,13 @@
                                                                 } else {
                                                                     tenure_area_task.setStatus(utils.FAIL_CONFIRMED,msg)
                                                                 }
-                                                                vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                                                                vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                                                             }
                                                         })
                                                     },1)
                                                 } else {
                                                     tenure_area_task.setStatus(utils.FAIL_CONFIRMED,msg)
-                                                    vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                                                    vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                                                 }
                                             }
                                         })
@@ -1271,7 +1285,7 @@
                                         result["fb_validation_req"] = true
                                     } else {
                                         tenure_area_task.setStatus(utils.FAILED,msg)
-                                        vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                                        vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                                         return
                                     }
                                 } else {
@@ -1285,7 +1299,7 @@
                                 tenure_area_task.setStatus(utils.FAILED,"Calculate area failed.")
                                 //alert(tenure_area_task.message)
                             }
-                            vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                            vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                         },
                         error: function (xhr,status,message) {
                             if (xhr.status === 490) {
@@ -1294,7 +1308,7 @@
                                 tenure_area_task.setStatus(utils.FAILED,xhr.status + " : " + (xhr.responseText || message))
                             }
                             //alert(tenure_area_task.message)
-                            vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                            vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                         },
                         xhrFields: {
                             withCredentials: true
@@ -1318,12 +1332,12 @@
                                 }
                             }
                             tenure_origin_point_task.setStatus(utils.SUCCEED)
-                            vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                            vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                         },
                         error: function (xhr,status,message) {
                             tenure_origin_point_task.setStatus(utils.FAILED,xhr.status + " : " + (xhr.responseText || message))
                             //alert(tenure_origin_point_task.message)
-                            vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                            vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                         },
                         xhrFields: {
                             withCredentials: true
@@ -1337,12 +1351,12 @@
                     vm.map.getPosition(originPoint,function(position){
                         spatialData["fire_position"] = position
                         fire_position_task.setStatus(utils.SUCCEED)
-                        vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                        vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                     },
                     function(msg){
                         fire_position_task.setStatus(utils.FAILED,msg)
                         //alert(fire_position_task.message)
-                        vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                        vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                     })
                 }
         
@@ -1358,12 +1372,12 @@
                                 spatialData["region"] = response.features[0].properties["region"]
                             }
                             region_task.setStatus(utils.SUCCEED)
-                            vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                            vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                         },
                         error: function (xhr,status,message) {
                             region_task.setStatus(utils.FAILED,xhr.status + " : " + (xhr.responseText || message))
                             //alert(region_task.message)
-                            vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                            vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                         },
                         xhrFields: {
                             withCredentials: true
@@ -1383,12 +1397,12 @@
                                 spatialData["district"] = response.features[0].properties["district"]
                             }
                             district_task.setStatus(utils.SUCCEED)
-                            vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                            vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                         },
                         error: function (xhr,status,message) {
                             district_task.setStatus(utils.FAILED,xhr.status + " : " + (xhr.responseText || message))
                             //alert(district_task.message)
-                            vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                            vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                         },
                         xhrFields: {
                             withCredentials: true
@@ -1396,7 +1410,7 @@
                     })
                 }
             } catch(ex) {
-                vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
             }
 
             if (plantation_task) {
@@ -1428,11 +1442,11 @@
                             })
                         }
                         plantation_task.setStatus(utils.SUCCEED)
-                        vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                        vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                     },
                     error: function (xhr,status,message) {
                         plantation_task.setStatus(utils.FAILED,xhr.status + " : " + (xhr.responseText || message))
-                        vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                        vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                     },
                     xhrFields: {
                         withCredentials: true
@@ -1448,7 +1462,7 @@
                     if (error) {
                         validate_task.setStatus(utils.FAILED,error)
                         //alert(error)
-                        vm._getSpatialDataCallback(feat,callback,failedCallback,{})
+                        vm._getSpatialDataCallback(feat,caller,callback,failedCallback,{})
                     } else {
                         validate_task.setStatus(utils.SUCCEED)
                         vm._getSpatialData(feat,caller,callback,failedCallback)
@@ -1458,7 +1472,7 @@
                 vm._getSpatialData(feat,caller,callback,failedCallback)
             }
         } catch(ex) {
-            vm._getSpatialDataCallback(feat,callback,failedCallback,{})
+            vm._getSpatialDataCallback(feat,caller,callback,failedCallback,{})
         }
       },
       saveFeature:function(feat,caller,callback) {
@@ -2835,7 +2849,7 @@
         })
       },
 
-      loadCapturemethods:function(callback) {
+      loadCapturemethods:function(callback,failedCallback) {
         var vm = this
         if (vm.whoami["bushfire"]["capturemethods"]) {
             //already loaded
@@ -2854,6 +2868,12 @@
                 vm.whoami["bushfire"]["capturemethods"] = response
                 dialogmessages = []
                 othermessage = null
+                headermessage = [
+                    ["",1],
+                    ["Code",3,"header"],
+                    ["Desc",8,"header"]
+                ]
+                dialogmessages.push(headermessage)
                 $.each(vm.whoami["bushfire"]["capturemethods"],function(index,method){
                     dialogmessage = []
                     dialogmessage.push([method["id"],1,"","radio","capturemethod",false,selectCaptureMethod])
@@ -2876,7 +2896,7 @@
 
             },
             error: function (xhr,status,message) {
-                alert(xhr.status + " : " + (xhr.responseText || message))
+                failedCallback(xhr.status + " : " + (xhr.responseText || message))
             },
             xhrFields: {
               withCredentials: true

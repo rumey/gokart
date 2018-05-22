@@ -77,6 +77,10 @@
     text-align: left;
     padding-left:5px;
 }
+#userdialog .header {
+    text-align: left;
+    font-weight:bold;
+}
 </style>
 
 <script>
@@ -162,12 +166,12 @@
         this.revision += 1
       },
       close:function(button) {
-        if (button[4]) {
+        if (button && button[4]) {
             if (button[4](button,this.getData()) === false) {
                 return
             }
         }
-        this.option = (button[0] === undefined)?this.defaultOption:button[0]
+        this.option = (button && button[0] !== undefined)?button[0]:this.defaultOption
         $("#userdialog").foundation('close')
       },
       addMessage:function(message) {
@@ -233,7 +237,6 @@
         return result
       },
       processEvent:function(msg,ev) {
-        console.log(msg)
         if (msg[6]) {
             msg[6](ev)
         }
