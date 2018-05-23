@@ -1087,9 +1087,28 @@
                 if (caller === "import" && spatialData["fire_boundary"]) {
                     //single feature importing mode, ask user the capture method
                     vm.loadCapturemethods(function(){
+                        initData = {}
+                        if (feat.get("capt_meth")) {
+                            method = vm.whoami["bushfire"]["capturemethods"].find(function(m) { return m.code === feat.get("capt_meth")})
+                            if (method) {
+                                initData["capturemethod"] = method.id
+                            }
+                        }
+                        if (feat.get("capt_desc")) {
+                            initData["other_capturemethod"] = feat.get("capt_desc")
+                        }
                         vm.dialog.show({
                             "title":"Capture Methods",
                             "messages":vm.whoami["bushfire"]["capturemethod_dialogmessage"],
+                            "initData": initData,
+                            "initFunc": function() {
+                                if ("capturemethod" in initData) {
+                                    $("#userdialog-button-true").prop("disabled",false);
+                                }
+                                if (initData["capturemethod"] === vm.whoami["bushfire"]["other_capturemethod_id"]) {
+                                    $("#userdialog input[name='other_capturemethod']").prop("disabled",false)
+                                }
+                            },
                             "buttons":[
                                 [true,"Select","",true,function(button,data){
                                     if (parseInt(data["capturemethod"]) === vm.whoami["bushfire"]["othermethod_id"] && (!data["other_capturemethod"])) {
@@ -2146,6 +2165,7 @@
 
             var f = null
             //initialize the loaded features
+            var properties = null
             if (fileFormat === "gpx") {
                 //gpx file
                 if (uploadType === "originpoint") {
@@ -2189,31 +2209,49 @@
                 }
             } else {
                 //geo json file
-                //try to figure out the property name of 'fire_number' in imported files
-                var fire_number_property = null
-                for(var i = "fire_number".length;i >= 8;i--) {
-                    var name = "fire_number".substring(0,i)
-                    for (var j = 0;j < features.length;j++) {
-                        if (features[j].get(name) !== undefined) {
-                            fire_number_property = name
-                            break
+                //try to figure out the property name of 'fire_number','capt_meth' and 'capt_desc' in imported files
+                var property = null
+                properties = ['fire_number','capt_meth','capt_desc'] //list the properties, you want to find, from the longest property to shortest property 
+                var propertyLen = null //
+                $.each(properties,function(index,prop){
+                    property = null
+                    if (propertyLen === null) {
+                        for(var i = prop.length;i >= 8;i--) {
+                            var name = prop.substring(0,i)
+                            for (var j = 0;j < features.length;j++) {
+                                if (features[j].get(name) !== undefined) {
+                                    property = name
+                                    break
+                                }
+                            }
+                            if (property) {
+                                break
+                            }
+                        }
+                        if (property !== null) {
+                            //found property from one feature, because properties are listed from longest to shortest, 
+                            //set the length of this property as the max property len to avoid to seach the property name in features for each property
+                            propertyLen = property.length
+                        }
+                    } else if (prop.length <= propertyLen){
+                        //property name is not changed
+                        return
+                    } else {
+                        //property name is changed.
+                        property = prop.substring(0,propertyLen)
+                    }
+                    property = property || prop
+                    if (property !== prop) {
+                        //for some reason, the name of property is changed', change the name of property to prop we wanted
+                        //for example, in shape file, the name of fire_number property is 'fire_numbe' because of the property length limit
+                        for (var j = 0;j < features.length;j++) {
+                            if (features[j].get(property) !== undefined) {
+                                features[j].set(prop,features[j].get(property),true)
+                                features[j].unset(property)
+                            }
                         }
                     }
-                    if (fire_number_property) {
-                        break
-                    }
-                }
-                fire_number_property = fire_number_property || "fire_number"
-                if (fire_number_property !== "fire_number") {
-                    //for some reason, the name of fire_number property is not 'fire_number', change the name of fire_number property to 'fire_number'
-                    //for example, in shape file, the name of fire_number property is 'fire_numbe' because of the property length limit
-                    for (var j = 0;j < features.length;j++) {
-                        if (features[j].get(fire_number_property) !== undefined) {
-                            features[j].set('fire_number',features[j].get(fire_number_property),true)
-                            features[j].unset(fire_number_property)
-                        }
-                    }
-                }
+                })
 
                 for(var i = features.length - 1;i >= 0;i--) {
                     feature = features[i]
@@ -2287,6 +2325,15 @@
                     }
                 })
 
+                var mergeProperties = function(feat1,feat2) {
+                    $.each(properties,function(index,prop){
+                        if (feat2.get(prop) !== undefined) {
+                            feat1.set(prop,feat2.get(prop),true)
+                        }
+                        
+                    })
+                }
+
                 var feat = null
                 for(var i = features.length - 1;i >= 0;i--) {
                     if (feat &&
@@ -2297,6 +2344,7 @@
                         if (features[i].getGeometry() instanceof ol.geom.Point) {
                             if (feat.getGeometry() instanceof ol.geom.MultiPolygon) {
                                 feat.setGeometry(new ol.geom.GeometryCollection([features[i].getGeometry(),feat.getGeometry()]))
+                                mergeProperties(feat,features[i])
                                 features.splice(i,1)
                                 featureImported(utils.MERGED)
                             } else {
@@ -2307,12 +2355,15 @@
                         } else if (features[i].getGeometry() instanceof ol.geom.Polygon) {
                             if (feat.getGeometry() instanceof ol.geom.MultiPolygon) {
                                 feat.getGeometry().appendPolygon(features[i].getGeometry())
+                                mergeProperties(feat,features[i])
                                 features.splice(i,1)
                             } else if (feat.getGeometry() instanceof ol.geom.Point) {
                                 feat.setGeometry(new ol.geom.GeometryCollection([feat.getGeometry(),new ol.geom.MultiPolygon([features[i].getGeometry().getCoordinates()])]))
+                                mergeProperties(feat,features[i])
                                 features.splice(i,1)
                             } else if (feat.getGeometry() instanceof ol.geom.GeometryCollection) {
                                 feat.getGeometry().getGeometriesArray()[1].appendPolygon(features[i].getGeometry())
+                                mergeProperties(feat,features[i])
                                 features.splice(i,1)
                             }
                             featureImported(utils.MERGED)
@@ -2321,15 +2372,18 @@
                                 $.each(features[i].getGeometry().getPolygons(),function(index,p) {
                                     feat.getGeometry().appendPolygon(p)
                                 })
+                                mergeProperties(feat,features[i])
                                 features.splice(i,1)
                             } else if (feat.getGeometry() instanceof ol.geom.Point) {
                                 feat.setGeometry(new ol.geom.GeometryCollection([feat.getGeometry(),features[i].getGeometry()]))
+                                mergeProperties(feat,features[i])
                                 features.splice(i,1)
                             } else if (feat.getGeometry() instanceof ol.geom.GeometryCollection) {
                                 $.each(features[i].getGeometry().getPolygons(),function(index,p) {
                                     feat.getGeometry().appendPolygon(p)
                                     feat.getGeometry().getGeometriesArray()[1].appendPolygon(p)
                                 })
+                                mergeProperties(feat,features[i])
                                 features.splice(i,1)
                             }
                             featureImported(utils.MERGED)
@@ -2870,16 +2924,17 @@
                 othermessage = null
                 headermessage = [
                     ["",1],
-                    ["Code",3,"header"],
-                    ["Desc",8,"header"]
+                    ["Code",3,{"class":"header"}],
+                    ["Desc",8,{"class":"header"}]
                 ]
                 dialogmessages.push(headermessage)
                 $.each(vm.whoami["bushfire"]["capturemethods"],function(index,method){
                     dialogmessage = []
-                    dialogmessage.push([method["id"],1,"","radio","capturemethod",false,selectCaptureMethod])
+                    dialogmessage.push([method["id"],1,{"type":"radio","name":"capturemethod","disabled":false,"click":selectCaptureMethod}])
                     if (method["code"] === "999") {
+                        vm.whoami["bushfire"]["other_capturemethod_id"] = method["id"]
                         dialogmessage.push(["Other",3])
-                        dialogmessage.push(["",8,"","text","other_capturemethod",true])
+                        dialogmessage.push(["",8,{"type":"text","name":"other_capturemethod","disabled":true}])
                         othermessage = dialogmessage
                     } else {
                         dialogmessage.push([method["code"],3])

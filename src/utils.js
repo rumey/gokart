@@ -606,6 +606,31 @@ Utils.prototype.extract = function(jsonTemplate,obj) {
     })
     return result
 }
+
+
+function toInt(str) {
+    try {
+        var result = parseInt(str)
+        return Number.isNaN(result)?0:result
+    } catch(ex) {
+        return 0
+    }
+}
+
+Utils.prototype.getWidth = function(element) {
+    return element.width() 
+        + toInt(element.css("padding-left")) + toInt(element.css("padding-right")) 
+        + toInt(element.css("margin-left")) + toInt(element.css("margin-right")) 
+        + toInt(element.css("border-width"))
+}
+
+Utils.prototype.getHeight = function(element,unit) {
+    return element.height() 
+        + toInt(element.css("padding-top")) + toInt(element.css("padding-bottom")) 
+        + toInt(element.css("margin-top")) + toInt(element.css("margin-bottom")) 
+        + toInt(element.css("border-width"))
+}
+
 var utils = new Utils()
 
 export default utils

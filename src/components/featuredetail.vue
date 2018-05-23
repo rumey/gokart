@@ -234,9 +234,9 @@
                                         return
                                     }
                                     if (vm.dialog.isLink(value)) {
-                                        messages.push([[key,3,"detail_name"],[value,9,"detail_value",'link',vm.layer.id + "." + key]])
+                                        messages.push([[key,3,{"class":"detail_name"}],[value,9,{"type":"link","class":"detail_value","target":vm.layer.id + "." + key}]])
                                     } else {
-                                        messages.push([[key,3,"detail_name"],[value,9,"detail_value"]])
+                                        messages.push([[key,3,{"class":"detail_name"}],[value,9,{"class":"detail_value"}]])
                                     }
                                 })
                                 vm.dialog.show({
