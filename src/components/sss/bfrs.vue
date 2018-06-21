@@ -1039,6 +1039,10 @@
       getSpatialData:function(feat,caller,callback,failedCallback) {
         caller = caller || "get"
         var vm = this
+        this._defaultFailedCallback = this._defaultFailedCallback || function(msg) { 
+            alert(msg)
+        }
+        failedCallback = failedCallback || this._defaultFailedCallback
         vm._getSpatialDataCallback = vm._getSpatialDataCallback || function(feat,caller,callback,failedCallback,spatialData) {
             if (vm._taskManager.allTasksSucceed(feat,"getSpatialData")) {
                 if ("region" in spatialData && "district" in spatialData) {
@@ -1055,11 +1059,7 @@
                         if (region) {
                             spatialData["region_id"] = region.region_id
                         } else {
-                            if (failedCallback) {
-                                failedCallback("Region '" + name + "' is not found")
-                            } else {
-                                alert("Region '" + name + "' is not found")
-                            }
+                            failedCallback("Region '" + name + "' is not found")
                             return
                         }
                     }
@@ -1072,19 +1072,31 @@
                         if (district) {
                             spatialData["district_id"] = district.id
                         } else {
-                            if (failedCallback) {
-                                failedCallback("District '" + name + "' is not found in region '" + region.region + "'.")
-                            } else {
-                                alert("District '" + name + "' is not found in region '" + region.region + "'.")
-                            }
+                            failedCallback("District '" + name + "' is not found in region '" + region.region + "'.")
                             return
                         }
                     }
                 }
 
-                
 
-                if (caller === "import" && spatialData["fire_boundary"]) {
+                if (caller === "batchimport" && spatialData["fire_boundary"]) {
+                    //try to set capture method if have
+                    if (feat.get("capt_meth")) {
+                        method = vm.whoami["bushfire"]["capturemethods"].find(function(m) { return m.code === feat.get("capt_meth")})
+                        if (method) {
+                            //found the capture method in the list
+                            spatialData["capturemethod"] = method.id
+                        } else if (feat.get("capt_desc")) {
+                            //can't find the capture method in the list, and have non empty capture method description, use 'other'
+                            spatialData["capturemethod"] = vm.whoami["bushfire"]["other_capturemethod_id"]
+                        }
+                        if (spatialData["capturemethod"] === vm.whoami["bushfire"]["other_capturemethod_id"]) {
+                            //is other capture method
+                            spatialData["other_capturemethod"] = feat.get("capt_desc")
+                        }
+                    }
+                    callback(spatialData)
+                } else if (caller === "import" && spatialData["fire_boundary"]) {
                     //single feature importing mode, ask user the capture method
                     vm.loadCapturemethods(function(){
                         initData = {}
@@ -1111,7 +1123,11 @@
                             },
                             "buttons":[
                                 [true,"Select","",true,function(button,data){
-                                    if (parseInt(data["capturemethod"]) === vm.whoami["bushfire"]["othermethod_id"] && (!data["other_capturemethod"])) {
+                                    if (!data["capturemethod"]) {
+                                        alert("Please choose a capture method.")
+                                        return false
+
+                                    } else if (parseInt(data["capturemethod"]) === vm.whoami["bushfire"]["othermethod_id"] && (!data["other_capturemethod"])) {
                                         alert("Please input the other capture method.")
                                         return false
                                     }
@@ -1121,31 +1137,26 @@
                             "defaultOption":false,
                             "callback":function(isOk,data) {
                                 if (isOk) {
-                                    spatialData["capturemethod"] = data["capturemethod"]
-                                    spatialData["other_capturemethod"] = data["other_capturemethod"] || null
-                                    if (!spatialData["capturemethod"]) {
-                                        alert("Please choose 'Capture Method'.")
+                                    if (!data["capturemethod"]) {
+                                        failedCallback("'Capture Method' is missing.")
+                                    } else if (data["capturemethod"] === vm.whoami["bushfire"]["othermethod_id"] && (!data["other_capturemethod"])) {
+                                        failedCallback("'Other Capture Method' is missing.")
                                     } else {
+                                        spatialData["capturemethod"] = data["capturemethod"]
+                                        if (data["capturemethod"] === vm.whoami["bushfire"]["othermethod_id"]) {
+                                            spatialData["other_capturemethod"] = data["other_capturemethod"] || nul
+                                        }
                                         callback(spatialData)
                                     }
 
                                 } else {
-                                    if (failedCallback) {
-                                        failedCallback("Import cancelled")
-                                    } else {
-                                        alert("Import cancelled.")
-                                    }
+                                    failedCallback("Import cancelled")
                                 }
                             }
                         })
                     },
                     function(msg){
-                        if (failedCallback) {
-                            failedCallback(msg)
-                        } else {
-                            alert(msg)
-                        }
-
+                        failedCallback(msg)
                     })
                 } else {
                     //console.log( JSON.stringify(spatialData ) )
@@ -1153,11 +1164,11 @@
                 }
 
             } else if (vm._taskManager.allTasksFinished(feat,"getSpatialData")) {
-                if (failedCallback) {
-                    failedCallback("")
-                } else {
+                if (failedCallback === vm._defaultFailedCallback) {
                     var msg = vm._taskManager.errorMessages(feat,"getSpatialData").join("\r\n")
                     if (msg) alert(msg)
+                } else {
+                    failedCallback("")
                 }
             }
         }
@@ -1972,7 +1983,7 @@
                     ignore_if_empty:true,
                     sourcelayers:{
                         url:vm.env.wfsService + "/wfs?servicea=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
-                        fields:["fire_number","name","district","financial_year","fire_detected_date","cause","dfes_incident_no","other_info",{name:"author",src:"fireboundary_uploaded_by"}],
+                        fields:["fire_number","name","district","financial_year","fire_detected_date","cause","dfes_incident_no","other_info",{name:"author",src:"fireboundary_uploaded_by"},"capt_meth","capt_desc"],
                     },
                     geometry_column:{name:"fire_boundary",type:"MULTIPOLYGON"},
 

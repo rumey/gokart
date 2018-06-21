@@ -130,6 +130,7 @@ def calculateArea(session_cookies,results,features,options):
     while index < len(features):
         feature = features[index]
         result = results[index]
+        total_area = 0
         index += 1
         geometry = extractPolygons(feature["geometry"])
 
