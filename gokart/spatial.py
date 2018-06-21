@@ -208,7 +208,7 @@ def calculateArea(session_cookies,results,features,options):
                 else:
                     raise Exception("Calculate intersection area between fire boundary and layer '{}' failed.{}".format(settings.typename(layer["url"]) or layer["id"],traceback.format_exception_only(sys.exc_type,sys.exc_value)))
     
-        if not overlap and total_area < area_data["total_area"]:
+        if not overlap :
             area_data["other_area"] = area_data["total_area"] - total_area
 
     

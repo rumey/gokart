@@ -1265,6 +1265,15 @@
                                                     name:"name",
                                                     category:"category"
                                                 }
+                                            },
+                                            {
+                                                id:"other_tenures",
+                                                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:other_tenures"),
+                                                properties:{
+                                                    id:"ogc_fid",
+                                                    name:"cdg_label",
+                                                    category:"other_tenure"
+                                                }
                                             }
                                         ],
                                     }
