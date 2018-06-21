@@ -121,11 +121,15 @@ def calculateArea(session_cookies,results,features,options):
     layers = options["layers"]
     unit = options["unit"] or "ha"
     overlap = options["layer_overlap"] or False
+    merge_result = options.get("merge_result",False)
 
     total_area = 0
     total_layer_area = 0
     geometry = None
     index = 0
+
+    areas_map = {} if merge_result else None
+    area_key = None
     
     while index < len(features):
         feature = features[index]
@@ -165,8 +169,10 @@ def calculateArea(session_cookies,results,features,options):
             else:
                 raise Exception("Calculate total area failed.{}".format(traceback.format_exception_only(sys.exc_type,sys.exc_value)))
             
-
         for layer in layers:
+            if merge_result:
+                areas_map.clear()
+
             try:
                 layer_area_data = []
                 total_layer_area = 0
@@ -185,20 +191,36 @@ def calculateArea(session_cookies,results,features,options):
                     intersections = extractPolygons(geometry.intersection(layer_geometry))
                     if not intersections:
                         continue
-    
-                    layer_feature_area_data = {}
-                    for key,value in layer["properties"].iteritems():
-                        layer_feature_area_data[key] = layer_feature["properties"][value]
-    
-                    layer_feature_area_data["area"] = getGeometryArea(intersections,unit)
-                    total_layer_area  += layer_feature_area_data["area"]
-                    layer_area_data.append(layer_feature_area_data)
+                    
+                    layer_feature_area_data = None
+                    #try to get the area data from map
+                    if merge_result:
+                        area_key = []
+                        for key,value in layer["properties"].iteritems():
+                            area_key.append(layer_feature["properties"][value])
+                        
+                        area_key = tuple(area_key)
+                        layer_feature_area_data = areas_map.get(area_key)
+
+                    if not layer_feature_area_data:
+                         #map is not enabled,or data does not exist in map,create a new one
+                        layer_feature_area_data = {"area":0}
+                        for key,value in layer["properties"].iteritems():
+                            layer_feature_area_data[key] = layer_feature["properties"][value]
+                        layer_area_data.append(layer_feature_area_data)
+
+                        if merge_result:
+                            #save it into map
+                            areas_map[area_key] = layer_feature_area_data
+
+                    feature_area = getGeometryArea(intersections,unit)
+                    layer_feature_area_data["area"] += feature_area
+                    total_layer_area  += feature_area
     
                 area_data["layers"][layer["id"]]["total_area"] = total_layer_area
                 total_area += total_layer_area
                 if not overlap and total_area >= area_data["total_area"] :
                     break
-
 
             except:
                 traceback.print_exc()
