@@ -198,7 +198,8 @@
                   <div class="feature-title"><img class="feature-icon" id="bushfire-icon-{{f.get('id')}}" v-bind:src="featureIconSrc(f)" /> {{ f.get('fire_number') }} <i><small></small></i></div>
                 </div>
                 <div class="small-12 columns">
-                      <div class="feature-title"><span class="reportname">{{f.get('name')}}</span> </div>
+                      <div class="feature-title"><span class="reportname">{{f.get('name')}}</span></div>
+                      <div v-if="f.get('status') === 'merged'" style="float:right"><img src="/dist/static/images/merge.svg"> {{f.get('linked_bushfire_number')}}</div>
                 </div>
                 <template v-for="task in featureTasks(f)" track-by="$index">
                   <div class="small-12 columns">
@@ -849,10 +850,10 @@
       },
       editUrl:function(feat) {
         var status = feat.get('report_status')
-        if (status === 1) {
-            return this.env.bfrsService + "/bfrs/initial/" + feat.get('id') + "/"
-        } else {
+        if (status > 1 && status < 5) {
             return this.env.bfrsService + "/bfrs/final/" + feat.get('id') + "/"
+        } else {
+            return this.env.bfrsService + "/bfrs/initial/" + feat.get('id') + "/"
         }
       },
       saveUrl:function(feat) {
@@ -1246,13 +1247,13 @@
                                     area: {
                                         name:"area",
                                         layer_overlap:false,
+                                        merge_result:true,
                                         unit:"ha",
                                         layers:[
                                             {
                                                 id:"legislated_lands_and_waters",
                                                 url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:legislated_lands_and_waters"),
                                                 properties:{
-                                                    id:"ogc_fid",
                                                     name:"name",
                                                     category:"category"
                                                 }
@@ -1261,7 +1262,6 @@
                                                 id:"dept_interest_lands_and_waters",
                                                 url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:dept_interest_lands_and_waters"),
                                                 properties:{
-                                                    id:"ogc_fid",
                                                     name:"name",
                                                     category:"category"
                                                 }
@@ -1270,7 +1270,6 @@
                                                 id:"other_tenures",
                                                 url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:other_tenures"),
                                                 properties:{
-                                                    id:"ogc_fid",
                                                     name:"cdg_label",
                                                     category:"other_tenure"
                                                 }
@@ -1893,15 +1892,18 @@
         var now = moment()
         var timestamp = moment(feature.get('created'))
 
-        feature.set('status',this._reportStatus[feature.get('report_status') || 99999],true)
 
         feature.set('toolName','Bfrs Origin Point',true)
-        feature.set('tint',feature.get('status'),true)
+        if (feature.get('status') == "merged") {
+            feature.set('tint',this._reportStatus[feature.get('linked_bushfire_status')],true)
+        } else {
+            feature.set('tint',feature.get('status'),true)
+        }
         feature.set('originalTint', feature.get('tint'),true)
         feature.set('fillColour',this.tints[feature.get('tint') + ".fillColour"])
         feature.set('colour',this.tints[feature.get('tint') + ".colour"])
         feature.setStyle(this.bushfireStyleFunc)
-        if (feature.get('status') === 'initial') {
+        if (feature.get('status') === 'initial' || (feature.get('status') === "merged" && feature.get("linked_bushfire_status") === 1)) {
             feature.icon = 'dist/static/symbols/fire/dashed-origin.svg' 
         }
       },
@@ -3078,7 +3080,7 @@
         all_reports :["fire_not_found=0","fire_not_found='No'"],
         initial_fire_report: ["(report_status=1) and (fire_not_found=0)","(report_status='Initial Fire Report') and (fire_not_found='No')"],
         notification_submitted:["(report_status=2) and (fire_not_found=0)","(report_status='Notifications Submitted') and (fire_not_found='No')"],
-        report_authorised:["(report_status>=3) and (fire_not_found=0)","(report_status in ('Report Authorised','Reviewed')) and (fire_not_found='No')"],
+        report_authorised:["(report_status in (3,4)) and (fire_not_found=0)","(report_status in ('Report Authorised','Reviewed')) and (fire_not_found='No')"],
         fire_not_found:["fire_not_found=1","fire_not_found='Yes'"]
       }
 
@@ -3131,7 +3133,8 @@
         1: "initial",
         2: "draft_final",
         3: "final_authorised",
-        4: "reviewed"
+        4: "reviewed",
+        100:"merged"
       }
       vm._reportStatusName = {
        99999: "Unknown",
@@ -3139,7 +3142,8 @@
         1: "Draft Incident",
         2: "Incident Submitted",
         3: "Report Authorised",
-        4: "Report Reviewed"
+        4: "Report Reviewed",
+        100:"Report Merged"
       }
       
       
@@ -3152,16 +3156,19 @@
           "unknown.edit":false,
           "unknown.modify":false,
           "unknown.delete":false,
-          "initial.edit":null,
+          "initial.edit":true,
           "initial.modify":null,
           "initial.delete":false,
-          "draft_final.edit":null,
+          "merged.edit":true,
+          "merged.modify":false,
+          "merged.delete":false,
+          "draft_final.edit":true,
           "draft_final.modify":null,
           "draft_final.delete":false,
-          "final_authorised.edit":null,
+          "final_authorised.edit":true,
           "final_authorised.modify":null,
           "final_authorised.delete":false,
-          "reviewed.edit":null,
+          "reviewed.edit":true,
           "reviewed.modify":null,
           "reviewed.delete":false,
           "_checked_":0
@@ -3183,6 +3190,7 @@
           ["final_authorised.modify",vm.saveUrl,"PATCH",function(f) {return f.get('status') === "final_authorised"},null],
           ["reviewed.edit",vm.editUrl,"GET",function(f) {return f.get('status') === "reviewed"},null],
           ["reviewed.modify",vm.saveUrl,"PATCH",function(f) {return f.get('status') === "reviewed"},null],
+          ["merged.edit",vm.editUrl,"GET",function(f){return f.get('status') === "merged"},null],
       ]
       vm._checkPermission = function(features,callback){
           if (vm.whoami['bushfire']['permission']['_checked_'] === permissionConfig.length) {
