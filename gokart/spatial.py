@@ -171,7 +171,6 @@ def checkOverlap(session_cookies,feature,options):
                     feature_index2 = 0
 
                 while feature_index2 < len(layer_features2):
-                    print("{} {} {} {}".format(layer_index1,feature_index1,layer_index2,feature_index2))
                     feature2 = layer_features2[feature_index2]
                     feature_geometry2 = feature2["geometry"]
                     feature_geometry1 = feature1["geometry"]
@@ -310,7 +309,9 @@ def calculateArea(session_cookies,results,features,options):
             area_data["other_area"] = area_data["total_area"] - total_area
             if area_data["other_area"] < -0.01: #tiny difference is allowed.
                 #some layers are overlap
-                if settings.CHECK_OVERLAP_IF_CALCULATE_AREA_FAILED:
+                if not settings.CHECK_OVERLAP_IF_CALCULATE_AREA_FAILED:
+                    raise Exception("Features from layers({}) are overlaped.".format(", ".join([layer["id"] for layer in layers])))
+                else:
                     overlaps = checkOverlap(session_cookies,feature,options)
                     if overlaps:
                         msg = []
