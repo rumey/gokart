@@ -23,6 +23,8 @@ DIST_TYPE = (os.environ.get("DIST_TYPE") or "release").lower()
 BASE_DIST_PATH = os.path.join(os.path.dirname(BASE_PATH),"dist")
 DIST_PATH = os.path.join(os.path.dirname(BASE_PATH),"dist",DIST_TYPE)
 
+CHECK_OVERLAP_IF_CALCULATE_AREA_FAILED = (os.environ.get("CHECK_OVERLAP_IF_CALCULATE_AREA_FAILED") or "false").lower() in ["true","yes","on"]
+
 STATIC_SERVICE=os.environ.get("STATIC_SERVICE") or "https://static.dbca.wa.gov.au"
 
 PERTH_TIMEZONE = datetime.datetime.now(pytz.timezone('Australia/Perth')).tzinfo

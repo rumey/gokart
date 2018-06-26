@@ -102,19 +102,95 @@ def extractPolygons(geom):
             elif not result:
                 result = p
             elif isinstance(result,MultiPolygon):
+                result = [geom for geom in result.geoms]
                 if isinstance(g,Polygon): 
-                    result = MultiPolygon(result.geoms + [g])
+                    result.append(g)
+                    result = MultiPolygon(result)
                 else:
-                    result = MultiPolygon(result.geoms + g.geoms)
+                    for geom in g.geoms:
+                        result.append(geom)
+                    result = MultiPolygon(result)
             else:
                 if isinstance(g,Polygon): 
                     result = MultiPolygon([result,g])
                 else:
-                    result = MultiPolygon([result] + g.geoms)
+                    result = [result]
+                    for geom in g.geoms:
+                        result.append(geom)
+                    result = MultiPolygon(result)
         return result
     else:
         return None
 
+def checkOverlap(session_cookies,feature,options):
+    # needs gdal 1.10+
+    layers = options["layers"]
+
+    geometry = extractPolygons(feature["geometry"])
+
+    if not geometry :
+        return
+    
+    features = {}
+    overlaps = []
+    #retrieve all related features from layers
+    for layer in layers:
+        features[layer["id"]] = json.loads(requests.get(
+            "{}&outputFormat=json&bbox={},{},{},{}".format(layer["url"],geometry.bounds[1],geometry.bounds[0],geometry.bounds[3],geometry.bounds[2]),
+            verify=False,
+            cookies=session_cookies
+        ).content).get("features") or []
+
+        for layer_feature in features[layer["id"]]:
+            layer_geometry = shape(layer_feature["geometry"])
+            layer_feature["layer_id"] = layer["id"]
+            layer_feature["geometry"] = layer_geometry
+
+    #check whether the features are overlap or not
+    layer_index1 = 0
+    while layer_index1 < len(layers):
+        layer1 = layers[layer_index1]
+        layer_features1 = features[layer1["id"]]
+
+        #check whether layer's features are overlap or not.
+        feature_index1 = 0
+        while feature_index1 < len(layer_features1):
+            feature1 = layer_features1[feature_index1]
+            feature_geometry1 = feature1["geometry"]
+            if not isinstance(feature_geometry1,Polygon) and not isinstance(feature_geometry1,MultiPolygon):
+                feature_index1 += 1
+                continue
+
+            layer_index2 = layer_index1
+            while layer_index2 < len(layers):
+                layer2 = layers[layer_index2]
+                layer_features2 = features[layer2["id"]]
+                if layer_index1 == layer_index2:
+                    feature_index2 = feature_index1 + 1
+                else:
+                    feature_index2 = 0
+
+                while feature_index2 < len(layer_features2):
+                    print("{} {} {} {}".format(layer_index1,feature_index1,layer_index2,feature_index2))
+                    feature2 = layer_features2[feature_index2]
+                    feature_geometry2 = feature2["geometry"]
+                    feature_geometry1 = feature1["geometry"]
+                    if not isinstance(feature_geometry2,Polygon) and not isinstance(feature_geometry2,MultiPolygon):
+                        feature_index2 += 1
+                        continue
+                    intersections = extractPolygons(feature_geometry1.intersection(feature_geometry2))
+                    if not intersections:
+                        feature_index2 += 1
+                        continue
+
+                    overlaps.append((feature1,feature2,intersections))
+
+                    feature_index2 += 1
+                layer_index2 += 1
+            feature_index1 += 1
+        layer_index1 += 1
+    return overlaps
+                
 
 def calculateArea(session_cookies,results,features,options):
     # needs gdal 1.10+
@@ -232,6 +308,51 @@ def calculateArea(session_cookies,results,features,options):
     
         if not overlap :
             area_data["other_area"] = area_data["total_area"] - total_area
+            if area_data["other_area"] < -0.01: #tiny difference is allowed.
+                #some layers are overlap
+                if settings.CHECK_OVERLAP_IF_CALCULATE_AREA_FAILED:
+                    overlaps = checkOverlap(session_cookies,feature,options)
+                    if overlaps:
+                        msg = []
+                        for overlap in overlaps:
+                            #try to get the primary key from options
+                            layer1_id = overlap[0]["layer_id"]
+                            layer2_id = overlap[1]["layer_id"]
+                            layer1 = None
+                            for layer in layers:
+                                if layer["id"] == layer1_id:
+                                    layer1 = layer
+                                    break
+
+                            for layer in layers:
+                                if layer["id"] == layer2_id:
+                                    layer2 = layer
+                                    break
+
+                            layer1_pk = layer1.get("primary_key")
+                            layer2_pk = layer2.get("primary_key")
+
+                            if layer1_pk:
+                                if isinstance(layer1_pk,basestring):
+                                    feature1 = "{}({}={})".format(layer1_id,layer1_pk,overlap[0]["properties"][layer1_pk])
+                                else:
+                                    feature1 = "{}()".format(layer1_id,", ".join(["{}={}".format(k,v) for k,v in overlap[0]["properties"].iteritems() if k in layer1_pk ]))
+                            else:
+                                feature1 = "{}({})".format(layer1_id,json.dumps(overlap[0]["properties"]))
+
+                            if layer2_pk:
+                                if isinstance(layer2_pk,basestring):
+                                    feature2 = "{}({}={})".format(layer2_id,layer2_pk,overlap[1]["properties"][layer2_pk])
+                                else:
+                                    feature2 = "{}()".format(layer2_id,", ".join(["{}={}".format(k,v) for k,v in overlap[1]["properties"].iteritems() if k in layer2_pk ]))
+                            else:
+                                feature2 = "{}({})".format(layer2_id,json.dumps(overlap[1]["properties"]))
+
+                            msg.append("intersect({}, {}) = {} ".format( feature1,feature2, overlap[2] ))
+                        with open("/tmp/overlap_{}.log".format(feature["properties"].get("id","feature")),"w") as f:
+                            f.write("\n".join(msg))
+                        raise Exception("Features are overlaped.\r\n{}".format("\r\n".join(msg)))
+
 
     
 def spatial():
@@ -268,4 +389,3 @@ def spatial():
         traceback.print_exc()
         return traceback.format_exception_only(sys.exc_type,sys.exc_value)
     
-

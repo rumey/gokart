@@ -1256,7 +1256,8 @@
                                                 properties:{
                                                     name:"name",
                                                     category:"category"
-                                                }
+                                                },
+                                                primary_key:"ogc_fid"
                                             },
                                             {
                                                 id:"dept_interest_lands_and_waters",
@@ -1264,7 +1265,8 @@
                                                 properties:{
                                                     name:"name",
                                                     category:"category"
-                                                }
+                                                },
+                                                primary_key:"ogc_fid"
                                             },
                                             {
                                                 id:"other_tenures",
@@ -1272,7 +1274,8 @@
                                                 properties:{
                                                     name:"cdg_label",
                                                     category:"other_tenure"
-                                                }
+                                                },
+                                                primary_key:"ogc_fid"
                                             }
                                         ],
                                     }
