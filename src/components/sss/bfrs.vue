@@ -1359,30 +1359,40 @@
         
                 if (tenure_origin_point_task) {
                     tenure_origin_point_task.setStatus(utils.RUNNING)
-                    $.ajax({
-                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:dpaw_tenure") + "&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
-                        dataType:"json",
-                        success: function (response, stat, xhr) {
-                            if (response.totalFeatures === 0) {
-                                spatialData["tenure_ignition_point"] = null
-                            } else {
-                                spatialData["tenure_ignition_point"] = {
-                                    id: response.features[0].properties["ogc_fid"],
-                                    name: response.features[0].properties["name"],
-                                    category: response.features[0].properties["category"]
-                                }
-                            }
-                            tenure_origin_point_task.setStatus(utils.SUCCEED)
-                            vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
+                    tenure_layers = [{
+                        id:"cddp:legislated_lands_and_waters",
+                        geom_field:"wkb_geometry",
+                        properties:{
+                            id:"ogc_fid",
+                            name:"name",
+                            category:"category"
                         },
-                        error: function (xhr,status,message) {
-                            tenure_origin_point_task.setStatus(utils.FAILED,xhr.status + " : " + (xhr.responseText || message))
-                            //alert(tenure_origin_point_task.message)
-                            vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
+                    },{
+                        id:"cddp:dept_interest_lands_and_waters",
+                        geom_field:"wkb_geometry",
+                        properties:{
+                            id:"ogc_fid",
+                            name:"name",
+                            category:"category"
                         },
-                        xhrFields: {
-                            withCredentials: true
-                        }
+                    },{
+                        id:"cddp:other_tenures",
+                        geom_field:"wkb_geometry",
+                        properties:{
+                            id:"ogc_fid",
+                            name:"cdg_label",
+                            category:"other_tenure"
+                        },
+                    }]
+                    vm.map.getFeature(tenure_layers,originPoint,function(feature){
+                        spatialData["tenure_ignition_point"] = feature
+                        tenure_origin_point_task.setStatus(utils.SUCCEED)
+                        vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
+                    },
+                    function(msg){
+                        tenure_origin_point_task.setStatus(utils.FAILED,msg)
+                        //alert(tenure_origin_point_task.message)
+                        vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                     })
                 }
         

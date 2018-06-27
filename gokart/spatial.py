@@ -5,6 +5,7 @@ import json
 import pyproj
 import traceback
 import threading
+import math
 from shapely.geometry import shape
 from shapely.geometry.polygon import Polygon
 from shapely.geometry.multipolygon import MultiPolygon
@@ -309,8 +310,9 @@ def calculateArea(session_cookies,results,features,options):
             area_data["other_area"] = area_data["total_area"] - total_area
             if area_data["other_area"] < -0.01: #tiny difference is allowed.
                 #some layers are overlap
+                bottle.response.status = 490
                 if not settings.CHECK_OVERLAP_IF_CALCULATE_AREA_FAILED:
-                    raise Exception("Features from layers({}) are overlaped.".format(", ".join([layer["id"] for layer in layers])))
+                    raise Exception("The sum({0}) of the burning areas in individual layers are ({2}) greater than the total burning area({1}).\r\n The Features from layers({3}) are overlaped, please check.".format(round(total_area,2),round(area_data["total_area"],2),round(math.fabs(area_data["other_area"]),2),", ".join([layer["id"] for layer in layers])))
                 else:
                     overlaps = checkOverlap(session_cookies,feature,options)
                     if overlaps:
