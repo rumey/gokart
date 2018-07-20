@@ -147,9 +147,9 @@ def checkOverlap(session_cookies,feature,options):
             layer_feature["layer_id"] = layer["id"]
             layer_feature["geometry"] = layer_geometry
 
-    #check whether the features are overlap or not
+    #check whether the features from different layers are overlap or not
     layer_index1 = 0
-    while layer_index1 < len(layers):
+    while layer_index1 < len(layers) - 1:
         layer1 = layers[layer_index1]
         layer_features1 = features[layer1["id"]]
 
@@ -162,14 +162,11 @@ def checkOverlap(session_cookies,feature,options):
                 feature_index1 += 1
                 continue
 
-            layer_index2 = layer_index1
+            layer_index2 = layer_index1 + 1
             while layer_index2 < len(layers):
                 layer2 = layers[layer_index2]
                 layer_features2 = features[layer2["id"]]
-                if layer_index1 == layer_index2:
-                    feature_index2 = feature_index1 + 1
-                else:
-                    feature_index2 = 0
+                feature_index2 = 0
 
                 while feature_index2 < len(layer_features2):
                     feature2 = layer_features2[feature_index2]
