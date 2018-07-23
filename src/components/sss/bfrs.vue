@@ -1145,7 +1145,7 @@
                                     } else {
                                         spatialData["capturemethod"] = data["capturemethod"]
                                         if (data["capturemethod"] === vm.whoami["bushfire"]["othermethod_id"]) {
-                                            spatialData["other_capturemethod"] = data["other_capturemethod"] || nul
+                                            spatialData["other_capturemethod"] = data["other_capturemethod"] || null
                                         }
                                         callback(spatialData)
                                     }
@@ -1249,6 +1249,7 @@
                                         layer_overlap:false,
                                         merge_result:true,
                                         unit:"ha",
+                                        failed_if_overlap:false,
                                         layers:[
                                             {
                                                 id:"legislated_lands_and_waters",
@@ -1300,16 +1301,18 @@
                                                             defaultOption:false,
                                                             buttons:[[true,"Yes"],[false,"Cancel"]],
                                                             callback:function(option){
-                                                                if (option) {
-                                                                    delete result["valid"]
-                                                                    delete result["valid_message"]
-                                                                    result["fb_validation_req"] = true
-                                                                    $.extend(spatialData,response["features"][0])
-                                                                    tenure_area_task.setStatus(utils.SUCCEED)
-                                                                } else {
-                                                                    tenure_area_task.setStatus(utils.FAIL_CONFIRMED,msg)
-                                                                }
-                                                                vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
+                                                                setTimeout(function() {
+                                                                    if (option) {
+                                                                        delete result["valid"]
+                                                                        delete result["valid_message"]
+                                                                        result["fb_validation_req"] = true
+                                                                        $.extend(spatialData,response["features"][0])
+                                                                        tenure_area_task.setStatus(utils.SUCCEED)
+                                                                    } else {
+                                                                        tenure_area_task.setStatus(utils.FAIL_CONFIRMED,msg)
+                                                                    }
+                                                                    vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
+                                                                },1)
                                                             }
                                                         })
                                                     },1)
@@ -1334,8 +1337,37 @@
                                     delete result["valid_message"]
                                     result["fb_validation_req"] = null
                                 }
-                                $.extend(spatialData,response["features"][0])
-                                tenure_area_task.setStatus(utils.SUCCEED)
+                                if (response["features"][0]["area"]["other_area"] < -0.01) {
+                                    //found overlap
+                                    feature_area = response["features"][0]["area"]
+                                    vm.dialog.show({
+                                        messages:[
+                                            "The sum of the burning areas in individual layers are " + Math.abs(feature_area["other_area"]).toFixed(2) + " greater than the total burning area " + feature_area["total_area"].toFixed(2) + ".",
+                                            "The features from the following layers are overlaped.",
+                                            [["",1],["cddp:legislated_lands_and_waters",11]],
+                                            [["",1],["cddp:dept_interest_lands_and_waters",11]],
+                                            [["",1],["cddp:other_tenures",11]],
+                                            "Do you want to continue?"
+                                        ],
+                                        defaultOption:false,
+                                        buttons:[[true,"Yes"],[false,"No"]],
+                                        callback:function(option){
+                                            setTimeout(function() {
+                                                if (option) {
+                                                    $.extend(spatialData,response["features"][0])
+                                                    tenure_area_task.setStatus(utils.SUCCEED)
+                                                } else {
+                                                    tenure_area_task.setStatus(utils.FAIL_CONFIRMED,"Cancelled")
+                                                }
+                                                vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
+                                            },1)
+                                        }
+                                    })
+                                    return
+                                } else {
+                                    $.extend(spatialData,response["features"][0])
+                                    tenure_area_task.setStatus(utils.SUCCEED)
+                                }
                             } else {
                                 tenure_area_task.setStatus(utils.FAILED,"Calculate area failed.")
                                 //alert(tenure_area_task.message)

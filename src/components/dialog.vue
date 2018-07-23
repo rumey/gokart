@@ -3,7 +3,7 @@
         <h3 v-show="title">{{title}}</h3>
         <div v-for="line in messages" class="row" track-by="$index" >
             <div v-for="message in line" class="small-{{message[1]}} columns {{messageClass(message)}}" track-by="$index">
-                 <p v-if="messageType(message) === 'show'" style="white-space:pre-wrap;">{{message[0]}}</p>
+                 <div v-if="messageType(message) === 'show'" style="white-space:pre-wrap;">{{message[0]}}</div>
                  <a v-if="messageType(message) === 'link'" href="{{message[0]}}" @click.stop.prevent="utils.editResource($event)" target="{{messageAttr(message,'target')}}">{{message[0]}}</a>
                  <input v-if="['radio','checkbox'].indexOf(messageType(message)) >= 0" type="{{message[2]['type']}}" name="{{messageAttr(message,'name')}}" value="{{message[0]}}" @click.stop="processEvent(messageAttr(message,'click'),$event)" disabled="{{messageAttr(message,'disabled',false)}}" checked="{{isChecked(message)}}">
                  <input v-if="messageType(message) === 'text'" type="text" name="{{messageAttr(message,'name')}}"  disabled="{{messageAttr(message,'disabled')}}" value="{{getValue(message)}}">

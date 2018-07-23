@@ -203,7 +203,6 @@ def calculateArea(session_cookies,results,features,options):
 
     areas_map = {} if merge_result else None
     area_key = None
-    
     while index < len(features):
         feature = features[index]
         result = results[index]
@@ -305,7 +304,7 @@ def calculateArea(session_cookies,results,features,options):
     
         if not overlap :
             area_data["other_area"] = area_data["total_area"] - total_area
-            if area_data["other_area"] < -0.01: #tiny difference is allowed.
+            if options.get("failed_if_overlap",True) and area_data["other_area"] < -0.01: #tiny difference is allowed.
                 #some layers are overlap
                 bottle.response.status = 490
                 if not settings.CHECK_OVERLAP_IF_CALCULATE_AREA_FAILED:
