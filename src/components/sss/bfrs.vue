@@ -1273,7 +1273,7 @@
                                                 url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:other_tenures"),
                                                 properties:{
                                                     name:"cdg_label",
-                                                    category:"other_tenure"
+                                                    category:"cdg_label"
                                                 },
                                                 primary_key:"ogc_fid"
                                             }
