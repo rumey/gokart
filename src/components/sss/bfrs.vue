@@ -1226,11 +1226,11 @@
                     }
                 }
                 if (originPoint && (modifyType & 1) === 1) {
-                    tenure_origin_point_task = vm._taskManager.addTask(feat,"getSpatialData","tenure_origin_point","Locate bushfire's dpaw tenure",utils.WAITING)
+                    tenure_origin_point_task = vm._taskManager.addTask(feat,"getSpatialData","tenure_origin_point","Get the tenure of ignition point",utils.WAITING)
                     fire_position_task = vm._taskManager.addTask(feat,"getSpatialData","fire_position","Get the fire position",utils.WAITING)
                     if (["new","initial"].indexOf(feat.get('status')) >= 0) {
-                        region_task = vm._taskManager.addTask(feat,"getSpatialData","region","Locate bushfire's region",utils.WAITING)
-                        district_task = vm._taskManager.addTask(feat,"getSpatialData","district","Locate bushfire's district",utils.WAITING)
+                        region_task = vm._taskManager.addTask(feat,"getSpatialData","region","Get bushfire's region",utils.WAITING)
+                        district_task = vm._taskManager.addTask(feat,"getSpatialData","district","Get bushfire's district",utils.WAITING)
                     }
                 }
                 //need to call the callback first because the callback will not be called if no tasks are required.
@@ -1413,7 +1413,7 @@
                         properties:{
                             id:"ogc_fid",
                             name:"cdg_label",
-                            category:"other_tenure"
+                            category:"cdg_label"
                         },
                     }]
                     vm.map.getFeature(tenure_layers,originPoint,function(feature){
