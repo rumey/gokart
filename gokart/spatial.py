@@ -240,6 +240,9 @@ def calculateArea(session_cookies,results,features,options):
                 raise Exception("Calculate total area failed.{}".format("\r\n".join(result["valid_message"])))
             else:
                 raise Exception("Calculate total area failed.{}".format(traceback.format_exception_only(sys.exc_type,sys.exc_value)))
+
+        if not layers:
+            return
             
         for layer in layers:
             if merge_result:
