@@ -190,6 +190,31 @@ def checkOverlap(session_cookies,feature,options):
                 
 
 def calculateArea(session_cookies,results,features,options):
+    """
+    feature area data:{
+        status {
+            code: msg
+             "invalid" : invalid message; 
+             "failed" : failed message; 
+             "overlapped" : overlap message
+
+        }
+        data: {
+            total_area: 100   //exist if status_code = 1
+            other_area: 10    //exist if status_code = 1 and len(layers) > 0
+            layers: {   //exist if status_code = 1 and len(layers) > 0 
+                layer id: {
+                    total_area: 12
+                    areas:[
+                        {area:1, properties:{
+                            name:value
+                        }}
+                    ]
+                }
+            }
+        }
+    }
+    """
     # needs gdal 1.10+
     layers = options["layers"]
     unit = options["unit"] or "ha"
@@ -205,45 +230,49 @@ def calculateArea(session_cookies,results,features,options):
     area_key = None
     while index < len(features):
         feature = features[index]
-        result = results[index]
+        
+        area_data = {}
+        status = {}
+        result = {"status":status,"data":area_data}
+        results[index][options.get("name","area")] = result
         total_area = 0
         index += 1
         geometry = extractPolygons(feature["geometry"])
 
         if not geometry :
+            area_data["total_area"] = 0
             continue
+
         #before calculating area, check the polygon first.
         #if polygon is invalid, throw exception
-        result["valid"] = True
-        result["valid_message"] = ""
         try:
             for handler in loghandlers:
                 handler.enable(True)
             if not geometry.is_valid:
                 msg = [message.strip() for handler in loghandlers if handler.messages for message in handler.messages]
-                result["valid"] = False
-                result["valid_message"] = msg
+                status["invalid"] = msg
         finally:
             for handler in loghandlers:
                 handler.enable(False)
 
-        area_data = {"layers":{}}
-        result[options.get("name","area")] = area_data
-        if not layers:
-            continue
+        #status["invalid"] = ["invalid geometry"]
+
         try:
             area_data["total_area"] = getGeometryArea(geometry,unit)
         except:
             traceback.print_exc()
-            bottle.response.status = 490
-            if not result["valid"] and result["valid_message"]:
-                raise Exception("Calculate total area failed.{}".format("\r\n".join(result["valid_message"])))
+            if "invalid" in status:
+                status["failed"] = "Calculate total area failed.{}".format("\r\n".join(status["invalid"]))
             else:
-                raise Exception("Calculate total area failed.{}".format(traceback.format_exception_only(sys.exc_type,sys.exc_value)))
+                status["failed"] = "Calculate total area failed.{}".format(traceback.format_exception_only(sys.exc_type,sys.exc_value))
+
+            continue
 
         if not layers:
-            return
-            
+            continue
+
+        area_data["layers"] = {}
+
         for layer in layers:
             if merge_result:
                 areas_map.clear()
@@ -296,22 +325,24 @@ def calculateArea(session_cookies,results,features,options):
                 total_area += total_layer_area
                 if not overlap and total_area >= area_data["total_area"] :
                     break
-
+            
             except:
                 traceback.print_exc()
-                bottle.response.status = 490
-                if not result["valid"] and result["valid_message"]:
-                    raise Exception("Calculate intersection area between fire boundary and layer '{}' failed.{}".format(settings.typename(layer["url"]) or layer["id"],"\r\n".join(result["valid_message"])))
-                else:
-                    raise Exception("Calculate intersection area between fire boundary and layer '{}' failed.{}".format(settings.typename(layer["url"]) or layer["id"],traceback.format_exception_only(sys.exc_type,sys.exc_value)))
+                status["failed"] = "Calculate intersection area between fire boundary and layer '{}' failed.{}".format(settings.typename(layer["url"]) or layer["id"],traceback.format_exception_only(sys.exc_type,sys.exc_value))
+
+                break
+
+        if "failed" in status:
+            #calcuating area failed
+            continue
     
         if not overlap :
             area_data["other_area"] = area_data["total_area"] - total_area
-            if options.get("failed_if_overlap",True) and area_data["other_area"] < -0.01: #tiny difference is allowed.
+            if area_data["other_area"] < -0.01: #tiny difference is allowed.
                 #some layers are overlap
-                bottle.response.status = 490
                 if not settings.CHECK_OVERLAP_IF_CALCULATE_AREA_FAILED:
-                    raise Exception("The sum({0}) of the burning areas in individual layers are ({2}) greater than the total burning area({1}).\r\n The Features from layers({3}) are overlaped, please check.".format(round(total_area,2),round(area_data["total_area"],2),round(math.fabs(area_data["other_area"]),2),", ".join([layer["id"] for layer in layers])))
+                    status["overlapped"] = "The sum({0}) of the burning areas in individual layers are ({2}) greater than the total burning area({1}).\r\n The features from layers({3}) are overlaped, please check.".format(round(total_area,2),round(area_data["total_area"],2),round(math.fabs(area_data["other_area"]),2),", ".join([layer["id"] for layer in layers]))
+                    continue
                 else:
                     overlaps = checkOverlap(session_cookies,feature,options)
                     if overlaps:
@@ -353,7 +384,8 @@ def calculateArea(session_cookies,results,features,options):
                             msg.append("intersect({}, {}) = {} ".format( feature1,feature2, overlap[2] ))
                         with open("/tmp/overlap_{}.log".format(feature["properties"].get("id","feature")),"w") as f:
                             f.write("\n".join(msg))
-                        raise Exception("Features are overlaped.\r\n{}".format("\r\n".join(msg)))
+                        status["overlapped"] = "Features from layers are overlaped.\r\n{}".format("\r\n".join(msg))
+                        continue
 
 
     

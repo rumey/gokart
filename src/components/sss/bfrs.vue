@@ -1174,12 +1174,6 @@
             }
         }
 
-        vm._getValidationMessage = vm._getValidationMessage || function(message) {
-            return "Geometry check of the fire shape has found the following error: " +
-                   "\r\n\t" + (Array.isArray(message)?message.join("\r\n\t"):message) + 
-                   "\r\n\r\nPlease run a geometry check within ArcGIS before uploading" +
-                   "\r\nFor help contact the Fire Support Systems Team fire_systems_support@dbca.wa.gov.au";
-        }
         vm._getSpatialData = vm._getSpatialData || function(feat,caller,callback,failedCallback) {
             try{
                 var spatialData = {}
@@ -1237,6 +1231,106 @@
                 vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                 if (tenure_area_task) {
                     tenure_area_task.setStatus(utils.RUNNING)
+                    vm._getValidationMessage = vm._getValidationMessage || function(message) {
+                        return "Geometry check of the fire shape has found the following error: " +
+                            "\r\n\t" + (Array.isArray(message)?message.join("\r\n\t"):message) + 
+                            "\r\n\r\nPlease run a geometry check within ArcGIS before uploading" +
+                            "\r\nFor help contact the Fire Support Systems Team fire_systems_support@dbca.wa.gov.au";
+                    }
+                    var process_overlap_func = function(result) {
+                        //found overlap
+                        feature_area = result["data"]
+                        if (caller === "import") {
+                            vm.dialog.show({
+                                messages:[
+                                    "The sum of the burning areas in individual layers are " + Math.abs(feature_area["other_area"]).toFixed(2) + " greater than the total burning area " + feature_area["total_area"].toFixed(2) + ".",
+                                    "The features from the following layers are overlaped.",
+                                    [["",1],["cddp:legislated_lands_and_waters",11]],
+                                    [["",1],["cddp:dept_interest_lands_and_waters",11]],
+                                    [["",1],["cddp:other_tenures",11]],
+                                    "Do you want to continue?"
+                                ],
+                                defaultOption:false,
+                                buttons:[[true,"Yes"],[false,"No"]],
+                                callback:function(option){
+                                    setTimeout(function() {
+                                        if (option) {
+                                            if (!("fb_validation_req" in feature_area)) {
+                                                feature_area["fb_validation_req"] = null
+                                            }
+                                            spatialData["area"] = feature_area
+                                            tenure_area_task.setStatus(utils.SUCCEED)
+                                        } else {
+                                            tenure_area_task.setStatus(utils.FAIL_CONFIRMED,"Cancelled")
+                                        }
+                                        vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
+                                    },1)
+                                }
+                            })
+                            return
+                        } else {
+                            if (!("fb_validation_req" in feature_area)) {
+                                feature_area["fb_validation_req"] = null
+                            }
+                            spatialData["area"] = feature_area
+                            tenure_area_task.setStatus(utils.SUCCEED)
+                            vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
+                        }
+                    }
+
+                    var process_invalid_func = function(result) {
+                        //invalid geometry
+                        var msg = vm._getValidationMessage(result["status"]["invalid"])
+                        if (caller === "import") {
+                            vm.dialog.show({
+                                messages:msg,
+                                defaultOption:false,
+                                buttons:[[false,"Ok"],[true,"Override"]],
+                                callback:function(option){
+                                    if (option) {
+                                        setTimeout(function() {
+                                            vm.dialog.show({
+                                                messages:"I acknowledge a geometry check has been run and passed in ArcGIS Geometry Tool and this is a valid shape.",
+                                                defaultOption:false,
+                                                buttons:[[true,"Yes"],[false,"Cancel"]],
+                                                callback:function(option){
+                                                    setTimeout(function() {
+                                                        if (option) {
+                                                            result["data"]["fb_validation_req"] = true
+                                                            if (result["status"]["overlapped"]) {
+                                                                process_overlap_func(result)
+                                                            } else {
+                                                                spatialData["area"] = result["data"]
+                                                                tenure_area_task.setStatus(utils.SUCCEED)
+                                                                vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
+                                                            }
+                                                        } else {
+                                                            tenure_area_task.setStatus(utils.FAIL_CONFIRMED,msg)
+                                                            vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
+                                                        }
+                                                    },1)
+                                                }
+                                            })
+                                        },1)
+                                    } else {
+                                        tenure_area_task.setStatus(utils.FAIL_CONFIRMED,msg)
+                                        vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
+                                    }
+                                }
+                            })
+                            return
+                        } else if (caller === "batchimport") {
+                            result["data"]["fb_validation_req"] = true
+                            spatialData["area"] = result["data"]
+                            tenure_area_task.setStatus(utils.SUCCEED)
+                            vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
+                        } else {
+                            tenure_area_task.setStatus(utils.FAILED,msg)
+                            vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
+                        }
+
+                    }
+
                     $.ajax({
                         url:vm.env.gokartService + "/spatial",
                         dataType:"json",
@@ -1249,7 +1343,6 @@
                                         layer_overlap:false,
                                         merge_result:true,
                                         unit:"ha",
-                                        failed_if_overlap:false,
                                         layers:[
                                             {
                                                 id:"legislated_lands_and_waters",
@@ -1285,94 +1378,28 @@
                         method:"POST",
                         success: function (response, stat, xhr) {
                             if (response["total_features"] > 0) {
-                                var result = response["features"][0]
-                                if ("valid" in result && !result["valid"]) {
-                                    var msg = vm._getValidationMessage(result["valid_message"])
-                                    if (caller === "import") {
-                                        vm.dialog.show({
-                                            messages:msg,
-                                            defaultOption:false,
-                                            buttons:[[false,"Ok"],[true,"Override"]],
-                                            callback:function(option){
-                                                if (option) {
-                                                    setTimeout(function() {
-                                                        vm.dialog.show({
-                                                            messages:"I acknowledge a geometry check has been run and passed in ArcGIS Geometry Tool and this is a valid shape.",
-                                                            defaultOption:false,
-                                                            buttons:[[true,"Yes"],[false,"Cancel"]],
-                                                            callback:function(option){
-                                                                setTimeout(function() {
-                                                                    if (option) {
-                                                                        delete result["valid"]
-                                                                        delete result["valid_message"]
-                                                                        result["fb_validation_req"] = true
-                                                                        $.extend(spatialData,response["features"][0])
-                                                                        tenure_area_task.setStatus(utils.SUCCEED)
-                                                                    } else {
-                                                                        tenure_area_task.setStatus(utils.FAIL_CONFIRMED,msg)
-                                                                    }
-                                                                    vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
-                                                                },1)
-                                                            }
-                                                        })
-                                                    },1)
-                                                } else {
-                                                    tenure_area_task.setStatus(utils.FAIL_CONFIRMED,msg)
-                                                    vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
-                                                }
-                                            }
-                                        })
-                                        return
-                                    } else if (caller === "batchimport") {
-                                        delete result["valid"]
-                                        delete result["valid_message"]
-                                        result["fb_validation_req"] = true
-                                    } else {
-                                        tenure_area_task.setStatus(utils.FAILED,msg)
-                                        vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
-                                        return
-                                    }
-                                } else {
-                                    delete result["valid"]
-                                    delete result["valid_message"]
-                                    result["fb_validation_req"] = null
-                                }
-                                if (response["features"][0]["area"]["other_area"] < -0.01) {
+                                var result = response["features"][0]["area"]
+                                if (result["status"]["failed"] ) {
+                                    //failed
+                                    tenure_area_task.setStatus(utils.FAILED,result["status"]["failed"])
+                                    vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
+                                } else if (result["status"]["invalid"]) {
+                                    //invalid geometry
+                                    process_invalid_func(result)
+                                } else if (result["status"]["overlapped"]) {
                                     //found overlap
-                                    feature_area = response["features"][0]["area"]
-                                    vm.dialog.show({
-                                        messages:[
-                                            "The sum of the burning areas in individual layers are " + Math.abs(feature_area["other_area"]).toFixed(2) + " greater than the total burning area " + feature_area["total_area"].toFixed(2) + ".",
-                                            "The features from the following layers are overlaped.",
-                                            [["",1],["cddp:legislated_lands_and_waters",11]],
-                                            [["",1],["cddp:dept_interest_lands_and_waters",11]],
-                                            [["",1],["cddp:other_tenures",11]],
-                                            "Do you want to continue?"
-                                        ],
-                                        defaultOption:false,
-                                        buttons:[[true,"Yes"],[false,"No"]],
-                                        callback:function(option){
-                                            setTimeout(function() {
-                                                if (option) {
-                                                    $.extend(spatialData,response["features"][0])
-                                                    tenure_area_task.setStatus(utils.SUCCEED)
-                                                } else {
-                                                    tenure_area_task.setStatus(utils.FAIL_CONFIRMED,"Cancelled")
-                                                }
-                                                vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
-                                            },1)
-                                        }
-                                    })
-                                    return
+                                    process_overlap_func(result)
                                 } else {
-                                    $.extend(spatialData,response["features"][0])
+                                    result["data"]["fb_validation_req"] = null
+                                    spatialData["area"] = result["data"]
                                     tenure_area_task.setStatus(utils.SUCCEED)
+                                    vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                                 }
                             } else {
                                 tenure_area_task.setStatus(utils.FAILED,"Calculate area failed.")
+                                vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                                 //alert(tenure_area_task.message)
                             }
-                            vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                         },
                         error: function (xhr,status,message) {
                             if (xhr.status === 490) {
