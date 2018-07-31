@@ -173,7 +173,7 @@ if (result) {
       if (store && store["activeLayers"] && store["activeLayers"].length === 0) {
           delete store["activeLayers"]
       }
-      var storedData = $.extend(JSON.parse(JSON.stringify(persistentData)), store || {}, volatileData)
+      var storedData = utils.extend(JSON.parse(JSON.stringify(persistentData)), store || {}, volatileData)
     
       global.gokart = new Vue({
         el: 'body',
