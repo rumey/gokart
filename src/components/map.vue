@@ -1891,6 +1891,59 @@
             })
           }
       },
+      //Return the first feature which contains the coordinate.
+      //layers: list of layer definition.{id:layerId,geom_field:geometry field,properties:{field:column}}
+      getFeature:function(layers,coordinate,successCallback,failedCallback) {
+          var vm = this
+          if (!Array.isArray(layers)) {
+              layers = [layers]
+          }
+          var _getFeature = function(index) {
+            $.ajax({
+                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId(layers[index]["id"]) + "&outputFormat=json&cql_filter=CONTAINS(" + (layers[index]["geom_field"] || "wkb_geometry") + ",POINT(" + coordinate[1]  + " " + coordinate[0] + "))",
+                dataType:"json",
+                success: function (response, stat, xhr) {
+                   if (response.totalFeatures === 0) {
+                       if (index === layers.length - 1) {
+                            if (successCallback) {
+                                successCallback(null)
+                            } else {
+                                alert("No found")
+                            }
+                       } else {
+                            _getFeature(index + 1)
+                       }
+                    } else {
+                        var feature = null
+                        if (layers[index]["properties"]) {
+                            feature = {}
+                            $.each(layers[index]["properties"],function(field,column){
+                                feature[field] = response.features[0]["properties"][column]
+                            })
+                        } else {
+                            feature = response.features[0]
+                        }
+                        if (successCallback) {
+                            successCallback(feature)
+                        } else {
+                            alert(JSON.stringify(feature))
+                        }
+                    }
+                },
+                error: function (xhr,status,message) {
+                    if (failedCallback) {
+                        alert(xhr.status + " : " + (xhr.responseText || message))
+                    } else {
+                        failedCallback(xhr.status + " : " + (xhr.responseText || message))
+                    }
+                },
+                xhrFields: {
+                    withCredentials: true
+                }
+            })
+        }
+        _getFeature(0)
+      },
       getPosition:function(coordinate,successCallback,failedCallback) {
           var buffers = [50,100,150,200,300,400,1000,2000,100000]
           var vm = this

@@ -189,7 +189,7 @@
             if (layer.tags && layer.tags.some(function(o) {return o.name === "detail_link" || o.name === "detail_dialog"} )) {
                 layer.icon = "/dist/static/images/" + layer.id.replace(":","-").toLowerCase() + ".png"
                 layer.title = layer.name || layer.id
-                layer.name = "feauterdetail-" + layer.title
+                layer.toolid = "feauterdetail-" + layer.id.replace(":","-")
                 vm.layers.splice(0,0,layer)
             }
         })
@@ -234,9 +234,9 @@
                                         return
                                     }
                                     if (vm.dialog.isLink(value)) {
-                                        messages.push([[key,3,"detail_name"],[value,9,"detail_value",vm.layer.id + "." + key]])
+                                        messages.push([[key,3,{"class":"detail_name"}],[value,9,{"type":"link","class":"detail_value","target":vm.layer.id + "." + key}]])
                                     } else {
-                                        messages.push([[key,3,"detail_name"],[value,9,"detail_value"]])
+                                        messages.push([[key,3,{"class":"detail_name"}],[value,9,{"class":"detail_value"}]])
                                     }
                                 })
                                 vm.dialog.show({

@@ -128,17 +128,15 @@ var systemSettings = {
       viewportOnly: false,
   },
   weatheroutlook:{
-      reportType:3,//3 hourly
-      reportHours:null,
-      dailyTitle:null,
-      outlookDays:4,
-      outlookColumns:null
+      "weather-outlook-customized":null,
+      "weather-outlook-amicus":null
   }
 }
 
 var persistentData = {
   view: {
-    center: [123.75, -24.966]
+    center: [123.75, -24.966],
+    scale:4026092
   },
   // id followed by properties to merge into catalogue
   activeLayers: [
@@ -155,9 +153,8 @@ var persistentData = {
   drawingSequence:0,
 
   //data in settings will survive across reset
-  settings:$.extend({},JSON.parse(JSON.stringify(systemSettings)))
+  settings:JSON.parse(JSON.stringify(systemSettings))
 }
-
 global.gokartService = env.gokartService;
 
 global.localforage = localforage
@@ -171,48 +168,12 @@ if (result) {
         document.location.search = (searchString.length === 0)?"":("?" + (result[1]?result[1]:"") + ((result[2] && result[2].length > 1)?result[2].substring(1):""))
     })
 } else {
-    //check gokart version
-    utils.checkVersion(profile)
     Vue.use(VueStash)
     localforage.getItem('sssOfflineStore').then(function (store) {
-      var _extend = function() {
-          if (arguments.length === 0) {
-              return {}
-          } else if (arguments.length === 1) {
-              return arguments[0]
-          } else {
-              var o = arguments[0]
-              var _arguments = arguments
-              $.each(o,function(key,value){
-                  if (value !== null && value !== undefined && typeof(value) === "object" && !Array.isArray(value)) {
-                      var args = []
-                      for(var index = 0;index < _arguments.length;index++) {
-                          if (_arguments[index] && key in _arguments[index]) {
-                              args.push(_arguments[index][key])
-                          }
-                      }
-                      o[key] = _extend.apply(null,args)
-                  } else {
-                      for(var index = _arguments.length - 1;index > 0;index--) {
-                          if (_arguments[index]) {
-                              if (key in _arguments[index]) {
-                                  o[key] = _arguments[index][key]
-                                  break
-                              }
-                          }
-                      }
-                  }
-              })
-              return o
-          }
-      }
-      var settings = _extend(persistentData.settings,store?(store.settings || {}):{})
-      
       if (store && store["activeLayers"] && store["activeLayers"].length === 0) {
           delete store["activeLayers"]
       }
-      var storedData = $.extend({}, persistentData, store || {}, volatileData)
-      storedData.settings = settings
+      var storedData = utils.extend(JSON.parse(JSON.stringify(persistentData)), store || {}, volatileData)
     
       global.gokart = new Vue({
         el: 'body',
@@ -261,11 +222,7 @@ if (result) {
           utils: function() {return utils},
           env:function() {return env},
           persistentData:function() {
-              var vm = this
-              $.each(persistentData,function(key,val){
-                  persistentData[key] = vm.store[key]
-              })
-              return persistentData
+              return utils.extract(persistentData,this.store)
           },
           tourVersion:function() {
               return this.store.settings.tourVersion
@@ -784,9 +741,6 @@ if (result) {
                     $("#layers-active-label").trigger("click")
                     self.store.activeSubmenu = "active"
                     self.active.setup()
-    
-                    //check gokart version
-                    //utils.checkVersion(self.profile)
     
                     self.loading.app.phaseEnd("post_init")
                 } catch(err) {

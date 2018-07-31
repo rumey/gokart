@@ -300,63 +300,6 @@ Utils.prototype.getWindowTarget = function(target){
     return (env.appType === "cordova")?"_system":target
 }
 
-var styleVersion = null;
-function _checkVersion(profile,check) {
-    $.ajax({
-        url: "/profile/sss/" + profile.distributionType,
-        contentType:"application/json",
-        success: function (response, stat, xhr) {
-            if (profile.build.datetime !== response.build.datetime || 
-                profile.build.host !== response.build.host || 
-                profile.build.platform !== response.build.platform
-            ) {
-                alert("New version is available, please press <F5> to reload the system; if can't fix, please clean browser's cache.")
-            } else if (profile.build.vendorMD5 !== response.build.vendorMD5) {
-                alert("Application was not built on the latest vendor library, please rebuild the application again.")
-            } else if (!("envVersion" in response) && "envType" in response) {
-                alert("The '" + response.envType + "' enviroment file is missing in the server side. ")
-            } else if ("envType" in response && response.envType !== env.envType) {
-                alert("Local environment '" + env.envType + "' does not match the server configured enviroment '" + response.envType + "', please press <F5> to reload the system; if can't fix, please clean borwser's cache." )
-            } else if ("envVersion" in response && (response.envVersion || "").trim() !== (env.envVersion || "").trim() ) {
-                alert("The running environment is changed, please press <F5> to reload the system; if can't fix, please clean browser's cache.")
-            } else if ("styleVersion" in response && (response.styleVersion || "").trim() !== styleVersion) {
-                alert("The style file is changed, please press <F5> to reload the system; if can't fix, please clean browser's cache.")
-            } else if (check) {
-                alert("You have the latest version.")
-            }
-        },
-        error: function (xhr,status,message) {
-            alert(xhr.status + " : " + (xhr.responseText || message))
-        },
-        xhrFields: {
-            withCredentials: true
-        }
-    })
-}
-
-Utils.prototype.checkVersion = function(profile,check) {
-    if (styleVersion === null) {
-        $.ajax({
-            url: "/dist/static/css/style.css",
-            contentType:"text/plain",
-            success: function (response, stat, xhr) {
-                var styleVersion_re = /\/\*\s*version\s*:\s*[\"\']?\s*([a-zA-Z0-9\.\:\-][a-zA-Z0-9\.\:\-\ ]+[a-zA-Z0-9\.\:\-])\s*[\"\']?\s*\*\//
-                var m = styleVersion_re.exec(response)
-                styleVersion = m?m[1].trim():""
-                _checkVersion(profile,check)
-            },
-            error: function (xhr,status,message) {
-                alert(xhr.status + " : " + (xhr.responseText || message))
-            },
-            xhrFields: {
-                withCredentials: true
-            }
-        })
-    } else {
-        _checkVersion(profile,check)
-    }
-}
-
 var proxyCache = {}
 Utils.prototype.proxy = function(classname,object,attrs){
     if (!object) {return null;}
@@ -592,6 +535,102 @@ Utils.prototype.getDateRange = function(range,format) {
     return [startDate?startDate.format(format):null,endDate?endDate.format(format):null]
     
 }
+
+//like jquery.extend, but is a deep extend version
+Utils.prototype.extend = function() {
+    if (arguments.length === 0) {
+        return {}
+    } else if (arguments.length === 1) {
+        return arguments[0]
+    } else {
+        var o = arguments[0]
+        var _arguments = arguments
+        var index = 1
+        var vm = this
+        while (index < arguments.length) {
+            $.each(arguments[index],function(key,value) {
+                if (value === undefined) {
+                    return
+                }
+                if (key in o) {
+                    //key exist in the result object
+                    if (value !== null && value !== undefined && typeof(value) === "object" && !Array.isArray(value)) {
+                        //is a json object
+                        if (o[key] !== null && o[key] !== undefined && typeof(o[key]) === "object" && !Array.isArray(o[key])) {
+                            //the same key in result object is a json object
+                            o[key] = vm.extend(o[key],value)
+                        } else {
+                            //the same key in result object is not a json object,overrite it
+                            o[key] = value
+                        }
+                    } else {
+                        //is not a json object 
+                        //overrite it
+                        o[key] = value
+                    }
+                } else {
+                    //key does not exist in the result object
+                    o[key] = value
+                }
+
+            })
+            index += 1
+        }
+        return o
+    }
+}
+//extract the property value from a json object and set to json object template
+//if a property in json object template does not exist in json object, the property's value will be removed from the result
+//if a property in json object template has a undefined value in json object, the property will be removed from the result
+//if a property whose value is a non empty json object in json object template, recusive call extract method with property value in json object template and json object.
+Utils.prototype.extract = function(jsonTemplate,obj) {
+    var result = {}
+    var vm = this
+    $.each(jsonTemplate,function(key,value){
+        if (value !== null && value !== undefined && typeof(value) === "object" && !Array.isArray(value)) {
+            //is a json object
+            if (obj[key] === undefined) {
+                return
+            } else if (obj[key] === null) {
+                result[key] = null
+            } else if (Object.keys(value).length === 0) {
+                //is a empty json object, use the value from obj 
+                result[key] = obj[key]
+            } else {
+                //contain some properties in json object template, only extract the predefined property's value
+                result[key] = vm.extract(jsonTemplate[key],obj[key])
+            }
+        } else if (obj[key] !== undefined){
+            result[key] = obj[key]
+        }
+    })
+    return result
+}
+
+
+function toInt(str) {
+    try {
+        var result = parseInt(str)
+        return Number.isNaN(result)?0:result
+    } catch(ex) {
+        return 0
+    }
+}
+
+Utils.prototype.getWidth = function(element) {
+    return element.width() 
+        + toInt(element.css("padding-left")) + toInt(element.css("padding-right")) 
+        + toInt(element.css("margin-left")) + toInt(element.css("margin-right")) 
+        + toInt(element.css("border-width"))
+}
+
+Utils.prototype.getHeight = function(element,unit) {
+    return element.height() 
+        + toInt(element.css("padding-top")) + toInt(element.css("padding-bottom")) 
+        + toInt(element.css("margin-top")) + toInt(element.css("margin-bottom")) 
+        + toInt(element.css("border-width"))
+}
+
 var utils = new Utils()
 
 export default utils

@@ -1,10 +1,12 @@
 <template>
-    <div class="{{classes}} reveal" id="userdialog" data-reveal data-close-on-click='false'> 
+    <div class="{{classes}} reveal" id="userdialog" data-reveal data-close-on-click='false' > 
         <h3 v-show="title">{{title}}</h3>
         <div v-for="line in messages" class="row" track-by="$index" >
-            <div v-for="message in line" class="small-{{message[1]}} columns {{message[2] || ''}}" track-by="$index">
-                 <p v-show="message[3] === undefined" style="white-space:pre-wrap;">{{message[0]}}</p>
-                 <a v-show="message[3] !== undefined" href="{{message[0]}}" @click.stop.prevent="utils.editResource($event)" target="{{message[3]}}">{{message[0]}}</a>
+            <div v-for="message in line" class="small-{{message[1]}} columns {{messageClass(message)}}" track-by="$index">
+                 <div v-if="messageType(message) === 'show'" style="white-space:pre-wrap;">{{message[0]}}</div>
+                 <a v-if="messageType(message) === 'link'" href="{{message[0]}}" @click.stop.prevent="utils.editResource($event)" target="{{messageAttr(message,'target')}}">{{message[0]}}</a>
+                 <input v-if="['radio','checkbox'].indexOf(messageType(message)) >= 0" type="{{message[2]['type']}}" name="{{messageAttr(message,'name')}}" value="{{message[0]}}" @click.stop="processEvent(messageAttr(message,'click'),$event)" disabled="{{messageAttr(message,'disabled',false)}}" checked="{{isChecked(message)}}">
+                 <input v-if="messageType(message) === 'text'" type="text" name="{{messageAttr(message,'name')}}"  disabled="{{messageAttr(message,'disabled')}}" value="{{getValue(message)}}">
             </div>
         </div>
 
@@ -43,7 +45,7 @@
         <br>
         <div class="row align-center" v-if="hasButton">
             <div class="small-12 columns small-centered" >
-                <button  v-for="button in buttons" class="button {{button[2] || ''}}" @click="close(button[0])" track-by="$index">
+                <button  v-for="button in buttons" class="button {{button[2] || ''}}" @click="close(button)" track-by="$index" id="userdialog-button-{{button[0]}}" :disabled="button[3]">
                     {{button[1]}}
                 </button>
             </div>
@@ -75,6 +77,10 @@
     text-align: left;
     padding-left:5px;
 }
+#userdialog .header {
+    text-align: left;
+    font-weight:bold;
+}
 </style>
 
 <script>
@@ -87,6 +93,7 @@
         //[['msg',columnSize,'classes'],]
         //[['buttonvalue','buttontext','classes'],]
         buttons:[],
+        messages:[],
         tasks:null,
         succeedTasks:null,
         mergedTasks:null,
@@ -97,7 +104,6 @@
         value:null,
         defaultValue:null,
         targetWindow:null,
-        revision:1,
       }
     },
     computed: {
@@ -105,9 +111,6 @@
       utils: function () { return this.$root.utils },
       hasButton:function() {
         return this.buttons.length > 0
-      },
-      messages:function() {
-        return this.revision && (this._messages || []);
       },
       hasProgressBar:function() {
         return this.tasks > 0
@@ -117,15 +120,15 @@
       },
       fillstyle:function() {
         return "width:" + (this.completedTasks / this.tasks) * 100 + "%"
-      }
+      },
     },
     methods: {
       //options
       //title: dialog title
       //messages: 
       // 1. string. 
-      // 2. array of string or [string, columns, classes]
-      //buttons: array of [value,"button name"]
+      // 2. array of string or [message(string), columns,type(link, radio, checkbox,input,text(default)), {element properies,event handlers,classes}  ]
+      //buttons: array of [value,"button name",button class,disable status,click event]
       //defaultOption: used if user close the dialog 
       //callback: called if user click one button or have a defaultOption
       show:function(options) {
@@ -136,14 +139,14 @@
         var vm = this
         this.classes = options.classes || "small"
         this.title = options.title || ""
-        this._messages.length = 0
+        this.messages.splice(0,this.messages.length)
         var messageLine = null
         if (Array.isArray(options.messages)) {
             $.each(options.messages,function(index,line){
-                vm.addMessage(line)
+                vm.addMessage(line,false)
             })
         } else {
-            this._messages.push([[options.messages,12]])
+            this.messages.push([[options.messages,12]])
         }
         this.buttons = (options.buttons === undefined)?[[true,"Ok"],[false,"Cancel"]]:(options.buttons || [])
         this.callback = options.callback
@@ -155,17 +158,27 @@
         this.warningTasks = this.hasProgressBar?0:null
         this.ignoredTasks = this.hasProgressBar?0:null
         this.mergedTasks = this.hasProgressBar?0:null
-
-        $("#userdialog").foundation('open')
-        this.revision += 1
+        this._initData = options.initData || null
+        this._initFunc = options.initFunc || null
+        this.$nextTick(function(){
+            if (vm._initFunc) {
+                vm._initFunc()
+            }
+            $("#userdialog").foundation('open')
+        })
       },
-      close:function(option) {
-        this.option = (option === undefined)?this.defaultOption:option
+      close:function(button) {
+        if (button && button[4]) {
+            if (button[4](button,this.getData()) === false) {
+                return
+            }
+        }
+        this.option = (button && button[0] !== undefined)?button[0]:this.defaultOption
         $("#userdialog").foundation('close')
       },
       addMessage:function(message) {
         messageLine = []
-        this._messages.push(messageLine)
+        this.messages.push(messageLine)
         if (Array.isArray(message)) {
             $.each(message,function(index,column){
                 if (Array.isArray(column)) {
@@ -177,7 +190,6 @@
         } else {
             messageLine.push([message,12])
         }
-        this.revision += 1
       },
       addSucceedTask:function() {
         this.succeedTasks += 1
@@ -200,19 +212,85 @@
       isLink:function(msg) {
         this._linkRe = this._linkRe || /^\s*https?\:\/\/.+/i
         return this._linkRe.test(msg)
+      },
+      messageAttr:function(msg,attr,defaultValue) {
+        return (msg[2] && msg[2][attr])?msg[2][attr]:defaultValue
+      },
+      messageClass:function(msg) {
+        return this.messageAttr(msg,"class","")
+      },
+      messageType:function(msg) {
+        return this.messageAttr(msg,"type","show")
+      },
+      messageName:function(msg) {
+        return this.messageAttr(msg,"name","")
+      },
+      getValue:function(msg) {
+        if (this._initData && this.messageName(msg) in this._initData) {
+            return this._initData[this.messageName(msg)]
+        } else {
+            return msg[0]
+        }
+      },
+      isChecked:function(msg) {
+        if (this._initData && this.messageName(msg) in this._initData) {
+            value = this._initData[this.messageName(msg)]
+            if (Array.isArray(value)) {
+                return value.indexOf(msg[0])
+            } else {
+                return value === msg[0]
+            }
+        } else {
+            return this.messageAttr(msg,"checked",false)
+        }
+      },
+      getData:function(){
+        result = {}
+        $("#userdialog input").each(function(index){
+            if ($(this).prop("disabled")) {
+                //is disabled,ignore
+                return
+            } else if ( $(this).val().trim().length === 0) {
+                //is empty,ignore
+                return
+            } else if ( ["radio","checkbox"].indexOf($(this).prop("type").toLowerCase()) >= 0 && !($(this).prop("checked")) ) {
+                //is not checked
+            } else if (!($(this).prop("name") in result)) {
+                // is not in results
+                result[$(this).prop("name")] = $(this).val().trim()
+            } else if ( typeof result[$(this).prop("name")] === "string") {
+                //is string value, change it to array
+                result[$(this).prop("name")] = [result[$(this).prop("name")],$(this).val().trim()]
+            } else {
+                //is array value, append the new value
+                result[$(this).prop("name")].push($(this).val().trim())
+            }
+        })
+        return result
+      },
+      processEvent:function(eventHandler,ev) {
+        if (eventHandler) {
+            eventHandler(ev)
+        }
       }
     },
     ready: function () {
       var vm = this
-      this._messages = []
       var dialogStatus = this.loading.register("dialog","Dialog Component")
       dialogStatus.phaseBegin("initialize",100,"Initialize")
 
+      $("#userdialog").on("open.zf.reveal",function(){
+        $("#userdialog").css("top",Math.floor(($("#userdialog").parent().height() - utils.getHeight($("#userdialog"))) / 2) + "px" )
+      })
+
       $("#userdialog").on("closed.zf.reveal",function(){
+        vm.messages.splice(0,vm.messages.length)
+        vm.buttons.splice(0,vm.buttons.length)
+        vm.revision += 1
         if (vm.callback) {
             var value = ((vm.option === null || vm.option === undefined )?vm.defaultOption:vm.option)
             if (value !== null && value !== undefined) {
-                vm.callback(value)
+                vm.callback(value,vm.getData())
             }
             vm.callback = null
         }

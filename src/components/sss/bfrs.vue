@@ -198,7 +198,8 @@
                   <div class="feature-title"><img class="feature-icon" id="bushfire-icon-{{f.get('id')}}" v-bind:src="featureIconSrc(f)" /> {{ f.get('fire_number') }} <i><small></small></i></div>
                 </div>
                 <div class="small-12 columns">
-                      <div class="feature-title"><span class="reportname">{{f.get('name')}}</span> </div>
+                      <div class="feature-title"><span class="reportname">{{f.get('name')}}</span></div>
+                      <div v-if="f.get('status') === 'merged'" style="float:right"><img src="/dist/static/images/merge.svg"> {{f.get('linked_bushfire_number')}}</div>
                 </div>
                 <template v-for="task in featureTasks(f)" track-by="$index">
                   <div class="small-12 columns">
@@ -273,7 +274,7 @@
 }
 </style>
 <script>
-  import { ol, moment,hash,turf,utils } from 'src/vendor.js'
+  import { ol,$, moment,hash,turf,utils } from 'src/vendor.js'
   export default {
     store: {
         bushfireLabels:'settings.bfrs.bushfireLabels',
@@ -849,10 +850,10 @@
       },
       editUrl:function(feat) {
         var status = feat.get('report_status')
-        if (status === 1) {
-            return this.env.bfrsService + "/bfrs/initial/" + feat.get('id') + "/"
-        } else {
+        if (status > 1 && status < 5) {
             return this.env.bfrsService + "/bfrs/final/" + feat.get('id') + "/"
+        } else {
+            return this.env.bfrsService + "/bfrs/initial/" + feat.get('id') + "/"
         }
       },
       saveUrl:function(feat) {
@@ -1039,7 +1040,11 @@
       getSpatialData:function(feat,caller,callback,failedCallback) {
         caller = caller || "get"
         var vm = this
-        vm._getSpatialDataCallback = vm._getSpatialDataCallback || function(feat,callback,failedCallback,spatialData) {
+        this._defaultFailedCallback = this._defaultFailedCallback || function(msg) { 
+            alert(msg)
+        }
+        failedCallback = failedCallback || this._defaultFailedCallback
+        vm._getSpatialDataCallback = vm._getSpatialDataCallback || function(feat,caller,callback,failedCallback,spatialData) {
             if (vm._taskManager.allTasksSucceed(feat,"getSpatialData")) {
                 if ("region" in spatialData && "district" in spatialData) {
                     var region = null
@@ -1055,11 +1060,7 @@
                         if (region) {
                             spatialData["region_id"] = region.region_id
                         } else {
-                            if (failedCallback) {
-                                failedCallback("Region '" + name + "' is not found")
-                            } else {
-                                alert("Region '" + name + "' is not found")
-                            }
+                            failedCallback("Region '" + name + "' is not found")
                             return
                         }
                     }
@@ -1072,34 +1073,107 @@
                         if (district) {
                             spatialData["district_id"] = district.id
                         } else {
-                            if (failedCallback) {
-                                failedCallback("District '" + name + "' is not found in region '" + region.region + "'.")
-                            } else {
-                                alert("District '" + name + "' is not found in region '" + region.region + "'.")
-                            }
+                            failedCallback("District '" + name + "' is not found in region '" + region.region + "'.")
                             return
                         }
                     }
                 }
 
-                //console.log( JSON.stringify(spatialData ) )
-                callback(spatialData)
-            } else if (vm._taskManager.allTasksFinished(feat,"getSpatialData")) {
-                if (failedCallback) {
-                    failedCallback("")
+
+                if (caller === "batchimport" && spatialData["fire_boundary"]) {
+                    //try to set capture method if have
+                    if (feat.get("capt_meth")) {
+                        method = vm.whoami["bushfire"]["capturemethods"].find(function(m) { return m.code === feat.get("capt_meth")})
+                        if (method) {
+                            //found the capture method in the list
+                            spatialData["capturemethod"] = method.id
+                        } else if (feat.get("capt_desc")) {
+                            //can't find the capture method in the list, and have non empty capture method description, use 'other'
+                            spatialData["capturemethod"] = vm.whoami["bushfire"]["other_capturemethod_id"]
+                        }
+                        if (spatialData["capturemethod"] === vm.whoami["bushfire"]["other_capturemethod_id"]) {
+                            //is other capture method
+                            spatialData["other_capturemethod"] = feat.get("capt_desc")
+                        }
+                    }
+                    callback(spatialData)
+                } else if (caller === "import" && spatialData["fire_boundary"]) {
+                    //single feature importing mode, ask user the capture method
+                    vm.loadCapturemethods(function(){
+                        initData = {}
+                        if (feat.get("capt_meth")) {
+                            method = vm.whoami["bushfire"]["capturemethods"].find(function(m) { return m.code === feat.get("capt_meth")})
+                            if (method) {
+                                initData["capturemethod"] = method.id
+                            }
+                        }
+                        if (feat.get("capt_desc")) {
+                            initData["other_capturemethod"] = feat.get("capt_desc")
+                        }
+                        vm.dialog.show({
+                            "title":"Capture Methods",
+                            "messages":vm.whoami["bushfire"]["capturemethod_dialogmessage"],
+                            "initData": initData,
+                            "initFunc": function() {
+                                if ("capturemethod" in initData) {
+                                    $("#userdialog-button-true").prop("disabled",false);
+                                }
+                                if (initData["capturemethod"] === vm.whoami["bushfire"]["other_capturemethod_id"]) {
+                                    $("#userdialog input[name='other_capturemethod']").prop("disabled",false)
+                                }
+                            },
+                            "buttons":[
+                                [true,"Select","",true,function(button,data){
+                                    if (!data["capturemethod"]) {
+                                        alert("Please choose a capture method.")
+                                        return false
+
+                                    } else if (parseInt(data["capturemethod"]) === vm.whoami["bushfire"]["othermethod_id"] && (!data["other_capturemethod"])) {
+                                        alert("Please input the other capture method.")
+                                        return false
+                                    }
+                                }],
+                                [false,"Cancel","",false]
+                            ],
+                            "defaultOption":false,
+                            "callback":function(isOk,data) {
+                                if (isOk) {
+                                    if (!data["capturemethod"]) {
+                                        failedCallback("'Capture Method' is missing.")
+                                    } else if (data["capturemethod"] === vm.whoami["bushfire"]["othermethod_id"] && (!data["other_capturemethod"])) {
+                                        failedCallback("'Other Capture Method' is missing.")
+                                    } else {
+                                        spatialData["capturemethod"] = data["capturemethod"]
+                                        if (data["capturemethod"] === vm.whoami["bushfire"]["othermethod_id"]) {
+                                            spatialData["other_capturemethod"] = data["other_capturemethod"] || null
+                                        }
+                                        callback(spatialData)
+                                    }
+
+                                } else {
+                                    failedCallback("Import cancelled")
+                                }
+                            }
+                        })
+                    },
+                    function(msg){
+                        failedCallback(msg)
+                    })
                 } else {
+                    //console.log( JSON.stringify(spatialData ) )
+                    callback(spatialData)
+                }
+
+            } else if (vm._taskManager.allTasksFinished(feat,"getSpatialData")) {
+                if (failedCallback === vm._defaultFailedCallback) {
                     var msg = vm._taskManager.errorMessages(feat,"getSpatialData").join("\r\n")
                     if (msg) alert(msg)
+                } else {
+                    failedCallback("")
                 }
             }
         }
 
-        vm._getValidationMessage = vm._getValidationMessage || function(message) {
-            return "Geometry check of the fire shape has found the following error: " +
-                   "\r\n\t" + (Array.isArray(message)?message.join("\r\n\t"):message) + 
-                   "\r\n\r\nPlease run a geometry check within ArcGIS before uploading" +
-                   "\r\nFor help contact the Fire Support Systems Team fire_systems_support@dbca.wa.gov.au";
-        }
         vm._getSpatialData = vm._getSpatialData || function(feat,caller,callback,failedCallback) {
             try{
                 var spatialData = {}
@@ -1146,17 +1220,117 @@
                     }
                 }
                 if (originPoint && (modifyType & 1) === 1) {
-                    tenure_origin_point_task = vm._taskManager.addTask(feat,"getSpatialData","tenure_origin_point","Locate bushfire's dpaw tenure",utils.WAITING)
+                    tenure_origin_point_task = vm._taskManager.addTask(feat,"getSpatialData","tenure_origin_point","Get the tenure of ignition point",utils.WAITING)
                     fire_position_task = vm._taskManager.addTask(feat,"getSpatialData","fire_position","Get the fire position",utils.WAITING)
                     if (["new","initial"].indexOf(feat.get('status')) >= 0) {
-                        region_task = vm._taskManager.addTask(feat,"getSpatialData","region","Locate bushfire's region",utils.WAITING)
-                        district_task = vm._taskManager.addTask(feat,"getSpatialData","district","Locate bushfire's district",utils.WAITING)
+                        region_task = vm._taskManager.addTask(feat,"getSpatialData","region","Get bushfire's region",utils.WAITING)
+                        district_task = vm._taskManager.addTask(feat,"getSpatialData","district","Get bushfire's district",utils.WAITING)
                     }
                 }
                 //need to call the callback first because the callback will not be called if no tasks are required.
-                vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                 if (tenure_area_task) {
                     tenure_area_task.setStatus(utils.RUNNING)
+                    vm._getValidationMessage = vm._getValidationMessage || function(message) {
+                        return "Geometry check of the fire shape has found the following error: " +
+                            "\r\n\t" + (Array.isArray(message)?message.join("\r\n\t"):message) + 
+                            "\r\n\r\nPlease run a geometry check within ArcGIS before uploading" +
+                            "\r\nFor help contact the Fire Support Systems Team fire_systems_support@dbca.wa.gov.au";
+                    }
+                    var process_overlap_func = function(result) {
+                        //found overlap
+                        feature_area = result["data"]
+                        if (caller === "import") {
+                            vm.dialog.show({
+                                messages:[
+                                    "The sum of the burning areas in individual layers are " + Math.abs(feature_area["other_area"]).toFixed(2) + " greater than the total burning area " + feature_area["total_area"].toFixed(2) + ".",
+                                    "The features from the following layers are overlaped.",
+                                    [["",1],["cddp:legislated_lands_and_waters",11]],
+                                    [["",1],["cddp:dept_interest_lands_and_waters",11]],
+                                    [["",1],["cddp:other_tenures",11]],
+                                    "Do you want to continue?"
+                                ],
+                                defaultOption:false,
+                                buttons:[[true,"Yes"],[false,"No"]],
+                                callback:function(option){
+                                    setTimeout(function() {
+                                        if (option) {
+                                            if (!("fb_validation_req" in feature_area)) {
+                                                feature_area["fb_validation_req"] = null
+                                            }
+                                            spatialData["area"] = feature_area
+                                            tenure_area_task.setStatus(utils.SUCCEED)
+                                        } else {
+                                            tenure_area_task.setStatus(utils.FAIL_CONFIRMED,"Cancelled")
+                                        }
+                                        vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
+                                    },1)
+                                }
+                            })
+                            return
+                        } else {
+                            if (!("fb_validation_req" in feature_area)) {
+                                feature_area["fb_validation_req"] = null
+                            }
+                            spatialData["area"] = feature_area
+                            tenure_area_task.setStatus(utils.SUCCEED)
+                            vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
+                        }
+                    }
+
+                    var process_invalid_func = function(result) {
+                        //invalid geometry
+                        var msg = vm._getValidationMessage(result["status"]["invalid"])
+                        if (caller === "import") {
+                            vm.dialog.show({
+                                messages:msg,
+                                defaultOption:false,
+                                buttons:[[false,"Ok"],[true,"Override"]],
+                                callback:function(option){
+                                    if (option) {
+                                        setTimeout(function() {
+                                            vm.dialog.show({
+                                                messages:"I acknowledge a geometry check has been run and passed in ArcGIS Geometry Tool and this is a valid shape.",
+                                                defaultOption:false,
+                                                buttons:[[true,"Yes"],[false,"Cancel"]],
+                                                callback:function(option){
+                                                    setTimeout(function() {
+                                                        if (option) {
+                                                            result["data"]["fb_validation_req"] = true
+                                                            if (result["status"]["overlapped"]) {
+                                                                process_overlap_func(result)
+                                                            } else {
+                                                                spatialData["area"] = result["data"]
+                                                                tenure_area_task.setStatus(utils.SUCCEED)
+                                                                vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
+                                                            }
+                                                        } else {
+                                                            tenure_area_task.setStatus(utils.FAIL_CONFIRMED,msg)
+                                                            vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
+                                                        }
+                                                    },1)
+                                                }
+                                            })
+                                        },1)
+                                    } else {
+                                        tenure_area_task.setStatus(utils.FAIL_CONFIRMED,msg)
+                                        vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
+                                    }
+                                }
+                            })
+                            return
+                        } else if (caller === "batchimport") {
+                            result["data"]["fb_validation_req"] = true
+                            spatialData["area"] = result["data"]
+                            tenure_area_task.setStatus(utils.SUCCEED)
+                            vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
+                        } else {
+                            tenure_area_task.setStatus(utils.FAILED,msg)
+                            vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
+                        }
+
+                    }
+
                     $.ajax({
                         url:vm.env.gokartService + "/spatial",
                         dataType:"json",
@@ -1167,25 +1341,35 @@
                                     area: {
                                         name:"area",
                                         layer_overlap:false,
+                                        merge_result:true,
                                         unit:"ha",
                                         layers:[
                                             {
                                                 id:"legislated_lands_and_waters",
                                                 url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:legislated_lands_and_waters"),
                                                 properties:{
-                                                    id:"ogc_fid",
                                                     name:"name",
                                                     category:"category"
-                                                }
+                                                },
+                                                primary_key:"ogc_fid"
                                             },
                                             {
                                                 id:"dept_interest_lands_and_waters",
                                                 url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:dept_interest_lands_and_waters"),
                                                 properties:{
-                                                    id:"ogc_fid",
                                                     name:"name",
                                                     category:"category"
-                                                }
+                                                },
+                                                primary_key:"ogc_fid"
+                                            },
+                                            {
+                                                id:"other_tenures",
+                                                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:other_tenures"),
+                                                properties:{
+                                                    name:"cdg_label",
+                                                    category:"cdg_label"
+                                                },
+                                                primary_key:"ogc_fid"
                                             }
                                         ],
                                     }
@@ -1194,63 +1378,28 @@
                         method:"POST",
                         success: function (response, stat, xhr) {
                             if (response["total_features"] > 0) {
-                                var result = response["features"][0]
-                                if ("valid" in result && !result["valid"]) {
-                                    var msg = vm._getValidationMessage(result["valid_message"])
-                                    if (caller === "import") {
-                                        vm.dialog.show({
-                                            messages:msg,
-                                            defaultOption:false,
-                                            buttons:[[false,"Ok"],[true,"Override"]],
-                                            callback:function(option){
-                                                if (option) {
-                                                    setTimeout(function() {
-                                                        vm.dialog.show({
-                                                            messages:"I acknowledge a geometry check has been run and passed in ArcGIS Geometry Tool and this is a valid shape.",
-                                                            defaultOption:false,
-                                                            buttons:[[true,"Yes"],[false,"Cancel"]],
-                                                            callback:function(option){
-                                                                if (option) {
-                                                                    delete result["valid"]
-                                                                    delete result["valid_message"]
-                                                                    result["fb_validation_req"] = true
-                                                                    $.extend(spatialData,response["features"][0])
-                                                                    tenure_area_task.setStatus(utils.SUCCEED)
-                                                                } else {
-                                                                    tenure_area_task.setStatus(utils.FAIL_CONFIRMED,msg)
-                                                                }
-                                                                vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
-                                                            }
-                                                        })
-                                                    },1)
-                                                } else {
-                                                    tenure_area_task.setStatus(utils.FAIL_CONFIRMED,msg)
-                                                    vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
-                                                }
-                                            }
-                                        })
-                                        return
-                                    } else if (caller === "batchimport") {
-                                        delete result["valid"]
-                                        delete result["valid_message"]
-                                        result["fb_validation_req"] = true
-                                    } else {
-                                        tenure_area_task.setStatus(utils.FAILED,msg)
-                                        vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
-                                        return
-                                    }
+                                var result = response["features"][0]["area"]
+                                if (result["status"]["failed"] ) {
+                                    //failed
+                                    tenure_area_task.setStatus(utils.FAILED,result["status"]["failed"])
+                                    vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
+                                } else if (result["status"]["invalid"]) {
+                                    //invalid geometry
+                                    process_invalid_func(result)
+                                } else if (result["status"]["overlapped"]) {
+                                    //found overlap
+                                    process_overlap_func(result)
                                 } else {
-                                    delete result["valid"]
-                                    delete result["valid_message"]
-                                    result["fb_validation_req"] = null
+                                    result["data"]["fb_validation_req"] = null
+                                    spatialData["area"] = result["data"]
+                                    tenure_area_task.setStatus(utils.SUCCEED)
+                                    vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                                 }
-                                $.extend(spatialData,response["features"][0])
-                                tenure_area_task.setStatus(utils.SUCCEED)
                             } else {
                                 tenure_area_task.setStatus(utils.FAILED,"Calculate area failed.")
+                                vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                                 //alert(tenure_area_task.message)
                             }
-                            vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
                         },
                         error: function (xhr,status,message) {
                             if (xhr.status === 490) {
@@ -1259,7 +1408,7 @@
                                 tenure_area_task.setStatus(utils.FAILED,xhr.status + " : " + (xhr.responseText || message))
                             }
                             //alert(tenure_area_task.message)
-                            vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                            vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                         },
                         xhrFields: {
                             withCredentials: true
@@ -1269,30 +1418,40 @@
         
                 if (tenure_origin_point_task) {
                     tenure_origin_point_task.setStatus(utils.RUNNING)
-                    $.ajax({
-                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:dpaw_tenure") + "&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
-                        dataType:"json",
-                        success: function (response, stat, xhr) {
-                            if (response.totalFeatures === 0) {
-                                spatialData["tenure_ignition_point"] = null
-                            } else {
-                                spatialData["tenure_ignition_point"] = {
-                                    id: response.features[0].properties["ogc_fid"],
-                                    name: response.features[0].properties["name"],
-                                    category: response.features[0].properties["category"]
-                                }
-                            }
-                            tenure_origin_point_task.setStatus(utils.SUCCEED)
-                            vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                    tenure_layers = [{
+                        id:"cddp:legislated_lands_and_waters",
+                        geom_field:"wkb_geometry",
+                        properties:{
+                            id:"ogc_fid",
+                            name:"name",
+                            category:"category"
                         },
-                        error: function (xhr,status,message) {
-                            tenure_origin_point_task.setStatus(utils.FAILED,xhr.status + " : " + (xhr.responseText || message))
-                            //alert(tenure_origin_point_task.message)
-                            vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                    },{
+                        id:"cddp:dept_interest_lands_and_waters",
+                        geom_field:"wkb_geometry",
+                        properties:{
+                            id:"ogc_fid",
+                            name:"name",
+                            category:"category"
                         },
-                        xhrFields: {
-                            withCredentials: true
-                        }
+                    },{
+                        id:"cddp:other_tenures",
+                        geom_field:"wkb_geometry",
+                        properties:{
+                            id:"ogc_fid",
+                            name:"cdg_label",
+                            category:"cdg_label"
+                        },
+                    }]
+                    vm.map.getFeature(tenure_layers,originPoint,function(feature){
+                        spatialData["tenure_ignition_point"] = feature
+                        tenure_origin_point_task.setStatus(utils.SUCCEED)
+                        vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
+                    },
+                    function(msg){
+                        tenure_origin_point_task.setStatus(utils.FAILED,msg)
+                        //alert(tenure_origin_point_task.message)
+                        vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                     })
                 }
         
@@ -1302,12 +1461,12 @@
                     vm.map.getPosition(originPoint,function(position){
                         spatialData["fire_position"] = position
                         fire_position_task.setStatus(utils.SUCCEED)
-                        vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                        vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                     },
                     function(msg){
                         fire_position_task.setStatus(utils.FAILED,msg)
                         //alert(fire_position_task.message)
-                        vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                        vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                     })
                 }
         
@@ -1323,12 +1482,12 @@
                                 spatialData["region"] = response.features[0].properties["region"]
                             }
                             region_task.setStatus(utils.SUCCEED)
-                            vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                            vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                         },
                         error: function (xhr,status,message) {
                             region_task.setStatus(utils.FAILED,xhr.status + " : " + (xhr.responseText || message))
                             //alert(region_task.message)
-                            vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                            vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                         },
                         xhrFields: {
                             withCredentials: true
@@ -1348,12 +1507,12 @@
                                 spatialData["district"] = response.features[0].properties["district"]
                             }
                             district_task.setStatus(utils.SUCCEED)
-                            vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                            vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                         },
                         error: function (xhr,status,message) {
                             district_task.setStatus(utils.FAILED,xhr.status + " : " + (xhr.responseText || message))
                             //alert(district_task.message)
-                            vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                            vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                         },
                         xhrFields: {
                             withCredentials: true
@@ -1361,7 +1520,7 @@
                     })
                 }
             } catch(ex) {
-                vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
             }
 
             if (plantation_task) {
@@ -1393,11 +1552,11 @@
                             })
                         }
                         plantation_task.setStatus(utils.SUCCEED)
-                        vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                        vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                     },
                     error: function (xhr,status,message) {
                         plantation_task.setStatus(utils.FAILED,xhr.status + " : " + (xhr.responseText || message))
-                        vm._getSpatialDataCallback(feat,callback,failedCallback,spatialData)
+                        vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                     },
                     xhrFields: {
                         withCredentials: true
@@ -1413,7 +1572,7 @@
                     if (error) {
                         validate_task.setStatus(utils.FAILED,error)
                         //alert(error)
-                        vm._getSpatialDataCallback(feat,callback,failedCallback,{})
+                        vm._getSpatialDataCallback(feat,caller,callback,failedCallback,{})
                     } else {
                         validate_task.setStatus(utils.SUCCEED)
                         vm._getSpatialData(feat,caller,callback,failedCallback)
@@ -1423,7 +1582,7 @@
                 vm._getSpatialData(feat,caller,callback,failedCallback)
             }
         } catch(ex) {
-            vm._getSpatialDataCallback(feat,callback,failedCallback,{})
+            vm._getSpatialDataCallback(feat,caller,callback,failedCallback,{})
         }
       },
       saveFeature:function(feat,caller,callback) {
@@ -1805,15 +1964,18 @@
         var now = moment()
         var timestamp = moment(feature.get('created'))
 
-        feature.set('status',this._reportStatus[feature.get('report_status') || 99999],true)
 
         feature.set('toolName','Bfrs Origin Point',true)
-        feature.set('tint',feature.get('status'),true)
+        if (feature.get('status') == "merged") {
+            feature.set('tint',this._reportStatus[feature.get('linked_bushfire_status')],true)
+        } else {
+            feature.set('tint',feature.get('status'),true)
+        }
         feature.set('originalTint', feature.get('tint'),true)
         feature.set('fillColour',this.tints[feature.get('tint') + ".fillColour"])
         feature.set('colour',this.tints[feature.get('tint') + ".colour"])
         feature.setStyle(this.bushfireStyleFunc)
-        if (feature.get('status') === 'initial') {
+        if (feature.get('status') === 'initial' || (feature.get('status') === "merged" && feature.get("linked_bushfire_status") === 1)) {
             feature.icon = 'dist/static/symbols/fire/dashed-origin.svg' 
         }
       },
@@ -1904,7 +2066,7 @@
                     ignore_if_empty:true,
                     sourcelayers:{
                         url:vm.env.wfsService + "/wfs?servicea=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
-                        fields:["fire_number","name","district","financial_year","fire_detected_date","cause","dfes_incident_no","other_info",{name:"author",src:"fireboundary_uploaded_by"}],
+                        fields:["fire_number","name","district","financial_year","fire_detected_date","cause","dfes_incident_no","other_info",{name:"author",src:"fireboundary_uploaded_by"},"capt_meth","capt_desc"],
                     },
                     geometry_column:{name:"fire_boundary",type:"MULTIPOLYGON"},
 
@@ -2097,6 +2259,7 @@
 
             var f = null
             //initialize the loaded features
+            var properties = null
             if (fileFormat === "gpx") {
                 //gpx file
                 if (uploadType === "originpoint") {
@@ -2140,31 +2303,49 @@
                 }
             } else {
                 //geo json file
-                //try to figure out the property name of 'fire_number' in imported files
-                var fire_number_property = null
-                for(var i = "fire_number".length;i >= 8;i--) {
-                    var name = "fire_number".substring(0,i)
-                    for (var j = 0;j < features.length;j++) {
-                        if (features[j].get(name) !== undefined) {
-                            fire_number_property = name
-                            break
+                //try to figure out the property name of 'fire_number','capt_meth' and 'capt_desc' in imported files
+                var property = null
+                properties = ['fire_number','capt_meth','capt_desc'] //list the properties, you want to find, from the longest property to shortest property 
+                var propertyLen = null //
+                $.each(properties,function(index,prop){
+                    property = null
+                    if (propertyLen === null) {
+                        for(var i = prop.length;i >= 8;i--) {
+                            var name = prop.substring(0,i)
+                            for (var j = 0;j < features.length;j++) {
+                                if (features[j].get(name) !== undefined) {
+                                    property = name
+                                    break
+                                }
+                            }
+                            if (property) {
+                                break
+                            }
+                        }
+                        if (property !== null) {
+                            //found property from one feature, because properties are listed from longest to shortest, 
+                            //set the length of this property as the max property len to avoid to seach the property name in features for each property
+                            propertyLen = property.length
+                        }
+                    } else if (prop.length <= propertyLen){
+                        //property name is not changed
+                        return
+                    } else {
+                        //property name is changed.
+                        property = prop.substring(0,propertyLen)
+                    }
+                    property = property || prop
+                    if (property !== prop) {
+                        //for some reason, the name of property is changed', change the name of property to prop we wanted
+                        //for example, in shape file, the name of fire_number property is 'fire_numbe' because of the property length limit
+                        for (var j = 0;j < features.length;j++) {
+                            if (features[j].get(property) !== undefined) {
+                                features[j].set(prop,features[j].get(property),true)
+                                features[j].unset(property)
+                            }
                         }
                     }
-                    if (fire_number_property) {
-                        break
-                    }
-                }
-                fire_number_property = fire_number_property || "fire_number"
-                if (fire_number_property !== "fire_number") {
-                    //for some reason, the name of fire_number property is not 'fire_number', change the name of fire_number property to 'fire_number'
-                    //for example, in shape file, the name of fire_number property is 'fire_numbe' because of the property length limit
-                    for (var j = 0;j < features.length;j++) {
-                        if (features[j].get(fire_number_property) !== undefined) {
-                            features[j].set('fire_number',features[j].get(fire_number_property),true)
-                            features[j].unset(fire_number_property)
-                        }
-                    }
-                }
+                })
 
                 for(var i = features.length - 1;i >= 0;i--) {
                     feature = features[i]
@@ -2238,6 +2419,15 @@
                     }
                 })
 
+                var mergeProperties = function(feat1,feat2) {
+                    $.each(properties,function(index,prop){
+                        if (feat2.get(prop) !== undefined) {
+                            feat1.set(prop,feat2.get(prop),true)
+                        }
+                        
+                    })
+                }
+
                 var feat = null
                 for(var i = features.length - 1;i >= 0;i--) {
                     if (feat &&
@@ -2248,6 +2438,7 @@
                         if (features[i].getGeometry() instanceof ol.geom.Point) {
                             if (feat.getGeometry() instanceof ol.geom.MultiPolygon) {
                                 feat.setGeometry(new ol.geom.GeometryCollection([features[i].getGeometry(),feat.getGeometry()]))
+                                mergeProperties(feat,features[i])
                                 features.splice(i,1)
                                 featureImported(utils.MERGED)
                             } else {
@@ -2258,12 +2449,15 @@
                         } else if (features[i].getGeometry() instanceof ol.geom.Polygon) {
                             if (feat.getGeometry() instanceof ol.geom.MultiPolygon) {
                                 feat.getGeometry().appendPolygon(features[i].getGeometry())
+                                mergeProperties(feat,features[i])
                                 features.splice(i,1)
                             } else if (feat.getGeometry() instanceof ol.geom.Point) {
                                 feat.setGeometry(new ol.geom.GeometryCollection([feat.getGeometry(),new ol.geom.MultiPolygon([features[i].getGeometry().getCoordinates()])]))
+                                mergeProperties(feat,features[i])
                                 features.splice(i,1)
                             } else if (feat.getGeometry() instanceof ol.geom.GeometryCollection) {
                                 feat.getGeometry().getGeometriesArray()[1].appendPolygon(features[i].getGeometry())
+                                mergeProperties(feat,features[i])
                                 features.splice(i,1)
                             }
                             featureImported(utils.MERGED)
@@ -2272,15 +2466,18 @@
                                 $.each(features[i].getGeometry().getPolygons(),function(index,p) {
                                     feat.getGeometry().appendPolygon(p)
                                 })
+                                mergeProperties(feat,features[i])
                                 features.splice(i,1)
                             } else if (feat.getGeometry() instanceof ol.geom.Point) {
                                 feat.setGeometry(new ol.geom.GeometryCollection([feat.getGeometry(),features[i].getGeometry()]))
+                                mergeProperties(feat,features[i])
                                 features.splice(i,1)
                             } else if (feat.getGeometry() instanceof ol.geom.GeometryCollection) {
                                 $.each(features[i].getGeometry().getPolygons(),function(index,p) {
                                     feat.getGeometry().appendPolygon(p)
                                     feat.getGeometry().getGeometriesArray()[1].appendPolygon(p)
                                 })
+                                mergeProperties(feat,features[i])
                                 features.splice(i,1)
                             }
                             featureImported(utils.MERGED)
@@ -2799,6 +2996,63 @@
             }
         })
       },
+
+      loadCapturemethods:function(callback,failedCallback) {
+        var vm = this
+        if (vm.whoami["bushfire"]["capturemethods"]) {
+            //already loaded
+            callback()
+            return
+        }
+        var selectCaptureMethod = function(ev) {
+            $("#userdialog-button-true").prop("disabled",false);
+            $("#userdialog input[name='other_capturemethod']").prop("disabled",$(ev.target).val() !== vm.whoami["bushfire"]["othermethod_id"].toString())
+        }
+        $.ajax({
+            url: vm.env.bfrsService + "/api/v1/capturemethod/?format=json",
+            method:"GET",
+            dataType:"json",
+            success: function (response, stat, xhr) {
+                vm.whoami["bushfire"]["capturemethods"] = response
+                dialogmessages = []
+                othermessage = null
+                headermessage = [
+                    ["",1],
+                    ["Code",3,{"class":"header"}],
+                    ["Desc",8,{"class":"header"}]
+                ]
+                dialogmessages.push(headermessage)
+                $.each(vm.whoami["bushfire"]["capturemethods"],function(index,method){
+                    dialogmessage = []
+                    dialogmessage.push([method["id"],1,{"type":"radio","name":"capturemethod","disabled":false,"click":selectCaptureMethod}])
+                    if (method["code"] === "999") {
+                        vm.whoami["bushfire"]["other_capturemethod_id"] = method["id"]
+                        dialogmessage.push(["Other",3])
+                        dialogmessage.push(["",8,{"type":"text","name":"other_capturemethod","disabled":true}])
+                        othermessage = dialogmessage
+                    } else {
+                        dialogmessage.push([method["code"],3])
+                        dialogmessage.push([method["desc"],8])
+                        dialogmessages.push(dialogmessage)
+                    }
+                })
+                if (othermessage) {
+                    dialogmessages.push(othermessage)
+                    vm.whoami["bushfire"]["othermethod_id"] = othermessage[0][0]
+                }
+                vm.whoami["bushfire"]["capturemethod_dialogmessage"] = dialogmessages
+                callback()
+
+            },
+            error: function (xhr,status,message) {
+                failedCallback(xhr.status + " : " + (xhr.responseText || message))
+            },
+            xhrFields: {
+              withCredentials: true
+            }
+        })
+      },
+
       loadRegions:function() {
         var vm = this
         vm._bfrsStatus.phaseBegin("load_regions",20,"Load regions")
@@ -2898,7 +3152,7 @@
         all_reports :["fire_not_found=0","fire_not_found='No'"],
         initial_fire_report: ["(report_status=1) and (fire_not_found=0)","(report_status='Initial Fire Report') and (fire_not_found='No')"],
         notification_submitted:["(report_status=2) and (fire_not_found=0)","(report_status='Notifications Submitted') and (fire_not_found='No')"],
-        report_authorised:["(report_status>=3) and (fire_not_found=0)","(report_status in ('Report Authorised','Reviewed')) and (fire_not_found='No')"],
+        report_authorised:["(report_status in (3,4)) and (fire_not_found=0)","(report_status in ('Report Authorised','Reviewed')) and (fire_not_found='No')"],
         fire_not_found:["fire_not_found=1","fire_not_found='Yes'"]
       }
 
@@ -2951,7 +3205,8 @@
         1: "initial",
         2: "draft_final",
         3: "final_authorised",
-        4: "reviewed"
+        4: "reviewed",
+        100:"merged"
       }
       vm._reportStatusName = {
        99999: "Unknown",
@@ -2959,7 +3214,8 @@
         1: "Draft Incident",
         2: "Incident Submitted",
         3: "Report Authorised",
-        4: "Report Reviewed"
+        4: "Report Reviewed",
+        100:"Report Merged"
       }
       
       
@@ -2972,16 +3228,19 @@
           "unknown.edit":false,
           "unknown.modify":false,
           "unknown.delete":false,
-          "initial.edit":null,
+          "initial.edit":true,
           "initial.modify":null,
           "initial.delete":false,
-          "draft_final.edit":null,
+          "merged.edit":true,
+          "merged.modify":false,
+          "merged.delete":false,
+          "draft_final.edit":true,
           "draft_final.modify":null,
           "draft_final.delete":false,
-          "final_authorised.edit":null,
+          "final_authorised.edit":true,
           "final_authorised.modify":null,
           "final_authorised.delete":false,
-          "reviewed.edit":null,
+          "reviewed.edit":true,
           "reviewed.modify":null,
           "reviewed.delete":false,
           "_checked_":0
@@ -3003,6 +3262,7 @@
           ["final_authorised.modify",vm.saveUrl,"PATCH",function(f) {return f.get('status') === "final_authorised"},null],
           ["reviewed.edit",vm.editUrl,"GET",function(f) {return f.get('status') === "reviewed"},null],
           ["reviewed.modify",vm.saveUrl,"PATCH",function(f) {return f.get('status') === "reviewed"},null],
+          ["merged.edit",vm.editUrl,"GET",function(f){return f.get('status') === "merged"},null],
       ]
       vm._checkPermission = function(features,callback){
           if (vm.whoami['bushfire']['permission']['_checked_'] === permissionConfig.length) {

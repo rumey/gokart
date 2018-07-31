@@ -2316,6 +2316,9 @@ def weatheroutlook(fmt):
 
             #format parameter 'times' to a 2 dimension array of datatime object;the first dimension is day, the second dimension is times in a day
             outlook["times"] = get_outlook_times(outlook)
+            if len(outlook["times"]) == 0:
+                #no times for weather outlook
+                raise Exception("No observing time for weather outlook. ")
 
             #format the days to a array of datetime object
             outlook["days"] = get_outlook_dailytimes(outlook)
