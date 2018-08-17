@@ -1402,8 +1402,8 @@
             vm._weatheroutlookStatus.phaseEnd("load_datasources")
             vm.initialized = true
             vm.columnRevision += 1
-        },function(){
-            vm._weatheroutlookStatus.phaseFailed("load_datasources","Failed to loading datasources. status = " + xhr.status + " , message = " + (xhr.responseText || message))
+        },function(msg){
+            vm._weatheroutlookStatus.phaseFailed("load_datasources","Failed to loading datasources. status = " + msg)
         })
       },
       refreshDatasources:function(refresh,callback,failedCallback) {
@@ -1445,8 +1445,9 @@
                 if (callback) {callback()}
             },
             error: function (xhr,status,message) {
-                alert(xhr.status + " : " + (xhr.responseText || message))
-                if (failedCallback) {failedCallback()}
+                var msg = xhr.status + " : " + (xhr.responseText || message)
+                alert(msg)
+                if (failedCallback) {failedCallback(msg)}
             },
             xhrFields: {
               withCredentials: true
