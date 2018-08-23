@@ -1122,19 +1122,34 @@
                                     $("#userdialog input[name='other_capturemethod']").prop("disabled",false)
                                 }
                             },
-                            "buttons":[
-                                [true,"Select","",true,function(button,data){
-                                    if (!data["capturemethod"]) {
-                                        alert("Please choose a capture method.")
-                                        return false
+                            "footer":[[
+                                ["",3],
+                                [true,2,{
+                                    type:"button",
+                                    disabled:true,
+                                    title:"Select",
+                                    click:"close",
+                                    is_valid:function(button,data){
+                                        if (!data["capturemethod"]) {
+                                            alert("Please choose a capture method.")
+                                            return false
 
-                                    } else if (parseInt(data["capturemethod"]) === vm.whoami["bushfire"]["othermethod_id"] && (!data["other_capturemethod"])) {
-                                        alert("Please input the other capture method.")
-                                        return false
+                                        } else if (parseInt(data["capturemethod"]) === vm.whoami["bushfire"]["othermethod_id"] && (!data["other_capturemethod"])) {
+                                            alert("Please input the other capture method.")
+                                            return false
+                                        }
                                     }
                                 }],
-                                [false,"Cancel","",false]
-                            ],
+                                ["",2],
+                                [false,2,{
+                                    type:"button",
+                                    disabled:false,
+                                    click:"close",
+                                    title:"Cancel"
+                                    }
+                                ],
+                                ["",3]
+                            ]],
                             "defaultOption":false,
                             "callback":function(isOk,data) {
                                 if (isOk) {
@@ -1251,7 +1266,21 @@
                                     "Do you want to continue?"
                                 ],
                                 defaultOption:false,
-                                buttons:[[true,"Yes"],[false,"No"]],
+                                footer:[[
+                                    ["",3],
+                                    [true,2,{
+                                        type:"button",
+                                        title:"Yes",
+                                        click:"close"
+                                    }],
+                                    ["",2],
+                                    [false,2,{
+                                        type:"button",
+                                        title:"No",
+                                        click:"close"
+                                    }],
+                                    ["",3]
+                                ]],
                                 callback:function(option){
                                     setTimeout(function() {
                                         if (option) {
@@ -1285,14 +1314,42 @@
                             vm.dialog.show({
                                 messages:msg,
                                 defaultOption:false,
-                                buttons:[[false,"Ok"],[true,"Override"]],
+                                footer:[[
+                                    ["",3],
+                                    [false,2,{
+                                        type:"button",
+                                        title:"Ok",
+                                        click:"close"
+                                    }],
+                                    ["",2],
+                                    [true,2,{
+                                        type:"button",
+                                        title:"Override",
+                                        click:"close"
+                                    }],
+                                    ["",3]
+                                ]],
                                 callback:function(option){
                                     if (option) {
                                         setTimeout(function() {
                                             vm.dialog.show({
                                                 messages:"I acknowledge a geometry check has been run and passed in ArcGIS Geometry Tool and this is a valid shape.",
                                                 defaultOption:false,
-                                                buttons:[[true,"Yes"],[false,"Cancel"]],
+                                                footer:[[
+                                                    ["",3],
+                                                    [true,2,{
+                                                        type:"button",
+                                                        title:"Yes",
+                                                        click:"close"
+                                                    }],
+                                                    ["",2],
+                                                    [false,2,{
+                                                        type:"button",
+                                                        title:"Cancel",
+                                                        click:"close"
+                                                    }],
+                                                    ["",3]
+                                                ]],
                                                 callback:function(option){
                                                     setTimeout(function() {
                                                         if (option) {
@@ -1388,7 +1445,8 @@
                                     process_invalid_func(result)
                                 } else if (result["status"]["overlapped"]) {
                                     //found overlap
-                                    process_overlap_func(result)
+                                    process_invalid_func(result)
+                                    //process_overlap_func(result)
                                 } else {
                                     result["data"]["fb_validation_req"] = null
                                     spatialData["area"] = result["data"]
@@ -1999,7 +2057,7 @@
         var cql_filter = ""
         this.dialog.show({
             messages:"Downloading bushfires...",
-            buttons:null
+            footer:null
         })
         var bbox = ""
         var originpoint_filter = ""
@@ -2221,7 +2279,7 @@
                 vm.dialog.show({
                     messages:"Importing bushfires...",
                     tasks: features.length,
-                    buttons:null
+                    footer:null
                 })
             }
             var featureImported = function(status,message) {
