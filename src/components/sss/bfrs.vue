@@ -2706,7 +2706,7 @@
                                         feature.setGeometry(new ol.geom.GeometryCollection([feature.getGeometry()]))
                                     }
                                     vm.newFeature(feature)
-                                    vm.measure.remeasureFeature(feature)
+                                    //vm.measure.remeasureFeature(feature)
                                     selectedFeatures.push(feature)
                                     featureImported(utils.SUCCEED)
                                 } else {
@@ -2733,7 +2733,7 @@
                                     feature.setGeometry(new ol.geom.GeometryCollection([feature.getGeometry()]))
                                 }
                                 vm.newFeature(feature)
-                                vm.measure.remeasureFeature(feature)
+                                //vm.measure.remeasureFeature(feature)
                                 selectedFeatures.push(feature)
                                 featureImported(utils.SUCCEED)
                             } catch(ex) {
@@ -3690,8 +3690,8 @@
               ],
               sketchStyle: vm.annotations.getIconStyleFunction(vm.tints),
               scope:[],
-              measureLength:true,
-              measureArea:true,
+              measureLength:false,
+              measureArea:false,
               keepSelection:true,
               showName: true,
               getMeasureGeometry:function() {
