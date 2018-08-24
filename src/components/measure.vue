@@ -1088,6 +1088,7 @@
       vm._featureChanged = function(feature){
         var tool = vm.annotations.getTool(feature.get('toolName'))
         if (!tool) {return}
+        if (!(tool.measureLength || tool.measureArea || tool.measureBearing)) {return}
         feature.unset('measurement',true)
         if (feature.tooltip) {
             if (vm.measureFeature) {
@@ -1113,6 +1114,7 @@
         var tool = ev.feature.get('toolName')
         tool = tool?vm.annotations.getTool(tool):null
         if (!tool) {return}
+        if (!(tool.measureLength || tool.measureArea || tool.measureBearing)) {return}
         
         vm.createTooltip(ev.feature,tool.getMeasureGeometry,tool.measureLength,tool.measureArea,false,vm.measureFeature,ev.indexes)
         vm.measuring(ev.feature,tool.getMeasureGeometry,tool.measureLength,tool.measureArea,false,vm.measureFeature?"show":"measure",vm.measureFeature,ev.indexes) 
@@ -1121,6 +1123,7 @@
         var tool = ev.feature.get('toolName')
         tool = tool?vm.annotations.getTool(tool):null
         if (!tool) {return}
+        if (!(tool.measureLength || tool.measureArea || tool.measureBearing)) {return}
         
         vm.removeTooltip(ev.feature,true,ev.indexes) 
         vm.removeMeasurementObject(ev.feature,"measurement",ev.indexes,null,true)
@@ -1130,6 +1133,7 @@
         var tool = ev.feature.get('toolName')
         tool = tool?vm.annotations.getTool(tool):null
         if (!tool) {return}
+        if (!(tool.measureLength || tool.measureArea || tool.measureBearing)) {return}
         
         vm.removeTooltip(ev.feature,true) 
         ev.feature.unset("measurement",true)
