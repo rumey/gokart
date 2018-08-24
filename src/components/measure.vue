@@ -313,11 +313,13 @@
         var vm = this
         vm._remeasureFeature = vm._remeasureFeature || function(feat) {
             if (!feat) return
+            var tool = vm.annotations.getTool(feat.get('toolName'))
+            if (!tool) {return}
+            if (!(tool.measureLength || tool.measureArea || tool.measureBearing)) {return}
+
             this.removeTooltip(feat,true) 
             feat.unset("measurement",true)
 
-            var tool = vm.annotations.getTool(feat.get('toolName'))
-            if (!tool) {return}
             vm.createTooltip(feat,tool.getMeasureGeometry,tool.measureLength,tool.measureArea)
             vm.measuring(feat,tool.getMeasureGeometry,tool.measureLength,tool.measureArea,false,"show")
         }
