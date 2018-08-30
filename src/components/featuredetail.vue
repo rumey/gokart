@@ -207,7 +207,7 @@
                     var topLeft = vm.map.olmap.getCoordinateFromPixel(browserEvent.pixel.map(function(d){return d - 10}))
                     var bottomRight = vm.map.olmap.getCoordinateFromPixel(browserEvent.pixel.map(function(d){return d + 10}))
 
-                    var bbox = "&bbox=" + bottomRight[1] + "," + topLeft[0] + "," + topLeft[1] + "," + bottomRight[0]
+                    var bbox = "&bbox=" + bottomRight[1] + "," + topLeft[0] + "," + topLeft[1] + "," + bottomRight[0] + ",urn:ogc:def:crs:EPSG:4326"
                     var url = null
                     if (vm.layer !== vm._featureinfo_layer && vm.layer.tags && vm.layer.tags.some(function(o) {return o.name === "detail_link"} )) {
                         url = vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&count=1&outputFormat=application%2Fjson&typeNames=" + getDetailLayerId(vm.layer.id) + bbox
