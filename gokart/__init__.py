@@ -39,6 +39,9 @@ import raster
 bottle.route('/outlookmetadata', "GET", raster.outlookmetadata)
 bottle.route('/weatheroutlook/<fmt>', "POST", raster.weatheroutlook)
 
+import kmi
+bottle.route('/kmi/layer',"GET",kmi.layermetadata)
+
 @bottle.route('/client')
 def server_static():
     return bottle.static_file('client.html', root=settings.BASE_PATH)

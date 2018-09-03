@@ -901,7 +901,7 @@
                         if (validateType === "getSpatialData") {
                             //during saving, check agaist the fire boundary
                             $.ajax({
-                                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetPropertyValue&valueReference=fire_number&typeNames=" + getLayerId("dpaw:bushfire_final_fireboundary_latest") + "&cql_filter=(fire_number='" + feat.get('fire_number') + "')and (CONTAINS(fire_boundary,POINT(" + originPoint[1]  + " " + originPoint[0] + ")))",
+                                url:vm.env.kmiService + "/wfs?service=wfs&version=2.0&request=GetPropertyValue&valueReference=fire_number&typeNames=" + getLayerId("dpaw:bushfire_final_fireboundary_latest") + "&cql_filter=(fire_number='" + feat.get('fire_number') + "')and (CONTAINS(fire_boundary,POINT(" + originPoint[1]  + " " + originPoint[0] + ")))",
                                 dataType:"xml",
                                 success: function (response, stat, xhr) {
                                     if (response.firstChild && response.firstChild.children && response.firstChild.children.length > 0) {
@@ -1224,6 +1224,7 @@
                 }
                 var tenure_origin_point_task = null
                 var fire_position_task = null
+                var originpoint_grid_task = null
                 var region_task = null
                 var district_task = null
                 var plantation_task = null
@@ -1237,6 +1238,7 @@
                 if (originPoint && (modifyType & 1) === 1) {
                     tenure_origin_point_task = vm._taskManager.addTask(feat,"getSpatialData","tenure_origin_point","Get the tenure of ignition point",utils.WAITING)
                     fire_position_task = vm._taskManager.addTask(feat,"getSpatialData","fire_position","Get the fire position",utils.WAITING)
+                    originpoint_grid_task = vm._taskManager.addTask(feat,"getSpatialData","originpoint_grid","Get origin point's grid data",utils.WAITING)
                     if (["new","initial"].indexOf(feat.get('status')) >= 0) {
                         region_task = vm._taskManager.addTask(feat,"getSpatialData","region","Get bushfire's region",utils.WAITING)
                         district_task = vm._taskManager.addTask(feat,"getSpatialData","district","Get bushfire's district",utils.WAITING)
@@ -1391,7 +1393,6 @@
                     $.ajax({
                         url:vm.env.gokartService + "/spatial",
                         dataType:"json",
-        
                         data:{
                                 features:vm.$root.geojson.writeFeatures([feat]),
                                 options:JSON.stringify({
@@ -1403,7 +1404,8 @@
                                         layers:[
                                             {
                                                 id:"legislated_lands_and_waters",
-                                                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:legislated_lands_and_waters"),
+                                                layerid:getLayerId("cddp:legislated_lands_and_waters"),
+                                                kmiservice:vm.env.kmiService,
                                                 properties:{
                                                     name:"name",
                                                     category:"category"
@@ -1412,7 +1414,8 @@
                                             },
                                             {
                                                 id:"dept_interest_lands_and_waters",
-                                                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:dept_interest_lands_and_waters"),
+                                                layerid:getLayerId("cddp:dept_interest_lands_and_waters"),
+                                                kmiservice:vm.env.kmiService,
                                                 properties:{
                                                     name:"name",
                                                     category:"category"
@@ -1421,7 +1424,8 @@
                                             },
                                             {
                                                 id:"other_tenures",
-                                                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:other_tenures"),
+                                                layerid:getLayerId("cddp:other_tenures"),
+                                                kmiservice:vm.env.kmiService,
                                                 properties:{
                                                     name:"cdg_label",
                                                     category:"cdg_label"
@@ -1445,8 +1449,7 @@
                                     process_invalid_func(result)
                                 } else if (result["status"]["overlapped"]) {
                                     //found overlap
-                                    process_invalid_func(result)
-                                    //process_overlap_func(result)
+                                    process_overlap_func(result)
                                 } else {
                                     result["data"]["fb_validation_req"] = null
                                     spatialData["area"] = result["data"]
@@ -1527,11 +1530,23 @@
                         vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                     })
                 }
+                if (originpoint_grid_task) {
+                    originpoint_grid_task.setStatus(utils.RUNNING)
+                    vm.map.getGridData(originPoint,function(grid_data){
+                        spatialData["origin_point_grid"] = grid_data
+                        originpoint_grid_task.setStatus(utils.SUCCEED)
+                        vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
+                    },
+                    function(msg){
+                        originpoint_grid_task.setStatus(utils.FAILED,msg)
+                        vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
+                    })
+                }
         
                 if (region_task) {
                     region_task.setStatus(utils.RUNNING)
                     $.ajax({
-                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:dpaw_regions") + "&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
+                        url:vm.env.kmiService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:dpaw_regions") + "&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
                         dataType:"json",
                         success: function (response, stat, xhr) {
                             if (response.totalFeatures === 0) {
@@ -1556,7 +1571,7 @@
                 if (district_task) {
                     district_task.setStatus(utils.RUNNING)
                     $.ajax({
-                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("dpaw:pw_districts_fssvers") + "&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
+                        url:vm.env.kmiService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("dpaw:pw_districts_fssvers") + "&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
                         dataType:"json",
                         success: function (response, stat, xhr) {
                             if (response.totalFeatures === 0) {
@@ -1591,7 +1606,7 @@
                         coordinates:originPoint
                     }
                 },3,"kilometers").geometry.coordinates[0]
-                var url = vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:plantation_annual_report") + "&outputFormat=json&cql_filter=INTERSECTS(wkb_geometry,POLYGON((" + point_buffer.map(function(p){return p[1] + " " + p[0]}).join("%2C") + ")))"
+                var url = vm.env.kmiService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:plantation_annual_report") + "&outputFormat=json&cql_filter=INTERSECTS(wkb_geometry,POLYGON((" + point_buffer.map(function(p){return p[1] + " " + p[0]}).join("%2C") + ")))"
                 $.ajax({
                     url:url,
                     dataType:"json",
@@ -1690,7 +1705,7 @@
                                     var checkTask = vm._taskManager.addTask(feat,"postsave","check_originpoint","Check origin within fire shape",utils.RUNNING)
                                     originPoint = originPoint.getCoordinates()
                                     $.ajax({
-                                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetPropertyValue&valueReference=fire_number&typeNames=" + getLayerId("dpaw:bushfire_final_fireboundary_latest") + "&cql_filter=(fire_number='" + feat.get('fire_number') + "')and (CONTAINS(fire_boundary,POINT(" + originPoint[1]  + " " + originPoint[0] + ")))",
+                                        url:vm.env.kmiService + "/wfs?service=wfs&version=2.0&request=GetPropertyValue&valueReference=fire_number&typeNames=" + getLayerId("dpaw:bushfire_final_fireboundary_latest") + "&cql_filter=(fire_number='" + feat.get('fire_number') + "')and (CONTAINS(fire_boundary,POINT(" + originPoint[1]  + " " + originPoint[0] + ")))",
                                         dataType:"xml",
                                         success: function (response, stat, xhr) {
                                             if (!response.firstChild || !response.firstChild.children || response.firstChild.children.length === 0) {
@@ -2123,7 +2138,7 @@
                     layer:"bushfire_fireboundary",
                     ignore_if_empty:true,
                     sourcelayers:{
-                        url:vm.env.wfsService + "/wfs?servicea=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
+                        url:vm.env.kmiService + "/wfs?servicea=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
                         fields:["fire_number","name","district","financial_year","fire_detected_date","cause","dfes_incident_no","other_info",{name:"author",src:"fireboundary_uploaded_by"},"capt_meth","capt_desc"],
                     },
                     geometry_column:{name:"fire_boundary",type:"MULTIPOLYGON"},
@@ -2138,7 +2153,7 @@
                     layer:"initial_bushfire_originpoint",
                     ignore_if_empty:true,
                     sourcelayers:{
-                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + bushfireLayer + originpoint_filter  + bbox,
+                        url:vm.env.kmiService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + bushfireLayer + originpoint_filter  + bbox,
                         where:"report_status='Initial Fire Report'",
                     },
                     geometry_column:{name:"origin_point",type:"POINT"},
@@ -2146,7 +2161,7 @@
                     layer:"final_bushfire_originpoint",
                     ignore_if_empty:true,
                     sourcelayers:{
-                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + bushfireLayer + originpoint_filter + bbox,
+                        url:vm.env.kmiService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + bushfireLayer + originpoint_filter + bbox,
                         where:"report_status<>'Initial Fire Report'",
                     },
                     geometry_column:{name:"origin_point",type:"POINT"},
@@ -2154,7 +2169,7 @@
                     layer:"initial_bushfire_fireboundary",
                     ignore_if_empty:true,
                     sourcelayers:{
-                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
+                        url:vm.env.kmiService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
                         where:"report_status='Initial Fire Report'",
                     },
                     geometry_column:{name:"fire_boundary",type:"MULTIPOLYGON"},
@@ -2162,7 +2177,7 @@
                     layer:"final_bushfire_fireboundary",
                     ignore_if_empty:true,
                     sourcelayers:{
-                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
+                        url:vm.env.kmiService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
                         where:"report_status<>'Initial Fire Report'",
                     },
                     geometry_column:{name:"fire_boundary",type:"MULTIPOLYGON"},

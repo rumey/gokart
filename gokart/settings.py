@@ -86,7 +86,13 @@ def typename(url):
     m = typename_re.search(url.lower())
     return m.group('name').replace("%3a",":") if m else None
 
-
+kmiserver_re = re.compile("^(?P<url>[hH][tT][tT][pP][sS]?://[a-zA-Z0-9\-\_\./]+/geoserver)",re.DOTALL)
+def kmiserver(url):
+    m = kmiserver_re.search(url)
+    if m:
+        return "{}/".format(m.group('url'))
+    else:
+        return "https://kmi.dbca.wa.gov.au/geoserver/"
 
 def datetime_encoder(self,o):
     if isinstance(o,datetime.datetime):

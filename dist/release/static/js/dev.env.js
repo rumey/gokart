@@ -4,9 +4,7 @@ var env = {
     cswService:"https://csw.dbca.wa.gov.au/catalogue/api/records/",
     catalogueAdminService:"https://csw.dbca.wa.gov.au",
 
-    wmtsService:"https://kmi.dbca.wa.gov.au/geoserver/gwc/service/wmts",
-    wmsService:"https://kmi.dbca.wa.gov.au/geoserver/wms",
-    wfsService:"https://kmi.dbca.wa.gov.au/geoserver/wfs",
+    kmiService:"https://kmi.dbca.wa.gov.au/geoserver",
     legendSrc:"https://kmi.dbca.wa.gov.au/geoserver/gwc/service/wms?REQUEST=GetLegendGraphic&VERSION=1.0.0&FORMAT=image/png&legend_options=fontName:Times%20New%20Roman;fontAntiAliasing:true;fontSize:14;bgColor:0xFFFFEE;dpi:120;labelMargin:10&LAYER=",
 
     gokartService:"https://sss-dev.dbca.wa.gov.au",

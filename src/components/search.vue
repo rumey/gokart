@@ -115,7 +115,7 @@
       queryFD: function(fdStr, victory, failure) {
         var vm = this
         $.ajax({
-          url: vm.env.wfsService + '?' + $.param({
+          url: vm.env.kmiService + '/wfs?' + $.param({
             version: '1.1.0',
             service: 'WFS',
             request: 'GetFeature',
@@ -140,7 +140,7 @@
       queryPIL: function(pilStr, victory, failure) {
         var vm = this
         $.ajax({
-          url: vm.env.wfsService + '?' + $.param({
+          url: vm.env.kmiService + '/wfs?' + $.param({
             version: '1.1.0',
             service: 'WFS',
             request: 'GetFeature',
