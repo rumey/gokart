@@ -462,6 +462,8 @@ Utils.prototype.getDateFormatPrecision = function(format) {
             precision = "months"
         } else if (diff === 2768461001) {
             precision = "years"
+        } else {
+            throw "Precision time interval (" + precision + ") Not Support"
         }
         _precisionMap[format] = precision
     }
@@ -471,24 +473,67 @@ Utils.prototype.nextDate = function(d,format) {
     var precision = this.getDateFormatPrecision(format)
     return moment(d).add(1,precision)
 }
-//dateRange is consisted with 5 digits. XXXXX
-//The fifth digit is the range type; 1 : minute; 2: hour; 3: day; 4:week; 5: month; 6: year
+//dateRange is consisted with 5 digits XXXXX or 6 digits XXXXXX
+//The sixth digit(optional) is the precision type; 1 : minute; 2: hour; 3: day; 4:week; 5: month; 6: year,7:financial year, 8:seconds, 9 milliseconds
+//The fifth digit is the range type; 1 : minute; 2: hour; 3: day; 4:week; 5: month; 6: year,7:financial year
 //The fourth digit is the range mode: 0: current ; 1: last
 //the first three digit is the range value
 //For example :last 24 hours; dateRange is 21024
 //return a array [startDate(inclusive),endDate(inclusive)], if endDate is current time, set endDate to null
 Utils.prototype.getDateRange = function(range,format) {
-    format = format || "YYYY-MM-DD"
-    var precision = this.getDateFormatPrecision(format)
     var dateRange = parseInt(range)
-    var startDate = null
-    var endDate = null
-    if (isNaN(dateRange)) {
-        throw "Invalid date range '" + range + "'."
-    } else if (dateRange === -1) {
+    if (dateRange === -1) {
         //customized
         return null
-    } else if (dateRange > 21000 && dateRange <= 21999) {
+    } else if (isNaN(dateRange)) {
+        throw "Invalid date range '" + range + "'."
+    } else if (dateRange >= 1000000 || dateRange < 10000) {
+        throw "Range (" + range + ") Not Support" 
+    }
+
+    format = format || "YYYY-MM-DD"
+    var resultFormat = null
+    var precision = null
+    if (dateRange >= 100000) {
+        //precision type is specified
+        precision = Math.floor(dateRange / 100000)
+        dateRange = dateRange % 100000
+        resultFormat = format || null
+        if (precision === 1) {
+            precision = "minutes"
+            format = "YYYY-MM-DD HH:mm"
+        } else if (precision === 2) {
+            precision = "hours"
+            format = "YYYY-MM-DD HH"
+        } else if (precision === 3) {
+            precision = "days"
+            format = "YYYY-MM-DD"
+        } else if (precision === 5) {
+            precision = "months"
+            format = "YYYY-MM"
+        } else if (precision === 6) {
+            precision = "years"
+            format = "YYYY"
+        } else if (precision === 8) {
+            precision = "seconds"
+            format = "YYYY-MM-DD HH:mm:ss"
+        } else if (precision === 9) {
+            precision = "milliseconds"
+            format = "YYYY-MM-DD HH:mm:ss.SSS"
+        } else {
+            throw "Precision type (" + precision + ") Not Support"
+        }
+        if (!resultFormat) {
+            resultFormat = format
+        }
+    } else {
+        format = format || "YYYY-MM-DD"
+        resultFormat = format
+        precision = this.getDateFormatPrecision(format)
+    }
+    var startDate = null
+    var endDate = null
+    if (dateRange > 21000 && dateRange <= 21999) {
         //Last XX hours
         endDate = moment(moment().format(format),format)
         if (precision === "hours") {
@@ -529,10 +574,22 @@ Utils.prototype.getDateRange = function(range,format) {
             startDate = moment(endDate).subtract((dateRange - 41000) * 7,"days")
         }
         endDate = null
+    } else if (dateRange === 70001) {
+        //current financial year
+        var startDate = moment(moment().format("YYYY-MM-DD"),"YYYY-MM-DD")
+        if (startDate.month() >= 6) {
+            startDate.month(6)
+            startDate.date(1)
+        } else {
+            startDate.year(startDate.year() - 1)
+            startDate.month(6)
+            startDate.date(1)
+        }
+        endDate = null
     }  else {
-        throw "Date range '" + range + " isn't supported."
+        throw "Date range (" + dateRange + ") Not Support"
     }
-    return [startDate?startDate.format(format):null,endDate?endDate.format(format):null]
+    return [startDate?startDate.format(resultFormat):null,endDate?endDate.format(resultFormat):null]
     
 }
 

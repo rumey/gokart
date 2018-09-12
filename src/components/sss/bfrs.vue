@@ -134,6 +134,7 @@
                       <option value="" selected>Date range</option> 
                       <option value="21024">Last 24 hours </option>
                       <option value="31007">Last 7 days </option>
+                      <option value="70001">Current Financial Year </option>
                       <option value="-1">User Defined</option> 
                     </select>
                   </div>
