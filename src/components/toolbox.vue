@@ -73,7 +73,7 @@
         return this.layers.length > 0
       },
       topPosition:function() {
-        return this.$root.measure.topPosition + this.$root.measure.height;
+        return 180;
       },
       topPositionStyle:function() {
         return "top:" + this.topPosition + "px";

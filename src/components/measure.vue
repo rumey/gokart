@@ -1,12 +1,4 @@
 <template>
-  <div style="display:none">
-  <div id="map-measure" v-bind:style="topPositionStyle" class="ol-selectable ol-control">
-      <button type="button" title="Measure length" @click="toggleMeasure('MeasureLength')" v-bind:class="{'selected':isMeasureLength}"><img src="dist/static/images/measure-length.svg"></button>
-      <button type="button" title="Measure area" @click="toggleMeasure('MeasureArea')" v-bind:class="{'selected':isMeasureArea}"><img src="dist/static/images/measure-area.svg"></button>
-      <button type="button" title="Measure bearing" @click="toggleMeasure('MeasureBearing')" v-bind:class="{'selected':isMeasureBearing}"><img src="dist/static/images/measure-bearing.svg"></button>
-      <button type="button" title="Clear measurements" v-show="showClear" @click="clearMeasure()"><i class="fa fa-trash"></i></button>
-  </div>
-  </div>
   <div id="map-measure-tooltips"></div>
 </template>
 
@@ -92,21 +84,6 @@
       },
       measureFeature:function() {
         return this.settings.measureFeature
-      },
-      height:function() {
-        if (!this.$root.toolbox || this.$root.toolbox.inToolbox(this)) {
-            return 0
-        } else if (this.showClear) {
-            return 196 + 9
-        } else {
-            return 147 + 9
-        }
-      },
-      topPosition:function() {
-        return this.featuredetail.topPosition + this.featuredetail.height;
-      },
-      topPositionStyle:function() {
-        return "top:" + this.topPosition + "px";
       },
       tools:function() {
         return [

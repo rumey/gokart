@@ -34,25 +34,6 @@
       controlButtonStyle:function() {
         return this.layers.length > 1 ? "height:36px;border-bottom-left-radius:0px;border-bottom-right-radius:0px":""
       },
-      height:function() {
-        if (!this.$root.toolbox || this.$root.toolbox.inToolbox(this)) {
-            return 0
-        } else if (this.layers.length === 0) {
-            return 0
-        } else if (this.layers.length === 1) {
-            return 48 + 9
-        } else if (!this.showLayers) {
-            return 52 + 9
-        } else {
-            return 52 + Math.ceil(this.layers.length / 6) * 50 + 9
-        }
-      },
-      topPosition:function() {
-        return this.weatheroutlook.topPosition + this.weatheroutlook.height;
-      },
-      topPositionStyle:function() {
-        return "top:" + this.topPosition + "px";
-      },
       mapControl:function() {
         if (!this._controller) {
             this._controller = new ol.control.Control({
