@@ -67,15 +67,6 @@
       isMeasureBearing:function() {
         return this.measureType === "MeasureBearing"
       },
-      mapControl:function() {
-        if (!this._controller) {
-            this._controller = new ol.control.Control({
-                element: $('#map-measure').get(0),
-        	target: $('#external-controls').get(0)
-            })
-        }
-        return this._controller
-      },
       lengthUnit: function() {
         return this.settings.lengthUnit
       },
@@ -937,13 +928,6 @@
       var measureStatus = vm.loading.register("measure","Measurement Component")
 
       measureStatus.phaseBegin("initialize",30,"Initialize")
-      if (!vm.$root.toolbox.inToolbox(vm)) {
-        vm.map.mapControls["measure"] = {
-              enabled:false,
-            autoenable:false,
-            controls:vm.mapControl
-        }
-      }
 
       //initialize the overlay and interactions
       this.features = new ol.Collection()

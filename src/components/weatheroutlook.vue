@@ -391,15 +391,6 @@
             this.setReportTimes(value)
         }
       },
-      mapControl:function() {
-        if (!this._controller) {
-            this._controller = new ol.control.Control({
-                element: $('#weatheroutlook_control').get(0),
-        	target: $('#external-controls').get(0)
-            })
-        }
-        return this._controller
-      },
       isControlSelected:function() {
         if (this.annotations) {
             return this.annotations.tool === this._weatheroutlookTool
@@ -1539,14 +1530,6 @@
       this._weatheroutlookStatus = vm.loading.register("weatheroutlook","BOM Spot Outlook Component")
 
       this._weatheroutlookStatus.phaseBegin("initialize",20,"Initialize")
-
-      if (!vm.$root.toolbox.inToolbox(vm)) {
-          vm.map.mapControls["weatheroutlook"] = {
-              enabled:false,
-            autoenable:false,
-            controls:vm.mapControl
-        }
-      }
 
       this.editingReportHours = this.reportHours
 

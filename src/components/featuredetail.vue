@@ -31,15 +31,6 @@
       enabled:function() {
         return this.layers.length > 0
       },
-      mapControl:function() {
-        if (!this._controller) {
-            this._controller = new ol.control.Control({
-                element: $('#featuredetail_control').get(0),
-        	target: $('#external-controls').get(0)
-            })
-        }
-        return this._controller
-      },
       isControlSelected:function() {
         if (this.annotations) {
             return !this.warning && this.annotations.tool === this._featuredetailTool
@@ -165,14 +156,6 @@
         if (vm.layers.length) {
             vm.layer = vm.layers[0]
             
-            if (!vm.$root.toolbox.inToolbox(vm)) {
-                vm.map.mapControls["featuredetail"] = {
-                    enabled:false,
-                    autoenable:false,
-                    controls:vm.mapControl
-                }
-            }
-    
             var featuredetailInter = new ol.interaction.Interaction({
                 handleEvent:function(browserEvent) {
                     if (!ol.events.condition.click(browserEvent)) {
