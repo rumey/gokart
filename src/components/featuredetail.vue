@@ -31,9 +31,6 @@
       enabled:function() {
         return this.layers.length > 0
       },
-      controlButtonStyle:function() {
-        return this.layers.length > 1 ? "height:36px;border-bottom-left-radius:0px;border-bottom-right-radius:0px":""
-      },
       mapControl:function() {
         if (!this._controller) {
             this._controller = new ol.control.Control({
