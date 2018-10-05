@@ -597,7 +597,7 @@ def getGrid(session_cookies,results,features,options):
     while index < len(features):
         feature = features[index]
         geometry = feature["geometry"]
-        print("Try to get grid data for point({},{})".format(geometry.x,geometry.y))
+        #print("Try to get grid data for point({},{})".format(geometry.x,geometry.y))
 
         result = {'id':None,'layer':None,'failed':None,'properties':None}
         results[index][options.get("name","grid")] = result
