@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- Cordova CSP -->
+    <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob: filesystem: mediastream:;">
+    <!-- Unicode is great -->
+    <meta charset="utf-8" />
+    <title>Weather Outlook</title>
+    <!-- Disable awful IE compatibility mode -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- Force fit-to-viewport sizing on mobile -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <!-- favicon -->
+
+    <style>
+        #request_data_toggle {
+            width:16px;
+            height:16px;
+            z-index:99999;
+            position:absolute;
+            right:20px;
+            top:8px;
+            cursor:pointer;
+        }
+        #request_data {
+            z-index:99999;
+            position:absolute;
+            right:40px;
+            top:5px;
+        }
+        #request_data th {
+            text-align:left;
+            font-weight:bold;
+            color:#2199e8;
+        }
+        #request_data td {
+            text-align:left;
+            color:#2199e8;
+            font-weight:bold;
+            margin-right:20px;
+        }
+        #forecast_form {
+            position:absolute;
+            left:0px;
+            top:0px;
+            border-style:none;
+            width:100%;
+        }
+    </style>
+    <script type="text/javascript">
+        function setHeight() {
+            document.getElementById("forecast_form").style.height = window.innerHeight + "px";
+        }
+        window.onresize = function() {
+            setHeight()
+        }
+        var showRequestData = true
+        function toggleRequestData() {
+            var toggle = document.getElementById("request_data_toggle")
+            var requestData = document.getElementById("request_data")
+            showRequestData = !showRequestData
+            if (showRequestData) {
+                toggle.src = "/dist/static/images/hide.svg"
+                requestData.style.display= ""
+            } else {
+                toggle.src = "/dist/static/images/show.svg"
+                requestData.style.display= "none"
+            }
+
+        }
+    </script>
+  </head>
+  {%- if envType != "prod" -%}
+  <body style="background-image:url('/dist/static/images/for-testing.png')" onload="setHeight()">
+    <div id="forecast">
+  {% else %}
+  <body>
+    <div id="forecast">
+  {% endif %}
+
+        <img id="request_data_toggle" src="/dist/static/images/hide.svg" onclick="toggleRequestData()">
+        <table id="request_data">
+            <tr> 
+                <th >Position:</th>
+                <td >{{position}}</td>
+            </tr>
+            <tr> 
+                <th >Latitude:</th>
+                <td >{{point[1]}}</td>
+            </tr>
+            <tr> 
+                <th >Longitude:</th>
+                <td >{{point[0]}}</td>
+            </tr>
+        </table>
+        <iframe src="{{forecast_url}}" id="forecast_form"></iframe>
+    </div>
+  </body>
+</html>

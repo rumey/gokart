@@ -67,6 +67,9 @@
           if (vm.$root.weatheroutlook && vm.annotations.tool && vm.annotations.tool.name === "WeatherOutlook") {
             //weather outlook tool is activated.
             vm.$root.weatheroutlook.setPosition(coords)
+          } else if (vm.$root.weatherforecast && vm.annotations.tool && vm.annotations.tool.name === "WeatherForecast") {
+            //weather forecast tool is activated.
+            vm.$root.weatherforecast.setPosition(coords)
           } else if (!vm._setSearchPointFunc || !vm._setSearchPointFunc(searchMethod,coords,name)) {
             vm.features.clear()
             vm.features.push(new ol.Feature({

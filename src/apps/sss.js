@@ -202,6 +202,7 @@ if (result) {
           scales: function () { return this.$refs.app.$refs.map.$refs.scales },
           search: function () { return this.$refs.app.$refs.map.$refs.search },
           featuredetail: function () { return this.$refs.app.$refs.map.$refs.featuredetail },
+          weatherforecast: function () { return this.$refs.app.$refs.map.$refs.weatherforecast },
           toolbox: function () { return this.$refs.app.$refs.map.$refs.toolbox },
           measure: function () { return this.$refs.app.$refs.map.$refs.measure },
           info: function() { return this.$refs.app.$refs.map.$refs.info},
@@ -753,6 +754,7 @@ if (result) {
                 }
               },function(reason){
                 self.loading.app.phaseEnd("load_catalogue")
+                alert(reason)
               })
           } catch(err) {
               //some exception happens

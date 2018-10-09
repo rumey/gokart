@@ -27,6 +27,8 @@ import sys
 import traceback
 
 
+from .jinja2settings import settings as jinja2settings
+
 import spatial
 bottle.route("/spatial", "POST", spatial.spatial)
 
@@ -194,6 +196,23 @@ def index(app):
         if profile["dependents"]["vendorMD5"] != profile["build"]["vendorMD5"]:
             raise Exception("Application was built base on outdated vendor library, please build application again.")
         return bottle.template('index.html', app=app,envType=settings.ENV_TYPE,profile=profile)
+    except:
+        bottle.response.status = 400
+        bottle.response.set_header("Content-Type","text/plain")
+        traceback.print_exc()
+        return traceback.format_exception_only(sys.exc_type,sys.exc_value)
+
+@bottle.route("/weatherforecast",method="POST")
+def weatherforecast():
+    #weather forecast
+    try:
+        requestData = bottle.request.forms.get("data")
+        if requestData:
+            requestData = json.loads(requestData)
+        else:
+            raise Exception("Missing request data")
+        return bottle.template('weatherforecast.html',template_adapter=bottle.Jinja2Template,template_settings=jinja2settings,envType=settings.ENV_TYPE,request_time=datetime.datetime.now(settings.PERTH_TIMEZONE), **requestData)
+        
     except:
         bottle.response.status = 400
         bottle.response.set_header("Content-Type","text/plain")

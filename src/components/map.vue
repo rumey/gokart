@@ -6,6 +6,7 @@
   <gk-search v-ref:search></gk-search>
   <gk-featuredetail v-ref:featuredetail></gk-featuredetail>
   <gk-measure v-ref:measure></gk-measure>
+  <gk-weatherforecast v-ref:weatherforecast></gk-weatherforecast>
   <gk-toolbox v-ref:toolbox></gk-toolbox>
 </template>
 <style>
@@ -47,6 +48,7 @@
   import gkSearch from './search.vue'
   import gkFeaturedetail from './featuredetail.vue'
   import gkMeasure from './measure.vue'
+  import gkWeatherforecast from './weatherforecast.vue'
   import gkToolbox from './toolbox.vue'
   export default {
     store: {
@@ -58,7 +60,7 @@
         displayGraticule:'settings.graticule',
         displayResolution:'displayResolution'
     },
-    components: { gkInfo, gkScales, gkSearch, gkMeasure,gkFeaturedetail,gkToolbox},
+    components: { gkInfo, gkScales, gkSearch, gkMeasure,gkFeaturedetail,gkWeatherforecast,gkToolbox},
     data: function () {
       return {
         scale: 0,
@@ -1720,7 +1722,7 @@
                 vm.$root.catalogue.catalogue.push(fixedLayer)
             }
         })
-        vm._overviewLayer = vm._overviewLayer || $.extend({},vm.$root.catalogue.getLayer("dpaw:mapbox_outdoors"))
+        vm._overviewLayer = vm._overviewLayer || $.extend({},vm.$root.catalogue.getLayer(vm.env.overviewLayer || "dpaw:mapbox_outdoors"))
 
         //ignore the active layers which does not exist in the catalogue layers.
         activeLayers = activeLayers.filter(function(activeLayer){
