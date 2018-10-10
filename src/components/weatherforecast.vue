@@ -65,7 +65,7 @@
             this.annotations.setTool(this._weatherforecastTool)
         }
       },
-      selectTool:function(l) {
+      selectTool:function(tool) {
         if (this.forecastTool === tool) {
             return
         }
