@@ -1962,7 +1962,7 @@
                   features:vm.$root.geojson.writeFeatures([feat]),
                   options:JSON.stringify({
                       grid: {
-                          name:"grid",
+                          action:"getClosestFeature",
                           layers:[
                               {
                                   id:"fd_grid_points",
@@ -1991,9 +1991,9 @@
                   if (response.features[0]["grid"]["failed"]) {
                       failedCallback(response.features[0]["grid"]["failed"])
                   } else if (response.features[0]["grid"]["id"] === "fd_grid_points") {
-                      successCallback("FD:" + response.features[0]["grid"]["properties"]["grid"]) 
+                      successCallback("FD:" + response.features[0]["grid"]["feature"]["grid"]) 
                   } else if (response.features[0]["grid"]["id"] === "pilbara_grid_1km") {
-                      successCallback("PIL:" + response.features[0]["grid"]["properties"]["grid"]) 
+                      successCallback("PIL:" + response.features[0]["grid"]["feature"]["grid"]) 
                   } else {
                       successCallback(null) 
                   }

@@ -218,6 +218,11 @@ def extractPoints(geom):
     else:
         return None
 
+def retrieveFeatures(url,session_cookies):
+        res = requests.get(url,verify=False,cookies=session_cookies)
+        res.raise_for_status()
+        return res.json()
+
 def checkOverlap(session_cookies,feature,options):
     # needs gdal 1.10+
     layers = options["layers"]
@@ -231,11 +236,10 @@ def checkOverlap(session_cookies,feature,options):
     overlaps = []
     #retrieve all related features from layers
     for layer in layers:
-        features[layer["id"]] = json.loads(requests.get(
+        features[layer["id"]] = retrieveFeatures(
             "{}&outputFormat=json&bbox={},{},{},{}".format(layer["url"],geometry.bounds[1],geometry.bounds[0],geometry.bounds[3],geometry.bounds[2]),
-            verify=False,
-            cookies=session_cookies
-        ).content).get("features") or []
+            session_cookies
+        )["features"]
 
         for layer_feature in features[layer["id"]]:
             layer_geometry = shape(layer_feature["geometry"])
@@ -284,7 +288,7 @@ def checkOverlap(session_cookies,feature,options):
     return overlaps
                 
 
-def calculateArea(session_cookies,results,features,options):
+def calculateArea(session_cookies,results,result_key,features,options):
     """
     feature area data:{
         status {
@@ -328,7 +332,7 @@ def calculateArea(session_cookies,results,features,options):
         area_data = {}
         status = {}
         result = {"status":status,"data":area_data}
-        results[index][options.get("name","area")] = result
+        results[index][result_key] = result
         total_area = 0
         index += 1
         geometry = extractPolygons(feature["geometry"])
@@ -376,13 +380,12 @@ def calculateArea(session_cookies,results,features,options):
                 total_layer_area = 0
                 area_data["layers"][layer["id"]] = {"areas":layer_area_data}
     
-                layer_features = json.loads(requests.get(
+                layer_features = retrieveFeatures(
                     "{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&bbox={},{},{},{}".format(layer["kmiservice"],layer["layerid"],geometry.bounds[1],geometry.bounds[0],geometry.bounds[3],geometry.bounds[2]),
-                    verify=False,
-                    cookies=session_cookies
-                ).content)
+                    session_cookies
+                )["features"]
     
-                for layer_feature in layer_features["features"]:
+                for layer_feature in layer_features:
                     layer_geometry = shape(layer_feature["geometry"])
                     if not isinstance(layer_geometry,Polygon) and not isinstance(layer_geometry,MultiPolygon):
                         continue
@@ -481,22 +484,47 @@ def calculateArea(session_cookies,results,features,options):
                         status["overlapped"] = "Features from layers are overlaped.\r\n{}".format("\r\n".join(msg))
                         continue
 
-def getFeature(session_cookies,results,features,options):
+def layermetadata(layer):
+    if not layer.get("_layermetadata"):
+        layer["_layermetadata"] = kmi.get_layermetadata(layer["layerid"],kmiserver=layer["kmiservice"])
+    return layer["_layermetadata"]
+
+def layerdefinition(layer):
+    if not layer.get("layerdefinition"):
+        layerdefinition = kmi.get_layerdefinition(layer["layerid"],kmiserver=layer["kmiservice"])
+        layer["layerdefinition"] = layerdefinition
+    else:
+        layerdefinition = layer["layerdefinition"]
+
+    if not layerdefinition["geometry_property"]:
+        if layerdefinition["geometry_property_msg"]:
+            raise Exception(layerdefinition["geometry_property_msg"])
+        elif not layerdefinition["geometry_properties"]:
+            raise Exception("The layer '{}' is not a spatial layer".format(layer["layerid"]))
+        else:
+            raise Exception("Failed to identify the geometry property of the layer '{}'".format(layer["layerid"]))
+
+    return layerdefinition
+    
+
+def getFeature(session_cookies,results,result_key,features,options):
     """
-    Return the feature(should be a polygon) which contain the coordinate
+    result_key: the key to put the result in results
     options:{
+        format: properties or geojson//optional default is properties
+        action: getFeature or getIntersectedFeatures or getClosestFeature
         layers:[
-            [{
-                id:
-                url:
-                geom_field: default is wkb_geometry
+            {
+                id:     //if missing, use 'layerid' as id
+                layerid: //layerid in kmi, in most cases, layerid is equal with id, if missing, use 'id' as layerid
+                kmiservice: //optinoal, 
                 properties:{  //optional
                     name:column in dataset
                 }
             },
             ...
-            ]
         ]
+
     }
     getFeature result:[
         {
@@ -511,162 +539,157 @@ def getFeature(session_cookies,results,features,options):
     """
     # needs gdal 1.10+
     layers = options["layers"]
-
-    index = 0
-    while index < len(features):
-        feature = features[index]
-        result = []
-        results[index][options.get("name","getFeature")] = result
-        index += 1
-
-        geometry = feature["geometry"]
-
-        if not layers:
-            #layers is empty
-            continue
-
-        layergroup_index = 0
-        while layergroup_index < len(layers):
-            get_feature_data = {'id':None,'layer':None,'failed':None,'properties':None}
-            result.append(get_feature_data)
-            try:
-                for layer in layers[layergroup_index]:
-                    if not layer or not layer.get("kmiservice") or not layer["buffer"] or not layer["layerid"]:
-                        continue
-                    if isinstance(geometry,Point):
-                        layer_features = json.loads(requests.get(
-                            "{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&cql_filter=CONTAINS({},POINT({} {}))".format(layer["kmiservice"],layer["layerid"],layer.get("geom_field") or "wkb_geometry",geometry.x,geometry.y),
-                            verify=False,
-                            cookies=session_cookies
-                        ).content)
-                    else:
-                        raise Exception("Operation 'getFeature' Only support Point geometry.")
-
-                    if layer_features["features"]:
-                        layer_feature = layer_features["features"][0]
-                        get_feature_data["id"] = layer["id"]
-                        get_feature_data["layer"] = layer["layerid"]
-                        get_feature_data["properties"] = {}
-                        if layer.get("properties"):
-                            for name,column in layer["properties"].iteritems():
-                                get_feature_data["properties"][name] = layer_feature["properties"][column]
-                        else:
-                            for key,value in layer_feature["properties"].iteritems():
-                                get_feature_data["properties"][key] = value
-                        break
-
-            except:
-                traceback.print_exc()
-                get_feature_data["failed"] = "GetFeature from layers ({}) failed.{}".format(layers[subindex],traceback.format_exception_only(sys.exc_type,sys.exc_value))
-            finally:
-                layergroup_index += 1
-
-def getGrid(session_cookies,results,features,options):
-    """
-    only works for point feature, return the fd grid value of the feature if have;otherwise return None
-    options:{
-        layers:[
-            {
-                id:
-                url:
-                geom_field: default is wkb_geometry
-                properties:{  //optional
-                    name:column in dataset
-                }
-            },
-            ...
-        ]
-    }
-    fdgrid result:[
-        {
-            id:
-            layer: 
-            failed:  message if failed; otherwise is null
-            grid:
-        },
-    ]
-    """
-    # needs gdal 1.10+
-    layers = options["layers"]
-
+    #check whether layers is not empty
     if not layers:
-        #layers is empty
-        raise Exception("Layers are missing")
+        raise Exception("Layers must not be empty.")
+    #check whether layers is list
+    if not isinstance(layers,(list,tuple)):
+        raise Exception("Layers must be list type.")
+
+    #layers must be list of layers
+    if  not isinstance(layers,(list,tuple)):
+        layers = [layers]
+    for layer in layers:
+        if "layerid" not in layer and "id" not in layer:
+            raise Exception("Both 'id' and 'layerid' are missing in layer declaration")
+        elif "layerid" not in layer:
+            layer["layerid"] = layer["id"]
+        elif "id" not in layer:
+            layer["id"] = layer["layerid"]
+        if not layer.get("kmiservice"):
+            layer["kmiservice"] = "https://kmi.dbca.wa.gov.au/geoserver"
 
     index = 0
     while index < len(features):
         feature = features[index]
-        geometry = feature["geometry"]
-        #print("Try to get grid data for point({},{})".format(geometry.x,geometry.y))
-
-        result = {'id':None,'layer':None,'failed':None,'properties':None}
-        results[index][options.get("name","grid")] = result
+        get_feature_data = {"id":None,"layer":None,"failed":None}
+        results[index][result_key] = get_feature_data
         index += 1
+
+        geometry = feature["geometry"]
+
         try:
             for layer in layers:
                 if not layer or not layer.get("kmiservice") or not layer["buffer"] or not layer["layerid"]:
                     continue
-                layermetadata = kmi.get_layermetadata(layer["layerid"],kmiserver=layer["kmiservice"])
-                layer_bbox = layermetadata.get("latlonBoundingBox_EPSG:4326") or layermetadata.get("latlonBoundingBox")
-                if not layer_bbox:
-                    raise Exception("Can't find layer({})'s bounding box for epsg:4326".format(layer["layerid"]))
 
-                if geometry.x < layer_bbox[1] or geometry.x > layer_bbox[3] or geometry.y < layer_bbox[0] or geometry.y > layer_bbox[2]:
-                    #not in this layer's bounding box
-                    continue
+                if layer.get('check_bbox'):
+                    #check whether feature is in layer's bbox
+                    layer_bbox = layermetadata(layer).get("latlonBoundingBox_EPSG:4326") or layermetadata(layer).get("latlonBoundingBox")
+                    if not layer_bbox:
+                        get_feature_data["failed"] = "Can't find layer({})'s bounding box for epsg:4326".format(layer["layerid"])
+                        break
 
-                try_times = 1
-                layer_feature = None
-                #should get the grid data at the first try, if can't, set the grid data to null.
-                while try_times < 2:
-                    if isinstance(geometry,Point):
-                        buff_bbox = Polygon(buffer(geometry.x,geometry.y,layer["buffer"] * try_times)).bounds
-                        layer_features = json.loads(requests.get(
-                            "{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&bbox={},{},{},{},urn:ogc:def:crs:EPSG:4326".format(layer["kmiservice"],layer["layerid"],buff_bbox[1],buff_bbox[0],buff_bbox[3],buff_bbox[2]),
-                            verify=False,
-                            cookies=session_cookies
-                        ).content)
-                    else:
-                        raise Exception("Operation 'getFeature' Only support Point geometry.")
-    
-                    if len(layer_features["features"]) == 1:
-                        layer_feature = layer_features["features"][0]
-                        break
-                    elif len(layer_features["features"]) > 1:   
-                        layer_feature = None
-                        minDistance = None
-                        for feat in layer_features["features"]:
-                            if layer_feature is None:
-                                layer_feature = feat
-                                minDistance = getDistance(geometry,shape(feat["geometry"]),p2_proj=layermetadata.get('srs') or "EPSG:4326")
-                            else:
-                                distance = getDistance(geometry,shape(feat["geometry"]),p2_proj=layermetadata.get('srs') or "EPSG:4326")
-                                if minDistance > distance:
-                                    minDistance = distance
-                                    layer_feature = feat
-                        break
-                    else:
-                        try_times += 1
+                    if geometry.x < layer_bbox[1] or geometry.x > layer_bbox[3] or geometry.y < layer_bbox[0] or geometry.y > layer_bbox[2]:
+                        #not in this layer's bounding box
                         continue
 
-                if layer_feature:
-                    result["id"] = layer["id"]
-                    result["layer"] = layer["layerid"]
-                    result["properties"] = {}
-                    if layer.get("properties"):
-                        for name,column in layer["properties"].iteritems():
-                            result["properties"][name] = layer_feature["properties"][column]
+                if options["action"] == "getFeature":
+                    get_feature_data["feature"] = None
+
+                    if isinstance(geometry,Point):
+                        if layerdefinition(layer)["geometry_type"] in ["point",'multipoint']:
+                            get_feature_data["failed"] = "The {1} layer '{0}' doesn't support action '{2}'. ".format(layer["layerid"],layerdefinition(layer)["geometry_property"]["localType"],options["action"])
+                            break
+                        else:
+                            #polygon or line
+                            layer_features = retrieveFeatures(
+                                "{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&cql_filter=CONTAINS({},POINT({} {}))".format(layer["kmiservice"],layer["layerid"],layerdefinition(layer)["geometry_property"]["name"],geometry.x,geometry.y),
+                                session_cookies
+                            )["features"]
+
                     else:
-                        for key,value in layer_feature["properties"].iteritems():
-                            result["properties"][key] = value
+                        get_feature_data["failed"] = "Action '{}' Only support Point geometry.".format(options["action"])
+                        break
+                elif options["action"] == "getIntersectedFeatures":
+                    get_feature_data["features"] = None
+                    if isinstance(geometry,Point):
+                        if not layer.get("buff"):
+                            get_feature_data["failed"] = "'buff' is missing in layer '{}'".format(layer["id"])
+                            break
+                        buff_polygon = Polygon(buffer(geometry.x,geometry.y,layer["buff"]))
+                        layer_features = retrieveFeatures(
+                            "{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&cql_filter=INTERSECTS({},POLYGON(({})))".format(layer["kmiservice"],layer["layerid"],layerdefinition(layer)["geometry_property"]["name"],"%2C".join(["{} {}".format(coord[0],coord[1]) for coord in list(buff_polygon.exterior.coords)])),
+                            session_cookies
+                        )["features"]
+                    elif isinstance(geometry,Polygon):
+                        layer_features = retrieveFeatures(
+                            "{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&cql_filter=INTERSECTS({},POLYGON(({})))".format(layer["kmiservice"],layer["layerid"],layerdefinition(layer)["geometry_property"]["name"],"%2C".join(["{} {}".format(coord[0],coord[1]) for coord in list(geometry.exterior.coords)])),
+                            session_cookies
+                        )["features"]
+                    else:
+                        get_feature_data["failed"] = "Action '{}' Only support Point and Polygon geometry.".format(options["action"])
+                        break
+
+                elif options["action"] == "getClosestFeature":
+                    get_feature_data["feature"] = None
+                    layer_feature = None
+                    if not isinstance(geometry,Point):
+                        get_feature_data["failed"] = "Action '{}' Only support Point geometry.".format(options["action"])
+                        break
+                    #should get the grid data at the first try, if can't, set the grid data to null.
+                    for buff in layer["buffer"] if isinstance(layer["buffer"],(list,tuple)) else [layer["buffer"]]:
+                        buff_bbox = Polygon(buffer(geometry.x,geometry.y,buff)).bounds
+                        layer_features = retrieveFeatures(
+                            "{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&bbox={},{},{},{},urn:ogc:def:crs:EPSG:4326".format(layer["kmiservice"],layer["layerid"],buff_bbox[1],buff_bbox[0],buff_bbox[3],buff_bbox[2]),
+                            session_cookies
+                        )["features"]
+
+                        if len(layer_features) == 1:
+                            layer_feature = layer_features[0]
+                            break
+                        elif len(layer_features) > 1:   
+                            layer_feature = None
+                            minDistance = None
+                            for feat in layer_features:
+                                if layer_feature is None:
+                                    layer_feature = feat
+                                    minDistance = getDistance(geometry,shape(feat["geometry"]),p2_proj=layermetadata(layer).get('srs') or "EPSG:4326")
+                                else:
+                                    distance = getDistance(geometry,shape(feat["geometry"]),p2_proj=layermetadata(layer).get('srs') or "EPSG:4326")
+                                    if minDistance > distance:
+                                        minDistance = distance
+                                        layer_feature = feat
+                            break
+                    if layer_feature:
+                        layer_features = [layer_feature]
                 else:
-                    #raise Exception("Can't get the grid data of the point(<{},{}>) from layer ({}),please check the layer".format(geometry.x,geometry.y,layer["layerid"]))
-                    pass
-                break
+                    get_feature_data["failed"] = "Action '{}' Not Support".format(options["action"])
+                    break
+
+                if layer_features:
+                    if "feature" in get_feature_data and len(layer_features) > 1:
+                        get_feature_data["failed"] = "Found {1} features in layer '{0}' ".format(layer["layerid"],len(layer_features))
+                        break
+                    if layer_features:    
+                        get_feature_data["id"] = layer["id"]
+                        get_feature_data["layer"] = layer["layerid"]
+                        for layer_feature in layer_features:
+                            feat = {}
+                            if layer.get("properties"):
+                                for name,column in layer["properties"].iteritems():
+                                    feat[name] = layer_feature["properties"][column]
+                            else:
+                                for key,value in layer_feature["properties"].iteritems():
+                                    feat[key] = value
+                                    
+                            if options.get("format") == "geojson":
+                                #return geojson
+                                layer_feature["properties"] = feat
+                                feat = layer_feature
+                            if "feature" in get_feature_data:
+                                get_feature_data["feature"] = feat
+                            elif "features" in get_feature_data:
+                                if get_feature_data["features"]:
+                                    get_feature_data["features"].append(feat)
+                                else:
+                                    get_feature_data["features"] = [feat]
+
+                        break
 
         except:
             traceback.print_exc()
-            result["failed"] = "Failed to get grid data.{}".format(traceback.format_exception_only(sys.exc_type,sys.exc_value))
+            get_feature_data["failed"] = "{} from layers ({}) failed.{}".format(options["action"],layers,traceback.format_exception_only(sys.exc_type,sys.exc_value))
 
 def spatial():
     # needs gdal 1.10+
@@ -690,14 +713,13 @@ def spatial():
                 feature["geometry"] = shape(feature["geometry"])
             results.append({})
     
-        if "area" in options:
-            calculateArea(cookies,results,features,options["area"])
-
-        if "getFeature" in options:
-            getFeature(cookies,results,features,options["getFeature"])
-
-        if "grid" in options:
-            getGrid(cookies,results,features,options["grid"])
+        for key,val in options.iteritems():
+            if "action" not in val:
+                val["action"] = key
+            if val["action"] == "getArea":
+                calculateArea(cookies,results,key,features,val)
+            else:
+                getFeature(cookies,results,key,features,val)
 
         bottle.response.set_header("Content-Type", "application/json")
         return {"total_features":len(results),"features":results}

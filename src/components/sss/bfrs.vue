@@ -1398,7 +1398,7 @@
                                 features:vm.$root.geojson.writeFeatures([feat]),
                                 options:JSON.stringify({
                                     area: {
-                                        name:"area",
+                                        action:"getArea",
                                         layer_overlap:false,
                                         merge_result:true,
                                         unit:"ha",
