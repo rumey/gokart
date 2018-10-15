@@ -784,8 +784,7 @@ def download(fmt):
         #load data sources
         workdir = tempfile.mkdtemp()
 
-        session_cookie = settings.get_session_cookie()
-        cookies={settings.sso_cookie_name:session_cookie}
+        cookies = settings.get_session_cookie()
 
         loaddir = os.path.join(workdir,"load")
         os.mkdir(loaddir)

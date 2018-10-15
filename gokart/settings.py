@@ -40,17 +40,33 @@ def get_string(name,defaultValue=None):
     return os.environ.get(name,defaultValue)
 
 session_key_header = "X-Session-Key"
-sso_cookie_name = os.environ.get("SSO_COOKIE_NAME") or "dbca_wa_gov_au_sessionid"
+sso_cookie_names = dict([ name.split(':') for name in (os.environ.get("SSO_COOKIE_NAME") or ".dbca.wa.gov.au:dbca_wa_gov_au_sessionid,.dpaw.wa.gov.au:dpaw_wa_gov_au_sessionid").split(",") ])
+
+def get_request_domain():
+    return bottle.request.urlparts[1]
+
+def get_sso_cookie_name():
+    domain = get_request_domain()
+
+    try:
+        return sso_cookie_names[domain]
+    except:
+        for key,value in sso_cookie_names.iteritems():
+            if domain.endswith(key):
+                sso_cookie_names[domain] = value
+                return value
+
+        raise "Please configure sso cookie name for domain '{}'".format(domain)
+
 def get_session_cookie():
     """ 
     Get the session cookie from user request for sso
     if not found, return None
     """
     try:
-        #import ipdb;ipdb.set_trace()
         session_key = bottle.request.get_header(session_key_header)
         if session_key:
-            return session_key
+            return {get_sso_cookie_name():session_key}
         else:
             raise bottle.HTTPError(status=401)
     except:

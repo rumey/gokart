@@ -701,8 +701,7 @@ def spatial():
         else:
             options = {}
 
-        session_cookie = settings.get_session_cookie()
-        cookies={settings.sso_cookie_name:session_cookie}
+        cookies = settings.get_session_cookie()
         results = []
 
         features = features["features"] or []
