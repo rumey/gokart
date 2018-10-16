@@ -402,7 +402,6 @@ def calculateArea(session_cookies,results,result_key,features,options):
                         for handler in loghandlers:
                             handler.enable(False)
 
-                    intersections = extractPolygons(geometry.intersection(layer_geometry))
                     if not intersections:
                         continue
                     
