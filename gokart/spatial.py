@@ -111,12 +111,14 @@ class Loghandler(object):
                 instance(log,msg,*args,**kwargs)
             setattr(Logger,level,_handler)
             cls.instances[level] = instance
+        else:
+            instance = cls.instances[level]
         return instance
 
     @classmethod
     def instance(cls,level):
         if level in cls.instances:
-            return instance[level]
+            return cls.instances[level]
         else:
             return Loghandler(level)
 
@@ -389,6 +391,17 @@ def calculateArea(session_cookies,results,result_key,features,options):
                     layer_geometry = shape(layer_feature["geometry"])
                     if not isinstance(layer_geometry,Polygon) and not isinstance(layer_geometry,MultiPolygon):
                         continue
+                    try:
+                        for handler in loghandlers:
+                            handler.enable(True)
+                        intersections = extractPolygons(geometry.intersection(layer_geometry))
+                    except:
+                        msg = [message.strip() for handler in loghandlers if handler.messages for message in handler.messages]
+                        raise Exception(";".join(msg))
+                    finally:
+                        for handler in loghandlers:
+                            handler.enable(False)
+
                     intersections = extractPolygons(geometry.intersection(layer_geometry))
                     if not intersections:
                         continue
