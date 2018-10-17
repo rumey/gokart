@@ -19,14 +19,15 @@
             z-index:99999;
             position:absolute;
             right:20px;
-            top:8px;
+            top:3px;
             cursor:pointer;
         }
         #request_data {
-            z-index:99999;
+            z-index:99998;
             position:absolute;
-            right:40px;
-            top:5px;
+            right:13px;
+            padding-right:40px;
+            top:0px;
         }
         #request_data th {
             text-align:left;
@@ -93,9 +94,8 @@
   <body>
     <div id="forecast">
   {% endif %}
-
         <img id="request_data_toggle" src="/dist/static/images/hide.svg" onclick="toggleRequestData()">
-        <table id="request_data">
+        <table id="request_data" style="background-color:#036">
             <tr> 
                 <th >Position:</th>
                 <td colspan="3">
