@@ -195,7 +195,7 @@ def index(app):
         profile = _get_profile(app)
         if profile["dependents"]["vendorMD5"] != profile["build"]["vendorMD5"]:
             raise Exception("Application was built base on outdated vendor library, please build application again.")
-        return bottle.template('index.html', app=app,envType=settings.ENV_TYPE,profile=profile)
+        return bottle.template('index.html',template_adapter=bottle.Jinja2Template,template_settings=jinja2settings, app=app,envType=settings.ENV_TYPE,profile=profile,weatherforecast_url=settings.WEATHERFORECAST_URL)
     except:
         bottle.response.status = 400
         bottle.response.set_header("Content-Type","text/plain")
@@ -206,13 +206,20 @@ def index(app):
 def weatherforecast():
     #weather forecast
     try:
-        requestData = bottle.request.forms.get("data")
-        if requestData:
-            requestData = json.loads(requestData)
+        if settings.WEATHERFORECAST_URL:
+            requestData = bottle.request.forms.get("data")
+            if requestData:
+                requestData = json.loads(requestData)
+            else:
+                raise Exception("Request data are missing")
+            requestData["weatherforecast_url"] = settings.WEATHERFORECAST_URL
+            requestData["weatherforecast_user"] = settings.WEATHERFORECAST_USER
+            requestData["weatherforecast_password"] = settings.WEATHERFORECAST_PASSWORD
+            return bottle.template('weatherforecast.html',template_adapter=bottle.Jinja2Template,template_settings=jinja2settings,envType=settings.ENV_TYPE,request_time=datetime.datetime.now(settings.PERTH_TIMEZONE), **requestData)
         else:
-            raise Exception("Missing request data")
-        return bottle.template('weatherforecast.html',template_adapter=bottle.Jinja2Template,template_settings=jinja2settings,envType=settings.ENV_TYPE,request_time=datetime.datetime.now(settings.PERTH_TIMEZONE), **requestData)
-        
+            bottle.response.status = 404
+            bottle.response.set_header("Content-Type","text/plain")
+            return "Path '/weatherforecast' Not Found"
     except:
         bottle.response.status = 400
         bottle.response.set_header("Content-Type","text/plain")

@@ -26,6 +26,9 @@ DIST_PATH = os.path.join(os.path.dirname(BASE_PATH),"dist",DIST_TYPE)
 CHECK_OVERLAP_IF_CALCULATE_AREA_FAILED = (os.environ.get("CHECK_OVERLAP_IF_CALCULATE_AREA_FAILED") or "false").lower() in ["true","yes","on"]
 
 STATIC_SERVICE=os.environ.get("STATIC_SERVICE") or "https://static.dbca.wa.gov.au"
+WEATHERFORECAST_URL=os.environ.get("WEATHERFORECAST_URL") or ""
+WEATHERFORECAST_USER=os.environ.get("WEATHERFORECAST_USER") or None
+WEATHERFORECAST_PASSWORD=os.environ.get("WEATHERFORECAST_PASSWORD") or None
 
 PERTH_TIMEZONE = datetime.datetime.now(pytz.timezone('Australia/Perth')).tzinfo
 

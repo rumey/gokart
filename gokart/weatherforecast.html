@@ -68,10 +68,26 @@
             }
 
         }
+
+        function copy(elementId){
+            try{
+                var element = document.getElementById(elementId)
+                element.type="text"
+                element.select()
+                document.execCommand("copy")
+                if ('selectionStart' in element) {
+                    element.selectionEnd = element.selectionStart
+                }
+            } catch (ex) {
+                alert(ex)
+            } finally {
+                element.type="hidden"
+            }
+        }
     </script>
   </head>
   {%- if envType != "prod" -%}
-  <body style="background-image:url('/dist/static/images/for-testing.png')" onload="setHeight()">
+  <body style="background-image:url('/dist/static/images/weatherforecast-for-testing.png')" onload="setHeight()">
     <div id="forecast">
   {% else %}
   <body>
@@ -82,18 +98,39 @@
         <table id="request_data">
             <tr> 
                 <th >Position:</th>
-                <td >{{position}}</td>
+                <td colspan="3">
+                    {{position}} 
+                    {%- if False -%}
+                    <input type="hidden" id="position" name="position" value="{{position}}" >
+                    <button onclick="copy('position')" style="padding:0px">COPY</button></td>
+                    {% endif%}
             </tr>
             <tr> 
                 <th >Latitude:</th>
-                <td >{{point[1]}}</td>
+                <td colspan="3">
+                    {{point[1]}}
+                    {%- if False -%}
+                    <input type="hidden" id="latitude" name="latitude" value="{{point[1]}}" >
+                    <button onclick="copy('latitude')" style="padding:0px">COPY</button></td>
+                    {% endif%}
             </tr>
             <tr> 
                 <th >Longitude:</th>
-                <td >{{point[0]}}</td>
+                <td colspan="3">
+                    {{point[0]}} 
+                    {%- if False -%}
+                    <input type="hidden" id="longitude" name="longitude" value="{{point[0]}}" >
+                    <button onclick="copy('longitude')" style="padding:0px">COPY</button></td>
+                    {% endif%}
+            </tr>
+            <tr> 
+                <th >Username:</th>
+                <td ><input type="hidden" id="user" name="user" value="{{weatherforecast_user}}"> <button onclick="copy('user',true)" style="padding:0px">COPY</button></td>
+                <th style="text-align:right">Password:</th>
+                <td ><input type="hidden" id="password" name="password" value="{{weatherforecast_password}}"> <button onclick="copy('password',true)" style="padding:0px">COPY</button></td>
             </tr>
         </table>
-        <iframe src="{{forecast_url}}" id="forecast_form"></iframe>
+        <iframe src="{{weatherforecast_url}}" id="forecast_form"></iframe>
     </div>
   </body>
 </html>

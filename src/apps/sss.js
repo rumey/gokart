@@ -15,6 +15,13 @@ import tour from './sss-tour.js'
 import profile from './sss-profile.js'
 import gokartListener from './gokart-listener.js'
 
+//merge _env into env
+if (global._env) {
+    $.each(global._env,function(key,value){env[key] = value})
+
+    global._env = undefined
+}
+
 global.tour = tour
 //Return an environment dependent layer id
 global.getLayerId = function(id) {

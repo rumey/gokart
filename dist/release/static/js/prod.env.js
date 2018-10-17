@@ -11,7 +11,6 @@ var env = {
     resourceTrackingService:"https://resourcetracking.dpaw.wa.gov.au",
     bfrsService:"https://bfrs.dpaw.wa.gov.au",
     staticService:"https://static.dpaw.wa.gov.au",
-    weatherForecastUrl:"https://incidentweatherforecast.service.bom.gov.au",
 
     s3Service:"http://gokart.dpaw.io/",
 

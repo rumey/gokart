@@ -67,7 +67,11 @@
       map: function () { return this.$root.map },
       env: function () { return this.$root.env },
       components:function() {
-        return [this.$root.weatheroutlook,this.$root.weatherforecast,this.$root.featuredetail,this.$root.measure]
+        if (env.weatherForecastUrl) {
+            return [this.$root.weatheroutlook,this.$root.weatherforecast,this.$root.featuredetail,this.$root.measure]
+        } else {
+            return [this.$root.weatheroutlook,this.$root.featuredetail,this.$root.measure]
+        }
       },
       enabled:function() {
         return this.layers.length > 0

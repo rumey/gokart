@@ -11,7 +11,6 @@ var env = {
     resourceTrackingService:"https://resourcetracking-uat.dbca.wa.gov.au",
     bfrsService:"https://bfrs-uat.dbca.wa.gov.au",
     staticService:"https://static.dbca.wa.gov.au",
-    weatherForecastUrl:"https://incidentweatherforecast.service.bom.gov.au",
 
     s3Service:"http://gokart.dpaw.io/",
 
