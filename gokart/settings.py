@@ -9,7 +9,34 @@ import base64
 import json
 import osgeo
 import datetime
+import logging
+import logging.config
 
+logging.config.dictConfig({
+    "version":1,
+    "disable_existing_loggers":False,
+    "handlers":{
+        "default":{
+            "class":"logging.StreamHandler",
+            "level":"INFO"
+        },
+        "shapely_geos":{
+            "class":"gokart.loghandlers.MessageHandler",
+            "level":"INFO",
+            "name":"shapely.geos"
+        }
+    },
+    "loggers":{
+        "shapely.geos": {
+            "level":"INFO",
+            "handlers":["shapely_geos"]
+        }
+    },
+    "root":{
+        "level":"INFO",
+        "handlers":["default"]
+    }
+})
 
 dotenv.load_dotenv(dotenv.find_dotenv())
 

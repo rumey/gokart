@@ -15,11 +15,9 @@ from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.collection import GeometryCollection
 from shapely import ops
 from functools import partial
-from logging import Logger
 
 import settings
 import kmi
-
 
 proj_wgs84 = pyproj.Proj(init='epsg:4326')
 def buffer(lon, lat, meters):
@@ -95,65 +93,6 @@ def getDistance(p1,p2,unit="m",p1_proj="EPSG:4326",p2_proj="EPSG:4326"):
         return data / 1000.00 
     else:
         return data
-
-#extract error message from log
-#extract error message from log
-#for example: shapely is_valid will print error message in logger and return false to indicate the geometry is invalid; This class is used to extract the error message from log and return to client
-class Loghandler(object):
-    instances = {}
-    def __new__(cls,level):
-        if level not in cls.instances:
-            instance = super(Loghandler,cls).__new__(cls)
-            instance.originHandler = getattr(Logger,level)
-            instance.key = "_{}_".format(level)
-            instance.enabledKey = "_{}_enabled_".format(level)
-            def _handler(log,msg,*args,**kwargs):
-                instance(log,msg,*args,**kwargs)
-            setattr(Logger,level,_handler)
-            cls.instances[level] = instance
-        else:
-            instance = cls.instances[level]
-        return instance
-
-    @classmethod
-    def instance(cls,level):
-        if level in cls.instances:
-            return cls.instances[level]
-        else:
-            return Loghandler(level)
-
-    @property
-    def enabled(self):
-        return getattr(threading.currentThread(),self.enabledKey,False)
-
-    def __call__(self,log,msg,*args,**kwargs):
-        if self.enabled:
-            message = (msg % args) if args else msg
-            if getattr(threading.currentThread(),self.key,None):
-                getattr(threading.currentThread(),self.key).append(message)
-            else:
-                setattr(threading.currentThread(),self.key,[message])
-
-        self.originHandler(log,msg,*args,**kwargs)
-
-    @property
-    def messages(self):
-        if self.enabled:
-            return getattr(threading.currentThread(),self.key,None)
-        else:
-            return None
-
-    def enable(self,enable):
-        if enable:
-            setattr(threading.currentThread(),self.enabledKey,enable)
-        elif hasattr(threading.currentThread(),self.enabledKey):
-            delattr(threading.currentThread(),self.enabledKey)
-
-        if hasattr(threading.currentThread(),self.key):
-            delattr(threading.currentThread(),self.key)
-
-loghandlers = [Loghandler("critical"),Loghandler("error"),Loghandler("warning")]
-#loghandlers = [Loghandler("critical"),Loghandler("error")]
 
 #return polygon or multipolygons if have, otherwise return None
 def extractPolygons(geom):
@@ -345,15 +284,9 @@ def calculateArea(session_cookies,results,result_key,features,options):
 
         #before calculating area, check the polygon first.
         #if polygon is invalid, throw exception
-        try:
-            for handler in loghandlers:
-                handler.enable(True)
-            if not geometry.is_valid:
-                msg = [message.strip() for handler in loghandlers if handler.messages for message in handler.messages]
-                status["invalid"] = msg
-        finally:
-            for handler in loghandlers:
-                handler.enable(False)
+        valid,msg = geometry.check_valid
+        if not valid:
+            status["invalid"] = msg
 
         #status["invalid"] = ["invalid geometry"]
 
@@ -391,16 +324,7 @@ def calculateArea(session_cookies,results,result_key,features,options):
                     layer_geometry = shape(layer_feature["geometry"])
                     if not isinstance(layer_geometry,Polygon) and not isinstance(layer_geometry,MultiPolygon):
                         continue
-                    try:
-                        for handler in loghandlers:
-                            handler.enable(True)
-                        intersections = extractPolygons(geometry.intersection(layer_geometry))
-                    except:
-                        msg = [message.strip() for handler in loghandlers if handler.messages for message in handler.messages]
-                        raise Exception(";".join(msg))
-                    finally:
-                        for handler in loghandlers:
-                            handler.enable(False)
+                    intersections = extractPolygons(geometry.intersection(layer_geometry))
 
                     if not intersections:
                         continue

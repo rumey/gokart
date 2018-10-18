@@ -21,6 +21,7 @@ except:
     import Image
 
 import bottle
+import shapely_extension
 import settings
 
 import sys
