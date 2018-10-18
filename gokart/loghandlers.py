@@ -18,11 +18,23 @@ class MessageHandler(logging.Handler):
 
         self.INSTANCES[name] = self
 
+    @property
+    def started(self):
+        return hasattr(threading.currentThread(),self._name)
+
     def start(self):
-        if hasattr(threading.currentThread(),self._name):
-            del getattr(threading.currentThread(),self._name)[:]
-        else:
+        """
+        Start it if it is not started yet
+        """
+        if not hasattr(threading.currentThread(),self._name):
             setattr(threading.currentThread(),self._name,[])
+
+    def restart(self):
+        """
+        start it if it is not started yet; clean existing messages if it is already started.
+        """
+        setattr(threading.currentThread(),self._name,[])
+
 
     def stop(self):
         if hasattr(threading.currentThread(),self._name):

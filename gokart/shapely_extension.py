@@ -10,7 +10,7 @@ from shapely.geometry.collection import GeometryCollection
 logger = MessageHandler("shapely.geos")
 def check_valid(self):
     try:
-        logger.start()
+        logger.restart()
         result = self.is_valid
         if result:
             return (result,None)
@@ -23,8 +23,7 @@ def method_wrapper(cls,name):
     _original_method = getattr(cls,name)
     def _method(self,*args,**argv):
         try:
-            import ipdb;ipdb.set_trace()
-            logger.start()
+            logger.restart()
             return _original_method(self,*args,**argv)
         except Exception as ex:
             messages = logger.messages
