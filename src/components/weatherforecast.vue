@@ -16,7 +16,7 @@
       return {
         forecastTool:{},
         forecastTools:[
-            {toolid:"weather-forecast",title:"Weather Forecast",icon:"/dist/static/images/weather-forecast.svg"}
+            {toolid:"incident-weather-forecast",title:"Incident Weather Forecast",icon:"/dist/static/images/weather-forecast.svg"}
         ],
       }
 
