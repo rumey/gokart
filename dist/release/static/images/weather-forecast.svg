@@ -31,10 +31,10 @@
      id="namedview36"
      showgrid="false"
      inkscape:zoom="1.84375"
-     inkscape:cx="-150.96951"
-     inkscape:cy="100.88135"
+     inkscape:cx="207.59632"
+     inkscape:cy="99.796604"
      inkscape:window-x="3840"
-     inkscape:window-y="0"
+     inkscape:window-y="120"
      inkscape:window-maximized="1"
      inkscape:current-layer="svg2" /><g
      id="Layer_1"><rect
@@ -67,28 +67,15 @@
        y="47.728813" /></text>
 <text
      xml:space="preserve"
-     style="font-style:normal;font-weight:normal;font-size:15.62716293px;line-height:0%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;"
-     x="8.6141424"
-     y="71.83313"
-     id="text4152"
-     sodipodi:linespacing="0%"
-     transform="scale(0.67614501,1.4789727)"><tspan
-       sodipodi:role="line"
-       id="tspan4154"
-       x="8.6141424"
-       y="71.83313"
-       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:35.05172729px;font-family:sans-serif;-inkscape-font-specification:'sans-serif Bold';fill:#ffffff;">Forecast</tspan></text>
-<text
-     xml:space="preserve"
-     style="font-style:normal;font-weight:normal;font-size:15.05841064px;line-height:0%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;"
-     x="10.282485"
-     y="40.146435"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:90px;line-height:0%;font-family:sans-serif;-inkscape-font-specification:sans-serif;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;"
+     x="5.1248331"
+     y="79.332832"
      id="text4152-0"
      sodipodi:linespacing="0%"
-     transform="scale(0.70868528,1.4110636)"><tspan
+     transform="scale(0.71895858,1.3909007)"><tspan
        sodipodi:role="line"
        id="tspan4154-9"
-       x="10.282485"
-       y="40.146435"
-       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:33.77601624px;font-family:sans-serif;-inkscape-font-specification:'sans-serif Bold';fill:#ffffff;">Weather </tspan></text>
+       x="5.1248331"
+       y="79.332832"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:90px;font-family:sans-serif;-inkscape-font-specification:sans-serif;fill:#ffffff;">IWF </tspan></text>
 </svg>
