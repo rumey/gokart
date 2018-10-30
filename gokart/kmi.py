@@ -85,7 +85,7 @@ def get_layermetadata(layerids,kmiserver="https://kmi.dbca.wa.gov.au/geoserver",
             res = requests.get(
                 url,
                 verify=False,
-                cookies={settings.sso_cookie_name:session_cookie}
+                cookies=session_cookie
             )
             res.raise_for_status()
     
@@ -221,7 +221,7 @@ def get_layerdefinition(layerids,kmiserver="https://kmi.dbca.wa.gov.au/geoserver
             res = requests.get(
                 url,
                 verify=False,
-                cookies={settings.sso_cookie_name:session_cookie}
+                cookies=session_cookie
             )
             res.raise_for_status()
             layersdata = res.json()
@@ -271,7 +271,7 @@ def get_layerdefinition(layerids,kmiserver="https://kmi.dbca.wa.gov.au/geoserver
                         res = requests.get(
                             url,
                             verify=False,
-                            cookies={settings.sso_cookie_name:session_cookie}
+                            cookies=session_cookie
                         )
                         res.raise_for_status()
                         featuresdata = res.json()

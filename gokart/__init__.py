@@ -315,7 +315,7 @@ def getTimelineFromWmsLayer(current_timeline, layerIdFunc):
     try:
         # import ipdb;ipdb.set_trace()
         localfile = tempfile.NamedTemporaryFile(mode='w+b', delete=False, prefix=basetimeLayer.replace(":", "_"), suffix=".gif").name
-        subprocess.check_call(["curl", "-G", "--cookie", "{}={}".format(settings.sso_cookie_name, settings.get_session_cookie()), basetime_url.format(basetimeLayer), "--output", localfile])
+        subprocess.check_call(["curl", "-G", "--cookie", settings.get_session_cookie(template="{0}={1}"), basetime_url.format(basetimeLayer), "--output", localfile])
         md5 = settings.get_file_md5(localfile)
         if current_timeline and current_timeline["md5"] == md5:
             return current_timeline

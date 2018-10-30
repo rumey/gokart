@@ -88,15 +88,19 @@ def get_sso_cookie_name():
 
         raise "Please configure sso cookie name for domain '{}'".format(domain)
 
-def get_session_cookie():
+def get_session_cookie(template=None):
     """ 
     Get the session cookie from user request for sso
-    if not found, return None
+    if not found, raise 401
+    template: cookie string template which has two parameters. 0: cookie  name 1:cookie value; if template is None, return dict object (key is cookie name, value is cookie value)
     """
     try:
         session_key = bottle.request.get_header(session_key_header)
         if session_key:
-            return {get_sso_cookie_name():session_key}
+            if template:
+                return template.format(get_sso_cookie_name(),session_key)
+            else:
+                return {get_sso_cookie_name():session_key}
         else:
             raise bottle.HTTPError(status=401)
     except:
