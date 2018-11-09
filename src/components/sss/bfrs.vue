@@ -2421,6 +2421,7 @@
                     }
                 })
 
+                targetFeatureFound = false
                 for(var i = features.length - 1;i >= 0;i--) {
                     feature = features[i]
                     if (targetFeature && (feature.get('fire_number') === undefined || feature.get('fire_number') === null)) {
@@ -2432,7 +2433,9 @@
                         features.splice(i,1)
                         featureImported(utils.IGNORED)
                         continue
-                    } 
+                    }  else {
+                        targetFeatureFound = true
+                    }
                     if (feature.getGeometry() instanceof ol.geom.Point) {
                         if (uploadType === "fireboundary") {
                             featureImported(utils.IGNORED)
@@ -2470,7 +2473,11 @@
             }
             if (features && features.length == 0) {
                 if (targetFeature) {
-                    import_task.setStatus(utils.WARNING,"Bushfire(" + targetFeature.get('fire_number') + ") not found")
+                    if (targetFeatureFound) {
+                        import_task.setStatus(utils.WARNING,"No suitable spataial data for Bushfire(" + targetFeature.get('fire_number') + ") in uploaded file.")
+                    } else {
+                        import_task.setStatus(utils.WARNING,"Bushfire(" + targetFeature.get('fire_number') + ") not found")
+                    }
                     vm._taskManager.clearTasks(targetFeature)
                 } else {
                     alert("No bushfire to import")
