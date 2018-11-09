@@ -343,6 +343,13 @@ def getTimelineFromWmsLayer(current_timeline, layerIdFunc):
                 layerId = layerIdFunc(i, layerTimespan)
                 layers.append([layertime.strftime("%a %b %d %Y %H:%M:%S AWST"), layerId, None])
             return {"refreshtime": datetime.datetime.now().strftime("%a %b %d %Y %H:%M:%S"), "layers": layers, "md5": md5, "updatetime": basetime.strftime("%a %b %d %Y %H:%M:%S AWST")}
+    except:
+        traceback.print_exc()
+        if localfile:
+            #keep the file in tmp folder if failed
+            print("Can't extract base time from file '{}'".format(localfile))
+            localfile = None
+        raise
     finally:
         if localfile:
             os.remove(localfile)
