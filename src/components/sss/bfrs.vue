@@ -2433,7 +2433,7 @@
                         features.splice(i,1)
                         featureImported(utils.IGNORED)
                         continue
-                    }  else {
+                    }  else if (targetOnly){
                         targetFeatureFound = true
                     }
                     if (feature.getGeometry() instanceof ol.geom.Point) {
