@@ -1,4 +1,5 @@
 import bottle
+import os
 import sys
 import requests
 import json
@@ -7,12 +8,15 @@ import traceback
 import threading
 import math
 import pyproj
-from shapely.ops import transform
+from datetime import datetime
+from multiprocessing import Process,Pipe
 
+from shapely.ops import transform
 from shapely.geometry import shape,MultiPoint,Point
 from shapely.geometry.polygon import Polygon
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.collection import GeometryCollection
+from shapely.geometry.base import BaseGeometry
 from shapely import ops
 from functools import partial
 
@@ -33,6 +37,11 @@ def buffer(lon, lat, meters):
     buf = Point(0, 0).buffer(meters)  # distance in metres
     return transform(project, buf).exterior.coords[:]
 
+def getShapelyGeometry(feature):
+    if feature["geometry"]["type"] == "GeometryCollection":
+        return GeometryCollection([shape(g) for g in feature["geometry"]["geometries"]])
+    else:
+        return shape(feature["geometry"])
 
 def getGeometryArea(geometry,unit,init_proj="EPSG:4326"):
     """
@@ -164,74 +173,89 @@ def retrieveFeatures(url,session_cookies):
         res.raise_for_status()
         return res.json()
 
-def checkOverlap(session_cookies,feature,options):
+def checkOverlap(session_cookies,feature,options,logfile):
     # needs gdal 1.10+
     layers = options["layers"]
 
-    geometry = extractPolygons(feature["geometry"])
+    geometry = extractPolygons(getShapelyGeometry(feature))
 
     if not geometry :
         return
     
     features = {}
-    overlaps = []
     #retrieve all related features from layers
     for layer in layers:
         features[layer["id"]] = retrieveFeatures(
-            "{}&outputFormat=json&bbox={},{},{},{}".format(layer["url"],geometry.bounds[1],geometry.bounds[0],geometry.bounds[3],geometry.bounds[2]),
+            "{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&bbox={},{},{},{}".format(layer["kmiservice"],layer["layerid"],geometry.bounds[1],geometry.bounds[0],geometry.bounds[3],geometry.bounds[2]),
             session_cookies
         )["features"]
 
         for layer_feature in features[layer["id"]]:
-            layer_geometry = shape(layer_feature["geometry"])
-            layer_feature["layer_id"] = layer["id"]
+            layer_geometry = getShapelyGeometry(layer_feature)
             layer_feature["geometry"] = layer_geometry
 
     #check whether the features from different layers are overlap or not
     layergroup_index1 = 0
     while layergroup_index1 < len(layers) - 1:
         layer1 = layers[layergroup_index1]
+        layergroup_index1 += 1
         layer_features1 = features[layer1["id"]]
 
         #check whether layer's features are overlap or not.
         feature_index1 = 0
         while feature_index1 < len(layer_features1):
             feature1 = layer_features1[feature_index1]
+            feature_index1 += 1
             feature_geometry1 = feature1["geometry"]
             if not isinstance(feature_geometry1,Polygon) and not isinstance(feature_geometry1,MultiPolygon):
-                feature_index1 += 1
                 continue
 
-            layergroup_index2 = layergroup_index1 + 1
+            layergroup_index2 = layergroup_index1
             while layergroup_index2 < len(layers):
                 layer2 = layers[layergroup_index2]
+                layergroup_index2 += 1
                 layer_features2 = features[layer2["id"]]
                 feature_index2 = 0
 
                 while feature_index2 < len(layer_features2):
                     feature2 = layer_features2[feature_index2]
+                    feature_index2 += 1
                     feature_geometry2 = feature2["geometry"]
                     feature_geometry1 = feature1["geometry"]
                     if not isinstance(feature_geometry2,Polygon) and not isinstance(feature_geometry2,MultiPolygon):
-                        feature_index2 += 1
                         continue
                     intersections = extractPolygons(feature_geometry1.intersection(feature_geometry2))
                     if not intersections:
-                        feature_index2 += 1
                         continue
 
-                    overlaps.append((feature1,feature2,intersections))
+                    layer1_pk = layer1.get("primary_key")
+                    layer2_pk = layer2.get("primary_key")
 
-                    feature_index2 += 1
-                layergroup_index2 += 1
-            feature_index1 += 1
-        layergroup_index1 += 1
-    return overlaps
+                    if layer1_pk:
+                        if isinstance(layer1_pk,basestring):
+                            feat1 = "{}({}={})".format(layer1["layerid"],layer1_pk,feature1["properties"][layer1_pk])
+                        else:
+                            feat1 = "{}({})".format(layer1["layerid"],", ".join(["{}={}".format(k,v) for k,v in feature1["properties"].iteritems() if k in layer1_pk ]))
+                    else:
+                        feat1 = "{}({})".format(layer1["layerid"],json.dumps(feature1["properties"]))
+
+                    if layer2_pk:
+                        if isinstance(layer2_pk,basestring):
+                            feat2 = "{}({}={})".format(layer2["layerid"],layer2_pk,feature2["properties"][layer2_pk])
+                        else:
+                            feat2 = "{}({})".format(layer2["layerid"],", ".join(["{}={}".format(k,v) for k,v in feature2["properties"].iteritems() if k in layer2_pk ]))
+                    else:
+                        feat2 = "{}({})".format(layer2["layerid"],json.dumps(feature2["properties"]))
+
+                    msg = "intersect({}, {}) = {} ".format( feat1,feat2, intersections )
+                    with open(logfile,"a") as f:
+                        f.write(msg)
+                        f.write("\n")
                 
 
-def calculateArea(session_cookies,results,result_key,features,options):
+def calculateArea(feature,session_cookies,options):
     """
-    feature area data:{
+    return:{
         status {
              "invalid" : invalid message; 
              "failed" : failed message; 
@@ -254,171 +278,158 @@ def calculateArea(session_cookies,results,result_key,features,options):
         }
     }
     """
+    parent_conn,child_conn = Pipe(True)
+    p = Process(target=calculateAreaInProcess,args=(child_conn,))
+    p.daemon = True
+    p.start()
+    parent_conn.send([feature,session_cookies,options])
+    result = parent_conn.recv()
+    parent_conn.close()
+    #p.join()
+    #print("{}:get the area result from other process".format(datetime.now()))
+    return result
+
+
+def calculateAreaInProcess(conn):
+    feature,session_cookies,options = conn.recv()
+    result = _calculateArea(feature,session_cookies,options,True)
+    if "overlap_logfile" in result:
+        overlapLogfile = result["overlap_logfile"]
+        del result["overlap_logfile"]
+    else:
+        overlapLogfile = None
+    conn.send(result)
+    conn.close()
+    #print("{}:Calculating area finiahed".format(datetime.now()))
+    #import time
+    #time.sleep(30)
+    #if overlapLogfile:
+    #    try:
+    #        if os.path.exists(overlapLogfile):
+    #            os.remove(overlapLogfile)
+    #    except:
+    #        pass
+    #    checkOverlap(session_cookies,feature,options,overlapLogfile)
+    #print("{}:subprocess finished".format(datetime.now()))
+
+def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
     # needs gdal 1.10+
     layers = options["layers"]
     unit = options["unit"] or "ha"
     overlap = options["layer_overlap"] or False
     merge_result = options.get("merge_result",False)
 
+    area_data = {}
+    status = {}
+    result = {"status":status,"data":area_data}
+
     total_area = 0
     total_layer_area = 0
-    geometry = None
-    index = 0
+
+    geometry = extractPolygons(getShapelyGeometry(feature))
+
+    if not geometry :
+        area_data["total_area"] = 0
+        return result
+
+    #before calculating area, check the polygon first.
+    #if polygon is invalid, throw exception
+    valid,msg = geometry.check_valid
+    if not valid:
+        status["invalid"] = msg
+
+    try:
+        area_data["total_area"] = getGeometryArea(geometry,unit)
+    except:
+        traceback.print_exc()
+        if "invalid" in status:
+            status["failed"] = "Calculate total area failed.{}".format("\r\n".join(status["invalid"]))
+        else:
+            status["failed"] = "Calculate total area failed.{}".format(traceback.format_exception_only(sys.exc_type,sys.exc_value))
+
+        return result
+
+    if not layers:
+        return result
+
+    area_data["layers"] = {}
 
     areas_map = {} if merge_result else None
-    area_key = None
-    while index < len(features):
-        feature = features[index]
-        
-        area_data = {}
-        status = {}
-        result = {"status":status,"data":area_data}
-        results[index][result_key] = result
-        total_area = 0
-        index += 1
-        geometry = extractPolygons(feature["geometry"])
-
-        if not geometry :
-            area_data["total_area"] = 0
-            continue
-
-        #before calculating area, check the polygon first.
-        #if polygon is invalid, throw exception
-        valid,msg = geometry.check_valid
-        if not valid:
-            status["invalid"] = msg
-
-        #status["invalid"] = ["invalid geometry"]
-
+    for layer in layers:
         try:
-            area_data["total_area"] = getGeometryArea(geometry,unit)
+            layer_area_data = []
+            total_layer_area = 0
+            area_data["layers"][layer["id"]] = {"areas":layer_area_data}
+    
+            layer_features = retrieveFeatures(
+                "{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&bbox={},{},{},{}".format(layer["kmiservice"],layer["layerid"],geometry.bounds[1],geometry.bounds[0],geometry.bounds[3],geometry.bounds[2]),
+                session_cookies
+            )["features"]
+
+            for layer_feature in layer_features:
+                layer_geometry = getShapelyGeometry(layer_feature)
+                if not isinstance(layer_geometry,Polygon) and not isinstance(layer_geometry,MultiPolygon):
+                    continue
+                intersections = extractPolygons(geometry.intersection(layer_geometry))
+
+                if not intersections:
+                    continue
+                
+                layer_feature_area_data = None
+                #try to get the area data from map
+                if merge_result:
+                    area_key = []
+                    for key,value in layer["properties"].iteritems():
+                        area_key.append(layer_feature["properties"][value])
+                    
+                    area_key = tuple(area_key)
+                    layer_feature_area_data = areas_map.get(area_key)
+
+                if not layer_feature_area_data:
+                     #map is not enabled,or data does not exist in map,create a new one
+                    layer_feature_area_data = {"area":0}
+                    for key,value in layer["properties"].iteritems():
+                        layer_feature_area_data[key] = layer_feature["properties"][value]
+                    layer_area_data.append(layer_feature_area_data)
+
+                    if merge_result:
+                        #save it into map
+                        areas_map[area_key] = layer_feature_area_data
+
+                feature_area = getGeometryArea(intersections,unit)
+                layer_feature_area_data["area"] += feature_area
+                total_layer_area  += feature_area
+
+            area_data["layers"][layer["id"]]["total_area"] = total_layer_area
+            total_area += total_layer_area
+            if not overlap and total_area >= area_data["total_area"] :
+                break
+        
         except:
             traceback.print_exc()
-            if "invalid" in status:
-                status["failed"] = "Calculate total area failed.{}".format("\r\n".join(status["invalid"]))
+            status["failed"] = "Calculate intersection area between fire boundary and layer '{}' failed.{}".format(layer["layerid"] or layer["id"],traceback.format_exception_only(sys.exc_type,sys.exc_value))
+
+            break
+
+    if "failed" in status:
+        #calcuating area failed
+        return result
+
+    if not overlap :
+        area_data["other_area"] = area_data["total_area"] - total_area
+        if area_data["other_area"] < -0.01: #tiny difference is allowed.
+            #some layers are overlap
+            if not settings.CHECK_OVERLAP_IF_CALCULATE_AREA_FAILED:
+                status["overlapped"] = "The sum({0}) of the burning areas in individual layers are ({2}) greater than the total burning area({1}).\r\n The features from layers({3}) are overlaped, please check.".format(round(total_area,2),round(area_data["total_area"],2),round(math.fabs(area_data["other_area"]),2),", ".join([layer["id"] for layer in layers]))
             else:
-                status["failed"] = "Calculate total area failed.{}".format(traceback.format_exception_only(sys.exc_type,sys.exc_value))
-
-            continue
-
-        if not layers:
-            continue
-
-        area_data["layers"] = {}
-
-        for layer in layers:
-            if merge_result:
-                areas_map.clear()
-
-            try:
-                layer_area_data = []
-                total_layer_area = 0
-                area_data["layers"][layer["id"]] = {"areas":layer_area_data}
-    
-                layer_features = retrieveFeatures(
-                    "{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&bbox={},{},{},{}".format(layer["kmiservice"],layer["layerid"],geometry.bounds[1],geometry.bounds[0],geometry.bounds[3],geometry.bounds[2]),
-                    session_cookies
-                )["features"]
-    
-                for layer_feature in layer_features:
-                    layer_geometry = shape(layer_feature["geometry"])
-                    if not isinstance(layer_geometry,Polygon) and not isinstance(layer_geometry,MultiPolygon):
-                        continue
-                    intersections = extractPolygons(geometry.intersection(layer_geometry))
-
-                    if not intersections:
-                        continue
-                    
-                    layer_feature_area_data = None
-                    #try to get the area data from map
-                    if merge_result:
-                        area_key = []
-                        for key,value in layer["properties"].iteritems():
-                            area_key.append(layer_feature["properties"][value])
-                        
-                        area_key = tuple(area_key)
-                        layer_feature_area_data = areas_map.get(area_key)
-
-                    if not layer_feature_area_data:
-                         #map is not enabled,or data does not exist in map,create a new one
-                        layer_feature_area_data = {"area":0}
-                        for key,value in layer["properties"].iteritems():
-                            layer_feature_area_data[key] = layer_feature["properties"][value]
-                        layer_area_data.append(layer_feature_area_data)
-
-                        if merge_result:
-                            #save it into map
-                            areas_map[area_key] = layer_feature_area_data
-
-                    feature_area = getGeometryArea(intersections,unit)
-                    layer_feature_area_data["area"] += feature_area
-                    total_layer_area  += feature_area
-    
-                area_data["layers"][layer["id"]]["total_area"] = total_layer_area
-                total_area += total_layer_area
-                if not overlap and total_area >= area_data["total_area"] :
-                    break
-            
-            except:
-                traceback.print_exc()
-                status["failed"] = "Calculate intersection area between fire boundary and layer '{}' failed.{}".format(layer["layerid"] or layer["id"],traceback.format_exception_only(sys.exc_type,sys.exc_value))
-
-                break
-
-        if "failed" in status:
-            #calcuating area failed
-            continue
-    
-        if not overlap :
-            area_data["other_area"] = area_data["total_area"] - total_area
-            if area_data["other_area"] < -0.01: #tiny difference is allowed.
-                #some layers are overlap
-                if not settings.CHECK_OVERLAP_IF_CALCULATE_AREA_FAILED:
-                    status["overlapped"] = "The sum({0}) of the burning areas in individual layers are ({2}) greater than the total burning area({1}).\r\n The features from layers({3}) are overlaped, please check.".format(round(total_area,2),round(area_data["total_area"],2),round(math.fabs(area_data["other_area"]),2),", ".join([layer["id"] for layer in layers]))
-                    continue
+                filename = "/tmp/overlap_{}.log".format(feature["properties"].get("id","feature"))
+                status["overlapped"] = "Features from layers are overlaped,please check the log file in server side '{}'".format(filename)
+                if run_in_other_process:
+                    result["overlap_logfile"] = filename
                 else:
-                    overlaps = checkOverlap(session_cookies,feature,options)
-                    if overlaps:
-                        msg = []
-                        for overlap in overlaps:
-                            #try to get the primary key from options
-                            layer1_id = overlap[0]["layer_id"]
-                            layer2_id = overlap[1]["layer_id"]
-                            layer1 = None
-                            for layer in layers:
-                                if layer["id"] == layer1_id:
-                                    layer1 = layer
-                                    break
+                    checkOverlap(session_cookies,feature,options,filename)
 
-                            for layer in layers:
-                                if layer["id"] == layer2_id:
-                                    layer2 = layer
-                                    break
-
-                            layer1_pk = layer1.get("primary_key")
-                            layer2_pk = layer2.get("primary_key")
-
-                            if layer1_pk:
-                                if isinstance(layer1_pk,basestring):
-                                    feature1 = "{}({}={})".format(layer1_id,layer1_pk,overlap[0]["properties"][layer1_pk])
-                                else:
-                                    feature1 = "{}()".format(layer1_id,", ".join(["{}={}".format(k,v) for k,v in overlap[0]["properties"].iteritems() if k in layer1_pk ]))
-                            else:
-                                feature1 = "{}({})".format(layer1_id,json.dumps(overlap[0]["properties"]))
-
-                            if layer2_pk:
-                                if isinstance(layer2_pk,basestring):
-                                    feature2 = "{}({}={})".format(layer2_id,layer2_pk,overlap[1]["properties"][layer2_pk])
-                                else:
-                                    feature2 = "{}()".format(layer2_id,", ".join(["{}={}".format(k,v) for k,v in overlap[1]["properties"].iteritems() if k in layer2_pk ]))
-                            else:
-                                feature2 = "{}({})".format(layer2_id,json.dumps(overlap[1]["properties"]))
-
-                            msg.append("intersect({}, {}) = {} ".format( feature1,feature2, overlap[2] ))
-                        with open("/tmp/overlap_{}.log".format(feature["properties"].get("id","feature")),"w") as f:
-                            f.write("\n".join(msg))
-                        status["overlapped"] = "Features from layers are overlaped.\r\n{}".format("\r\n".join(msg))
-                        continue
+    return result
 
 def layermetadata(layer):
     if not layer.get("_layermetadata"):
@@ -443,9 +454,8 @@ def layerdefinition(layer):
     return layerdefinition
     
 
-def getFeature(session_cookies,results,result_key,features,options):
+def getFeature(feature,session_cookies,options):
     """
-    result_key: the key to put the result in results
     options:{
         format: properties or geojson//optional default is properties
         action: getFeature or getIntersectedFeatures or getClosestFeature
@@ -495,137 +505,133 @@ def getFeature(session_cookies,results,result_key,features,options):
         if not layer.get("kmiservice"):
             layer["kmiservice"] = "https://kmi.dbca.wa.gov.au/geoserver"
 
-    index = 0
-    while index < len(features):
-        feature = features[index]
-        get_feature_data = {"id":None,"layer":None,"failed":None}
-        results[index][result_key] = get_feature_data
-        index += 1
+    get_feature_data = {"id":None,"layer":None,"failed":None}
 
-        geometry = feature["geometry"]
+    geometry = getShapelyGeometry(feature)
 
-        try:
-            for layer in layers:
-                if not layer or not layer.get("kmiservice") or not layer["buffer"] or not layer["layerid"]:
-                    continue
+    try:
+        for layer in layers:
+            if not layer or not layer.get("kmiservice") or not layer["buffer"] or not layer["layerid"]:
+                continue
 
-                if layer.get('check_bbox'):
-                    #check whether feature is in layer's bbox
-                    layer_bbox = layermetadata(layer).get("latlonBoundingBox_EPSG:4326") or layermetadata(layer).get("latlonBoundingBox")
-                    if not layer_bbox:
-                        get_feature_data["failed"] = "Can't find layer({})'s bounding box for epsg:4326".format(layer["layerid"])
-                        break
-
-                    if geometry.x < layer_bbox[1] or geometry.x > layer_bbox[3] or geometry.y < layer_bbox[0] or geometry.y > layer_bbox[2]:
-                        #not in this layer's bounding box
-                        continue
-
-                if options["action"] == "getFeature":
-                    get_feature_data["feature"] = None
-
-                    if isinstance(geometry,Point):
-                        if layerdefinition(layer)["geometry_type"] in ["point",'multipoint']:
-                            get_feature_data["failed"] = "The {1} layer '{0}' doesn't support action '{2}'. ".format(layer["layerid"],layerdefinition(layer)["geometry_property"]["localType"],options["action"])
-                            break
-                        else:
-                            #polygon or line
-                            layer_features = retrieveFeatures(
-                                "{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&cql_filter=CONTAINS({},POINT({} {}))".format(layer["kmiservice"],layer["layerid"],layerdefinition(layer)["geometry_property"]["name"],geometry.x,geometry.y),
-                                session_cookies
-                            )["features"]
-
-                    else:
-                        get_feature_data["failed"] = "Action '{}' Only support Point geometry.".format(options["action"])
-                        break
-                elif options["action"] == "getIntersectedFeatures":
-                    get_feature_data["features"] = None
-                    if isinstance(geometry,Point):
-                        if not layer.get("buff"):
-                            get_feature_data["failed"] = "'buff' is missing in layer '{}'".format(layer["id"])
-                            break
-                        buff_polygon = Polygon(buffer(geometry.x,geometry.y,layer["buff"]))
-                        layer_features = retrieveFeatures(
-                            "{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&cql_filter=INTERSECTS({},POLYGON(({})))".format(layer["kmiservice"],layer["layerid"],layerdefinition(layer)["geometry_property"]["name"],"%2C".join(["{} {}".format(coord[0],coord[1]) for coord in list(buff_polygon.exterior.coords)])),
-                            session_cookies
-                        )["features"]
-                    elif isinstance(geometry,Polygon):
-                        layer_features = retrieveFeatures(
-                            "{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&cql_filter=INTERSECTS({},POLYGON(({})))".format(layer["kmiservice"],layer["layerid"],layerdefinition(layer)["geometry_property"]["name"],"%2C".join(["{} {}".format(coord[0],coord[1]) for coord in list(geometry.exterior.coords)])),
-                            session_cookies
-                        )["features"]
-                    else:
-                        get_feature_data["failed"] = "Action '{}' Only support Point and Polygon geometry.".format(options["action"])
-                        break
-
-                elif options["action"] == "getClosestFeature":
-                    get_feature_data["feature"] = None
-                    layer_feature = None
-                    if not isinstance(geometry,Point):
-                        get_feature_data["failed"] = "Action '{}' Only support Point geometry.".format(options["action"])
-                        break
-                    #should get the grid data at the first try, if can't, set the grid data to null.
-                    for buff in layer["buffer"] if isinstance(layer["buffer"],(list,tuple)) else [layer["buffer"]]:
-                        buff_bbox = Polygon(buffer(geometry.x,geometry.y,buff)).bounds
-                        layer_features = retrieveFeatures(
-                            "{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&bbox={},{},{},{},urn:ogc:def:crs:EPSG:4326".format(layer["kmiservice"],layer["layerid"],buff_bbox[1],buff_bbox[0],buff_bbox[3],buff_bbox[2]),
-                            session_cookies
-                        )["features"]
-
-                        if len(layer_features) == 1:
-                            layer_feature = layer_features[0]
-                            break
-                        elif len(layer_features) > 1:   
-                            layer_feature = None
-                            minDistance = None
-                            for feat in layer_features:
-                                if layer_feature is None:
-                                    layer_feature = feat
-                                    minDistance = getDistance(geometry,shape(feat["geometry"]),p2_proj=layermetadata(layer).get('srs') or "EPSG:4326")
-                                else:
-                                    distance = getDistance(geometry,shape(feat["geometry"]),p2_proj=layermetadata(layer).get('srs') or "EPSG:4326")
-                                    if minDistance > distance:
-                                        minDistance = distance
-                                        layer_feature = feat
-                            break
-                    if layer_feature:
-                        layer_features = [layer_feature]
-                else:
-                    get_feature_data["failed"] = "Action '{}' Not Support".format(options["action"])
+            if layer.get('check_bbox'):
+                #check whether feature is in layer's bbox
+                layer_bbox = layermetadata(layer).get("latlonBoundingBox_EPSG:4326") or layermetadata(layer).get("latlonBoundingBox")
+                if not layer_bbox:
+                    get_feature_data["failed"] = "Can't find layer({})'s bounding box for epsg:4326".format(layer["layerid"])
                     break
 
-                if layer_features:
-                    if "feature" in get_feature_data and len(layer_features) > 1:
-                        get_feature_data["failed"] = "Found {1} features in layer '{0}' ".format(layer["layerid"],len(layer_features))
+                if geometry.x < layer_bbox[1] or geometry.x > layer_bbox[3] or geometry.y < layer_bbox[0] or geometry.y > layer_bbox[2]:
+                    #not in this layer's bounding box
+                    continue
+
+            if options["action"] == "getFeature":
+                get_feature_data["feature"] = None
+
+                if isinstance(geometry,Point):
+                    if layerdefinition(layer)["geometry_type"] in ["point",'multipoint']:
+                        get_feature_data["failed"] = "The {1} layer '{0}' doesn't support action '{2}'. ".format(layer["layerid"],layerdefinition(layer)["geometry_property"]["localType"],options["action"])
                         break
-                    if layer_features:    
-                        get_feature_data["id"] = layer["id"]
-                        get_feature_data["layer"] = layer["layerid"]
-                        for layer_feature in layer_features:
-                            feat = {}
-                            if layer.get("properties"):
-                                for name,column in layer["properties"].iteritems():
-                                    feat[name] = layer_feature["properties"][column]
+                    else:
+                        #polygon or line
+                        layer_features = retrieveFeatures(
+                            "{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&cql_filter=CONTAINS({},POINT({} {}))".format(layer["kmiservice"],layer["layerid"],layerdefinition(layer)["geometry_property"]["name"],geometry.x,geometry.y),
+                            session_cookies
+                        )["features"]
+
+                else:
+                    get_feature_data["failed"] = "Action '{}' Only support Point geometry.".format(options["action"])
+                    break
+            elif options["action"] == "getIntersectedFeatures":
+                get_feature_data["features"] = None
+                if isinstance(geometry,Point):
+                    if not layer.get("buff"):
+                        get_feature_data["failed"] = "'buff' is missing in layer '{}'".format(layer["id"])
+                        break
+                    buff_polygon = Polygon(buffer(geometry.x,geometry.y,layer["buff"]))
+                    layer_features = retrieveFeatures(
+                        "{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&cql_filter=INTERSECTS({},POLYGON(({})))".format(layer["kmiservice"],layer["layerid"],layerdefinition(layer)["geometry_property"]["name"],"%2C".join(["{} {}".format(coord[0],coord[1]) for coord in list(buff_polygon.exterior.coords)])),
+                        session_cookies
+                    )["features"]
+                elif isinstance(geometry,Polygon):
+                    layer_features = retrieveFeatures(
+                        "{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&cql_filter=INTERSECTS({},POLYGON(({})))".format(layer["kmiservice"],layer["layerid"],layerdefinition(layer)["geometry_property"]["name"],"%2C".join(["{} {}".format(coord[0],coord[1]) for coord in list(geometry.exterior.coords)])),
+                        session_cookies
+                    )["features"]
+                else:
+                    get_feature_data["failed"] = "Action '{}' Only support Point and Polygon geometry.".format(options["action"])
+                    break
+
+            elif options["action"] == "getClosestFeature":
+                get_feature_data["feature"] = None
+                layer_feature = None
+                if not isinstance(geometry,Point):
+                    get_feature_data["failed"] = "Action '{}' Only support Point geometry.".format(options["action"])
+                    break
+                #should get the grid data at the first try, if can't, set the grid data to null.
+                for buff in layer["buffer"] if isinstance(layer["buffer"],(list,tuple)) else [layer["buffer"]]:
+                    buff_bbox = Polygon(buffer(geometry.x,geometry.y,buff)).bounds
+                    layer_features = retrieveFeatures(
+                        "{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&bbox={},{},{},{},urn:ogc:def:crs:EPSG:4326".format(layer["kmiservice"],layer["layerid"],buff_bbox[1],buff_bbox[0],buff_bbox[3],buff_bbox[2]),
+                        session_cookies
+                    )["features"]
+
+                    if len(layer_features) == 1:
+                        layer_feature = layer_features[0]
+                        break
+                    elif len(layer_features) > 1:   
+                        layer_feature = None
+                        minDistance = None
+                        for feat in layer_features:
+                            if layer_feature is None:
+                                layer_feature = feat
+                                minDistance = getDistance(geometry,shape(feat["geometry"]),p2_proj=layermetadata(layer).get('srs') or "EPSG:4326")
                             else:
-                                for key,value in layer_feature["properties"].iteritems():
-                                    feat[key] = value
-                                    
-                            if options.get("format") == "geojson":
-                                #return geojson
-                                layer_feature["properties"] = feat
-                                feat = layer_feature
-                            if "feature" in get_feature_data:
-                                get_feature_data["feature"] = feat
-                            elif "features" in get_feature_data:
-                                if get_feature_data["features"]:
-                                    get_feature_data["features"].append(feat)
-                                else:
-                                    get_feature_data["features"] = [feat]
-
+                                distance = getDistance(geometry,shape(feat["geometry"]),p2_proj=layermetadata(layer).get('srs') or "EPSG:4326")
+                                if minDistance > distance:
+                                    minDistance = distance
+                                    layer_feature = feat
                         break
+                if layer_feature:
+                    layer_features = [layer_feature]
+            else:
+                get_feature_data["failed"] = "Action '{}' Not Support".format(options["action"])
+                break
 
-        except:
-            traceback.print_exc()
-            get_feature_data["failed"] = "{} from layers ({}) failed.{}".format(options["action"],layers,traceback.format_exception_only(sys.exc_type,sys.exc_value))
+            if layer_features:
+                if "feature" in get_feature_data and len(layer_features) > 1:
+                    get_feature_data["failed"] = "Found {1} features in layer '{0}' ".format(layer["layerid"],len(layer_features))
+                    break
+                if layer_features:    
+                    get_feature_data["id"] = layer["id"]
+                    get_feature_data["layer"] = layer["layerid"]
+                    for layer_feature in layer_features:
+                        feat = {}
+                        if layer.get("properties"):
+                            for name,column in layer["properties"].iteritems():
+                                feat[name] = layer_feature["properties"][column]
+                        else:
+                            for key,value in layer_feature["properties"].iteritems():
+                                feat[key] = value
+                                
+                        if options.get("format") == "geojson":
+                            #return geojson
+                            layer_feature["properties"] = feat
+                            feat = layer_feature
+                        if "feature" in get_feature_data:
+                            get_feature_data["feature"] = feat
+                        elif "features" in get_feature_data:
+                            if get_feature_data["features"]:
+                                get_feature_data["features"].append(feat)
+                            else:
+                                get_feature_data["features"] = [feat]
+
+                    break
+
+    except:
+        traceback.print_exc()
+        get_feature_data["failed"] = "{} from layers ({}) failed.{}".format(options["action"],layers,traceback.format_exception_only(sys.exc_type,sys.exc_value))
+    return get_feature_data
 
 def spatial():
     # needs gdal 1.10+
@@ -641,22 +647,22 @@ def spatial():
         results = []
 
         features = features["features"] or []
-        for feature in features:
-            if feature["geometry"]["type"] == "GeometryCollection":
-                feature["geometry"] = GeometryCollection([shape(g) for g in feature["geometry"]["geometries"]])
-            else:
-                feature["geometry"] = shape(feature["geometry"])
-            results.append({})
-    
-        for key,val in options.iteritems():
-            if "action" not in val:
-                val["action"] = key
-            if val["action"] == "getArea":
-                calculateArea(cookies,results,key,features,val)
-            else:
-                getFeature(cookies,results,key,features,val)
+        index = 0
+        while index < len(features):
+            feature = features[index]
+            index += 1
+            feature_result = {}
+            results.append(feature_result)
+            for key,val in options.iteritems():
+                if "action" not in val:
+                    val["action"] = key
+                if val["action"] == "getArea":
+                    feature_result[key] = calculateArea(feature,cookies,val)
+                else:
+                    feature_result[key] = getFeature(feature,cookies,val)
 
         bottle.response.set_header("Content-Type", "application/json")
+        #print("{}:return response to client.{}".format(datetime.now(),results))
         return {"total_features":len(results),"features":results}
     except:
         if bottle.response.status < 400 :
