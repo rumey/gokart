@@ -6,6 +6,7 @@
   <gk-search v-ref:search></gk-search>
   <gk-featuredetail v-ref:featuredetail></gk-featuredetail>
   <gk-measure v-ref:measure></gk-measure>
+  <gk-weatherforecast v-ref:weatherforecast></gk-weatherforecast>
   <gk-toolbox v-ref:toolbox></gk-toolbox>
 </template>
 <style>
@@ -47,6 +48,7 @@
   import gkSearch from './search.vue'
   import gkFeaturedetail from './featuredetail.vue'
   import gkMeasure from './measure.vue'
+  import gkWeatherforecast from './weatherforecast.vue'
   import gkToolbox from './toolbox.vue'
   export default {
     store: {
@@ -58,7 +60,7 @@
         displayGraticule:'settings.graticule',
         displayResolution:'displayResolution'
     },
-    components: { gkInfo, gkScales, gkSearch, gkMeasure,gkFeaturedetail,gkToolbox},
+    components: { gkInfo, gkScales, gkSearch, gkMeasure,gkFeaturedetail,gkWeatherforecast,gkToolbox},
     data: function () {
       return {
         scale: 0,
@@ -1133,7 +1135,7 @@
       createWFSLayer: function (options) {
         if (options.mapLayer) return options.mapLayer
         var vm = this
-        var url = this.env.wfsService
+        var url = this.env.kmiService + "/wfs"
 
         // default overridable params sent to the WFS source
         options.params = $.extend({
@@ -1295,7 +1297,7 @@
           tileSize: 1024,
           style: '',
           projection: 'EPSG:4326',
-          wmts_url: this.env.wmtsService
+          wmts_url: this.env.kmiService + "/gwc/service/wmts"
         }, options)
 
         // create a tile grid using the stock KMI resolutions
@@ -1453,7 +1455,7 @@
           tileSize: 1024,
           style: '',
           projection: 'EPSG:4326',
-          wms_url: this.env.wmsService
+          wms_url: this.env.kmiService + "/wms"
         }, options)
 
         // create a tile source
@@ -1720,7 +1722,7 @@
                 vm.$root.catalogue.catalogue.push(fixedLayer)
             }
         })
-        vm._overviewLayer = vm._overviewLayer || $.extend({},vm.$root.catalogue.getLayer("dpaw:mapbox_outdoors"))
+        vm._overviewLayer = vm._overviewLayer || $.extend({},vm.$root.catalogue.getLayer(vm.env.overviewLayer || "dpaw:mapbox_outdoors"))
 
         //ignore the active layers which does not exist in the catalogue layers.
         activeLayers = activeLayers.filter(function(activeLayer){
@@ -1900,7 +1902,7 @@
           }
           var _getFeature = function(index) {
             $.ajax({
-                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId(layers[index]["id"]) + "&outputFormat=json&cql_filter=CONTAINS(" + (layers[index]["geom_field"] || "wkb_geometry") + ",POINT(" + coordinate[1]  + " " + coordinate[0] + "))",
+                url:vm.env.kmiService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId(layers[index]["id"]) + "&outputFormat=json&cql_filter=CONTAINS(" + (layers[index]["geom_field"] || "wkb_geometry") + ",POINT(" + coordinate[1]  + " " + coordinate[0] + "))",
                 dataType:"json",
                 success: function (response, stat, xhr) {
                    if (response.totalFeatures === 0) {
@@ -1944,13 +1946,79 @@
         }
         _getFeature(0)
       },
+      getGridData:function(coordinate,successCallback,failedCallback) {
+          if (!successCallback) {
+              successCallback = function(data) {alert(data)}
+          }
+          if (!failedCallback) {
+              failedCallback = function(msg) {alert(msg)}
+          }
+          var vm = this
+          var feat = new ol.Feature({geometry:new ol.geom.Point(coordinate)})
+          $.ajax({
+              url:vm.env.gokartService + "/spatial",
+              dataType:"json",
+              data:{
+                  features:vm.$root.geojson.writeFeatures([feat]),
+                  options:JSON.stringify({
+                      grid: {
+                          action:"getClosestFeature",
+                          layers:[
+                              {
+                                  id:"fd_grid_points",
+                                  layerid:getLayerId("cddp:fd_grid_points"),
+                                  kmiservice:vm.env.kmiService,
+                                  buffer:120,
+                                  properties:{
+                                      grid:"fdgrid",
+                                  },
+                              },
+                              {
+                                  id:"pilbara_grid_1km",
+                                  layerid:getLayerId("cddp:pilbara_grid_1km"),
+                                  buffer:800,
+                                  kmiservice:vm.env.kmiService,
+                                  properties:{
+                                      grid:"id",
+                                  },
+                              },
+                          ],
+                      }
+                  })
+              },
+              method:"POST",
+              success: function (response, stat, xhr) {
+                  if (response.features[0]["grid"]["failed"]) {
+                      failedCallback(response.features[0]["grid"]["failed"])
+                  } else if (response.features[0]["grid"]["id"] === "fd_grid_points") {
+                      successCallback("FD:" + response.features[0]["grid"]["feature"]["grid"]) 
+                  } else if (response.features[0]["grid"]["id"] === "pilbara_grid_1km") {
+                      successCallback("PIL:" + response.features[0]["grid"]["feature"]["grid"]) 
+                  } else {
+                      successCallback(null) 
+                  }
+              },
+              error: function (xhr,status,message) {
+                  failedCallback(xhr.status + " : " + (xhr.responseText || message))
+              },
+              xhrFields: {
+                  withCredentials: true
+              }
+          })
+      },
       getPosition:function(coordinate,successCallback,failedCallback) {
+          if (!successCallback) {
+              successCallback = function(data) {alert(data)}
+          }
+          if (!failedCallback) {
+              failedCallback = function(msg) {alert(msg)}
+          }
           var buffers = [50,100,150,200,300,400,1000,2000,100000]
           var vm = this
           var _getPosition = function(index) {
             var buffered = turf.bbox(turf.buffer(turf.point(coordinate),buffers[index],"kilometers"))
             $.ajax({
-                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:townsite_points") + "&outputFormat=json&bbox=" + buffered[1] + "," + buffered[0] + "," + buffered[3] + "," + buffered[2],
+                url:vm.env.kmiService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:townsite_points") + "&outputFormat=json&bbox=" + buffered[1] + "," + buffered[0] + "," + buffered[3] + "," + buffered[2],
                 dataType:"json",
                 success: function (response, stat, xhr) {
                    if (response.totalFeatures === 0) {
@@ -1980,19 +2048,11 @@
                             bearing = vm.measure.getBearing(nearestTown.geometry.coordinates,coordinate)
                             position = nearestDistance + " " + vm.measure.getDirection(bearing,16) + " of " + nearestTown.properties["name"]
                         }
-                        if (successCallback) {
-                            successCallback(position)
-                        } else {
-                            alert(position)
-                        }
+                        successCallback(position)
                     }
                 },
                 error: function (xhr,status,message) {
-                    if (failedCallback) {
-                        alert(xhr.status + " : " + (xhr.responseText || message))
-                    } else {
-                        failedCallback(xhr.status + " : " + (xhr.responseText || message))
-                    }
+                    failedCallback(xhr.status + " : " + (xhr.responseText || message))
                 },
                 xhrFields: {
                     withCredentials: true

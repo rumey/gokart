@@ -9,7 +9,34 @@ import base64
 import json
 import osgeo
 import datetime
+import logging
+import logging.config
 
+logging.config.dictConfig({
+    "version":1,
+    "disable_existing_loggers":False,
+    "handlers":{
+        "default":{
+            "class":"logging.StreamHandler",
+            "level":"INFO"
+        },
+        "shapely_geos":{
+            "class":"gokart.loghandlers.MessageHandler",
+            "level":"INFO",
+            "name":"shapely.geos"
+        }
+    },
+    "loggers":{
+        "shapely.geos": {
+            "level":"INFO",
+            "handlers":["shapely_geos"]
+        }
+    },
+    "root":{
+        "level":"INFO",
+        "handlers":["default"]
+    }
+})
 
 dotenv.load_dotenv(dotenv.find_dotenv())
 
@@ -26,6 +53,9 @@ DIST_PATH = os.path.join(os.path.dirname(BASE_PATH),"dist",DIST_TYPE)
 CHECK_OVERLAP_IF_CALCULATE_AREA_FAILED = (os.environ.get("CHECK_OVERLAP_IF_CALCULATE_AREA_FAILED") or "false").lower() in ["true","yes","on"]
 
 STATIC_SERVICE=os.environ.get("STATIC_SERVICE") or "https://static.dbca.wa.gov.au"
+WEATHERFORECAST_URL=os.environ.get("WEATHERFORECAST_URL") or ""
+WEATHERFORECAST_USER=os.environ.get("WEATHERFORECAST_USER") or None
+WEATHERFORECAST_PASSWORD=os.environ.get("WEATHERFORECAST_PASSWORD") or None
 
 PERTH_TIMEZONE = datetime.datetime.now(pytz.timezone('Australia/Perth')).tzinfo
 
@@ -40,17 +70,37 @@ def get_string(name,defaultValue=None):
     return os.environ.get(name,defaultValue)
 
 session_key_header = "X-Session-Key"
-sso_cookie_name = os.environ.get("SSO_COOKIE_NAME") or "dbca_wa_gov_au_sessionid"
-def get_session_cookie():
+sso_cookie_names = dict([ name.split(':') for name in (os.environ.get("SSO_COOKIE_NAME") or ".dbca.wa.gov.au:dbca_wa_gov_au_sessionid,.dpaw.wa.gov.au:dpaw_wa_gov_au_sessionid").split(",") ])
+
+def get_request_domain():
+    return bottle.request.urlparts[1]
+
+def get_sso_cookie_name():
+    domain = get_request_domain()
+
+    try:
+        return sso_cookie_names[domain]
+    except:
+        for key,value in sso_cookie_names.iteritems():
+            if domain.endswith(key):
+                sso_cookie_names[domain] = value
+                return value
+
+        raise "Please configure sso cookie name for domain '{}'".format(domain)
+
+def get_session_cookie(template=None):
     """ 
     Get the session cookie from user request for sso
-    if not found, return None
+    if not found, raise 401
+    template: cookie string template which has two parameters. 0: cookie  name 1:cookie value; if template is None, return dict object (key is cookie name, value is cookie value)
     """
     try:
-        #import ipdb;ipdb.set_trace()
         session_key = bottle.request.get_header(session_key_header)
         if session_key:
-            return session_key
+            if template:
+                return template.format(get_sso_cookie_name(),session_key)
+            else:
+                return {get_sso_cookie_name():session_key}
         else:
             raise bottle.HTTPError(status=401)
     except:
@@ -86,7 +136,13 @@ def typename(url):
     m = typename_re.search(url.lower())
     return m.group('name').replace("%3a",":") if m else None
 
-
+kmiserver_re = re.compile("^(?P<url>[hH][tT][tT][pP][sS]?://[a-zA-Z0-9\-\_\./]+/geoserver)",re.DOTALL)
+def kmiserver(url):
+    m = kmiserver_re.search(url)
+    if m:
+        return "{}/".format(m.group('url'))
+    else:
+        return "https://kmi.dbca.wa.gov.au/geoserver/"
 
 def datetime_encoder(self,o):
     if isinstance(o,datetime.datetime):

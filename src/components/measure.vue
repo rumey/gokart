@@ -1,12 +1,4 @@
 <template>
-  <div style="display:none">
-  <div id="map-measure" v-bind:style="topPositionStyle" class="ol-selectable ol-control">
-      <button type="button" title="Measure length" @click="toggleMeasure('MeasureLength')" v-bind:class="{'selected':isMeasureLength}"><img src="dist/static/images/measure-length.svg"></button>
-      <button type="button" title="Measure area" @click="toggleMeasure('MeasureArea')" v-bind:class="{'selected':isMeasureArea}"><img src="dist/static/images/measure-area.svg"></button>
-      <button type="button" title="Measure bearing" @click="toggleMeasure('MeasureBearing')" v-bind:class="{'selected':isMeasureBearing}"><img src="dist/static/images/measure-bearing.svg"></button>
-      <button type="button" title="Clear measurements" v-show="showClear" @click="clearMeasure()"><i class="fa fa-trash"></i></button>
-  </div>
-  </div>
   <div id="map-measure-tooltips"></div>
 </template>
 
@@ -75,15 +67,6 @@
       isMeasureBearing:function() {
         return this.measureType === "MeasureBearing"
       },
-      mapControl:function() {
-        if (!this._controller) {
-            this._controller = new ol.control.Control({
-                element: $('#map-measure').get(0),
-        	target: $('#external-controls').get(0)
-            })
-        }
-        return this._controller
-      },
       lengthUnit: function() {
         return this.settings.lengthUnit
       },
@@ -92,21 +75,6 @@
       },
       measureFeature:function() {
         return this.settings.measureFeature
-      },
-      height:function() {
-        if (!this.$root.toolbox || this.$root.toolbox.inToolbox(this)) {
-            return 0
-        } else if (this.showClear) {
-            return 196 + 9
-        } else {
-            return 147 + 9
-        }
-      },
-      topPosition:function() {
-        return this.featuredetail.topPosition + this.featuredetail.height;
-      },
-      topPositionStyle:function() {
-        return "top:" + this.topPosition + "px";
       },
       tools:function() {
         return [
@@ -146,7 +114,9 @@
             $.each(vm._measureLayers,function(index,layer){
                 layer[1].forEach(function(feature) {
                     var tool = vm.annotations.getTool(feature.get('toolName'))
-                    vm.measuring(feature,tool?tool.getMeasureGeometry:null,true,false,false,"changeUnit") 
+                    if (tool.measureLength) {
+                        vm.measuring(feature,tool?tool.getMeasureGeometry:null,true,false,false,"changeUnit") 
+                    }
                 })
             })
         },
@@ -159,7 +129,9 @@
             $.each(vm._measureLayers,function(index,layer){
                 layer[1].forEach(function(feature){
                     var tool = vm.annotations.getTool(feature.get('toolName'))
-                    vm.measuring(feature,tool?tool.getMeasureGeometry:null,false,true,false,"changeUnit") 
+                    if (tool.measureArea) {
+                        vm.measuring(feature,tool?tool.getMeasureGeometry:null,false,true,false,"changeUnit") 
+                    }
                 })
             })
         },
@@ -309,11 +281,13 @@
         var vm = this
         vm._remeasureFeature = vm._remeasureFeature || function(feat) {
             if (!feat) return
+            var tool = vm.annotations.getTool(feat.get('toolName'))
+            if (!tool) {return}
+            if (!(tool.measureLength || tool.measureArea || tool.measureBearing)) {return}
+
             this.removeTooltip(feat,true) 
             feat.unset("measurement",true)
 
-            var tool = vm.annotations.getTool(feat.get('toolName'))
-            if (!tool) {return}
             vm.createTooltip(feat,tool.getMeasureGeometry,tool.measureLength,tool.measureArea)
             vm.measuring(feat,tool.getMeasureGeometry,tool.measureLength,tool.measureArea,false,"show")
         }
@@ -433,7 +407,7 @@
                     }
                     tooltipElement.find(".bearing").html(bearing)
                 }
-                if (mode === "drawing" || mode === "show") {
+                if (mode === "drawing" || mode === "show" || mode === "measure") {
                     var tooltipCoord = null
                     if (geom instanceof ol.geom.Polygon) {
                         tooltipCoord = geom.getInteriorPoint().getCoordinates()
@@ -449,6 +423,11 @@
                 if (mode === "show") {
                     tooltipElement.get(0).className = 'tooltip-measure tooltip-measured'
                     tooltip.setOffset([0, -7])
+                } else if(mode === "measure") {
+                    tooltipElement.get(0).className = 'tooltip-measure tooltip-measured'
+                    if (tooltip.getMap()) {
+                        vm.map.olmap.removeOverlay(tooltip)
+                    }
                 }
                 return measurement
             } else if (geom instanceof ol.geom.MultiPolygon && (measureLength || measureArea)) {
@@ -486,15 +465,13 @@
             }
         }
 
-        measureFeature = ((measureFeature === undefined || measureFeature === null))?vm.measureFeature:measureFeature
+        measureFeature = (((measureFeature === undefined || measureFeature === null))?vm.measureFeature:measureFeature) && (measureLength || measureArea || measureBearing)
         if(indexes && feature.get('measurement') !== undefined && feature.get('measurement') !== null) {
             var geom = this.annotations.getSelectedGeometry(feature,indexes)
             var measurement = this.getMeasurementObject(feature.get('measurement'),indexes,true,indexes.length - 2)
             measurement.splice(indexes[indexes.length - 1],0,(geom instanceof ol.geom.GeometryCollection || geom instanceof ol.geom.MultiPoint || geom instanceof ol.geom.MultiLineString || geom instanceof ol.geom.MultiPolygon)?[]:(geom instanceof ol.geom.Point?null:{}))
-            if (measureFeature) {
-                measurement = measurement[indexes[indexes.length - 1]]
-                this._measure(feature,geom,this.getMeasurementObject(feature.tooltipElement,indexes),this.getMeasurementObject(feature.tooltip,indexes),measurement,measureLength,measureArea,measureBearing,mode)
-            }
+            measurement = measurement[indexes[indexes.length - 1]]
+            this._measure(feature,geom,this.getMeasurementObject(feature.tooltipElement,indexes),this.getMeasurementObject(feature.tooltip,indexes),measurement,measureLength,measureArea,measureBearing,mode)
         } else if (measureFeature || (feature.get('measurement') !== undefined && feature.get('measurement') !== null)) {
             var measurement = this._measure(
                 feature,
@@ -680,7 +657,7 @@
             }
         }
     
-        measureFeature = ((measureFeature === undefined || measureFeature === null))?vm.measureFeature:measureFeature
+        measureFeature = (((measureFeature === undefined || measureFeature === null))?vm.measureFeature:measureFeature) && (measureLength || measureArea || measureBearing)
         var tooltipElement = null
         if (feature.tooltipElement === undefined || feature.tooltipElement === null) {
             //console.log("Create measure tooltip element")
@@ -951,13 +928,6 @@
       var measureStatus = vm.loading.register("measure","Measurement Component")
 
       measureStatus.phaseBegin("initialize",30,"Initialize")
-      if (!vm.$root.toolbox.inToolbox(vm)) {
-        vm.map.mapControls["measure"] = {
-              enabled:false,
-            autoenable:false,
-            controls:vm.mapControl
-        }
-      }
 
       //initialize the overlay and interactions
       this.features = new ol.Collection()
@@ -1081,6 +1051,7 @@
       vm._featureChanged = function(feature){
         var tool = vm.annotations.getTool(feature.get('toolName'))
         if (!tool) {return}
+        if (!(tool.measureLength || tool.measureArea || tool.measureBearing)) {return}
         feature.unset('measurement',true)
         if (feature.tooltip) {
             if (vm.measureFeature) {
@@ -1106,14 +1077,16 @@
         var tool = ev.feature.get('toolName')
         tool = tool?vm.annotations.getTool(tool):null
         if (!tool) {return}
+        if (!(tool.measureLength || tool.measureArea || tool.measureBearing)) {return}
         
         vm.createTooltip(ev.feature,tool.getMeasureGeometry,tool.measureLength,tool.measureArea,false,vm.measureFeature,ev.indexes)
-        vm.measuring(ev.feature,tool.getMeasureGeometry,tool.measureLength,tool.measureArea,false,"show",vm.measureFeature,ev.indexes) 
+        vm.measuring(ev.feature,tool.getMeasureGeometry,tool.measureLength,tool.measureArea,false,vm.measureFeature?"show":"measure",vm.measureFeature,ev.indexes) 
       }
       var deleteFeatureGeometryListener = function(ev) {
         var tool = ev.feature.get('toolName')
         tool = tool?vm.annotations.getTool(tool):null
         if (!tool) {return}
+        if (!(tool.measureLength || tool.measureArea || tool.measureBearing)) {return}
         
         vm.removeTooltip(ev.feature,true,ev.indexes) 
         vm.removeMeasurementObject(ev.feature,"measurement",ev.indexes,null,true)
@@ -1123,6 +1096,7 @@
         var tool = ev.feature.get('toolName')
         tool = tool?vm.annotations.getTool(tool):null
         if (!tool) {return}
+        if (!(tool.measureLength || tool.measureArea || tool.measureBearing)) {return}
         
         vm.removeTooltip(ev.feature,true) 
         ev.feature.unset("measurement",true)

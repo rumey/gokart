@@ -43,7 +43,7 @@
         <div id="layers-catalogue-list">
           <div v-for="l in catalogue.getArray() | filterBy search in searchAttrs | orderBy 'name'" class="row layer-row" @mouseover="preview(l)" track-by="mapLayerId" @mouseleave="preview(false)" style="margin-left:0px;margin-right:0px">
             <div class="small-10">
-              <a v-if="editable(l)" @click.stop.prevent="utils.editResource($event)" title="Edit catalogue entry" href="{{env.catalogueAdminService}}/django-admin/catalogue/record/{{l.systemid}}/change/" target="{{env.catalogueAdminService}}" class="button tiny secondary float-right short"><i class="fa fa-pencil"></i></a>
+              <a v-if="editable(l)" @click.stop.prevent="utils.editResource($event)" title="Edit catalogue entry" href="{{env.catalogueAdminService}}/admin/catalogue/record/{{l.systemid}}/change/" target="{{env.catalogueAdminService}}" class="button tiny secondary float-right short"><i class="fa fa-pencil"></i></a>
               <div class="layer-title">{{ l.name || l.id }}</div>
             </div>
             <div class="small-2">
@@ -292,7 +292,7 @@ div.ol-previewmap.ol-uncollapsible {
             layers.push(l)
           })
           if (checkingLayer) { 
-              utils.checkPermission(vm.env.catalogueAdminService + "/django-admin/catalogue/record/" + checkingLayer.systemid + "/change/","GET",function(allowed){
+              utils.checkPermission(vm.env.catalogueAdminService + "/admin/catalogue/record/" + checkingLayer.systemid + "/change/","GET",function(allowed){
                 vm.whoami.editLayer = allowed
                 vm.catalogue.extend(layers)
                 callback()

@@ -244,13 +244,6 @@
       getLayer: function (id) {
         return this.$root.catalogue.getLayer(id)
       },
-      update: function () {
-        var vm = this
-        vm.allMapLayers = []
-        Vue.nextTick(function () {
-          vm.allMapLayers = vm.$root.map.olmap.getLayers().getArray()
-        })
-      },
       removeLayer: function (olLayer) {
         var layer = olLayer.layer
         if (this.layer === layer) {

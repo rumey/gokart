@@ -67,6 +67,9 @@
           if (vm.$root.weatheroutlook && vm.annotations.tool && vm.annotations.tool.name === "WeatherOutlook") {
             //weather outlook tool is activated.
             vm.$root.weatheroutlook.setPosition(coords)
+          } else if (vm.$root.weatherforecast && vm.annotations.tool && vm.annotations.tool.name === "WeatherForecast") {
+            //weather forecast tool is activated.
+            vm.$root.weatherforecast.setPosition(coords)
           } else if (!vm._setSearchPointFunc || !vm._setSearchPointFunc(searchMethod,coords,name)) {
             vm.features.clear()
             vm.features.push(new ol.Feature({
@@ -115,7 +118,7 @@
       queryFD: function(fdStr, victory, failure) {
         var vm = this
         $.ajax({
-          url: vm.env.wfsService + '?' + $.param({
+          url: vm.env.kmiService + '/wfs?' + $.param({
             version: '1.1.0',
             service: 'WFS',
             request: 'GetFeature',
@@ -140,7 +143,7 @@
       queryPIL: function(pilStr, victory, failure) {
         var vm = this
         $.ajax({
-          url: vm.env.wfsService + '?' + $.param({
+          url: vm.env.kmiService + '/wfs?' + $.param({
             version: '1.1.0',
             service: 'WFS',
             request: 'GetFeature',
