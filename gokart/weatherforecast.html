@@ -91,7 +91,7 @@
   <body style="background-image:url('/dist/static/images/weatherforecast-for-testing.png')" onload="setHeight()">
     <div id="forecast">
   {% else %}
-  <body>
+  <body onload="setHeight()">
     <div id="forecast">
   {% endif %}
         <img id="request_data_toggle" src="/dist/static/images/hide.svg" onclick="toggleRequestData()">
