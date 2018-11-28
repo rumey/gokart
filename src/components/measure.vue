@@ -400,7 +400,7 @@
                         var coordinates = geom.getCoordinates()
                         bearing = Math.round(vm.getBearing(coordinates[0],coordinates[coordinates.length - 1]) * 100) / 100 + "&deg;"
     
-                        bearing = vm.formatLength(measurement["length"],"km") + "\n" + vm.formatLength(measurement["length"],"nm") + "\n" + bearing
+                        bearing = "<span style='color:red;font-weight:bold'>" + bearing + "\n" + vm.formatLength(measurement["length"],"nm") + "</span>\n" + vm.formatLength(measurement["length"],"km")
                         measurement["bearing"] = bearing
                     } else {
                         bearing = measurement["bearing"]
