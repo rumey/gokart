@@ -355,14 +355,14 @@ def getTimelineFromWmsLayer(current_timeline, layerIdFunc):
             os.remove(localfile)
 
 
-def bomLayerIdFunc(target):
+def bomLayerIdFunc(layeridpattern):
     def _func(i, timespan):
         if timespan >= 86400:
             # unit is day
-            return "bom:{}{:0>3}".format(target, i * int(timespan / 86400))
+            return layeridpattern.format(i * int(timespan / 86400))
         else:
             # unit is hour
-            return "bom:{}{:0>3}".format(target, i * int(timespan / 3600))
+            return layeridpattern.format(i * int(timespan / 3600))
     return _func
 
 start_date = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=pytz.timezone("UTC")).astimezone(pytz.timezone("Australia/Perth"))
@@ -371,6 +371,11 @@ start_date = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=pytz.timezone("UTC")).as
 @bottle.route("/bom/<target>")
 def bom(target):
     last_updatetime = bottle.request.query.get("updatetime")
+    layeridpattern = bottle.request.query.get("layeridpattern")
+    if layeridpattern:
+        layeridpattern = "bom:{}".format(layeridpattern)
+    else:
+        layeridpattern = "bom:{}{{:0>3}}".format(target)
     current_timeline = None
     try:
         current_timeline = json.loads(uwsgi.cache_get(target))
@@ -388,7 +393,7 @@ def bom(target):
         else:
             return {"layers": current_timeline["layers"], "updatetime": current_timeline["updatetime"]}
 
-    timeline = getTimelineFromWmsLayer(current_timeline, bomLayerIdFunc(target))
+    timeline = getTimelineFromWmsLayer(current_timeline, bomLayerIdFunc(layeridpattern))
 
     if not timeline:
         raise "Missing some of http parameters 'basetimelayer', 'timelinesize', 'layertimespan'."
