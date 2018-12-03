@@ -541,6 +541,14 @@ if (result) {
             fetchTimelineUrl:function(lastUpdatetime){
                 return "/bom/IDZ71115?basetimelayer=bom:IDZ71115_datetime&timelinesize=56&layertimespan=10800&updatetime=" + lastUpdatetime
             }
+          }, {
+            type: 'TileLayer',
+            name: 'mslp',
+            id: 'bom:mslp',
+            timelineRefresh:300,
+            fetchTimelineUrl:function(lastUpdatetime){
+                return "/bom/IDY25300mslp?basetimelayer=bom:IDY25300_datetime&timelinesize=73&layeridpattern=IDY25300{:0>3}mslp&layertimespan=3600&updatetime=" + lastUpdatetime
+            }
           }])
     
           // load custom annotation tools

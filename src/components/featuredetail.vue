@@ -106,6 +106,7 @@
       set_featureinfo_layer:function() {
         var vm = this
         vm._featureinfo_layer["id"] = null
+        vm._featureinfo_layer["title"] = "No Active Vector Layer"
         $.each(this.active.olLayers,function(index,layer){
             layer = vm.active.getLayer(layer.get('id'))
            if (layer.service_type === 'WFS') {
