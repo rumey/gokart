@@ -335,7 +335,7 @@ div.ol-previewmap.ol-uncollapsible {
         l.type = l.type || 'TileLayer'
         if (l.type === 'TileLayer') {
           if (l.legend) {
-            if (!(l.legend.toLowerCase().startsWith("https://"))) {
+            if (!(l.legend.toLowerCase().startsWith("http"))) {
                 l.legend = vm.env.catalogueAdminService + l.legend
             }
           } else {
