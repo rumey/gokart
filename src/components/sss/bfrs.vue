@@ -1265,7 +1265,7 @@
                                     "The features from the following layers are overlaped.",
                                     [["",1],["cddp:legislated_lands_and_waters",11]],
                                     [["",1],["cddp:dept_interest_lands_and_waters",11]],
-                                    [["",1],["cddp:other_tenures",11]],
+                                    [["",1],["cddp:other_tenures_new",11]],
                                     "Do you want to continue?"
                                 ],
                                 defaultOption:false,
@@ -1390,7 +1390,43 @@
                         }
 
                     }
-
+                    var layers =  null
+                    if (["new","initial"].indexOf(feat.get('status')) >= 0 )  {
+                        layers =  null
+                    } else {
+                        layers = [
+                            {
+                                id:"legislated_lands_and_waters",
+                                layerid:getLayerId("cddp:legislated_lands_and_waters"),
+                                kmiservice:vm.env.kmiService,
+                                properties:{
+                                    name:"name",
+                                    category:"category"
+                                },
+                                primary_key:"ogc_fid"
+                            },
+                            {
+                                id:"dept_interest_lands_and_waters",
+                                layerid:getLayerId("cddp:dept_interest_lands_and_waters"),
+                                kmiservice:vm.env.kmiService,
+                                properties:{
+                                    name:"name",
+                                    category:"category"
+                                },
+                                primary_key:"ogc_fid"
+                            },
+                            {
+                                id:"other_tenures",
+                                layerid:getLayerId("cddp:other_tenures_new"),
+                                kmiservice:vm.env.kmiService,
+                                properties:{
+                                    name:"brc_fms_le",
+                                    category:"brc_fms_le"
+                                },
+                                primary_key:"ogc_fid"
+                            }
+                        ]
+                    }
                     $.ajax({
                         url:vm.env.gokartService + "/spatial",
                         dataType:"json",
@@ -1402,38 +1438,7 @@
                                         layer_overlap:false,
                                         merge_result:true,
                                         unit:"ha",
-                                        layers:[
-                                            {
-                                                id:"legislated_lands_and_waters",
-                                                layerid:getLayerId("cddp:legislated_lands_and_waters"),
-                                                kmiservice:vm.env.kmiService,
-                                                properties:{
-                                                    name:"name",
-                                                    category:"category"
-                                                },
-                                                primary_key:"ogc_fid"
-                                            },
-                                            {
-                                                id:"dept_interest_lands_and_waters",
-                                                layerid:getLayerId("cddp:dept_interest_lands_and_waters"),
-                                                kmiservice:vm.env.kmiService,
-                                                properties:{
-                                                    name:"name",
-                                                    category:"category"
-                                                },
-                                                primary_key:"ogc_fid"
-                                            },
-                                            {
-                                                id:"other_tenures",
-                                                layerid:getLayerId("cddp:other_tenures"),
-                                                kmiservice:vm.env.kmiService,
-                                                properties:{
-                                                    name:"cdg_label",
-                                                    category:"cdg_label"
-                                                },
-                                                primary_key:"ogc_fid"
-                                            }
-                                        ],
+                                        layers:layers
                                     }
                                 })
                         },
@@ -1497,12 +1502,12 @@
                             category:"category"
                         },
                     },{
-                        id:"cddp:other_tenures",
+                        id:"cddp:other_tenures_new",
                         geom_field:"wkb_geometry",
                         properties:{
                             id:"ogc_fid",
-                            name:"cdg_label",
-                            category:"cdg_label"
+                            name:"brc_fms_le",
+                            category:"brc_fms_le"
                         },
                     }]
                     vm.map.getFeature(tenure_layers,originPoint,function(feature){
