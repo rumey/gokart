@@ -24,7 +24,7 @@ import settings
 import kmi
 
 proj_wgs84 = pyproj.Proj(init='epsg:4326')
-def buffer(lon, lat, meters):
+def buffer(lon, lat, meters,resolution=16):
     """
     Create a buffer around a point
     """
@@ -34,7 +34,7 @@ def buffer(lon, lat, meters):
         pyproj.transform,
         pyproj.Proj(aeqd_proj.format(lat, lon)),
         proj_wgs84)
-    buf = Point(0, 0).buffer(meters)  # distance in metres
+    buf = Point(0, 0).buffer(meters,resolution=resolution)  # distance in metres
     return transform(project, buf).exterior.coords[:]
 
 def getShapelyGeometry(feature):
@@ -511,7 +511,7 @@ def getFeature(feature,session_cookies,options):
 
     try:
         for layer in layers:
-            if not layer or not layer.get("kmiservice") or not layer["buffer"] or not layer["layerid"]:
+            if not layer or not layer.get("kmiservice") or not layer["layerid"]:
                 continue
 
             if layer.get('check_bbox'):
@@ -520,8 +520,13 @@ def getFeature(feature,session_cookies,options):
                 if not layer_bbox:
                     get_feature_data["failed"] = "Can't find layer({})'s bounding box for epsg:4326".format(layer["layerid"])
                     break
+                #buffered_bbox is  lonlatboundingbox
+                if layer.get("buffer") and isinstance(geometry,Point):
+                    checking_bbox = Polygon(buffer(geometry.x,geometry.y,layer["buffer"][-1] if isinstance(layer["buffer"],(list,tuple)) else layer["buffer"],resolution=1)).bounds
+                else:
+                    checking_bbox = geometry.bounds
 
-                if geometry.x < layer_bbox[1] or geometry.x > layer_bbox[3] or geometry.y < layer_bbox[0] or geometry.y > layer_bbox[2]:
+                if checking_bbox[2] < layer_bbox[1] or checking_bbox[0] > layer_bbox[3] or checking_bbox[3] < layer_bbox[0] or checking_bbox[1] > layer_bbox[2]:
                     #not in this layer's bounding box
                     continue
 
@@ -545,10 +550,10 @@ def getFeature(feature,session_cookies,options):
             elif options["action"] == "getIntersectedFeatures":
                 get_feature_data["features"] = None
                 if isinstance(geometry,Point):
-                    if not layer.get("buff"):
-                        get_feature_data["failed"] = "'buff' is missing in layer '{}'".format(layer["id"])
+                    if not layer.get("buffer"):
+                        get_feature_data["failed"] = "'buffer' is missing in layer '{}'".format(layer["id"])
                         break
-                    buff_polygon = Polygon(buffer(geometry.x,geometry.y,layer["buff"]))
+                    buff_polygon = Polygon(buffer(geometry.x,geometry.y,layer["buffer"]))
                     layer_features = retrieveFeatures(
                         "{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&cql_filter=INTERSECTS({},POLYGON(({})))".format(layer["kmiservice"],layer["layerid"],layerdefinition(layer)["geometry_property"]["name"],"%2C".join(["{} {}".format(coord[0],coord[1]) for coord in list(buff_polygon.exterior.coords)])),
                         session_cookies
