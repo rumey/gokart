@@ -23,6 +23,8 @@ from functools import partial
 import settings
 import kmi
 
+proj_aea = lambda geometry: pyproj.Proj("+proj=aea +lat_1=-17.5 +lat_2=-31.5 +lat_0=0 +lon_0=121 +x_0=5000000 +y_0=10000000 +ellps=GRS80 +units=m +no_defs ",lat1=geometry.bounds[1],lat2=geometry.bounds[3])
+
 proj_wgs84 = pyproj.Proj(init='epsg:4326')
 def buffer(lon, lat, meters):
     """
@@ -43,20 +45,44 @@ def getShapelyGeometry(feature):
     else:
         return shape(feature["geometry"])
 
-def getGeometryArea(geometry,unit,init_proj="EPSG:4326"):
+def transform(geometry,src_proj="EPSG:4326",target_proj='aea'):
+    if src_proj == target_proj:
+        return geometry
+    else:
+        if src_proj == 'aea':
+            src_proj = proj_aea(geometry)
+        else:
+            src_proj = pyproj.Proj(init=src_proj)
+
+        if target_proj == 'aea':
+            target_proj = proj_aea(geometry)
+        else:
+            target_proj = pyproj.Proj(init=target_proj)
+
+        return ops.transform(
+            partial(
+                pyproj.transform,
+                src_proj,
+                #pyproj.Proj(proj="aea",lat1=geometry.bounds[1],lat2=geometry.bounds[3])
+                #use projection 'Albers Equal Conic Area for WA' to calcuate the area
+                target_proj
+            ),
+            geometry
+        )
+def getGeometryArea(geometry,unit,src_proj="EPSG:4326"):
     """
     Get polygon's area using albers equal conic area
     """
-    if init_proj == 'aea':
+    if src_proj == 'aea':
         geometry_aea = geometry
     else:
         geometry_aea = ops.transform(
             partial(
                 pyproj.transform,
-                pyproj.Proj(init=init_proj),
+                pyproj.Proj(init=src_proj),
                 #pyproj.Proj(proj="aea",lat1=geometry.bounds[1],lat2=geometry.bounds[3])
                 #use projection 'Albers Equal Conic Area for WA' to calcuate the area
-                pyproj.Proj("+proj=aea +lat_1=-17.5 +lat_2=-31.5 +lat_0=0 +lon_0=121 +x_0=5000000 +y_0=10000000 +ellps=GRS80 +units=m +no_defs ",lat1=geometry.bounds[1],lat2=geometry.bounds[3])
+                proj_aea(geometry)
             ),
             geometry
         )
@@ -78,7 +104,7 @@ def getDistance(p1,p2,unit="m",p1_proj="EPSG:4326",p2_proj="EPSG:4326"):
                 pyproj.Proj(init=p1_proj),
                 #pyproj.Proj(proj="aea",lat1=geometry.bounds[1],lat2=geometry.bounds[3])
                 #use projection 'Albers Equal Conic Area for WA' to calcuate the area
-                pyproj.Proj("+proj=aea +lat_1=-17.5 +lat_2=-31.5 +lat_0=0 +lon_0=121 +x_0=5000000 +y_0=10000000 +ellps=GRS80 +units=m +no_defs ",lat1=p1.bounds[1],lat2=p1.bounds[3])
+                proj_aea(p1)
             ),
             p1
         )
@@ -92,7 +118,7 @@ def getDistance(p1,p2,unit="m",p1_proj="EPSG:4326",p2_proj="EPSG:4326"):
                 pyproj.Proj(init=p2_proj),
                 #pyproj.Proj(proj="aea",lat1=geometry.bounds[1],lat2=geometry.bounds[3])
                 #use projection 'Albers Equal Conic Area for WA' to calcuate the area
-                pyproj.Proj("+proj=aea +lat_1=-17.5 +lat_2=-31.5 +lat_0=0 +lon_0=121 +x_0=5000000 +y_0=10000000 +ellps=GRS80 +units=m +no_defs ",lat1=p2.bounds[1],lat2=p2.bounds[3])
+                proj_aea(p2)
             ),
             p2
         )
@@ -277,6 +303,7 @@ def calculateArea(feature,session_cookies,options):
             }
         }
     }
+    The reason to calculate the area in another process is to releace the memory immediately right after area is calculated.
     """
     parent_conn,child_conn = Pipe(True)
     p = Process(target=calculateAreaInProcess,args=(child_conn,))
@@ -338,8 +365,10 @@ def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
     if not valid:
         status["invalid"] = msg
 
+    geometry_aea = transform(geometry,target_proj='aea')
+
     try:
-        area_data["total_area"] = getGeometryArea(geometry,unit)
+        area_data["total_area"] = getGeometryArea(geometry_aea,unit,'aea')
     except:
         traceback.print_exc()
         if "invalid" in status:
@@ -368,6 +397,7 @@ def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
 
             for layer_feature in layer_features:
                 layer_geometry = getShapelyGeometry(layer_feature)
+                layer_geometry = transform(layer_geometry,target_proj='aea')
                 if not isinstance(layer_geometry,Polygon) and not isinstance(layer_geometry,MultiPolygon):
                     continue
                 intersections = extractPolygons(geometry.intersection(layer_geometry))
@@ -396,7 +426,7 @@ def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
                         #save it into map
                         areas_map[area_key] = layer_feature_area_data
 
-                feature_area = getGeometryArea(intersections,unit)
+                feature_area = getGeometryArea(intersections,unit,src_proj='aea')
                 layer_feature_area_data["area"] += feature_area
                 total_layer_area  += feature_area
 
