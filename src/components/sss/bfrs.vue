@@ -1519,7 +1519,6 @@
         
                 if (fire_position_task) {
                     fire_position_task.setStatus(utils.RUNNING)
-                    var buffers = [50,100,150,200,300,400,1000,2000,100000]
                     vm.map.getPosition(originPoint,function(position){
                         spatialData["fire_position"] = position
                         fire_position_task.setStatus(utils.SUCCEED)
