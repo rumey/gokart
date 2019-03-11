@@ -11,7 +11,6 @@ import pyproj
 from datetime import datetime
 from multiprocessing import Process,Pipe
 
-from shapely.ops import transform
 from shapely.geometry import shape,MultiPoint,Point
 from shapely.geometry.polygon import Polygon
 from shapely.geometry.multipolygon import MultiPolygon
@@ -37,7 +36,7 @@ def buffer(lon, lat, meters,resolution=16):
         pyproj.Proj(aeqd_proj.format(lat, lon)),
         proj_wgs84)
     buf = Point(0, 0).buffer(meters,resolution=resolution)  # distance in metres
-    return transform(project, buf).exterior.coords[:]
+    return ops.transform(project, buf).exterior.coords[:]
 
 def getShapelyGeometry(feature):
     if feature["geometry"]["type"] == "GeometryCollection":
@@ -93,6 +92,34 @@ def getGeometryArea(geometry,unit,src_proj="EPSG:4326"):
         return data / 1000000.00 
     else:
         return data
+
+degrees2radians = math.pi / 180
+radians2degrees = 180 /math.pi
+def getBearing(p1,p2):
+    lon1 = degrees2radians * p1.x
+    lon2 = degrees2radians * p2.x
+    lat1 = degrees2radians * p1.y
+    lat2 = degrees2radians * p2.y
+    a = math.sin(lon2 - lon1) * math.cos(lat2)
+    b = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(lon2 - lon1);
+
+    bearing = radians2degrees * math.atan2(a, b); 
+    return bearing if bearing >= 0 else bearing + 360
+
+directions = {
+    4:[360/4,math.floor(360 / 8 * 100) / 100,["N","E","S","W"]],
+    8:[360/8,math.floor(360 / 16 * 100) / 100,["N","NE","E","SE","S","SW","W","NW"]],
+    16:[360/16,math.floor(360 / 32 * 100) / 100,["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"]],
+    32:[360/32,math.floor(360 / 64 * 100) / 100,["N","NbE","NNE","NEbN","NE","NEbE","ENE","EbN","E","EbS","ESE","SEbE","SE","SEbS","SSE","SbE","S","SbW","SSW","SWbS","SW","SWbW","WSW","WbS","W","WbN","WNW","NWbW","NW","NWbN","NNW","NbW"]],
+}
+
+def getDirection(bearing,mode = 16):
+    mode = mode or 16
+    if mode not in directions:
+        mode = 16
+
+    index = int((math.floor(bearing / directions[mode][0])  + 0 if ((round(bearing % directions[mode][0],2) <= directions[mode][1])) else 1) % mode)
+    return directions[mode][2][index]
 
 def getDistance(p1,p2,unit="m",p1_proj="EPSG:4326",p2_proj="EPSG:4326"):
     if p1_proj == 'aea':
@@ -382,7 +409,6 @@ def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
         return result
 
     area_data["layers"] = {}
-
     areas_map = {} if merge_result else None
     for layer in layers:
         try:
@@ -395,12 +421,13 @@ def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
                 session_cookies
             )["features"]
 
+
             for layer_feature in layer_features:
                 layer_geometry = getShapelyGeometry(layer_feature)
                 layer_geometry = transform(layer_geometry,target_proj='aea')
                 if not isinstance(layer_geometry,Polygon) and not isinstance(layer_geometry,MultiPolygon):
                     continue
-                intersections = extractPolygons(geometry.intersection(layer_geometry))
+                intersections = extractPolygons(geometry_aea.intersection(layer_geometry))
 
                 if not intersections:
                     continue
@@ -538,7 +565,6 @@ def getFeature(feature,session_cookies,options):
     get_feature_data = {"id":None,"layer":None,"failed":None}
 
     geometry = getShapelyGeometry(feature)
-
     try:
         for layer in layers:
             if not layer or not layer.get("kmiservice") or not layer["layerid"]:
@@ -559,10 +585,8 @@ def getFeature(feature,session_cookies,options):
                 if checking_bbox[2] < layer_bbox[1] or checking_bbox[0] > layer_bbox[3] or checking_bbox[3] < layer_bbox[0] or checking_bbox[1] > layer_bbox[2]:
                     #not in this layer's bounding box
                     continue
-
             if options["action"] == "getFeature":
                 get_feature_data["feature"] = None
-
                 if isinstance(geometry,Point):
                     if layerdefinition(layer)["geometry_type"] in ["point",'multipoint']:
                         get_feature_data["failed"] = "The {1} layer '{0}' doesn't support action '{2}'. ".format(layer["layerid"],layerdefinition(layer)["geometry_property"]["localType"],options["action"])
@@ -570,7 +594,7 @@ def getFeature(feature,session_cookies,options):
                     else:
                         #polygon or line
                         layer_features = retrieveFeatures(
-                            "{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&cql_filter=CONTAINS({},POINT({} {}))".format(layer["kmiservice"],layer["layerid"],layerdefinition(layer)["geometry_property"]["name"],geometry.x,geometry.y),
+                            "{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&cql_filter=CONTAINS({},POINT({} {}))".format(layer["kmiservice"],layer["layerid"],layerdefinition(layer)["geometry_property"]["name"],geometry.y,geometry.x),
                             session_cookies
                         )["features"]
 
