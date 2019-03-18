@@ -1436,7 +1436,7 @@
                                     area: {
                                         action:"getArea",
                                         layer_overlap:false,
-                                        merge_result:true,
+                                        merge_result:false,
                                         unit:"ha",
                                         layers:layers
                                     }
@@ -2559,7 +2559,6 @@
                                 features.splice(i,1)
                             } else if (feat.getGeometry() instanceof ol.geom.GeometryCollection) {
                                 $.each(features[i].getGeometry().getPolygons(),function(index,p) {
-                                    feat.getGeometry().appendPolygon(p)
                                     feat.getGeometry().getGeometriesArray()[1].appendPolygon(p)
                                 })
                                 mergeProperties(feat,features[i])
