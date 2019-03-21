@@ -1400,7 +1400,6 @@
                                 layerid:getLayerId("cddp:legislated_lands_and_waters"),
                                 kmiservice:vm.env.kmiService,
                                 properties:{
-                                    name:"name",
                                     category:"category"
                                 },
                                 primary_key:"ogc_fid"
@@ -1410,7 +1409,6 @@
                                 layerid:getLayerId("cddp:dept_interest_lands_and_waters"),
                                 kmiservice:vm.env.kmiService,
                                 properties:{
-                                    name:"name",
                                     category:"category"
                                 },
                                 primary_key:"ogc_fid"
@@ -1420,7 +1418,6 @@
                                 layerid:getLayerId("cddp:other_tenures_new"),
                                 kmiservice:vm.env.kmiService,
                                 properties:{
-                                    name:"brc_fms_le",
                                     category:"brc_fms_le"
                                 },
                                 primary_key:"ogc_fid"
@@ -1436,7 +1433,7 @@
                                     area: {
                                         action:"getArea",
                                         layer_overlap:false,
-                                        merge_result:false,
+                                        merge_result:true,
                                         unit:"ha",
                                         layers:layers
                                     }
