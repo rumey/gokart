@@ -1421,6 +1421,15 @@
                                     category:"brc_fms_le"
                                 },
                                 primary_key:"ogc_fid"
+                            },
+                            {
+                                id:"sa_nt_burntarea",
+                                layerid:getLayerId("cddp:sa_nt_state_polygons_burntarea"),
+                                kmiservice:vm.env.kmiService,
+                                properties:{
+                                    category:"name"
+                                },
+                                primary_key:"ogc_fid"
                             }
                         ]
                     }
