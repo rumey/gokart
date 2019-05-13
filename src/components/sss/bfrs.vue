@@ -1515,6 +1515,14 @@
                             name:"brc_fms_le",
                             category:"brc_fms_le"
                         },
+                    },{
+                        id:"cddp:sa_nt_state_polygons_burntarea",
+                        geom_field:"wkb_geometry",
+                        properties:{
+                            id:"ogc_fid",
+                            name:"name",
+                            category:"name"
+                        },
                     }]
                     vm.map.getFeature(tenure_layers,originPoint,function(feature){
                         spatialData["tenure_ignition_point"] = feature
