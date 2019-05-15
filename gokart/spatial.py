@@ -237,11 +237,10 @@ def checkOverlap(session_cookies,feature,options,logfile):
     
     features = {}
     #retrieve all related features from layers
+    layer_url="{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&bbox={},{},{},{}".format(layer["kmiservice"],layer["layerid"],geometry.bounds[1],geometry.bounds[0],geometry.bounds[3],geometry.bounds[2])
+
     for layer in layers:
-        features[layer["id"]] = retrieveFeatures(
-            "{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&bbox={},{},{},{}".format(layer["kmiservice"],layer["layerid"],geometry.bounds[1],geometry.bounds[0],geometry.bounds[3],geometry.bounds[2]),
-            session_cookies
-        )["features"]
+        features[layer["id"]] = retrieveFeatures(layer_url, session_cookies)["features"]
 
         for layer_feature in features[layer["id"]]:
             layer_geometry = getShapelyGeometry(layer_feature)
@@ -380,6 +379,17 @@ def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
     total_area = 0
     total_layer_area = 0
 
+    for layer in layers:
+        if "layerid" not in layer and "id" not in layer:
+            raise Exception("Both 'id' and 'layerid' are missing in layer declaration")
+        elif "layerid" not in layer:
+            layer["layerid"] = layer["id"]
+        elif "id" not in layer:
+            layer["id"] = layer["layerid"]
+        if not layer.get("kmiservice"):
+            layer["kmiservice"] = settings.KMI_SERVER
+
+
     geometry = extractPolygons(getShapelyGeometry(feature))
 
     if not geometry :
@@ -415,11 +425,10 @@ def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
             layer_area_data = []
             total_layer_area = 0
             area_data["layers"][layer["id"]] = {"areas":layer_area_data}
+
+            layer_url="{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&bbox={},{},{},{}".format(layer["kmiservice"],layer["layerid"],geometry.bounds[1],geometry.bounds[0],geometry.bounds[3],geometry.bounds[2])
     
-            layer_features = retrieveFeatures(
-                "{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&bbox={},{},{},{}".format(layer["kmiservice"],layer["layerid"],geometry.bounds[1],geometry.bounds[0],geometry.bounds[3],geometry.bounds[2]),
-                session_cookies
-            )["features"]
+            layer_features = retrieveFeatures(layer_url,session_cookies)["features"]
 
 
             for layer_feature in layer_features:
@@ -560,7 +569,7 @@ def getFeature(feature,session_cookies,options):
         elif "id" not in layer:
             layer["id"] = layer["layerid"]
         if not layer.get("kmiservice"):
-            layer["kmiservice"] = "https://kmi.dbca.wa.gov.au/geoserver"
+            layer["kmiservice"] = settings.KMI_SERVER
 
     get_feature_data = {"id":None,"layer":None,"failed":None}
 

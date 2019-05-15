@@ -50,6 +50,8 @@ DIST_TYPE = (os.environ.get("DIST_TYPE") or "release").lower()
 BASE_DIST_PATH = os.path.join(os.path.dirname(BASE_PATH),"dist")
 DIST_PATH = os.path.join(os.path.dirname(BASE_PATH),"dist",DIST_TYPE)
 
+KMI_SERVER = os.environ.get("KMI_SERVER") or "https://kmi.dbca.wa.gov.au/geoserver"
+
 CHECK_OVERLAP_IF_CALCULATE_AREA_FAILED = (os.environ.get("CHECK_OVERLAP_IF_CALCULATE_AREA_FAILED") or "false").lower() in ["true","yes","on"]
 
 STATIC_SERVICE=os.environ.get("STATIC_SERVICE") or "https://static.dbca.wa.gov.au"
@@ -142,7 +144,7 @@ def kmiserver(url):
     if m:
         return "{}/".format(m.group('url'))
     else:
-        return "https://kmi.dbca.wa.gov.au/geoserver/"
+        return KMI_SERVER
 
 def datetime_encoder(self,o):
     if isinstance(o,datetime.datetime):
