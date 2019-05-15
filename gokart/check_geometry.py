@@ -114,7 +114,7 @@ def check_selfintersect(geojsonfile,properties=None):
                     if index == 0:
                         print("  The exterior ring is self-intersected")
                     else:
-                        print("  The interior ring() is self-intersected".format(index - 1))
+                        print("  The interior ring({}) is self-intersected".format(index - 1))
                     for coord,indexes in selfintersects:
                         print("    Coordinate({}) is self-intersected at position({})".format(coord,indexes))
 
