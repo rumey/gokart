@@ -237,9 +237,10 @@ def checkOverlap(session_cookies,feature,options,logfile):
     
     features = {}
     #retrieve all related features from layers
-    layer_url="{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&bbox={},{},{},{}".format(layer["kmiservice"],layer["layerid"],geometry.bounds[1],geometry.bounds[0],geometry.bounds[3],geometry.bounds[2])
-
     for layer in layers:
+        layer_url="{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&bbox={},{},{},{}".format(layer["kmiservice"],layer["layerid"],geometry.bounds[1],geometry.bounds[0],geometry.bounds[3],geometry.bounds[2])
+        if layer.get('cqlfilter'):
+            layer_url = "{}&cql_filter={}".format(layer_url,layer['cqlfilter'])
         features[layer["id"]] = retrieveFeatures(layer_url, session_cookies)["features"]
 
         for layer_feature in features[layer["id"]]:
@@ -427,6 +428,8 @@ def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
             area_data["layers"][layer["id"]] = {"areas":layer_area_data}
 
             layer_url="{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&bbox={},{},{},{}".format(layer["kmiservice"],layer["layerid"],geometry.bounds[1],geometry.bounds[0],geometry.bounds[3],geometry.bounds[2])
+            if layer.get('cqlfilter'):
+                layer_url = "{}&cql_filter={}".format(layer_url,layer['cqlfilter'])
     
             layer_features = retrieveFeatures(layer_url,session_cookies)["features"]
 
