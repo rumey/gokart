@@ -1,17 +1,26 @@
 import json
 import os
 import tempfile
+import traceback
+from shutil import copyfile
+from collections import OrderedDict
+from datetime import datetime
 
 from shapely.geometry import shape,MultiPoint,Point
 from shapely.geometry.polygon import Polygon
 from shapely.geometry.multipolygon import MultiPolygon
-from shapely.geometry import LinearRing,mapping
+from shapely.geometry import LinearRing,mapping,LineString
 from shapely.geometry.collection import GeometryCollection
 
-from gokart.spatial import calculateFeatureArea,calculateGeometryArea,extractPolygons
+from gokart.spatial import calculateFeatureArea,calculateGeometryArea,extractPolygons,transform
+
+def default_print_progress_status(msg):
+    print("{} : {}".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"),msg))
 
 def getShapelyGeometry(feature):
-    if feature["geometry"]["type"] == "GeometryCollection":
+    if not feature["geometry"]:
+        return None
+    elif feature["geometry"]["type"] == "GeometryCollection":
         return GeometryCollection([shape(g) for g in feature["geometry"]["geometries"]])
     else:
         return shape(feature["geometry"])
@@ -38,30 +47,57 @@ def exportGeojson(geom,fname):
 
 #return polygon or multipolygons if have, otherwise return None
 class PolygonUtil(object):
-    def __init__(self,geom,parentPath=None):
+    FIX_RING_ORIENT = 1
+    FIX_SELFINTERSECT_LINES = 2
+    FIX_SELFINTERSECT_POINTS = 4
+    FIX_ORPHAN_RINGS = 8
+    FIX_ORPHAN_RING_AS_INTERIOR_RING = 16
+    FIX_ORPHAN_RING_AS_ISLAND = 32
+    REMOVE_DUPLICATE_POINT = 64
+
+
+    FIX_TYPES = OrderedDict([
+        (FIX_RING_ORIENT,"Fix ring orient"),
+        (FIX_SELFINTERSECT_LINES , "Fix selfintersected lines"),
+        (FIX_SELFINTERSECT_POINTS, "Fix selfintersected points"),
+        (FIX_ORPHAN_RINGS,"Fix orphan rings"),
+        (FIX_ORPHAN_RING_AS_INTERIOR_RING,"Fix orphan ring as interior ring"),
+        (FIX_ORPHAN_RING_AS_ISLAND ,"Fix orphan ring as island"),
+        (REMOVE_DUPLICATE_POINT ,"Remove duplicate point")
+    ])
+    def __init__(self,name,geom,parentPath=None,print_progress_status=None):
         self.geom = geom
         self.parentPath = parentPath
+        self.pos = 0
+        self.name = name
+        self.print_progress_status = print_progress_status or default_print_progress_status
 
-    def _nextGeomPath(self):
-        curPos = self.pos
-        self.pos += 1
-        if self.parentPath:
-            return "{}.{}".format(self.parentPath,curPos)
-        else:
-            return str(curPos)
+    @classmethod 
+    def fix_type_names(cls,fix_type):
+        return [name for t,name in cls.FIX_TYPES.items() if t & fix_type == t]
 
-    @property
-    def polygons(self):
-        if not hasattr(self,"_polygons"):
+    def polygons(self,refresh=False):
+        """
+        Return all polygons included in the geometry  as a list of (path,polygon).
+        """
+        def getGeomPath():
+            curPos = self.pos
+            self.pos += 1
+            if self.parentPath:
+                return "{}.{}".format(self.parentPath,curPos)
+            else:
+                return str(curPos)
+
+        if refresh or (not hasattr(self,"_polygons")):
             self.pos = 0
             if isinstance(self.geom,Polygon):
-                self._polygons = [(self._nextGeomPath(),self.geom)]
+                self._polygons = [(getGeomPath(),self.geom)]
             elif isinstance(self.geom,MultiPolygon):
-                self._polygons = [(self._nextGeomPath(),geom1) for geom1 in self.geom.geoms]
+                self._polygons = [(getGeomPath(),geom1) for geom1 in self.geom.geoms]
             elif isinstance(self.geom,GeometryCollection):
                 polygonList = None
                 for g in self.geom:
-                    sublist = PolygonUtil(g,parentPath=self._nextGeomPath()).polygons
+                    sublist = PolygonUtil(self.name,g,parentPath=getGeomPath(),print_progress_status=self.print_progress_status).polygons
                     if not p:
                         continue
                     elif not polygonList:
@@ -75,6 +111,9 @@ class PolygonUtil(object):
         return self._polygons
 
     def expandGeom(self,geom=None):
+        """
+        Expand the geometry as a tree structure 
+        """
         geom = geom or self.geom
         if isinstance(geom,Polygon):
             return ['polygon',self.geom]
@@ -91,10 +130,11 @@ class PolygonUtil(object):
         if this ring is contained by one polygon, then add it to the polygon as interior ring 
         if this ring is not contained by any polygon, then add it as indenpendent polygon
         """
-        
+        fix_types = 0
         def _addAsInteriorRing(expandedGeom,orphanPoly):
             if expandedGeom[0] == 'polygon':
                 if expandedGeom[1].contains(orphanPoly):
+                    #the polygon contains the orphan polygon, add the orphan polygon as a interior ring.
                     expandedGeom[1] = Polygon(expandedGeom[1].exterior,[r for r in expandedGeom[1].interiors] + [LinearRing([c for c in reversed(orphanPoly.exterior.coords)])])
                     return True
                 else:
@@ -121,11 +161,13 @@ class PolygonUtil(object):
             else:
                 orphanPoly = Polygon(orphanRing)
             if _addAsInteriorRing(expandedGeom,orphanPoly):
+                fix_types |= self.FIX_ORPHAN_RING_AS_INTERIOR_RING
                 del orphanRings[index]
             index -= 1
 
         if orphanRings:
-            print("Still have some orphan rings are not contained by polygon, added them as independent polygons")
+            fix_types |= self.FIX_ORPHAN_RING_AS_ISLAND
+            self.print_progress_status("Still have some orphan rings are not contained by polygon, added them as independent polygons")
             if expandedGeom[0] == 'polygon':
                 expandedGeom = ["multipolygon",[expandedGeom]]
                 for orphanRing in orphanRings:
@@ -146,7 +188,12 @@ class PolygonUtil(object):
             else:
                 raise Exception("Doesn't support expanded geometry type ({})".format("expandedGeom[0]"))
 
+        return fix_types
+
     def collapseGeom(self,expandedGeom):
+        """
+        Collapse a expanded tree structure as a single geometry
+        """
         if expandedGeom[0] == 'polygon':
             return expandedGeom[1]
         elif expandedGeom[0] == 'other':
@@ -197,8 +244,61 @@ class PolygonUtil(object):
     
         return result
 
+    def split_intersectlines(self,ring):
+        """
+        find intersectlines 
+        if find, split the line into two lines, and return new ring;otherwise return False
+        """
+        index = 0
+        coords_len = len(ring.coords)
+        lines = []
+        #genarte all lines
+        while index < coords_len - 1:
+            lines.append(LineString(ring.coords[index:index+2]))
+            index += 1
+        self.print_progress_status("have {} lines for processing ".format(len(lines)))
+        index = 0
+        lines_len = len(lines)
+        changed = False
+        intersected_lines = []
+        while index < lines_len - 2:
+            #self.print_progress_status("check line {}/{}".format(index + 1,len(lines)))
+            subindex = index + 2
+            while subindex < lines_len:
+                intersected_point = lines[index].intersection(lines[subindex])
+                if intersected_point:
+                    intersected_coord = intersected_point.coords[0]
+                    if intersected_coord not in lines[subindex].coords or intersected_coord not in lines[index].coords:
+                        intersected_lines.append(((index,intersected_coord not in lines[index].coords),(subindex,intersected_coord not in lines[subindex].coords),intersected_coord))
+                    if intersected_coord not in lines[subindex].coords:
+                        lines.insert(subindex + 1,LineString([intersected_coord,lines[subindex].coords[1]]))
+                        lines[subindex] = LineString([lines[subindex].coords[0],intersected_coord])
+                        lines_len += 1
+                        changed = True
+                        self.print_progress_status("Split the intersected lines into two lines.  index={} ,coords={}".format(subindex,intersected_coord))
+
+                    if intersected_coord not in lines[index].coords:
+                        lines.insert(index + 1,LineString([intersected_coord,lines[index].coords[1]]))
+                        lines[index] = LineString([lines[index].coords[0],intersected_coord])
+                        lines_len += 1
+                        changed = True
+                        self.print_progress_status("Split the intersected lines into two lines. index={} ,coords={}".format(index,intersected_coord))
+
+
+                subindex += 1
+
+            index += 1
+
+        if changed:
+            ring = LinearRing([l.coords[0] for l in lines] + [lines[-1].coords[1]])
+            if ring.coords[0] != ring.coords[-1]:
+                raise Exception("The first and last coords of the Ring after splitting intersectlines are not same")
+            return ring
+
+        return None
+
     def check_selfintersect(self):
-        polygonList = self.polygons
+        polygonList = self.polygons()
     
         if not polygonList:
             return None
@@ -218,99 +318,134 @@ class PolygonUtil(object):
 
         return selfintersect_polygons
 
-    def fix_selfintersect(self):
-        polygonList = self.polygons
+    def exportPolygon(self):
+        polygons = self.polygons(True)
+        for path,polygon in polygons:
+            exportGeojson(polygon,os.path.join(tempfile.gettempdir(),"{}_{}.geojson".format(self.name,path.replace('.','-'))))
 
+    def fix_selfintersect(self,check_selfintersectlines=False):
+        polygonList = self.polygons()
+        if not polygonList:
+            return None
+        #import ipdb;ipdb.set_trace()
         expandedGeom = self.expandGeom()
-
-        fixed_geom = False
+        geom_fix_types = 0
         fixed_polygons = []
+        #contain all orphan rings
         orphan_rings = []
+        #one selfintersected will be replaced with multiple fixed polygons, so the path of the afterward polygon will be changed after one selfintersected polygon is replaced. 
+        #this is the reason why we need to reverse the polygonList when fixing.
         for path,polygon in reversed(polygonList):
             fixed_polygons = []
-
-            #feat polygon is self-intersected
+            #contain all non self-intersected exterior rings 
             exterior_rings = []
+            #contain all non self-intersected interior rings 
             interior_rings = []
             #import ipdb;ipdb.set_trace()
+            #contain all rings which require self-intersection detection and fixing
             all_rings = []
-            fixed = False
+            fix_types = 0
+            #add exterior rings to all_rings as exterior ring and also make sure the ring is  clock-wise direction.
             if polygon.exterior.is_ccw:
-                all_rings.append([(exterior_rings,0,LinearRing(reversed(polygon.exterior.coords)))])
-                fixed = True
+                all_rings.append([exterior_rings,0,LinearRing(reversed(polygon.exterior.coords))])
+                fix_types |= self.FIX_RING_ORIENT
             else:
-                all_rings.append((exterior_rings,0,polygon.exterior))
+                all_rings.append([exterior_rings,0,polygon.exterior])
 
+            #add interior rings contained by exterior ring to all_rings as interior rings, and also make sure the rings are  counter clockwise direction.
+            #add interior rings not contained by exterior ring to all_rings as orphan rings, and also make sure the rings are  counter clockwise direction.
             i = 1
             exterior_polygon = Polygon(all_rings[0][2])
             for r in polygon.interiors:
                 polygon_r = Polygon(r)
                 if exterior_polygon.contains(polygon_r):
                     if r.is_ccw:
-                        all_rings.append((interior_rings,i,r))
+                        all_rings.append([interior_rings,i,r])
                     else:
-                        all_rings.append((interior_rings,i,LinearRing(reversed(r.coords))))
-                        fixed = True
-                elif extractPolygons(exterior_polygon).intersection(polygon_r):
+                        all_rings.append([interior_rings,i,LinearRing(reversed(r.coords))])
+                        fix_types |= self.FIX_RING_ORIENT
+                elif extractPolygons(exterior_polygon.intersection(polygon_r)):
                     raise Exception("The exterior ring of the polygon({}) is intersected with interior ring".format(path))
                 else:
-                    fixed = True
-                    print("==============================")
-                    print(mapping(r))
-                    print("==============================")
+                    fix_types |= self.FIX_ORPHAN_RINGS
                     if r.is_ccw:
-                        all_rings.append((orphan_rings,i,r))
+                        all_rings.append([orphan_rings,i,r])
                     else:
-                        all_rings.append((orphan_rings,i,LinearRing(reversed(r.coords))))
+                        all_rings.append([orphan_rings,i,LinearRing(reversed(r.coords))])
 
                 i += 1
 
+            #detect and fix intersect lines
+            if check_selfintersectlines:
+                i = 0
+                while i < len(all_rings):
+                    self.print_progress_status("processing ring {}/{}".format(i + 1,len(all_rings)))
+                    fixed_ring = self.split_intersectlines(all_rings[i][2])
+                    if fixed_ring:
+                        fix_types |= self.FIX_SELFINTERSECT_LINES
+                        all_rings[i][2] = fixed_ring
+                    i += 1
+
+
+            #Repopulate the polygon, which has exterior ring with clock-wise direction, and interior rings with counter clockwise direction, 
+            #and also interior rings not contained by exterior ring are removed from original polygon,
             polygon = Polygon(LinearRing(all_rings[0][2]),[LinearRing(r[2]) for r in all_rings[1:]])
 
+            #detect and fix selfintersection rings 
             while all_rings:
                 rings,ring_index,ring = all_rings[0]
                 del all_rings[0]
 
-
                 check_rings = [ring.coords]
-
-                #if path == '150' and ring_index < 10:
-                #    import ipdb;ipdb.set_trace()
-
-
+                #detect and fix the current ring and the rings splitted from the current ring.
                 while check_rings:
                     check_ring = check_rings[0]
                     del check_rings[0]
 
                     first_selfintersect_point = self.first_selfintersect_point(check_ring)
                     if not first_selfintersect_point:
+                        #no self-intersection found, add it to fixed rings(exterior_rings or interior_rings or orphan_rings)
                         rings.append(check_ring)
                         continue
-                    fixed = True
-
+                    fix_types |= self.FIX_SELFINTERSECT_POINTS
                     coord,start_pos,end_pos  = first_selfintersect_point
 
                     """
                     if ring_index == 0:
-                        print("Split the exterior ring of the polygon({}) as {} :coord = {}, start_pos = {}, end_pos = {}".format(path,"exterior ring" if exterior else "interior ring",coord,start_pos,end_pos))
+                        self.print_progress_status("Split the exterior ring of the polygon({}) as {} :coord = {}, start_pos = {}, end_pos = {}".format(path,"exterior ring" if exterior else "interior ring",coord,start_pos,end_pos))
                     else:
-                        print("Split the interior({}) ring of the polygon({}) as {} :coord = {}, start_pos = {}, end_pos = {}".format(ring_index - 1,path,"exterior ring" if exterior else "interior ring",coord,start_pos,end_pos))
+                        self.print_progress_status("Split the interior({}) ring of the polygon({}) as {} :coord = {}, start_pos = {}, end_pos = {}".format(ring_index - 1,path,"exterior ring" if exterior else "interior ring",coord,start_pos,end_pos))
                     """
+                    if start_pos + 1 == end_pos:
+                        #duplicate points 
+                        fix_types |= self.REMOVE_DUPLICATE_POINT
+                        ring1 = check_ring[0:start_pos] + check_ring[end_pos:]
+                        check_rings.insert(0,ring1)
+                        continue
+                    elif start_pos == 0 and end_pos + 1 == len(check_ring) - 1:
+                        #duplicate points 
+                        fix_types |= self.REMOVE_DUPLICATE_POINT
+                        ring1 = check_ring[:end_pos + 1]
+                        check_rings.insert(0,ring1)
+                        continue
+
+
+                    fix_types |= self.FIX_SELFINTERSECT_POINTS
                     if start_pos == 0:
-                        #fist point is self intersected, split into two polygons
+                        #first point is the self-intersected point, split it into two rings in the middle
                         ring1 = check_ring[:end_pos + 1 ]
                         ring2 = check_ring[end_pos:]
                     else:
-                        #middle point is self intersected, split into two polygons
+                        #The two self-intersected points are in the middle, extract the self-intersected section as a ring , and the remain points including one self-intersected point as the other ring.
                         ring1 = check_ring[0:start_pos] + check_ring[end_pos:]
                         ring2 = check_ring[start_pos:end_pos + 1 ]
-
+                    #validate the splitted two rings
                     for r in (ring1,ring2):
                         if len(r) < 4:
                             if ring_index == 0:
-                                raise Exception("Fix the exterior ring of the polygon({}) failed, the splitted ring only has {} pints ".format(path, len(r)))
+                                raise Exception("Fix the exterior ring of the polygon({}) failed, the splitted ring only has {} points ".format(path, len(r)))
                             else:
-                                raise Exception("Fix the interior ring ({}) of the polygon({}) failed, the splitted ring only has {} pints ".format(ring_index - 1,path, len(r)))
+                                raise Exception("Fix the interior ring ({}) of the polygon({}) failed, the splitted ring only has {} points ".format(ring_index - 1,path, len(r)))
 
                         if r[0] != r[-1]:
                             if ring_index == 0:
@@ -318,48 +453,50 @@ class PolygonUtil(object):
                             else:
                                 raise Exception("Fix the interior ring ({}) of the polygon({}) failed, the fist point of the splitted ring is not the same point as the last point.({} <> {}) ".format(ring_index - 1,path, r[0],r[-1] ))
 
+                    #detect the right type(exterior,interior or orphan) and add them into check_rings or all_rings
                     if Polygon(ring1).contains(Polygon(ring2)):
-                        #ring2 inside ring1,treat  ring2 as a hole
-                        check_rings.insert(0,ring1)
                         if rings == exterior_rings:
+                            check_rings.insert(0,ring1)
                             all_rings.insert(0,(interior_rings,ring_index,LinearRing(ring2)))
                         elif rings == interior_rings:
-                            #this is a island, generate replace the same point with two adjecent points.
+                            #this is a island,add ring2 as another exterior ring.
+                            check_rings.insert(0,ring1)
                             all_rings.insert(0,(exterior_rings,ring_index,LinearRing(ring2)))
                         else:
-                            raise Exception("Doesn't support orphan ring island")
-
+                            if ring_index == 0:
+                                raise Exception("Fix the exterior ring of the polygon({}) failed, found island in orphan ring".format(path))
+                            else:
+                                raise Exception("Fix the interior ring({}) of the polygon({}) failed, found island in orphan ring".format(ring_index - 1,path))
                         continue
                     elif Polygon(ring2).contains(Polygon(ring1)):
-                        #ring1 inside ring2,treat  ring1 as a hole
-                        check_rings.insert(0,ring2)
-                        if ring_index == 0:
-                            all_rings.insert(0,LinearRing(ring1))
+                        if rings == exterior_rings:
+                            check_rings.insert(0,ring2)
+                            all_rings.insert(0,(interior_rings,ring_index,LinearRing(ring1)))
+                        elif rings == interior_rings:
+                            #this is a island,add ring1 as another exterior ring.
+                            check_rings.insert(0,ring2)
+                            all_rings.insert(0,(exterior_rings,ring_index,LinearRing(ring1)))
                         else:
-                            #this is a island, generate replace the same point with two adjecent points.
-                            all_rings.insert(0,(not exterior,ring_index,LinearRing(ring1)))
-                        continue
+                            if ring_index == 0:
+                                raise Exception("Fix the exterior ring of the polygon({}) failed, found island in orphan ring".format(path))
+                            else:
+                                raise Exception("Fix the interior ring({}) of the polygon({}) failed, found island in orphan ring".format(ring_index - 1,path))
+                    elif extractPolygons(Polygon(ring1).intersection(Polygon(ring2))):
+                        if ring_index == 0:
+                            raise Exception("Fix the exterior ring of the polygon({}) failed, found intersection between the splitted two rings".format(path))
+                        else:
+                            raise Exception("Fix the interior ring({}) of the polygon({}) failed, found intersection between the splitted two rings".format(ring_index - 1,path))
                     else:
                         check_rings.insert(0,ring1)
                         check_rings.insert(1,ring2)
                         #import ipdb;ipdb.set_trace()
-                        for i in (0,1):
-                            container_index = 1 if i == 0 else 0
-                            container_polygon = Polygon(LinearRing(check_rings[container_index]))
-                            for ring_coord in check_rings[i]:
-                                if coord == ring_coord:
-                                    continue
-                                if container_polygon.contains(Point(ring_coord)):
-                                    if ring_index == 0:
-                                        raise Exception("Fix the exterior ring of the polygon({}) failed, the point({}) of splitted ring is inside the other splitted ring ".format(path, ring_coord ))
-                                    else:
-                                        raise Exception("Fix the interior ring({}) of the polygon({}) failed, the point({}) of splitted ring is inside the other splitted ring ".format(ring_index - 1,path, ring_coord ))
-
-            if not fixed :
-                exportGeojson(polygon,"/tmp/bf_2017_ekm_024_{}.geojson".format(path))
+            #save the current polygon as a independent feature for testing if the current polygon is not changed.
+            if not fix_types :
                 continue
             #import ipdb;ipdb.set_trace()
-            fixed_geom = True
+            #try to populate the polygons from fixed exterior rings and interior rings.
+            #import ipdb;ipdb.set_trace()
+            geom_fix_types |= fix_types
             if interior_rings:
                 for exterior_ring_coords in exterior_rings:
                     exterior_ring = Polygon(LinearRing(exterior_ring_coords))
@@ -378,25 +515,26 @@ class PolygonUtil(object):
                         fixed_polygons.append(Polygon(exterior_ring_coords))
 
                 if interior_rings:
-                    import ipdb;ipdb.set_trace()
+                    #import ipdb;ipdb.set_trace()
                     raise Exception("Some interior rings are not in polygon.")
             else:
                 for exterior_ring_coords in exterior_rings:
                     fixed_polygons.append(Polygon(exterior_ring_coords))
 
-            #import ipdb;ipdb.set_trace()
             polygon_area = calculateGeometryArea(polygon)
             fixed_polygon_area = calculateGeometryArea(MultiPolygon(fixed_polygons))
-            print("Original polygon area = {}, fixed polygon area = {}".format(polygon_area,fixed_polygon_area))
+            self.print_progress_status("Original polygon area = {}, fixed polygon area = {},fix types = {}".format(polygon_area,fixed_polygon_area,self.fix_type_names(fix_types)))
             #replace the selfintersected polygon in the expanded geom
-            exportGeojson(MultiPolygon(fixed_polygons),"/tmp/bf_2017_ekm_024_{}.geojson".format(path))
+
+            #replace the current polygon with fixed polygon
             paths = [int(i) for i in path.split(".")]
+            #find the parent geometry
             parentGeom = expandedGeom
             for p in paths[0:-1]:
                 if parentGeom[0] not in ('multipolygon','geometrycollection'):
                     raise Exception("container geometry is not multipolygon and geometrycollection")
                 parentGeom = parentGeom[1][p]
-
+            #remove the current polygon from parent geometry and add the fixed polygons to parent geometry
             if paths[-1] == 0:
                 if parentGeom[0] == 'polygon':
                     parentGeom[0] = 'multipolygon'
@@ -413,78 +551,78 @@ class PolygonUtil(object):
                     parentGeom[1].insert(paths[-1],['polygon',poly])
 
 
-        if fixed_geom:
+        if geom_fix_types:
+            #the current geometry is selfintersected and already fixed.
             #import ipdb;ipdb.set_trace()
             if orphan_rings:
-                self.addOrphanRing(expandedGeom,orphan_rings)
+                #found some orphan ring , add the orphan rings to geometry
+                geom_fix_types |= self.addOrphanRing(expandedGeom,orphan_rings)
 
-                
+            
             fixed_geom = self.collapseGeom(expandedGeom)
-            return fixed_geom
+            PolygonUtil(self.name,fixed_geom,print_progress_status=self.print_progress_status).exportPolygon()
+            return (fixed_geom,geom_fix_types)
         else:
             return None
 
 
-def check_selfintersect(geojsonfile,properties=None):
+def check_selfintersect(geojsonfile,src_proj="EPSG:4326",target_proj='EPSG:4326',print_progress_status=None,print_result=False):
+    print_progress_status = print_progress_status or default_print_progress_status
     with open(geojsonfile) as f:
         geojson = json.loads(f.read())
 
-    return _check_selfintersect(geojson)
-
-def _check_selfintersect(geojsonFeatures,properties=None):
-    features = geojsonFeatures["features"]
+    features = geojson["features"]
 
     selfintersect_features = []
     for feat in features:
-        selfintersect_polygons = PolygonUtil(getShapelyGeometry(feat)).check_selfintersect()
+        geom = getShapelyGeometry(feat)
+        if not geom:
+            continue
+        geometry = transform(geom,src_proj,target_proj)
+        selfintersect_polygons = PolygonUtil("check_feature",geometry,print_progress_status=print_progress_status).check_selfintersect()
 
         if selfintersect_polygons:
             selfintersect_features.append((feat,selfintersect_polygons))
 
+    if print_result:
+        print_selfintersect_checkresult(selfintersect_features)
 
     return selfintersect_features
 
-def print_selfintersect_features(selfintersect_features,properties=None):
+def print_selfintersect_checkresult(selfintersect_features,properties=None,print_progress_status=None):
+    print_progress_status = print_progress_status or default_print_progress_status
     if selfintersect_features:
         for feat,selfintersect_polygons in selfintersect_features:
-            print("======================The following feature is self-intersected==============================")
+            print_progress_status("======================The following feature is self-intersected==============================")
             if properties:
                 feat_properties = feat.get("properties") or {}
                 for key in properties:
-                    print("{}={}".format(key,feat_properties.get(key) ))
+                    print_progress_status("{}={}".format(key,feat_properties.get(key) ))
             else:
                 for key,value in (feat.get("properties") or {}).items():
-                    print("{}={}".format(key,value))
-            print("")
+                    print_progress_status("{}={}".format(key,value))
+            print_progress_status("")
             for path,selfintersect_rings in selfintersect_polygons:
-                print("The {} polygon is self-intersected".format(path))
+                print_progress_status("The {} polygon is self-intersected".format(path))
                 for index,selfintersects in selfintersect_rings:
                     if index == 0:
-                        print("  The exterior ring is self-intersected")
+                        print_progress_status("  The exterior ring is self-intersected")
                     else:
-                        print("  The interior ring({}) is self-intersected".format(index - 1))
+                        print_progress_status("  The interior ring({}) is self-intersected".format(index - 1))
                     for coord,indexes in selfintersects:
-                        print("    Coordinate({}) is self-intersected at position({})".format(coord,indexes))
+                        print_progress_status("    Coordinate({}) is self-intersected at position({})".format(coord,indexes))
 
 
-def replace_geojson_geometry(feat_geom,geom):
-    feat_geom.update(mapping(geom))
-
-
-def fix_selfintersect(geojson):
+def fix_selfintersect(geojson,check_selfintersectlines=False,print_progress_status=None,fixed_file=None,id_property=None):
     """
     if geojson can be a geojson file or geojson string
     if some the polygon fetures in this geosjon string or geojson file are selfintersected, a new file or geojson string  will be created to contain the fixed features and the other features and return the caller; 
 
     otherwise , return the same geojson file or geojson string.
     """
+    print_progress_status = print_progress_status or default_print_progress_status
     isfile = None
-    originFile = None
-    openNewFile = None
-
     if geojson[-8:].lower() == ".geojson":
-        openNewFile = lambda originFile:tempfile.NamedTemporaryFile(prefix="{}_fixed_".format(os.path.split(originFile)[1][:-8]),suffix=".geojson")
-
         with open(geojson) as f:
             geojsonFeatures = json.loads(f.read())
         isFile = True
@@ -494,51 +632,366 @@ def fix_selfintersect(geojson):
 
     features = geojsonFeatures["features"]
     index = 0
-    selfintersect_index = 0
     changed = False
     #import ipdb;ipdb.set_trace()
+    def basename(index):
+        if isFile:
+            if len(features) == 1:
+                return os.path.split(geojson)[1][:-8]
+            else:
+                return "{}_{}".format(os.path.split(geojson)[1][:-8],index)
+        else:
+            if len(features) == 1:
+                return "fixed_feature"
+            else:
+                return "fixed_feature_{}".format(index)
+
+
+    fix_status = []
     while index < len(features):
+        fixed_geom = None
+        featureArea = None
+        fixedFeatureArea = None
         feat = features[index]
-        index += 1
+        check_msg = None
+        try:
+            failed = False
 
-        featureArea = calculateFeatureArea(feat)
+            featureArea = calculateFeatureArea(feat)
 
-        geom = getShapelyGeometry(feat)
-        fixed_geom = PolygonUtil(geom).fix_selfintersect()
-        if not fixed_geom:
-            continue
+            geom = getShapelyGeometry(feat)
+            if not geom:
+                continue
+            fixed_geom = PolygonUtil(basename(index),geom,print_progress_status=print_progress_status).fix_selfintersect(check_selfintersectlines=check_selfintersectlines)
+            if not fixed_geom:
+                continue
 
-        changed = True
-        replace_geojson_geometry(feat["geometry"],fixed_geom)
-        fixedFeatureArea = calculateFeatureArea(feat)
-        print("feature area = {},fixed feature area = {}".format(featureArea,fixedFeatureArea))
+            #PolygonUtil(basename(index),fixed_geom,print_progress_status=print_progress_status).exportPolygon()
+            changed = True
+            feat["geometry"].update(mapping(fixed_geom[0]))
+            fixedFeatureArea = calculateFeatureArea(feat)
+            print_progress_status("feature area = {},fixed feature area = {}, fix types = {}".format(featureArea,fixedFeatureArea,PolygonUtil.fix_type_names(fixed_geom[1])))
+
+
+            selfintersect_polygons = PolygonUtil("check_feature",fixed_geom,print_progress_status=print_progress_status).check_selfintersect()
+            if selfintersect_polygons:
+                print_selfintersect_checkresult([(feat,selfintersect_features)],print_progress_status=print_progress_status)
+                check_msg  = "Fix failed, still have selfintersection after fixing "
+            else:
+                check_msg  = "OK"
+
+        except Exception as ex:
+            failed = True
+            raise
+        finally:
+            if failed:
+                pass
+            elif fixed_geom:
+                if id_property:
+                    fix_status.append((feat["properties"][id_property],{
+                        "origin_feature_area":featureArea,
+                        "fixed_feature_area":fixedFeatureArea,
+                        "area_changed":abs(featureArea - fixedFeatureArea),
+                        "fix_types":fixed_geom[1],
+                        "fix_types_desc":" , ".join(PolygonUtil.fix_type_names(fixed_geom[1])),
+                        "check_msg":check_msg
+
+                        }))
+                else:
+                    fix_status.append((index,{
+                        "origin_feature_area":featureArea,
+                        "fixed_feature_area":fixedFeatureArea,
+                        "area_changed":abs(featureArea - fixedFeatureArea),
+                        "fix_types":fixed_geom[1],
+                        "fix_types_desc":" , ".join(PolygonUtil.fix_type_names(fixed_geom[1])),
+                        "check_msg":check_msg
+                        }))
+            else:
+                if id_property:
+                    fix_status.append((feat["properties"][id_property],{"fix_types":0,"fix_types_desc":"No change","origin_feature_area":featureArea}))
+                else:
+                    fix_status.append((index,{"fix_types":0,"fix_types_desc":"No change","origin_feature_area":featureArea}))
+            index += 1
 
     if not changed:
-        return geojson
+        return (geojson,fix_status)
 
-    if isFile:
-        with tempfile.NamedTemporaryFile(prefix="{}_fixed_".format(os.path.split(geojson)[1][:-8]),suffix=".geojson",delete=False) as fixedFile:
-            fixedFile.write(json.dumps(geojsonFeatures,indent=True))
-            return fixedFile.name
+    if isFile or fixed_file:
+        filename = fixed_file or os.path.join(tempfile.gettempdir(),"{}_fixed.geojson".format(os.path.split(geojson)[1][:-8]))
+        with open(filename,'w') as f:
+            f.write(json.dumps(geojsonFeatures,indent=True))
+        return (filename,fix_status)
     else:
-        return features
+        return (features,fix_status)
+
+
+def batch_fix(folder,check_selfintersectlines=False,clean=False):
+    if not os.path.exists(folder):
+        raise Exception("The folder '{}' doesn't exist".format(folder))
+
+    if not os.path.isdir(folder):
+        raise Exception("The path '{}' is not a folder".format(folder))
+
+    log_folder = os.path.join(folder,'log')
+    processed_folder = os.path.join(folder,'processed')
+    fixed_folder = os.path.join(folder,'fixed')
+    status_folder = os.path.join(folder,'status')
+
+    if not os.path.exists(log_folder):
+        os.mkdir(log_folder)
+
+    if not os.path.exists(processed_folder):
+        os.mkdir(processed_folder)
+
+    if not os.path.exists(fixed_folder):
+        os.mkdir(fixed_folder)
+
+    if not os.path.exists(status_folder):
+        os.mkdir(status_folder)
+    
+    status_file = os.path.join(status_folder,'process_status.txt')
+    failed_process_file = os.path.join(status_folder,'failed.txt')
+    for f in (status_file,failed_process_file):
+        try:
+            #create the file if not  exist
+            fd = os.open(f, os.O_CREAT|os.O_EXCL|os.O_RDWR)
+            os.close(fd)
+        except OSError as e:
+            continue
+
+
+    geojson_files = sorted([f for f in os.listdir(folder) if f.lower().endswith(".geojson")])
+
+    basename = lambda f:f[:len(".geojson") * -1]
+
+
+    f_logfile = lambda f:os.path.join(log_folder,"{}.log".format(basename(f)))
+    f_source_file = lambda f:os.path.join(folder,f)
+    f_processed_file = lambda f:os.path.join(processed_folder,f)
+    f_fixed_file = lambda f:os.path.join(fixed_folder,f)
+
+    if clean:
+        #try to remove the log file whose geojson file processing is not finished.
+        for geojson_file in geojson_files:
+            logfile = f_logfile(geojson_file)
+            if os.path.exists(logfile):
+                #processed
+                if not os.path.exists(os.path.join(processed_folder,geojson_file)):
+                    #process not finished
+                    os.remove(logfile)
+
+    logfile_fd = None
+    def _print_process_status(msg):
+        if logfile_fd:
+            os.write(logfile_fd,"{} : {}{}".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"),msg,os.linesep))
+
+    def _write_fix_status(geojson_file,fix_status):
+        with open(status_file,'a') as f:
+            f.write("{} = {}{}".format(geojson_file,json.dumps(fix_status),os.linesep))
+
+    def _write_failed(geojson_file,msg):
+        with open(failed_process_file,'a') as f:
+            f.write("{} : {} = {}{}".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"),geojson_file,msg,os.linesep))
+
+    #processing
+    for geojson_file in geojson_files:
+        logfile_fd = None
+        logfile = f_logfile(geojson_file)
+        source_file = f_source_file(geojson_file)
+        fixed_file = f_fixed_file(geojson_file)
+        processed_file = f_processed_file(geojson_file)
+        try:
+            try:
+                logfile_fd = os.open(logfile, os.O_CREAT|os.O_EXCL|os.O_RDWR)
+            except OSError as e:
+                continue
+
+            print("Processing '{}'".format(source_file))
+
+            _print_process_status("Processing '{}'".format(geojson_file))
+
+            selfintersected_features = check_selfintersect(source_file)
+            if selfintersected_features:
+                print_selfintersect_checkresult(selfintersected_features,print_progress_status=_print_process_status)
+
+            fixed_file,fix_status = fix_selfintersect(source_file,check_selfintersectlines=check_selfintersectlines,print_progress_status=_print_process_status,fixed_file=fixed_file,id_property="fire_number")
+            _print_process_status("End to process '{}'".format(geojson_file))
+
+            _write_fix_status(geojson_file,fix_status)
+            copyfile(source_file,processed_file)
+        except Exception as ex:
+            traceback.print_exc()
+            _write_failed(geojson_file,ex.message)
+
+        finally:
+            if logfile_fd:
+                try:
+                    os.close(logfile_fd)
+                    logfile_fd = None
+                except:
+                    pass
+ 
+def process_status_report(folder):
+    status_folder = os.path.join(folder,'status')
+    process_status_file = os.path.join(status_folder,'process_status.txt')
+    merged_process_status_file = os.path.join(status_folder,'process_status_merged.txt')
+    fixed_status_file = os.path.join(status_folder,'fixed_status.txt')
+    if not os.path.exists(process_status_file):
+        raise Exception("The process status file '{}' does not exist".format(process_status_file))
+    #read all lines from process_status.txt
+    lines = []
+    with open(process_status_file) as f:
+        while True:
+            line = f.readline()
+            if line:
+                lines.append(line)
+            else:
+                break
+    
+    #get all files from process_status.txt
+    files = [l.split('=')[0].strip() for l in lines]
+    
+    #detect the duplicate file items in process_status.txt
+    file_map = {}
+    duplicate_files=[]
+    index = 0
+    while index < len(files):
+        f = files[index]
+        if f in file_map:
+            if f not in duplicate_files:
+                duplicate_files.append(f)
+            file_map[f].append(index)
+        else:
+            file_map[f] = [index]
+        index += 1
+    
+    #remove the duplicate file items, only keep the last item for a single file
+    new_lines = []
+    index  = 0
+    while index < len(lines):
+        try:
+            f = files[index]
+            if f in duplicate_files:
+                if index == file_map[f][-1]:
+                    new_lines.append(lines[index])
+                else:
+                    continue
+            else:
+                new_lines.append(lines[index])
+        finally:
+            index += 1
+    
+    #write to the fixed process status file
+    with open(merged_process_status_file,'wb') as f:
+        for l in new_lines:
+            f.write(l)
+    print("check the process status in new file '{}'".format(merged_process_status_file))
+    
+    #write to the fixed process status file
+    with open(fixed_status_file,'wb') as f:
+        for l in new_lines:
+            if "fixed_feature_area" in l:
+                f.write(l)
+    print("check the fixed status in new file '{}'".format(fixed_status_file))
+
+    area_not_changed = 0
+    area_changed = 0
+    max_area_diff = 0
+    fix_type_report = {}
+
+    failed_map = {}
+    features = 0
+    fixed_features = []
+
+    for key in PolygonUtil.FIX_TYPES.keys():
+        fix_type_report[key] = []
+
+    for l in new_lines:
+        f,f_status = [s.strip() for s in l.strip().split("=")]
+        feature_status_list = json.loads(f_status)
+        for featureid,status in feature_status_list:
+            features += 1
+            if status["fix_types"] > 0:
+                fixed_features.append(feature_key)
+
+            if len(feature_status_list) == 1:
+                feature_key = f
+            else:
+                feature_key = "{}.{}".format(f,featureid)
+
+            if status["fix_types"] > 0:
+                if status["area_changed"] == 0:
+                    area_not_changed += 1
+                else:
+                    area_changed += 1
+                    if max_area_diff < status["area_changed"]:
+                        max_area_diff = status["area_changed"]
+
+                for key in PolygonUtil.FIX_TYPES.keys():
+                    if key & status["fix_types"] == key:
+                        fix_type_report[key].append(feature_key)
+
+                if "check_msg" in status:
+                    if status["check_msg"] != "OK":
+                        failed_map[feature_key] = status["check_msg"]
+
+
+    print("=========================================================")
+    print("{} features are processed,{} features are fixed,area not changed features:{}, area changed features:{}, max area difference:{}".format(features,len(fixed_features),area_not_changed,area_changed,max_area_diff))
+    print("Fix type report")
+    for t,features in fix_type_report.items():
+        if features:
+            print("    {}: {}".format(PolygonUtil.FIX_TYPES[t],len(features)))
+    if failed_map:
+        print("After fixed, the following features still have issues.")
+        for f,msg in failed_map:
+            print("    {} : {}".format(f,msg))
+
+    #find the files not included in process status file
+    new_files = [l.split("=")[0].strip() for l in new_lines]
+    
+    first = False
+    geojson_files = sorted([f for f in os.listdir(folder) if f.lower().endswith(".geojson")])
+    for f in geojson_files:
+        if f not in new_files:
+            if first:
+                first = False
+                print("The following files are not processed.")
+            print("    {}".format(f))
+    print("=========================================================")
+
+
+#folder='/home/rockyc/work/gokart/tmp/batch'
+#folder='/home/rockyc/work/gokart/tmp/bfrs2017'
+#batch_fix(folder,clean=True)
 
 
 
-            
+#filename='/home/rockyc/work/gokart/tmp/BF_2017_PIL_018_2018-06-29_033027.geojson'
+#filename="/home/rockyc/work/gokart/tmp/bf_2017_ekm_024.geojson"
 
+#process_status_report(folder)
 
-selfintersected_features = check_selfintersect("/home/rockyc/work/gokart/tmp/bf_2017_ekm_024.geojson")
-print_selfintersect_features(selfintersected_features)
+#selfintersected_features = check_selfintersect(filename)
+#print_selfintersect_checkresult(selfintersected_features)
+#fixed_file,fix_status = fix_selfintersect(filename)
+#print(fixed_file)
 
-fixed_file = fix_selfintersect("/home/rockyc/work/gokart/tmp/bf_2017_ekm_024.geojson")
-print(fixed_file)
+#print("Check whether the fixed features have selfintersection ")
+#selfintersected_features = check_selfintersect(fixed_file)
+#if selfintersected_features:
+#    print_selfintersect_checkresult(selfintersected_features)
+#else:
+#    print("No selfintersection found")
 
-selfintersected_features = check_selfintersect(fixed_file)
-print_selfintersect_features(selfintersected_features)
-
+#print_progress_status("Check whether the fixed features have selfintersection in aea projection")
+#selfintersected_features = check_selfintersect(fixed_file,target_proj='aea')
+#if selfintersected_features:
+#    print_selfintersect_checkresult(selfintersected_features)
+#else:
+#    print_progress_status("No selfintersection found")
 #selfintersected_features = check_selfintersect("/home/rockyc/work/gokart/tmp/BF_2017_EKM_024.geojson")
-#print_selfintersect_features(selfintersected_features)
+#print_selfintersect_checkresult(selfintersected_features)
 
 #selfintersected_features = check_selfintersect("/home/rockyc/work/gokart/tmp/BF_2017_EKM_024_EPSG_4326.geojson")
-#print_selfintersect_features(selfintersected_features)
+#print_selfintersect_checkresult(selfintersected_features)
