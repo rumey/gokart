@@ -39,7 +39,9 @@ def buffer(lon, lat, meters,resolution=16):
     return ops.transform(project, buf).exterior.coords[:]
 
 def getShapelyGeometry(feature):
-    if feature["geometry"]["type"] == "GeometryCollection":
+    if not feature["geometry"]:
+        return None
+    elif feature["geometry"]["type"] == "GeometryCollection":
         return GeometryCollection([shape(g) for g in feature["geometry"]["geometries"]])
     else:
         return shape(feature["geometry"])
@@ -158,7 +160,9 @@ def getDistance(p1,p2,unit="m",p1_proj="EPSG:4326",p2_proj="EPSG:4326"):
 
 #return polygon or multipolygons if have, otherwise return None
 def extractPolygons(geom):
-    if isinstance(geom,Polygon) or isinstance(geom,MultiPolygon):
+    if not geom:
+        return None
+    elif isinstance(geom,Polygon) or isinstance(geom,MultiPolygon):
         return geom
     elif isinstance(geom,GeometryCollection):
         result = None
@@ -366,6 +370,23 @@ def calculateAreaInProcess(conn):
     #        pass
     #    checkOverlap(session_cookies,feature,options,overlapLogfile)
     #print("{}:subprocess finished".format(datetime.now()))
+
+def calculateFeatureArea(feature,unit='ha'):
+    return calculateGeometryArea(getShapelyGeometry(feature))
+
+def calculateGeometryArea(geometry,unit='ha'):
+    geometry = extractPolygons(geometry)
+    if not geometry :
+        return 0
+
+    valid,msg = geometry.check_valid
+    if not valid:
+        print("geometry is invalid.{}", msg)
+
+    geometry_aea = transform(geometry,target_proj='aea')
+
+    return  getGeometryArea(geometry_aea,unit,'aea')
+
 
 def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
     # needs gdal 1.10+
