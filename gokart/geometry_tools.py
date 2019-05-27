@@ -1,6 +1,7 @@
 import json
 import os
 import tempfile
+import math
 import traceback
 from shutil import copyfile
 from collections import OrderedDict
@@ -47,13 +48,22 @@ def exportGeojson(geom,fname):
 
 #return polygon or multipolygons if have, otherwise return None
 class PolygonUtil(object):
-    FIX_RING_ORIENT = 1
-    FIX_SELFINTERSECT_LINES = 2
-    FIX_SELFINTERSECT_POINTS = 4
-    FIX_ORPHAN_RINGS = 8
-    FIX_ORPHAN_RING_AS_INTERIOR_RING = 16
-    FIX_ORPHAN_RING_AS_ISLAND = 32
-    REMOVE_DUPLICATE_POINT = 64
+    FIX_RING_ORIENT = int(math.pow(2,0))
+    FIX_SELFINTERSECT_LINES = int(math.pow(2,1))
+    FIX_SELFINTERSECT_POINTS = int(math.pow(2,2))
+    FIX_ORPHAN_RINGS = int(math.pow(2,3))
+    FIX_ORPHAN_RING_AS_INTERIOR_RING = int(math.pow(2,4))
+    FIX_ORPHAN_RING_AS_ISLAND = int(math.pow(2,5))
+    REMOVE_DUPLICATE_POINT = int(math.pow(2,6))
+    SPLIT_EXTERIOR_RING_2_EXTERIOR_HOLE = int(math.pow(2,7))
+    SPLIT_INTERIOR_HOLE_2_INTERIOR_RING = int(math.pow(2,8))
+    SPLIT_EXTERIOR_HOLE_2_EXTERIOR_RING = int(math.pow(2,9))
+    SPLIT_INTERIOR_RING_2_INTERIOR_HOLE = int(math.pow(2,10))
+    SPLIT_EXTERIOR_RING = int(math.pow(2,11))
+    SPLIT_INTERIOR_HOLE = int(math.pow(2,12))
+    SPLIT_EXTERIOR_HOLE = int(math.pow(2,13))
+    SPLIT_INTERIOR_RING = int(math.pow(2,14))
+    SPLIT_ORPHAN_RING = int(math.pow(2,15))
 
 
     FIX_TYPES = OrderedDict([
@@ -63,7 +73,17 @@ class PolygonUtil(object):
         (FIX_ORPHAN_RINGS,"Fix orphan rings"),
         (FIX_ORPHAN_RING_AS_INTERIOR_RING,"Fix orphan ring as interior ring"),
         (FIX_ORPHAN_RING_AS_ISLAND ,"Fix orphan ring as island"),
-        (REMOVE_DUPLICATE_POINT ,"Remove duplicate point")
+        (REMOVE_DUPLICATE_POINT ,"Remove duplicate point"),
+        (SPLIT_EXTERIOR_RING_2_EXTERIOR_HOLE,"Split exterior ring to exterior ring and exterior hole"),
+        (SPLIT_INTERIOR_HOLE_2_INTERIOR_RING,"Split interior hole to interior hole and interior ring"),
+        (SPLIT_EXTERIOR_HOLE_2_EXTERIOR_RING,"Split exterior hole to exterior hole and exterior ring"),
+        (SPLIT_INTERIOR_RING_2_INTERIOR_HOLE,"Split interior ring to interior ring and interior hole"),
+        (SPLIT_EXTERIOR_RING,"Split exterior rint to 2 exterior rings"),
+        (SPLIT_INTERIOR_HOLE,"Split interior hole to 2 interior holes"),
+        (SPLIT_EXTERIOR_HOLE,"Split exterior hole to 2 exterior holes"),
+        (SPLIT_INTERIOR_RING,"Split interior ring to 2 interior rings"),
+        (SPLIT_ORPHAN_RING,"Split orphan ring to 2 orphan rings")
+
     ])
     def __init__(self,name,geom,parentPath=None,print_progress_status=None):
         self.geom = geom
@@ -407,7 +427,6 @@ class PolygonUtil(object):
                         #no self-intersection found, add it to fixed rings(exterior_rings or interior_rings or orphan_rings)
                         rings.append(check_ring)
                         continue
-                    fix_types |= self.FIX_SELFINTERSECT_POINTS
                     coord,start_pos,end_pos  = first_selfintersect_point
 
                     """
@@ -430,7 +449,6 @@ class PolygonUtil(object):
                         continue
 
 
-                    fix_types |= self.FIX_SELFINTERSECT_POINTS
                     if start_pos == 0:
                         #first point is the self-intersected point, split it into two rings in the middle
                         ring1 = check_ring[:end_pos + 1 ]
@@ -458,10 +476,18 @@ class PolygonUtil(object):
                         if rings == exterior_rings:
                             check_rings.insert(0,ring1)
                             all_rings.insert(0,(interior_rings,ring_index,LinearRing(ring2)))
+                            if ring_index == 0:
+                                fix_types |= self.SPLIT_EXTERIOR_RING_2_EXTERIOR_HOLE
+                            else:
+                                fix_types |= self.SPLIT_INTERIOR_HOLE_2_INTERIOR_RING
                         elif rings == interior_rings:
                             #this is a island,add ring2 as another exterior ring.
                             check_rings.insert(0,ring1)
                             all_rings.insert(0,(exterior_rings,ring_index,LinearRing(ring2)))
+                            if ring_index == 0:
+                                fix_types |= self.SPLIT_EXTERIOR_HOLE_2_EXTERIOR_RING
+                            else:
+                                fix_types |= self.SPLIT_INTERIOR_RING_2_INTERIOR_HOLE
                         else:
                             if ring_index == 0:
                                 raise Exception("Fix the exterior ring of the polygon({}) failed, found island in orphan ring".format(path))
@@ -472,10 +498,18 @@ class PolygonUtil(object):
                         if rings == exterior_rings:
                             check_rings.insert(0,ring2)
                             all_rings.insert(0,(interior_rings,ring_index,LinearRing(ring1)))
+                            if ring_index == 0:
+                                fix_types |= self.SPLIT_EXTERIOR_RING_2_EXTERIOR_HOLE
+                            else:
+                                fix_types |= self.SPLIT_INTERIOR_HOLE_2_INTERIOR_RING
                         elif rings == interior_rings:
                             #this is a island,add ring1 as another exterior ring.
                             check_rings.insert(0,ring2)
                             all_rings.insert(0,(exterior_rings,ring_index,LinearRing(ring1)))
+                            if ring_index == 0:
+                                fix_types |= self.SPLIT_EXTERIOR_HOLE_2_EXTERIOR_RING
+                            else:
+                                fix_types |= self.SPLIT_INTERIOR_RING_2_INTERIOR_HOLE
                         else:
                             if ring_index == 0:
                                 raise Exception("Fix the exterior ring of the polygon({}) failed, found island in orphan ring".format(path))
@@ -489,6 +523,19 @@ class PolygonUtil(object):
                     else:
                         check_rings.insert(0,ring1)
                         check_rings.insert(1,ring2)
+                        if rings == exterior_rings:
+                            if ring_index == 0:
+                                fix_types |= self.SPLIT_EXTERIOR_RING
+                            else:
+                                fix_types |= self.SPLIT_INTERIOR_HOLE
+                        elif rings == interior_rings:
+                            if ring_index == 0:
+                                fix_types |= self.SPLIT_EXTERIOR_HOLE
+                            else:
+                                fix_types |= self.SPLIT_INTERIOR_RING
+                        else:
+                            fix_types |= self.SPLIT_ORPHAN_RING
+
                         #import ipdb;ipdb.set_trace()
             #save the current polygon as a independent feature for testing if the current polygon is not changed.
             if not fix_types :
