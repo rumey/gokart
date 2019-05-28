@@ -1398,9 +1398,19 @@
                             {
                                 id:"legislated_lands_and_waters",
                                 layerid:getLayerId("cddp:legislated_lands_and_waters"),
+                                cqlfilter:"category<>'State Forest'",
                                 kmiservice:vm.env.kmiService,
                                 properties:{
                                     category:"category"
+                                },
+                                primary_key:"ogc_fid"
+                            },
+                            {
+                                id:"state_forest_plantation_distribution",
+                                layerid:getLayerId("cddp:state_forest_plantation_distribution"),
+                                kmiservice:vm.env.kmiService,
+                                properties:{
+                                    category:"fbr_fire_r"
                                 },
                                 primary_key:"ogc_fid"
                             },
@@ -1492,6 +1502,14 @@
                 if (tenure_origin_point_task) {
                     tenure_origin_point_task.setStatus(utils.RUNNING)
                     tenure_layers = [{
+                        id:"cddp:state_forest_plantation_distribution",
+                        geom_field:"wkb_geometry",
+                        properties:{
+                            id:"ogc_fid",
+                            name:"fbr_fire_r",
+                            category:"fbr_fire_r"
+                        },
+                    },{
                         id:"cddp:legislated_lands_and_waters",
                         geom_field:"wkb_geometry",
                         properties:{
