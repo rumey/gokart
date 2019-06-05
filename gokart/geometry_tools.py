@@ -13,7 +13,7 @@ from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry import LinearRing,mapping,LineString
 from shapely.geometry.collection import GeometryCollection
 
-from gokart.spatial import calculateFeatureArea,calculateGeometryArea,extractPolygons,transform
+from gokart.spatial import calculateFeatureArea,calculateGeometryArea,extractPolygons,transform,exportGeojson
 
 def default_print_progress_status(msg):
     print("{} : {}".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"),msg))
@@ -25,26 +25,6 @@ def getShapelyGeometry(feature):
         return GeometryCollection([shape(g) for g in feature["geometry"]["geometries"]])
     else:
         return shape(feature["geometry"])
-
-def exportGeojson(geom,fname):
-    geojson = {
-        "type":"FeatureCollection",
-        "features":[
-            {
-                "type":"Feature",
-                "geometry":mapping(geom),
-                "properties":{
-                    "toolName":"Fire Boundary",
-                    "author":"rocky.chen@dbca.wa.gov.au",
-                    "createTime":1558314708105
-                }
-            }
-        ]
-    }
-    with open(fname,'w') as f:
-        f.write(json.dumps(geojson,indent=True))
-
-    return fname
 
 #return polygon or multipolygons if have, otherwise return None
 class PolygonUtil(object):

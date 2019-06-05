@@ -11,7 +11,7 @@ import pyproj
 from datetime import datetime
 from multiprocessing import Process,Pipe
 
-from shapely.geometry import shape,MultiPoint,Point
+from shapely.geometry import shape,MultiPoint,Point,mapping
 from shapely.geometry.polygon import Polygon
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.collection import GeometryCollection
@@ -23,6 +23,59 @@ import settings
 import kmi
 
 proj_aea = lambda geometry: pyproj.Proj("+proj=aea +lat_1=-17.5 +lat_2=-31.5 +lat_0=0 +lon_0=121 +x_0=5000000 +y_0=10000000 +ellps=GRS80 +units=m +no_defs ",lat1=geometry.bounds[1],lat2=geometry.bounds[3])
+
+def exportGeojson(feat,fname):
+    if isinstance(feat,BaseGeometry):
+        geojson = {
+            "type":"FeatureCollection",
+            "features":[
+                {
+                    "type":"Feature",
+                    "geometry":mapping(feat),
+                    "properties":{}
+                }
+            ]
+        }
+    elif isinstance(feat,tuple):
+        geojson = {
+            "type":"FeatureCollection",
+            "features":[
+                {
+                    "type":"Feature",
+                    "geometry":mapping(feat[0]),
+                    "properties":feat[1] or {}
+                }
+            ]
+        }
+    elif isinstance(feat,list):
+        features = []
+        geojson = {
+            "type":"FeatureCollection",
+            "features":features
+        }
+        for f in feat:
+            if isinstance(f,BaseGeometry):
+                features.append({
+                    "type":"Feature",
+                    "geometry":mapping(f),
+                    "properties":{}
+                })
+            elif isinstance(f,tuple):
+                features.append({
+                    "type":"Feature",
+                    "geometry":mapping(f[0]),
+                    "properties":f[1] or {}
+                })
+            else:
+                raise Exception("Unsupported type({}.{})".format(f.__class__.__module__,f.__class__.__name__))
+    else:
+        raise Exception("Unsupported type({}.{})".format(feat.__class__.__module__,feat.__class__.__name__))
+
+
+    with open(fname,'w') as f:
+        f.write(json.dumps(geojson,indent=True))
+
+    return fname
 
 proj_wgs84 = pyproj.Proj(init='epsg:4326')
 def buffer(lon, lat, meters,resolution=16):
@@ -337,6 +390,9 @@ def calculateArea(feature,session_cookies,options):
     }
     The reason to calculate the area in another process is to releace the memory immediately right after area is calculated.
     """
+    if not settings.CALCULATE_AREA_IN_SEPARATE_PROCESS:
+        return  _calculateArea(feature,session_cookies,options,False)
+
     parent_conn,child_conn = Pipe(True)
     p = Process(target=calculateAreaInProcess,args=(child_conn,))
     p.daemon = True
@@ -430,6 +486,13 @@ def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
     if not layers:
         return result
 
+    """
+    #export geometry for debug
+    properties = feature["properties"]
+    properties.update({"area":area_data["total_area"]})
+    exportGeojson((geometry_aea,properties),"/tmp/feature_total_area.geojson")
+    """
+
     for layer in layers:
         if "layerid" not in layer and "id" not in layer:
             raise Exception("Both 'id' and 'layerid' are missing in layer declaration")
@@ -456,6 +519,10 @@ def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
             print(layer_url)
             layer_features = retrieveFeatures(layer_url,session_cookies)["features"]
 
+            """
+            #export intersected areas for debug
+            intersected_features = []
+            """
 
             for layer_feature in layer_features:
                 layer_geometry = getShapelyGeometry(layer_feature)
@@ -466,7 +533,7 @@ def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
 
                 if not intersections:
                     continue
-                
+
                 layer_feature_area_data = None
                 #try to get the area data from map
                 if merge_result:
@@ -491,6 +558,21 @@ def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
                 feature_area = getGeometryArea(intersections,unit,src_proj='aea')
                 layer_feature_area_data["area"] += feature_area
                 total_layer_area  += feature_area
+                
+                """
+                #export intersected areas for debug
+                properties = layer_feature["properties"]
+                properties.update({"area":feature_area})
+                intersected_features.append((intersections,properties))
+                """
+
+            """
+            #export intersected areas for debug
+            if intersected_features:
+                for feat in intersected_features:
+                    feat[1].update({"total_area":total_layer_area})
+                exportGeojson(intersected_features,'/tmp/feature_area_in_{}.geojson'.format(layer["id"]))
+            """
 
             area_data["layers"][layer["id"]]["total_area"] = total_layer_area
             total_area += total_layer_area
