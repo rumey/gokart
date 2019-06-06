@@ -427,10 +427,10 @@ def calculateAreaInProcess(conn):
     #    checkOverlap(session_cookies,feature,options,overlapLogfile)
     #print("{}:subprocess finished".format(datetime.now()))
 
-def calculateFeatureArea(feature,unit='ha'):
-    return calculateGeometryArea(getShapelyGeometry(feature))
+def calculateFeatureArea(feature,src_proj="EPSG:4326",unit='ha'):
+    return calculateGeometryArea(getShapelyGeometry(feature),src_proj=src_proj,unit=unit)
 
-def calculateGeometryArea(geometry,unit='ha'):
+def calculateGeometryArea(geometry,src_proj="EPSG:4326",unit='ha'):
     geometry = extractPolygons(geometry)
     if not geometry :
         return 0
@@ -439,7 +439,7 @@ def calculateGeometryArea(geometry,unit='ha'):
     if not valid:
         print("geometry is invalid.{}", msg)
 
-    geometry_aea = transform(geometry,target_proj='aea')
+    geometry_aea = transform(geometry,src_proj=src_proj,target_proj='aea')
 
     return  getGeometryArea(geometry_aea,unit,'aea')
 

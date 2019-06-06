@@ -10,6 +10,8 @@ from datetime import datetime
 from shapely.geometry import shape,MultiPoint,Point
 from shapely.geometry.polygon import Polygon
 from shapely.geometry.multipolygon import MultiPolygon
+from shapely.geometry.linestring import LineString
+from shapely.geometry.multilinestring import MultiLineString
 from shapely.geometry import LinearRing,mapping,LineString
 from shapely.geometry.collection import GeometryCollection
 
@@ -25,6 +27,121 @@ def getShapelyGeometry(feature):
         return GeometryCollection([shape(g) for g in feature["geometry"]["geometries"]])
     else:
         return shape(feature["geometry"])
+
+def mergeGeometry(geom1,geom2):
+    if not geom2:
+        return geom1
+    elif not geom1:
+        return geom2
+    else:
+        if isinstance(geom1,Point):
+            if isinstance(geom2,Point):
+                return MultiPoint([geom1,geom2])
+            elif isinstance(geom2,MultiPoint):
+                geoms = [geom1]
+                for p in geom2.geoms:
+                    geoms.append(p)
+                return MultiPoint(geoms)
+            elif isinstance(geom2,(LineString,Polygon)):
+                return GeometryCollection([geom1,geom2])
+            elif isinstance(geom2,(MultiLineString,MultiPolygon)):
+                geoms = [geom1]
+                for p in geom2.geoms:
+                    geoms.append(p)
+                return GeometryCollection(geoms)
+            else:
+                raise Exception("Unsupported geometry type({}.{})".format(geom2.__class__.__module__,geom2.__class__.__name__))
+        elif isinstance(geom1,LineString):
+            if isinstance(geom2,LineString):
+                return MultiLineString([geom1,geom2])
+            elif isinstance(geom2,MultiLineString):
+                geoms = [geom1]
+                for p in geom2.geoms:
+                    geoms.append(p)
+                return MultiLineString(geoms)
+            elif isinstance(geom2,(Point,Polygon)):
+                return GeometryCollection([geom1,geom2])
+            elif isinstance(geom2,(MultiPoint,MultiPolygon)):
+                geoms = [geom1]
+                for p in geom2.geoms:
+                    geoms.append(p)
+                return GeometryCollection(geoms)
+            else:
+                raise Exception("Unsupported geometry type({}.{})".format(geom2.__class__.__module__,geom2.__class__.__name__))
+        elif isinstance(geom1,Polygon):
+            if isinstance(geom2,Polygon):
+                return MultiPolygon([geom1,geom2])
+            elif isinstance(geom2,MultiPolygon):
+                geoms = [geom1]
+                for p in geom2.geoms:
+                    geoms.append(p)
+                return MultiPolygon(geoms)
+            elif isinstance(geom2,(Point,LineString)):
+                return GeometryCollection([geom1,geom2])
+            elif isinstance(geom2,(MultiPoint,MultiLineString)):
+                geoms = [geom1]
+                for p in geom2.geoms:
+                    geoms.append(p)
+                return GeometryCollection(geoms)
+            else:
+                raise Exception("Unsupported geometry type({}.{})".format(geom2.__class__.__module__,geom2.__class__.__name__))
+        elif isinstance(geom1,MultiPoint):
+            geoms = list(geom1.geoms)
+            if isinstance(geom2,Point):
+                geoms.append(geom2)
+                return MultiPoint(geoms)
+            elif isinstance(geom2,MultiPoint):
+                for p in geom2.geoms:
+                    geoms.append(p)
+                return MultiPoint(geoms)
+            elif isinstance(geom2,(Polygon,LineString)):
+                geoms.append(geom2)
+                return GeometryCollection(geoms)
+            elif isinstance(geom2,(MultiPolygon,MultiLineString)):
+                for p in geom2.geoms:
+                    geoms.append(p)
+                return GeometryCollection(geoms)
+            else:
+                raise Exception("Unsupported geometry type({}.{})".format(geom2.__class__.__module__,geom2.__class__.__name__))
+        elif isinstance(geom1,MultiLineString):
+            geoms = list(geom1.geoms)
+            if isinstance(geom2,LineString):
+                geoms.append(geom2)
+                return MultiLineString(geoms)
+            elif isinstance(geom2,MultiLineString):
+                for p in geom2.geoms:
+                    geoms.append(p)
+                return MultiLineString(geoms)
+            elif isinstance(geom2,(Point,Polygon)):
+                geoms.append(geom2)
+                return GeometryCollection(geoms)
+            elif isinstance(geom2,(MultiPolygon,MultiPoint)):
+                for p in geom2.geoms:
+                    geoms.append(p)
+                return GeometryCollection(geoms)
+            else:
+                raise Exception("Unsupported geometry type({}.{})".format(geom2.__class__.__module__,geom2.__class__.__name__))
+        elif isinstance(geom1,MultiPolygon):
+            geoms = list(geom1.geoms)
+            if isinstance(geom2,Polygon):
+                geoms.append(geom2)
+                return MultiPolygon(geoms)
+            elif isinstance(geom2,MultiPolygon):
+                for p in geom2.geoms:
+                    geoms.append(p)
+                return MultiPolygon(geoms)
+            elif isinstance(geom2,(Point,LineString)):
+                geoms.append(geom2)
+                return GeometryCollection(geoms)
+            elif isinstance(geom2,(MultiLineString,MultiPoint)):
+                for p in geom2.geoms:
+                    geoms.append(p)
+                return GeometryCollection(geoms)
+            else:
+                raise Exception("Unsupported geometry type({}.{})".format(geom2.__class__.__module__,geom2.__class__.__name__))
+        else:
+            raise Exception("Unsupported geometry type({}.{})".format(geom1.__class__.__module__,geom1.__class__.__name__))
+
 
 #return polygon or multipolygons if have, otherwise return None
 class PolygonUtil(object):
@@ -987,6 +1104,204 @@ def process_status_report(folder):
             print("    {}".format(f))
     print("=========================================================")
 
+def merge_geometries(geojsonfiles,crs="EPSG:4326",calculate_area=False,merged_file=None,merged_properties=None):
+    if isinstance(geojsonfiles,str):
+        geojsonfiles = [geojsonfiles]
+
+    merged_geom = None
+    feat_count = 0
+    properties = {}
+    for geojsonfile in geojsonfiles:
+        with open(geojsonfile) as f:
+            features = json.loads(f.read())
+        for feat in features["features"]:
+            feat_count += 1
+            if merged_properties:
+                for prop in merged_properties:
+                    if prop in feat["properties"]:
+                        merged_prop = "merged_{}".format(prop)
+                        if feat["properties"][prop] is None:
+                            continue;
+                        elif isinstance(feat["properties"][prop],(int,float)):
+                            properties[merged_prop] = properties.get(merged_prop,0) + feat["properties"][prop]
+                        else:
+                            raise Exception("Unsupported property type ({}.{})".format(feat["properties"][prop].__class__.__module__,feat["properties"][prop].__class__.__name__))
+            if merged_geom:
+                merged_geom = mergeGeometry(merged_geom,getShapelyGeometry(feat))
+            else:
+                merged_geom = getShapelyGeometry(feat)
+
+    properties["merged_features"] = feat_count
+
+    if calculate_area:
+        properties["area"] = calculateGeometryArea(merged_geom,src_proj=crs)
+
+    exportGeojson((merged_geom,properties),merged_file or '/tmp/feature_merged.geojson')
+
+    return merged_file
+
+
+def subtract_geometries(mainfile,subtract_files,crs="EPSG:4326",calculate_area=False,diff_file=None):
+    diff_file = diff_file or '/tmp/feature_diff.geojson'
+    if isinstance(subtract_files,str):
+        subtract_files = [subtract_files]
+
+    properties = {}
+    features = []
+
+    def _symmetric_difference(geom1,geom2,split=False):
+        if not split:
+            try:
+                return extractPolygons(geom1.symmetric_difference(geom2))
+            except:
+                return _symmetric_difference(geom1,geom2,split=True)
+        if isinstance(geom1,Polygon):
+            if isinstance(geom2,Polygon):
+                return extractPolygons(geom1.symmetric_difference(geom2))
+            else:
+                for g in geom2.geoms:
+                    geom1 = extractPolygons(_symmetric_difference(geom1,g))
+                    if not geom1:
+                        return None
+    
+                return geom1
+        else:
+            diff_geom = None
+            for g in geom1.geoms:
+                diff_g = _symmetric_difference(g,geom2)
+                if not diff_g:
+                    continue
+                diff_geom = mergeGeometry(diff_geom,diff_g)
+            return diff_geom
+
+
+    def _difference(geom1,geom2,split=False):
+        if not split:
+            try:
+                return extractPolygons(geom1.difference(geom2))
+            except:
+                return _difference(geom1,geom2,split=True)
+        if isinstance(geom1,Polygon):
+            if isinstance(geom2,Polygon):
+                return extractPolygons(geom1.difference(geom2))
+            else:
+                for g in geom2.geoms:
+                    geom1 = extractPolygons(_difference(geom1,g))
+                    if not geom1:
+                        return None
+
+                return geom1
+        else:
+            diff_geom = None
+            for g in geom1.geoms:
+                diff_g = _difference(g,geom2)
+                if not diff_g:
+                    continue
+                try:
+                    diff_geom = mergeGeometry(diff_geom,diff_g)
+                except:
+                    import ipdb;ipdb.set_trace()
+                    raise
+            return diff_geom
+
+
+    def _intersects(geom1,geom2,split=False):
+        if not split:
+            try:
+                return geom1.intersects(geom2)
+            except:
+                return _intersects(geom1,geom2,split=True)
+        if isinstance(geom1,Polygon):
+            if isinstance(geom2,Polygon):
+                return geom1.intersects(geom2)
+            else:
+                for g in geom2.geoms:
+                    if geom1.intersects(g):
+                        return True
+
+                return False
+        else:
+            for g in geom1.geoms:
+                if _intersects(g,geom2):
+                    return True
+            return False
+
+
+    with open(mainfile) as f:
+        main_features = json.loads(f.read())
+    for main_feat in main_features["features"]:
+        main_geom = extractPolygons(getShapelyGeometry(main_feat))
+        subtract_count = 0
+        for subtract_file in subtract_files:
+            if not main_geom:
+                break
+            with open(subtract_file) as f:
+                subtract_features = json.loads(f.read())
+            print(subtract_file)
+            for subtract_feat in subtract_features["features"]:
+                if "other_tenures" in subtract_file and subtract_feat["properties"]["ogc_fid"] == 296326:
+                    #ignore one tenure
+                    continue
+                subtract_geom = getShapelyGeometry(subtract_feat)
+                if subtract_feat["properties"]["ogc_fid"] == 61039:
+                    fixed_geom = PolygonUtil("subtract_geom",subtract_geom).fix_selfintersect(check_selfintersectlines=True)
+                    if fixed_geom:
+                        subtract_geom = fixed_geom[0]
+
+
+                if _intersects(main_geom,subtract_geom):
+                    print(subtract_feat["properties"])
+                    subtract_count += 1
+                    symmetric_g = _symmetric_difference(main_geom,subtract_geom)
+                    main_geom = _difference(symmetric_g,subtract_geom)
+
+                    if not main_geom:
+                        break
+        if main_geom:
+            properties = main_feat["properties"]
+            if "area" in properties:
+                properties["original_area"] = properties["area"]
+            properties["area"] = calculateGeometryArea(main_geom,src_proj=crs)
+            properties["subtract_features"] = subtract_count
+
+            features.append((main_geom,properties))
+
+
+    if features:
+        exportGeojson(features,diff_file or '/tmp/feature_diff.geojson')
+
+    return diff_file
+
+"""
+merge_geometries([
+    "./tmp/bf_2017_ekm_019/feature_area_in_legislated_lands_and_waters.geojson",
+    "./tmp/bf_2017_ekm_019/feature_area_in_sa_nt_burntarea.geojson",
+    "./tmp/bf_2017_ekm_019/feature_area_in_dept_interest_lands_and_waters.geojson",
+    "./tmp/bf_2017_ekm_019/feature_area_in_other_tenures.geojson"
+    ],crs='aea',calculate_area=True,merged_file="./tmp/bf_2017_ekm_019/feature_merged.geojson",merged_properties=['area'])
+"""
+"""
+subtract_geometries("./tmp/bf_2017_ekm_019/feature_total_area.geojson",
+    [
+    "./tmp/bf_2017_ekm_019/feature_area_in_legislated_lands_and_waters.geojson",
+    "./tmp/bf_2017_ekm_019/feature_area_in_sa_nt_burntarea.geojson",
+    "./tmp/bf_2017_ekm_019/feature_area_in_dept_interest_lands_and_waters.geojson",
+    "./tmp/bf_2017_ekm_019/feature_area_in_other_tenures.geojson"
+    ],crs='aea',calculate_area=True,diff_file="./tmp/bf_2017_ekm_019/feature_diff.geojson")
+
+"""
+
+"""
+
+subtract_geometries("./tmp/bf_2018_ekm_036/feature.geojson",
+    [    
+    "./tmp/bf_2018_ekm_036/feature_area_in_legislated_lands_and_waters.geojson",
+    "./tmp/bf_2018_ekm_036/feature_area_in_sa_nt_burntarea.geojson",
+    #"./tmp/bf_2018_ekm_036/feature_area_in_dept_interest_lands_and_waters.geojson",
+    "./tmp/bf_2018_ekm_036/feature_area_in_other_tenures.geojson"
+    ],crs='aea',calculate_area=True,diff_file="./tmp/bf_2018_ekm_036/feature_diff5.geojson")
+
+"""
 
 #folder='/home/rockyc/work/gokart/tmp/batch'
 #folder='/home/rockyc/work/gokart/tmp/bfrs2017'
