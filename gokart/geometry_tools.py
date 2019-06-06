@@ -1197,11 +1197,7 @@ def subtract_geometries(mainfile,subtract_files,crs="EPSG:4326",calculate_area=F
                 diff_g = _difference(g,geom2)
                 if not diff_g:
                     continue
-                try:
-                    diff_geom = mergeGeometry(diff_geom,diff_g)
-                except:
-                    import ipdb;ipdb.set_trace()
-                    raise
+                diff_geom = mergeGeometry(diff_geom,diff_g)
             return diff_geom
 
 
@@ -1239,9 +1235,11 @@ def subtract_geometries(mainfile,subtract_files,crs="EPSG:4326",calculate_area=F
                 subtract_features = json.loads(f.read())
             print(subtract_file)
             for subtract_feat in subtract_features["features"]:
+                """
                 if "other_tenures" in subtract_file and subtract_feat["properties"]["ogc_fid"] == 296326:
                     #ignore one tenure
                     continue
+                """
                 subtract_geom = getShapelyGeometry(subtract_feat)
                 if subtract_feat["properties"]["ogc_fid"] == 61039:
                     fixed_geom = PolygonUtil("subtract_geom",subtract_geom).fix_selfintersect(check_selfintersectlines=True)
@@ -1292,7 +1290,6 @@ subtract_geometries("./tmp/bf_2017_ekm_019/feature_total_area.geojson",
 """
 
 """
-
 subtract_geometries("./tmp/bf_2018_ekm_036/feature.geojson",
     [    
     "./tmp/bf_2018_ekm_036/feature_area_in_legislated_lands_and_waters.geojson",
@@ -1300,7 +1297,6 @@ subtract_geometries("./tmp/bf_2018_ekm_036/feature.geojson",
     #"./tmp/bf_2018_ekm_036/feature_area_in_dept_interest_lands_and_waters.geojson",
     "./tmp/bf_2018_ekm_036/feature_area_in_other_tenures.geojson"
     ],crs='aea',calculate_area=True,diff_file="./tmp/bf_2018_ekm_036/feature_diff5.geojson")
-
 """
 
 #folder='/home/rockyc/work/gokart/tmp/batch'
