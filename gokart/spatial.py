@@ -485,12 +485,11 @@ def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
 
     if not layers:
         return result
-
     """
     #export geometry for debug
     properties = feature["properties"]
     properties.update({"area":area_data["total_area"]})
-    exportGeojson((geometry_aea,properties),"/tmp/feature_total_area.geojson")
+    exportGeojson((geometry_aea,properties),"/tmp/feature.geojson")
     """
 
     for layer in layers:
