@@ -10,10 +10,199 @@ from datetime import datetime
 from shapely.geometry import shape,MultiPoint,Point
 from shapely.geometry.polygon import Polygon
 from shapely.geometry.multipolygon import MultiPolygon
+from shapely.geometry.linestring import LineString
+from shapely.geometry.multilinestring import MultiLineString
 from shapely.geometry import LinearRing,mapping,LineString
 from shapely.geometry.collection import GeometryCollection
 
 from gokart.spatial import calculateFeatureArea,calculateGeometryArea,extractPolygons,transform,exportGeojson
+
+def mergeGeometry(geom1,geom2):
+    if not geom2:
+        return geom1
+    elif not geom1:
+        return geom2
+    else:
+        if isinstance(geom1,Point):
+            if isinstance(geom2,Point):
+                return MultiPoint([geom1,geom2])
+            elif isinstance(geom2,MultiPoint):
+                geoms = [geom1]
+                for p in geom2.geoms:
+                    geoms.append(p)
+                return MultiPoint(geoms)
+            elif isinstance(geom2,(LineString,Polygon)):
+                return GeometryCollection([geom1,geom2])
+            elif isinstance(geom2,(MultiLineString,MultiPolygon)):
+                geoms = [geom1]
+                for p in geom2.geoms:
+                    geoms.append(p)
+                return GeometryCollection(geoms)
+            else:
+                raise Exception("Unsupported geometry type({}.{})".format(geom2.__class__.__module__,geom2.__class__.__name__))
+        elif isinstance(geom1,LineString):
+            if isinstance(geom2,LineString):
+                return MultiLineString([geom1,geom2])
+            elif isinstance(geom2,MultiLineString):
+                geoms = [geom1]
+                for p in geom2.geoms:
+                    geoms.append(p)
+                return MultiLineString(geoms)
+            elif isinstance(geom2,(Point,Polygon)):
+                return GeometryCollection([geom1,geom2])
+            elif isinstance(geom2,(MultiPoint,MultiPolygon)):
+                geoms = [geom1]
+                for p in geom2.geoms:
+                    geoms.append(p)
+                return GeometryCollection(geoms)
+            else:
+                raise Exception("Unsupported geometry type({}.{})".format(geom2.__class__.__module__,geom2.__class__.__name__))
+        elif isinstance(geom1,Polygon):
+            if isinstance(geom2,Polygon):
+                return MultiPolygon([geom1,geom2])
+            elif isinstance(geom2,MultiPolygon):
+                geoms = [geom1]
+                for p in geom2.geoms:
+                    geoms.append(p)
+                return MultiPolygon(geoms)
+            elif isinstance(geom2,(Point,LineString)):
+                return GeometryCollection([geom1,geom2])
+            elif isinstance(geom2,(MultiPoint,MultiLineString)):
+                geoms = [geom1]
+                for p in geom2.geoms:
+                    geoms.append(p)
+                return GeometryCollection(geoms)
+            else:
+                raise Exception("Unsupported geometry type({}.{})".format(geom2.__class__.__module__,geom2.__class__.__name__))
+        elif isinstance(geom1,MultiPoint):
+            geoms = list(geom1.geoms)
+            if isinstance(geom2,Point):
+                geoms.append(geom2)
+                return MultiPoint(geoms)
+            elif isinstance(geom2,MultiPoint):
+                for p in geom2.geoms:
+                    geoms.append(p)
+                return MultiPoint(geoms)
+            elif isinstance(geom2,(Polygon,LineString)):
+                geoms.append(geom2)
+                return GeometryCollection(geoms)
+            elif isinstance(geom2,(MultiPolygon,MultiLineString)):
+                for p in geom2.geoms:
+                    geoms.append(p)
+                return GeometryCollection(geoms)
+            else:
+                raise Exception("Unsupported geometry type({}.{})".format(geom2.__class__.__module__,geom2.__class__.__name__))
+        elif isinstance(geom1,MultiLineString):
+            geoms = list(geom1.geoms)
+            if isinstance(geom2,LineString):
+                geoms.append(geom2)
+                return MultiLineString(geoms)
+            elif isinstance(geom2,MultiLineString):
+                for p in geom2.geoms:
+                    geoms.append(p)
+                return MultiLineString(geoms)
+            elif isinstance(geom2,(Point,Polygon)):
+                geoms.append(geom2)
+                return GeometryCollection(geoms)
+            elif isinstance(geom2,(MultiPolygon,MultiPoint)):
+                for p in geom2.geoms:
+                    geoms.append(p)
+                return GeometryCollection(geoms)
+            else:
+                raise Exception("Unsupported geometry type({}.{})".format(geom2.__class__.__module__,geom2.__class__.__name__))
+        elif isinstance(geom1,MultiPolygon):
+            geoms = list(geom1.geoms)
+            if isinstance(geom2,Polygon):
+                geoms.append(geom2)
+                return MultiPolygon(geoms)
+            elif isinstance(geom2,MultiPolygon):
+                for p in geom2.geoms:
+                    geoms.append(p)
+                return MultiPolygon(geoms)
+            elif isinstance(geom2,(Point,LineString)):
+                geoms.append(geom2)
+                return GeometryCollection(geoms)
+            elif isinstance(geom2,(MultiLineString,MultiPoint)):
+                for p in geom2.geoms:
+                    geoms.append(p)
+                return GeometryCollection(geoms)
+            else:
+                raise Exception("Unsupported geometry type({}.{})".format(geom2.__class__.__module__,geom2.__class__.__name__))
+        else:
+            raise Exception("Unsupported geometry type({}.{})".format(geom1.__class__.__module__,geom1.__class__.__name__))
+
+def symmetric_difference(geom1,geom2,split=False):
+    if not split:
+        try:
+            return extractPolygons(geom1.symmetric_difference(geom2))
+        except:
+            return symmetric_difference(geom1,geom2,split=True)
+    if isinstance(geom1,Polygon):
+        if isinstance(geom2,Polygon):
+            return extractPolygons(geom1.symmetric_difference(geom2))
+        else:
+            for g in geom2.geoms:
+                geom1 = extractPolygons(symmetric_difference(geom1,g))
+                if not geom1:
+                    return None
+
+            return geom1
+    else:
+        diff_geom = None
+        for g in geom1.geoms:
+            diff_g = symmetric_difference(g,geom2)
+            if not diff_g:
+                continue
+            diff_geom = mergeGeometry(diff_geom,diff_g)
+        return diff_geom
+
+
+def difference(geom1,geom2,split=False):
+    if not split:
+        try:
+            return extractPolygons(geom1.difference(geom2))
+        except:
+            return difference(geom1,geom2,split=True)
+    if isinstance(geom1,Polygon):
+        if isinstance(geom2,Polygon):
+            return extractPolygons(geom1.difference(geom2))
+        else:
+            for g in geom2.geoms:
+                geom1 = extractPolygons(difference(geom1,g))
+                if not geom1:
+                    return None
+
+            return geom1
+    else:
+        diff_geom = None
+        for g in geom1.geoms:
+            diff_g = difference(g,geom2)
+            if not diff_g:
+                continue
+            diff_geom = mergeGeometry(diff_geom,diff_g)
+        return diff_geom
+
+
+def intersects(geom1,geom2,split=False):
+    if not split:
+        try:
+            return geom1.intersects(geom2)
+        except:
+            return intersects(geom1,geom2,split=True)
+    if isinstance(geom1,Polygon):
+        if isinstance(geom2,Polygon):
+            return geom1.intersects(geom2)
+        else:
+            for g in geom2.geoms:
+                if intersects(geom1,g):
+                    return True
+
+            return False
+    else:
+        for g in geom1.geoms:
+            if intersects(g,geom2):
+                return True
+        return False
 
 def default_print_progress_status(msg):
     print("{} : {}".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"),msg))
@@ -65,11 +254,12 @@ class PolygonUtil(object):
         (SPLIT_ORPHAN_RING,"Split orphan ring to 2 orphan rings")
 
     ])
-    def __init__(self,name,geom,parentPath=None,print_progress_status=None):
+    def __init__(self,name,geom,parentPath=None,print_progress_status=None,properties=None):
         self.geom = geom
         self.parentPath = parentPath
         self.pos = 0
         self.name = name
+        self.properties = properties
         self.print_progress_status = print_progress_status or default_print_progress_status
 
     @classmethod 
@@ -97,7 +287,7 @@ class PolygonUtil(object):
             elif isinstance(self.geom,GeometryCollection):
                 polygonList = None
                 for g in self.geom:
-                    sublist = PolygonUtil(self.name,g,parentPath=getGeomPath(),print_progress_status=self.print_progress_status).polygons
+                    sublist = PolygonUtil(self.name,g,parentPath=getGeomPath(),print_progress_status=self.print_progress_status,properties=self.properties).polygons
                     if not p:
                         continue
                     elif not polygonList:
@@ -297,6 +487,37 @@ class PolygonUtil(object):
 
         return None
 
+    def check_ring(self,feat):
+        if feat["geometry"]["type"] == "Polygon":
+            polygonlist = [feat["geometry"]["coordinates"]]
+        elif feat["geometry"]["type"] == "MultiPolygon":
+            polygonlist = feat["geometry"]["coordinates"]
+        else:
+            raise Exception("{} Not Support".format(feat["geometry"["type"]]))
+
+        if not polygonlist:
+            return None
+
+        nonclosed_polygons = []
+        index = 0
+        while index < len(polygonlist):
+            try:
+                poly = polygonlist[index]
+                nonclosed_rings = []
+                ring_index = 0
+                for ring in poly:
+                    if ring[0] != ring[-1]:
+                        nonclosed_rings.append((ring_index,(ring[0],ring[-1])))
+                    ring_index += 1
+                    
+                if nonclosed_rings:
+                    nonclosed_polygons.append((index,nonclosed_rings))
+            finally:
+                index += 1
+
+        return nonclosed_polygons
+
+
     def check_selfintersect(self):
         polygonList = self.polygons()
     
@@ -364,7 +585,12 @@ class PolygonUtil(object):
                     else:
                         all_rings.append([interior_rings,i,LinearRing(reversed(r.coords))])
                         fix_types |= self.FIX_RING_ORIENT
-                elif extractPolygons(exterior_polygon.intersection(polygon_r)):
+                elif difference(symmetric_difference(polygon_r,exterior_polygon),exterior_polygon):
+                    exportGeojson((self.geom,self.properties),"/tmp/invalid_feature.geojson")
+                    exportGeojson((polygon,self.properties),"/tmp/invalid_feature_polygon_{}.geojson".format(path))
+                    exportGeojson((exterior_polygon,self.properties),"/tmp/invalid_feature_polygon_{}_exterior.geojson".format(path))
+                    exportGeojson((polygon_r,self.properties),"/tmp/invalid_feature_polygon_{}_interior.geojson".format(path))
+                    exportGeojson((difference(symmetric_difference(polygon_r,exterior_polygon),exterior_polygon),self.properties),"/tmp/invalid_feature_polygon_{}_invalid.geojson".format(path))
                     raise Exception("The exterior ring of the polygon({}) is intersected with interior ring".format(path))
                 else:
                     fix_types |= self.FIX_ORPHAN_RINGS
@@ -587,13 +813,13 @@ class PolygonUtil(object):
 
             
             fixed_geom = self.collapseGeom(expandedGeom)
-            PolygonUtil(self.name,fixed_geom,print_progress_status=self.print_progress_status).exportPolygon()
+            PolygonUtil(self.name,fixed_geom,print_progress_status=self.print_progress_status,properties=self.properties).exportPolygon()
             return (fixed_geom,geom_fix_types)
         else:
             return None
 
 
-def check_selfintersect(geojsonfile,src_proj="EPSG:4326",target_proj='EPSG:4326',print_progress_status=None,print_result=False):
+def check_geometry(geojsonfile,src_proj="EPSG:4326",target_proj='EPSG:4326',print_progress_status=None,print_result=False):
     print_progress_status = print_progress_status or default_print_progress_status
     with open(geojsonfile) as f:
         geojson = json.loads(f.read())
@@ -606,21 +832,33 @@ def check_selfintersect(geojsonfile,src_proj="EPSG:4326",target_proj='EPSG:4326'
         if not geom:
             continue
         geometry = transform(geom,src_proj,target_proj)
-        selfintersect_polygons = PolygonUtil("check_feature",geometry,print_progress_status=print_progress_status).check_selfintersect()
+        polygonutil = PolygonUtil("check_feature",geometry,print_progress_status=print_progress_status,properties=feat.get('properties'))
+        checkresult = {}
+        result = polygonutil.check_selfintersect()
+        if result:
+            checkresult["selfintersect_polygons"] = result
 
-        if selfintersect_polygons:
-            selfintersect_features.append((feat,selfintersect_polygons))
+        result = polygonutil.check_ring(feat)
+        if result:
+            checkresult["nonclosed_polygons"] = result
+
+        if checkresult:
+            selfintersect_features.append((feat,checkresult))
 
     if print_result:
-        print_selfintersect_checkresult(selfintersect_features)
+        if selfintersect_features:
+            print_progress_status("Checking file '{}'".format(geojsonfile))
+            print_checkresult(selfintersect_features)
+            print_progress_status("")
+
 
     return selfintersect_features
 
-def print_selfintersect_checkresult(selfintersect_features,properties=None,print_progress_status=None):
+def print_checkresult(selfintersect_features,properties=None,print_progress_status=None):
     print_progress_status = print_progress_status or default_print_progress_status
     if selfintersect_features:
-        for feat,selfintersect_polygons in selfintersect_features:
-            print_progress_status("======================The following feature is self-intersected==============================")
+        for feat,checkresult in selfintersect_features:
+            print_progress_status("======================The following feature is invalid==============================")
             if properties:
                 feat_properties = feat.get("properties") or {}
                 for key in properties:
@@ -629,15 +867,29 @@ def print_selfintersect_checkresult(selfintersect_features,properties=None,print
                 for key,value in (feat.get("properties") or {}).items():
                     print_progress_status("{}={}".format(key,value))
             print_progress_status("")
-            for path,selfintersect_rings in selfintersect_polygons:
-                print_progress_status("The {} polygon is self-intersected".format(path))
-                for index,selfintersects in selfintersect_rings:
-                    if index == 0:
-                        print_progress_status("  The exterior ring is self-intersected")
-                    else:
-                        print_progress_status("  The interior ring({}) is self-intersected".format(index - 1))
-                    for coord,indexes in selfintersects:
-                        print_progress_status("    Coordinate({}) is self-intersected at position({})".format(coord,indexes))
+            
+
+            nonclosed_polygons = checkresult.get("nonclosed_polygons")
+            if nonclosed_polygons:
+                for path,nonclosed_rings in nonclosed_polygons:
+                    print_progress_status("The {} polygon has non closed rings".format(path))
+                    for index,coords in nonclosed_rings:
+                        if index == 0:
+                            print_progress_status("  The exterior ring is not closed.start coord={},end coord={}".format(coords[0],coords[1]))
+                        else:
+                            print_progress_status("  The interior ring({}) is not closed. start coord={}, end coord={}".format(index - 1,coords[0],coords[1]))
+
+            selfintersect_polygons = checkresult.get("selfintersect_polygons")
+            if selfintersect_polygons:
+                for path,selfintersect_rings in selfintersect_polygons:
+                    print_progress_status("The {} polygon is self-intersected".format(path))
+                    for index,selfintersects in selfintersect_rings:
+                        if index == 0:
+                            print_progress_status("  The exterior ring is self-intersected")
+                        else:
+                            print_progress_status("  The interior ring({}) is self-intersected".format(index - 1))
+                        for coord,indexes in selfintersects:
+                            print_progress_status("    Coordinate({}) is self-intersected at position({})".format(coord,indexes))
 
 
 def fix_selfintersect(geojson,check_selfintersectlines=False,print_progress_status=None,fixed_file=None,id_property=None):
@@ -689,7 +941,7 @@ def fix_selfintersect(geojson,check_selfintersectlines=False,print_progress_stat
             geom = getShapelyGeometry(feat)
             if not geom:
                 continue
-            fixed_geom = PolygonUtil(basename(index),geom,print_progress_status=print_progress_status).fix_selfintersect(check_selfintersectlines=check_selfintersectlines)
+            fixed_geom = PolygonUtil(basename(index),geom,print_progress_status=print_progress_status,properties=feat.get('properties')).fix_selfintersect(check_selfintersectlines=check_selfintersectlines)
             if not fixed_geom:
                 continue
 
@@ -700,9 +952,9 @@ def fix_selfintersect(geojson,check_selfintersectlines=False,print_progress_stat
             print_progress_status("feature area = {},fixed feature area = {}, fix types = {}".format(featureArea,fixedFeatureArea,PolygonUtil.fix_type_names(fixed_geom[1])))
 
 
-            selfintersect_polygons = PolygonUtil("check_feature",fixed_geom,print_progress_status=print_progress_status).check_selfintersect()
+            selfintersect_polygons = PolygonUtil("check_feature",fixed_geom,print_progress_status=print_progress_status,properties=feat.get('properties')).check_selfintersect()
             if selfintersect_polygons:
-                print_selfintersect_checkresult([(feat,selfintersect_features)],print_progress_status=print_progress_status)
+                print_checkresult([(feat,selfintersect_features)],print_progress_status=print_progress_status)
                 check_msg  = "Fix failed, still have selfintersection after fixing "
             else:
                 check_msg  = "OK"
@@ -839,7 +1091,7 @@ def batch_fix(folder,check_selfintersectlines=False,clean=False):
 
             selfintersected_features = check_selfintersect(source_file)
             if selfintersected_features:
-                print_selfintersect_checkresult(selfintersected_features,print_progress_status=_print_process_status)
+                print_checkresult(selfintersected_features,print_progress_status=_print_process_status)
 
             fixed_file,fix_status = fix_selfintersect(source_file,check_selfintersectlines=check_selfintersectlines,print_progress_status=_print_process_status,fixed_file=fixed_file,id_property="fire_number")
             _print_process_status("End to process '{}'".format(geojson_file))
@@ -987,6 +1239,126 @@ def process_status_report(folder):
             print("    {}".format(f))
     print("=========================================================")
 
+def merge_geometries(geojsonfiles,crs="EPSG:4326",calculate_area=False,merged_file=None,merged_properties=None):
+    if isinstance(geojsonfiles,str):
+        geojsonfiles = [geojsonfiles]
+
+    merged_geom = None
+    feat_count = 0
+    properties = {}
+    for geojsonfile in geojsonfiles:
+        with open(geojsonfile) as f:
+            features = json.loads(f.read())
+        for feat in features["features"]:
+            feat_count += 1
+            if merged_properties:
+                for prop in merged_properties:
+                    if prop in feat["properties"]:
+                        merged_prop = "merged_{}".format(prop)
+                        if feat["properties"][prop] is None:
+                            continue;
+                        elif isinstance(feat["properties"][prop],(int,float)):
+                            properties[merged_prop] = properties.get(merged_prop,0) + feat["properties"][prop]
+                        else:
+                            raise Exception("Unsupported property type ({}.{})".format(feat["properties"][prop].__class__.__module__,feat["properties"][prop].__class__.__name__))
+            if merged_geom:
+                merged_geom = mergeGeometry(merged_geom,getShapelyGeometry(feat))
+            else:
+                merged_geom = getShapelyGeometry(feat)
+
+    properties["merged_features"] = feat_count
+
+    if calculate_area:
+        properties["area"] = calculateGeometryArea(merged_geom,src_proj=crs)
+
+    exportGeojson((merged_geom,properties),merged_file or '/tmp/feature_merged.geojson')
+
+    return merged_file
+
+
+def subtract_geometries(mainfile,subtract_files,crs="EPSG:4326",calculate_area=False,diff_file=None):
+    diff_file = diff_file or '/tmp/feature_diff.geojson'
+    if isinstance(subtract_files,str):
+        subtract_files = [subtract_files]
+
+    properties = {}
+    features = []
+
+    with open(mainfile) as f:
+        main_features = json.loads(f.read())
+    for main_feat in main_features["features"]:
+        main_geom = extractPolygons(getShapelyGeometry(main_feat))
+        subtract_count = 0
+        for subtract_file in subtract_files:
+            if not main_geom:
+                break
+            with open(subtract_file) as f:
+                subtract_features = json.loads(f.read())
+            print(subtract_file)
+            for subtract_feat in subtract_features["features"]:
+                """
+                if "other_tenures" in subtract_file and subtract_feat["properties"]["ogc_fid"] == 296326:
+                    #ignore one tenure
+                    continue
+                """
+                subtract_geom = getShapelyGeometry(subtract_feat)
+                if subtract_feat["properties"]["ogc_fid"] == 61039:
+                    fixed_geom = PolygonUtil("subtract_geom",subtract_geom,properties=subtract_feat.get('properties')).fix_selfintersect(check_selfintersectlines=True)
+                    if fixed_geom:
+                        subtract_geom = fixed_geom[0]
+
+
+                if intersects(main_geom,subtract_geom):
+                    print(subtract_feat["properties"])
+                    subtract_count += 1
+                    symmetric_g = symmetric_difference(main_geom,subtract_geom)
+                    main_geom = difference(symmetric_g,subtract_geom)
+
+                    if not main_geom:
+                        break
+        if main_geom:
+            properties = main_feat["properties"]
+            if "area" in properties:
+                properties["original_area"] = properties["area"]
+            properties["area"] = calculateGeometryArea(main_geom,src_proj=crs)
+            properties["subtract_features"] = subtract_count
+
+            features.append((main_geom,properties))
+
+
+    if features:
+        exportGeojson(features,diff_file or '/tmp/feature_diff.geojson')
+
+    return diff_file
+
+"""
+merge_geometries([
+    "./tmp/bf_2017_ekm_019/feature_area_in_legislated_lands_and_waters.geojson",
+    "./tmp/bf_2017_ekm_019/feature_area_in_sa_nt_burntarea.geojson",
+    "./tmp/bf_2017_ekm_019/feature_area_in_dept_interest_lands_and_waters.geojson",
+    "./tmp/bf_2017_ekm_019/feature_area_in_other_tenures.geojson"
+    ],crs='aea',calculate_area=True,merged_file="./tmp/bf_2017_ekm_019/feature_merged.geojson",merged_properties=['area'])
+"""
+"""
+subtract_geometries("./tmp/bf_2017_ekm_019/feature_total_area.geojson",
+    [
+    "./tmp/bf_2017_ekm_019/feature_area_in_legislated_lands_and_waters.geojson",
+    "./tmp/bf_2017_ekm_019/feature_area_in_sa_nt_burntarea.geojson",
+    "./tmp/bf_2017_ekm_019/feature_area_in_dept_interest_lands_and_waters.geojson",
+    "./tmp/bf_2017_ekm_019/feature_area_in_other_tenures.geojson"
+    ],crs='aea',calculate_area=True,diff_file="./tmp/bf_2017_ekm_019/feature_diff.geojson")
+
+"""
+
+"""
+subtract_geometries("./tmp/bf_2018_ekm_036/feature.geojson",
+    [    
+    "./tmp/bf_2018_ekm_036/feature_area_in_legislated_lands_and_waters.geojson",
+    "./tmp/bf_2018_ekm_036/feature_area_in_sa_nt_burntarea.geojson",
+    #"./tmp/bf_2018_ekm_036/feature_area_in_dept_interest_lands_and_waters.geojson",
+    "./tmp/bf_2018_ekm_036/feature_area_in_other_tenures.geojson"
+    ],crs='aea',calculate_area=True,diff_file="./tmp/bf_2018_ekm_036/feature_diff5.geojson")
+"""
 
 #folder='/home/rockyc/work/gokart/tmp/batch'
 #folder='/home/rockyc/work/gokart/tmp/bfrs2017'
@@ -1000,25 +1372,25 @@ def process_status_report(folder):
 #process_status_report(folder)
 
 #selfintersected_features = check_selfintersect(filename)
-#print_selfintersect_checkresult(selfintersected_features)
+#print_checkresult(selfintersected_features)
 #fixed_file,fix_status = fix_selfintersect(filename)
 #print(fixed_file)
 
 #print("Check whether the fixed features have selfintersection ")
 #selfintersected_features = check_selfintersect(fixed_file)
 #if selfintersected_features:
-#    print_selfintersect_checkresult(selfintersected_features)
+#    print_checkresult(selfintersected_features)
 #else:
 #    print("No selfintersection found")
 
 #print_progress_status("Check whether the fixed features have selfintersection in aea projection")
 #selfintersected_features = check_selfintersect(fixed_file,target_proj='aea')
 #if selfintersected_features:
-#    print_selfintersect_checkresult(selfintersected_features)
+#    print_checkresult(selfintersected_features)
 #else:
 #    print_progress_status("No selfintersection found")
 #selfintersected_features = check_selfintersect("/home/rockyc/work/gokart/tmp/BF_2017_EKM_024.geojson")
-#print_selfintersect_checkresult(selfintersected_features)
+#print_checkresult(selfintersected_features)
 
 #selfintersected_features = check_selfintersect("/home/rockyc/work/gokart/tmp/BF_2017_EKM_024_EPSG_4326.geojson")
-#print_selfintersect_checkresult(selfintersected_features)
+#print_checkresult(selfintersected_features)
