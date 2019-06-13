@@ -492,8 +492,10 @@ class PolygonUtil(object):
             polygonlist = [feat["geometry"]["coordinates"]]
         elif feat["geometry"]["type"] == "MultiPolygon":
             polygonlist = feat["geometry"]["coordinates"]
-        else:
+        elif feat["geometry"]["type"] == "GeometryCollection":
             raise Exception("{} Not Support".format(feat["geometry"["type"]]))
+        else:
+            return None
 
         if not polygonlist:
             return None
@@ -585,7 +587,7 @@ class PolygonUtil(object):
                     else:
                         all_rings.append([interior_rings,i,LinearRing(reversed(r.coords))])
                         fix_types |= self.FIX_RING_ORIENT
-                elif difference(symmetric_difference(polygon_r,exterior_polygon),exterior_polygon):
+                elif intersects(exterior_polygon,polygon_r) and difference(symmetric_difference(polygon_r,exterior_polygon),exterior_polygon):
                     exportGeojson((self.geom,self.properties),"/tmp/invalid_feature.geojson")
                     exportGeojson((polygon,self.properties),"/tmp/invalid_feature_polygon_{}.geojson".format(path))
                     exportGeojson((exterior_polygon,self.properties),"/tmp/invalid_feature_polygon_{}_exterior.geojson".format(path))
@@ -813,7 +815,7 @@ class PolygonUtil(object):
 
             
             fixed_geom = self.collapseGeom(expandedGeom)
-            PolygonUtil(self.name,fixed_geom,print_progress_status=self.print_progress_status,properties=self.properties).exportPolygon()
+            #PolygonUtil(self.name,fixed_geom,print_progress_status=self.print_progress_status,properties=self.properties).exportPolygon()
             return (fixed_geom,geom_fix_types)
         else:
             return None
@@ -857,6 +859,7 @@ def check_geometry(geojsonfile,src_proj="EPSG:4326",target_proj='EPSG:4326',prin
 def print_checkresult(selfintersect_features,properties=None,print_progress_status=None):
     print_progress_status = print_progress_status or default_print_progress_status
     if selfintersect_features:
+        new_line = False
         for feat,checkresult in selfintersect_features:
             print_progress_status("======================The following feature is invalid==============================")
             if properties:
@@ -871,6 +874,7 @@ def print_checkresult(selfintersect_features,properties=None,print_progress_stat
 
             nonclosed_polygons = checkresult.get("nonclosed_polygons")
             if nonclosed_polygons:
+                new_line = True
                 for path,nonclosed_rings in nonclosed_polygons:
                     print_progress_status("The {} polygon has non closed rings".format(path))
                     for index,coords in nonclosed_rings:
@@ -881,6 +885,10 @@ def print_checkresult(selfintersect_features,properties=None,print_progress_stat
 
             selfintersect_polygons = checkresult.get("selfintersect_polygons")
             if selfintersect_polygons:
+                if new_line:
+                    print_progress_status("")
+                new_line = True
+
                 for path,selfintersect_rings in selfintersect_polygons:
                     print_progress_status("The {} polygon is self-intersected".format(path))
                     for index,selfintersects in selfintersect_rings:
