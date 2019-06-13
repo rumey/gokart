@@ -60,6 +60,7 @@ WEATHERFORECAST_USER=os.environ.get("WEATHERFORECAST_USER") or None
 WEATHERFORECAST_PASSWORD=os.environ.get("WEATHERFORECAST_PASSWORD") or None
 
 CALCULATE_AREA_IN_SEPARATE_PROCESS = (os.environ.get("CALCULATE_AREA_IN_SEPARATE_PROCESS") or "true").lower() in ["true","yes","on"]
+EXPORT_CALCULATE_AREA_FILES_4_DEBUG = (os.environ.get("EXPORT_CALCULATE_AREA_FILES_4_DEBUG") or "false").lower() in ["true","yes","on"]
 
 PERTH_TIMEZONE = datetime.datetime.now(pytz.timezone('Australia/Perth')).tzinfo
 

@@ -485,12 +485,12 @@ def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
 
     if not layers:
         return result
-    """
-    #export geometry for debug
-    properties = feature["properties"]
-    properties.update({"area":area_data["total_area"]})
-    exportGeojson((geometry_aea,properties),"/tmp/feature.geojson")
-    """
+
+    if settings.EXPORT_CALCULATE_AREA_FILES_4_DEBUG:
+        #export geometry for debug
+        properties = feature["properties"]
+        properties.update({"area":area_data["total_area"]})
+        exportGeojson((geometry_aea,properties),"/tmp/feature.geojson")
 
     for layer in layers:
         if "layerid" not in layer and "id" not in layer:
@@ -518,10 +518,10 @@ def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
             print(layer_url)
             layer_features = retrieveFeatures(layer_url,session_cookies)["features"]
 
-            """
-            #export intersected areas for debug
-            intersected_features = []
-            """
+            if settings.EXPORT_CALCULATE_AREA_FILES_4_DEBUG:
+                #export intersected areas for debug
+                intersected_features = []
+                intersected_layer_features = []
 
             for layer_feature in layer_features:
                 layer_geometry = getShapelyGeometry(layer_feature)
@@ -558,20 +558,21 @@ def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
                 layer_feature_area_data["area"] += feature_area
                 total_layer_area  += feature_area
                 
-                """
-                #export intersected areas for debug
-                properties = layer_feature["properties"]
-                properties.update({"area":feature_area})
-                intersected_features.append((intersections,properties))
-                """
+                if settings.EXPORT_CALCULATE_AREA_FILES_4_DEBUG:
+                    #export intersected areas for debug
+                    properties = layer_feature["properties"]
+                    properties.update({"area":feature_area})
+                    intersected_features.append((intersections,properties))
+                    intersected_layer_features.append((layer_geometry,properties))
 
-            """
-            #export intersected areas for debug
-            if intersected_features:
-                for feat in intersected_features:
-                    feat[1].update({"total_area":total_layer_area})
-                exportGeojson(intersected_features,'/tmp/feature_area_in_{}.geojson'.format(layer["id"]))
-            """
+            if settings.EXPORT_CALCULATE_AREA_FILES_4_DEBUG:
+                #export intersected areas for debug
+                if intersected_features:
+                    for feat in intersected_features:
+                        feat[1].update({"total_area":total_layer_area})
+                    exportGeojson(intersected_features,'/tmp/feature_area_{}_intersection.geojson'.format(layer["id"]))
+                    exportGeojson(intersected_layer_features,'/tmp/feature_area_{}.geojson'.format(layer["id"]))
+
 
             area_data["layers"][layer["id"]]["total_area"] = total_layer_area
             total_area += total_layer_area
