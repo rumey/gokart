@@ -1097,7 +1097,7 @@ def batch_fix(folder,check_selfintersectlines=False,clean=False):
 
             _print_process_status("Processing '{}'".format(geojson_file))
 
-            selfintersected_features = check_selfintersect(source_file)
+            selfintersected_features = check_geometry(source_file)
             if selfintersected_features:
                 print_checkresult(selfintersected_features,print_progress_status=_print_process_status)
 
@@ -1379,26 +1379,26 @@ subtract_geometries("./tmp/bf_2018_ekm_036/feature.geojson",
 
 #process_status_report(folder)
 
-#selfintersected_features = check_selfintersect(filename)
+#selfintersected_features = check_geometry(filename)
 #print_checkresult(selfintersected_features)
 #fixed_file,fix_status = fix_selfintersect(filename)
 #print(fixed_file)
 
 #print("Check whether the fixed features have selfintersection ")
-#selfintersected_features = check_selfintersect(fixed_file)
+#selfintersected_features = check_geometry(fixed_file)
 #if selfintersected_features:
 #    print_checkresult(selfintersected_features)
 #else:
 #    print("No selfintersection found")
 
 #print_progress_status("Check whether the fixed features have selfintersection in aea projection")
-#selfintersected_features = check_selfintersect(fixed_file,target_proj='aea')
+#selfintersected_features = check_geometry(fixed_file,target_proj='aea')
 #if selfintersected_features:
 #    print_checkresult(selfintersected_features)
 #else:
 #    print_progress_status("No selfintersection found")
-#selfintersected_features = check_selfintersect("/home/rockyc/work/gokart/tmp/BF_2017_EKM_024.geojson")
+#selfintersected_features = check_geometry("/home/rockyc/work/gokart/tmp/BF_2017_EKM_024.geojson")
 #print_checkresult(selfintersected_features)
 
-#selfintersected_features = check_selfintersect("/home/rockyc/work/gokart/tmp/BF_2017_EKM_024_EPSG_4326.geojson")
+#selfintersected_features = check_geometry("/home/rockyc/work/gokart/tmp/BF_2017_EKM_024_EPSG_4326.geojson")
 #print_checkresult(selfintersected_features)
