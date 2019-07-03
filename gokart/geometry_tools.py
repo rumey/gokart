@@ -204,8 +204,18 @@ def intersects(geom1,geom2,split=False):
                 return True
         return False
 
-def default_print_progress_status(msg):
-    print("{} : {}".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"),msg))
+def default_print_progress_status(print_timestamp=True):
+    print_timestamp = print_timestamp
+    def _default_print_progress_status(msg):
+        if print_timestamp:
+            if msg:
+                print("{} : {}".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"),msg))
+            else:
+                print("{}".format(msg))
+        else:
+            print("{}".format(msg))
+
+    return _default_print_progress_status
 
 def getShapelyGeometry(feature):
     if not feature["geometry"]:
@@ -260,7 +270,7 @@ class PolygonUtil(object):
         self.pos = 0
         self.name = name
         self.properties = properties
-        self.print_progress_status = print_progress_status or default_print_progress_status
+        self.print_progress_status = print_progress_status or default_print_progress_status()
 
     @classmethod 
     def fix_type_names(cls,fix_type):
@@ -518,6 +528,31 @@ class PolygonUtil(object):
                 index += 1
 
         return nonclosed_polygons
+
+    def check_intersect(self):
+        polygonList = self.polygons()
+    
+        if not polygonList:
+            return None
+
+        intersect_polygons = []
+        index = 0
+        while index < len(polygonList) - 1:
+            subindex = index + 1
+            path1,poly1 = polygonList[index]
+            index += 1
+            while subindex < len(polygonList):
+                path2,poly2 = polygonList[subindex]
+                subindex += 1
+                if poly1.contains(poly2):
+                    intersect_polygons.append( ((path1,poly1),(path2,poly2),('contain',poly2)) )
+                elif poly2.contains(poly1):
+                    intersect_polygons.append( ((path2,poly2),(path1,poly1),('contain',poly1)) )
+                else:
+                    intersections = extractPolygons(poly1.intersection(poly2))
+                    if intersections:
+                        intersect_polygons.append( ((path2,poly2),(path1,poly1),('intersect',intersections)) )
+        return intersect_polygons
 
 
     def check_selfintersect(self):
@@ -821,8 +856,8 @@ class PolygonUtil(object):
             return None
 
 
-def check_geometry(geojsonfile,src_proj="EPSG:4326",target_proj='EPSG:4326',print_progress_status=None,print_result=False):
-    print_progress_status = print_progress_status or default_print_progress_status
+def check_geometry(geojsonfile,src_proj="EPSG:4326",target_proj='EPSG:4326',print_progress_status=None,print_result=False,print_timestamp=True):
+    print_progress_status = print_progress_status or default_print_progress_status(print_timestamp)
     with open(geojsonfile) as f:
         geojson = json.loads(f.read())
 
@@ -844,20 +879,27 @@ def check_geometry(geojsonfile,src_proj="EPSG:4326",target_proj='EPSG:4326',prin
         if result:
             checkresult["nonclosed_polygons"] = result
 
+        try:
+            result = polygonutil.check_intersect()
+            if result:
+                checkresult["intersected_polygons"] = result
+        except:
+            pass
+
         if checkresult:
             selfintersect_features.append((feat,checkresult))
 
     if print_result:
         if selfintersect_features:
             print_progress_status("Checking file '{}'".format(geojsonfile))
-            print_checkresult(selfintersect_features)
+            print_checkresult(selfintersect_features,print_progress_status = print_progress_status)
             print_progress_status("")
 
 
     return selfintersect_features
 
-def print_checkresult(selfintersect_features,properties=None,print_progress_status=None):
-    print_progress_status = print_progress_status or default_print_progress_status
+def print_checkresult(selfintersect_features,properties=None,print_progress_status=None,print_timestamp=True):
+    print_progress_status = print_progress_status or default_print_progress_status(print_timestamp)
     if selfintersect_features:
         new_line = False
         for feat,checkresult in selfintersect_features:
@@ -899,15 +941,26 @@ def print_checkresult(selfintersect_features,properties=None,print_progress_stat
                         for coord,indexes in selfintersects:
                             print_progress_status("    Coordinate({}) is self-intersected at position({})".format(coord,indexes))
 
+            intersected_polygons = checkresult.get("intersected_polygons")
+            if intersected_polygons:
+                if new_line:
+                    print_progress_status("")
+                new_line = True
 
-def fix_selfintersect(geojson,check_selfintersectlines=False,print_progress_status=None,fixed_file=None,id_property=None):
+                for poly1,poly2,intersection in intersected_polygons:
+                    if intersection[0] == 'contain':
+                        print_progress_status("The {} polygon contains the {} polygon. {} {}".format(poly1[0],poly2[0],os.linesep,intersection[1]))
+                    else:
+                        print_progress_status("The {} polygon is intersected with {} polygon,intersection is:{} {}".format(poly1[0],poly2[0],os.linesep,intersection[1]))
+
+def fix_selfintersect(geojson,check_selfintersectlines=False,print_progress_status=None,fixed_file=None,id_property=None,print_timestamp=True):
     """
     if geojson can be a geojson file or geojson string
     if some the polygon fetures in this geosjon string or geojson file are selfintersected, a new file or geojson string  will be created to contain the fixed features and the other features and return the caller; 
 
     otherwise , return the same geojson file or geojson string.
     """
-    print_progress_status = print_progress_status or default_print_progress_status
+    print_progress_status = print_progress_status or default_print_progress_status(print_timestamp)
     isfile = None
     if geojson[-8:].lower() == ".geojson":
         with open(geojson) as f:
@@ -935,6 +988,10 @@ def fix_selfintersect(geojson,check_selfintersectlines=False,print_progress_stat
 
 
     fix_status = []
+    if features and callable(id_property):
+        id_property = id_property(features[0])
+
+
     while index < len(features):
         fixed_geom = None
         featureArea = None
@@ -1012,7 +1069,7 @@ def fix_selfintersect(geojson,check_selfintersectlines=False,print_progress_stat
         return (features,fix_status)
 
 
-def batch_fix(folder,check_selfintersectlines=False,clean=False):
+def batch_fix(folder,check_selfintersectlines=False,clean=False,print_timestamp=True):
     if not os.path.exists(folder):
         raise Exception("The folder '{}' doesn't exist".format(folder))
 
@@ -1070,7 +1127,17 @@ def batch_fix(folder,check_selfintersectlines=False,clean=False):
     logfile_fd = None
     def _print_process_status(msg):
         if logfile_fd:
-            os.write(logfile_fd,"{} : {}{}".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"),msg,os.linesep))
+            if print_timestamp:
+                if msg:
+                    os.write(logfile_fd,"{} : {}{}".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"),msg,os.linesep))
+                else:
+                    os.write(logfile_fd,"{}".format(os.linesep))
+            else:
+                if msg:
+                    os.write(logfile_fd,"{}{}".format(msg,os.linesep))
+                else:
+                    os.write(logfile_fd,"{}".format(os.linesep))
+
 
     def _write_fix_status(geojson_file,fix_status):
         with open(status_file,'a') as f:
@@ -1101,7 +1168,7 @@ def batch_fix(folder,check_selfintersectlines=False,clean=False):
             if selfintersected_features:
                 print_checkresult(selfintersected_features,print_progress_status=_print_process_status)
 
-            fixed_file,fix_status = fix_selfintersect(source_file,check_selfintersectlines=check_selfintersectlines,print_progress_status=_print_process_status,fixed_file=fixed_file,id_property="fire_number")
+            fixed_file,fix_status = fix_selfintersect(source_file,check_selfintersectlines=check_selfintersectlines,print_progress_status=_print_process_status,fixed_file=fixed_file,id_property=lambda feat:[p for p in ["fire_number","ogc_fid",None] if p is None or p in feat["properties"]][0])
             _print_process_status("End to process '{}'".format(geojson_file))
 
             _write_fix_status(geojson_file,fix_status)
@@ -1284,7 +1351,9 @@ def merge_geometries(geojsonfiles,crs="EPSG:4326",calculate_area=False,merged_fi
     return merged_file
 
 
-def subtract_geometries(mainfile,subtract_files,crs="EPSG:4326",calculate_area=False,diff_file=None):
+def subtract_geometries(mainfile,subtract_files,crs="EPSG:4326",calculate_area=False,diff_file=None,print_timestamp=True):
+    print_progress_status = default_print_progress_status(print_timestamp)
+
     diff_file = diff_file or '/tmp/feature_diff.geojson'
     if isinstance(subtract_files,str):
         subtract_files = [subtract_files]
@@ -1311,7 +1380,7 @@ def subtract_geometries(mainfile,subtract_files,crs="EPSG:4326",calculate_area=F
                 """
                 subtract_geom = getShapelyGeometry(subtract_feat)
                 if subtract_feat["properties"]["ogc_fid"] == 61039:
-                    fixed_geom = PolygonUtil("subtract_geom",subtract_geom,properties=subtract_feat.get('properties')).fix_selfintersect(check_selfintersectlines=True)
+                    fixed_geom = PolygonUtil("subtract_geom",subtract_geom,print_progress_status=print_progress_status,properties=subtract_feat.get('properties')).fix_selfintersect(check_selfintersectlines=True)
                     if fixed_geom:
                         subtract_geom = fixed_geom[0]
 
@@ -1367,6 +1436,9 @@ subtract_geometries("./tmp/bf_2018_ekm_036/feature.geojson",
     "./tmp/bf_2018_ekm_036/feature_area_in_other_tenures.geojson"
     ],crs='aea',calculate_area=True,diff_file="./tmp/bf_2018_ekm_036/feature_diff5.geojson")
 """
+
+#check_geometry("./tmp/bfrs2018/BF_2018_EKM_029.geojson")
+
 
 #folder='/home/rockyc/work/gokart/tmp/batch'
 #folder='/home/rockyc/work/gokart/tmp/bfrs2017'
