@@ -50,12 +50,17 @@ DIST_TYPE = (os.environ.get("DIST_TYPE") or "release").lower()
 BASE_DIST_PATH = os.path.join(os.path.dirname(BASE_PATH),"dist")
 DIST_PATH = os.path.join(os.path.dirname(BASE_PATH),"dist",DIST_TYPE)
 
+KMI_SERVER = os.environ.get("KMI_SERVER") or "https://kmi.dbca.wa.gov.au/geoserver"
+
 CHECK_OVERLAP_IF_CALCULATE_AREA_FAILED = (os.environ.get("CHECK_OVERLAP_IF_CALCULATE_AREA_FAILED") or "false").lower() in ["true","yes","on"]
 
 STATIC_SERVICE=os.environ.get("STATIC_SERVICE") or "https://static.dbca.wa.gov.au"
 WEATHERFORECAST_URL=os.environ.get("WEATHERFORECAST_URL") or ""
 WEATHERFORECAST_USER=os.environ.get("WEATHERFORECAST_USER") or None
 WEATHERFORECAST_PASSWORD=os.environ.get("WEATHERFORECAST_PASSWORD") or None
+
+CALCULATE_AREA_IN_SEPARATE_PROCESS = (os.environ.get("CALCULATE_AREA_IN_SEPARATE_PROCESS") or "true").lower() in ["true","yes","on"]
+EXPORT_CALCULATE_AREA_FILES_4_DEBUG = (os.environ.get("EXPORT_CALCULATE_AREA_FILES_4_DEBUG") or "false").lower() in ["true","yes","on"]
 
 PERTH_TIMEZONE = datetime.datetime.now(pytz.timezone('Australia/Perth')).tzinfo
 
@@ -142,7 +147,7 @@ def kmiserver(url):
     if m:
         return "{}/".format(m.group('url'))
     else:
-        return "https://kmi.dbca.wa.gov.au/geoserver/"
+        return KMI_SERVER
 
 def datetime_encoder(self,o):
     if isinstance(o,datetime.datetime):

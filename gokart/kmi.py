@@ -25,13 +25,13 @@ def layermetadatakey(layerid):
 def layerdefinitionkey(layerid):
     return "layerdefinition_{}".format(layerid)
 
-def get_kmiserver(kmiserver="https://kmi.dbca.wa.gov.au/geoserver"):
-    kmiserver = kmiserver or "https://kmi.dbca.wa.gov.au/geoserver"
+def get_kmiserver(kmiserver=settings.KMI_SERVER):
+    kmiserver = kmiserver or settings.KMI_SERVER
     if  kmiserver.endswith("/"):
         kmiserver = kmiserver[:-1]
     return kmiserver
 
-def get_layermetadata(layerids,kmiserver="https://kmi.dbca.wa.gov.au/geoserver",results={}):
+def get_layermetadata(layerids,kmiserver=settings.KMI_SERVER,results={}):
     multiple_layers = True
     if isinstance(layerids,basestring):
         layerids = [layerids]
@@ -167,7 +167,7 @@ def get_layermetadata(layerids,kmiserver="https://kmi.dbca.wa.gov.au/geoserver",
     else:
         return results[layerids[0]]
 
-def get_layerdefinition(layerids,kmiserver="https://kmi.dbca.wa.gov.au/geoserver",results={}):
+def get_layerdefinition(layerids,kmiserver=settings.KMI_SERVER,results={}):
     kmiserver = get_kmiserver(kmiserver)
 
     multiple_layers = True

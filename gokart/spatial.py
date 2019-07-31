@@ -11,8 +11,7 @@ import pyproj
 from datetime import datetime
 from multiprocessing import Process,Pipe
 
-from shapely.ops import transform
-from shapely.geometry import shape,MultiPoint,Point
+from shapely.geometry import shape,MultiPoint,Point,mapping
 from shapely.geometry.polygon import Polygon
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.collection import GeometryCollection
@@ -23,8 +22,63 @@ from functools import partial
 import settings
 import kmi
 
+proj_aea = lambda geometry: pyproj.Proj("+proj=aea +lat_1=-17.5 +lat_2=-31.5 +lat_0=0 +lon_0=121 +x_0=5000000 +y_0=10000000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
+
+def exportGeojson(feat,fname):
+    if isinstance(feat,BaseGeometry):
+        geojson = {
+            "type":"FeatureCollection",
+            "features":[
+                {
+                    "type":"Feature",
+                    "geometry":mapping(feat),
+                    "properties":{}
+                }
+            ]
+        }
+    elif isinstance(feat,tuple):
+        geojson = {
+            "type":"FeatureCollection",
+            "features":[
+                {
+                    "type":"Feature",
+                    "geometry":mapping(feat[0]),
+                    "properties":feat[1] or {}
+                }
+            ]
+        }
+    elif isinstance(feat,list):
+        features = []
+        geojson = {
+            "type":"FeatureCollection",
+            "features":features
+        }
+        for f in feat:
+            if isinstance(f,BaseGeometry):
+                features.append({
+                    "type":"Feature",
+                    "geometry":mapping(f),
+                    "properties":{}
+                })
+            elif isinstance(f,tuple):
+                features.append({
+                    "type":"Feature",
+                    "geometry":mapping(f[0]),
+                    "properties":f[1] or {}
+                })
+            else:
+                raise Exception("Unsupported type({}.{})".format(f.__class__.__module__,f.__class__.__name__))
+    else:
+        raise Exception("Unsupported type({}.{})".format(feat.__class__.__module__,feat.__class__.__name__))
+
+
+    with open(fname,'w') as f:
+        f.write(json.dumps(geojson,indent=True))
+
+    return fname
+
 proj_wgs84 = pyproj.Proj(init='epsg:4326')
-def buffer(lon, lat, meters):
+def buffer(lon, lat, meters,resolution=16):
     """
     Create a buffer around a point
     """
@@ -34,29 +88,55 @@ def buffer(lon, lat, meters):
         pyproj.transform,
         pyproj.Proj(aeqd_proj.format(lat, lon)),
         proj_wgs84)
-    buf = Point(0, 0).buffer(meters)  # distance in metres
-    return transform(project, buf).exterior.coords[:]
+    buf = Point(0, 0).buffer(meters,resolution=resolution)  # distance in metres
+    return ops.transform(project, buf).exterior.coords[:]
 
 def getShapelyGeometry(feature):
-    if feature["geometry"]["type"] == "GeometryCollection":
+    if not feature["geometry"]:
+        return None
+    elif feature["geometry"]["type"] == "GeometryCollection":
         return GeometryCollection([shape(g) for g in feature["geometry"]["geometries"]])
     else:
         return shape(feature["geometry"])
 
-def getGeometryArea(geometry,unit,init_proj="EPSG:4326"):
+def transform(geometry,src_proj="EPSG:4326",target_proj='aea'):
+    if src_proj == target_proj:
+        return geometry
+    else:
+        if src_proj == 'aea':
+            src_proj = proj_aea(geometry)
+        else:
+            src_proj = pyproj.Proj(init=src_proj)
+
+        if target_proj == 'aea':
+            target_proj = proj_aea(geometry)
+        else:
+            target_proj = pyproj.Proj(init=target_proj)
+
+        return ops.transform(
+            partial(
+                pyproj.transform,
+                src_proj,
+                #pyproj.Proj(proj="aea",lat1=geometry.bounds[1],lat2=geometry.bounds[3])
+                #use projection 'Albers Equal Conic Area for WA' to calcuate the area
+                target_proj
+            ),
+            geometry
+        )
+def getGeometryArea(geometry,unit,src_proj="EPSG:4326"):
     """
     Get polygon's area using albers equal conic area
     """
-    if init_proj == 'aea':
+    if src_proj == 'aea':
         geometry_aea = geometry
     else:
         geometry_aea = ops.transform(
             partial(
                 pyproj.transform,
-                pyproj.Proj(init=init_proj),
+                pyproj.Proj(init=src_proj),
                 #pyproj.Proj(proj="aea",lat1=geometry.bounds[1],lat2=geometry.bounds[3])
                 #use projection 'Albers Equal Conic Area for WA' to calcuate the area
-                pyproj.Proj("+proj=aea +lat_1=-17.5 +lat_2=-31.5 +lat_0=0 +lon_0=121 +x_0=5000000 +y_0=10000000 +ellps=GRS80 +units=m +no_defs ",lat1=geometry.bounds[1],lat2=geometry.bounds[3])
+                proj_aea(geometry)
             ),
             geometry
         )
@@ -68,6 +148,34 @@ def getGeometryArea(geometry,unit,init_proj="EPSG:4326"):
     else:
         return data
 
+degrees2radians = math.pi / 180
+radians2degrees = 180 /math.pi
+def getBearing(p1,p2):
+    lon1 = degrees2radians * p1.x
+    lon2 = degrees2radians * p2.x
+    lat1 = degrees2radians * p1.y
+    lat2 = degrees2radians * p2.y
+    a = math.sin(lon2 - lon1) * math.cos(lat2)
+    b = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(lon2 - lon1);
+
+    bearing = radians2degrees * math.atan2(a, b); 
+    return bearing if bearing >= 0 else bearing + 360
+
+directions = {
+    4:[360/4,math.floor(360 / 8 * 100) / 100,["N","E","S","W"]],
+    8:[360/8,math.floor(360 / 16 * 100) / 100,["N","NE","E","SE","S","SW","W","NW"]],
+    16:[360/16,math.floor(360 / 32 * 100) / 100,["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"]],
+    32:[360/32,math.floor(360 / 64 * 100) / 100,["N","NbE","NNE","NEbN","NE","NEbE","ENE","EbN","E","EbS","ESE","SEbE","SE","SEbS","SSE","SbE","S","SbW","SSW","SWbS","SW","SWbW","WSW","WbS","W","WbN","WNW","NWbW","NW","NWbN","NNW","NbW"]],
+}
+
+def getDirection(bearing,mode = 16):
+    mode = mode or 16
+    if mode not in directions:
+        mode = 16
+
+    index = int((math.floor(bearing / directions[mode][0])  + 0 if ((round(bearing % directions[mode][0],2) <= directions[mode][1])) else 1) % mode)
+    return directions[mode][2][index]
+
 def getDistance(p1,p2,unit="m",p1_proj="EPSG:4326",p2_proj="EPSG:4326"):
     if p1_proj == 'aea':
         p1_aea = p1
@@ -78,7 +186,7 @@ def getDistance(p1,p2,unit="m",p1_proj="EPSG:4326",p2_proj="EPSG:4326"):
                 pyproj.Proj(init=p1_proj),
                 #pyproj.Proj(proj="aea",lat1=geometry.bounds[1],lat2=geometry.bounds[3])
                 #use projection 'Albers Equal Conic Area for WA' to calcuate the area
-                pyproj.Proj("+proj=aea +lat_1=-17.5 +lat_2=-31.5 +lat_0=0 +lon_0=121 +x_0=5000000 +y_0=10000000 +ellps=GRS80 +units=m +no_defs ",lat1=p1.bounds[1],lat2=p1.bounds[3])
+                proj_aea(p1)
             ),
             p1
         )
@@ -92,7 +200,7 @@ def getDistance(p1,p2,unit="m",p1_proj="EPSG:4326",p2_proj="EPSG:4326"):
                 pyproj.Proj(init=p2_proj),
                 #pyproj.Proj(proj="aea",lat1=geometry.bounds[1],lat2=geometry.bounds[3])
                 #use projection 'Albers Equal Conic Area for WA' to calcuate the area
-                pyproj.Proj("+proj=aea +lat_1=-17.5 +lat_2=-31.5 +lat_0=0 +lon_0=121 +x_0=5000000 +y_0=10000000 +ellps=GRS80 +units=m +no_defs ",lat1=p2.bounds[1],lat2=p2.bounds[3])
+                proj_aea(p2)
             ),
             p2
         )
@@ -105,7 +213,9 @@ def getDistance(p1,p2,unit="m",p1_proj="EPSG:4326",p2_proj="EPSG:4326"):
 
 #return polygon or multipolygons if have, otherwise return None
 def extractPolygons(geom):
-    if isinstance(geom,Polygon) or isinstance(geom,MultiPolygon):
+    if not geom:
+        return None
+    elif isinstance(geom,Polygon) or isinstance(geom,MultiPolygon):
         return geom
     elif isinstance(geom,GeometryCollection):
         result = None
@@ -185,10 +295,11 @@ def checkOverlap(session_cookies,feature,options,logfile):
     features = {}
     #retrieve all related features from layers
     for layer in layers:
-        features[layer["id"]] = retrieveFeatures(
-            "{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&bbox={},{},{},{}".format(layer["kmiservice"],layer["layerid"],geometry.bounds[1],geometry.bounds[0],geometry.bounds[3],geometry.bounds[2]),
-            session_cookies
-        )["features"]
+        if layer.get('cqlfilter'):
+            layer_url="{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&cql_filter=BBOX({},{},{},{},{}) AND {}".format(layer["kmiservice"],layer["layerid"],layerdefinition(layer)["geometry_property"]["name"],geometry.bounds[1],geometry.bounds[0],geometry.bounds[3],geometry.bounds[2],layer['cqlfilter'])
+        else:
+            layer_url="{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&bbox={},{},{},{}".format(layer["kmiservice"],layer["layerid"],geometry.bounds[1],geometry.bounds[0],geometry.bounds[3],geometry.bounds[2])
+        features[layer["id"]] = retrieveFeatures(layer_url, session_cookies)["features"]
 
         for layer_feature in features[layer["id"]]:
             layer_geometry = getShapelyGeometry(layer_feature)
@@ -277,7 +388,11 @@ def calculateArea(feature,session_cookies,options):
             }
         }
     }
+    The reason to calculate the area in another process is to releace the memory immediately right after area is calculated.
     """
+    if not settings.CALCULATE_AREA_IN_SEPARATE_PROCESS:
+        return  _calculateArea(feature,session_cookies,options,False)
+
     parent_conn,child_conn = Pipe(True)
     p = Process(target=calculateAreaInProcess,args=(child_conn,))
     p.daemon = True
@@ -312,6 +427,23 @@ def calculateAreaInProcess(conn):
     #    checkOverlap(session_cookies,feature,options,overlapLogfile)
     #print("{}:subprocess finished".format(datetime.now()))
 
+def calculateFeatureArea(feature,src_proj="EPSG:4326",unit='ha'):
+    return calculateGeometryArea(getShapelyGeometry(feature),src_proj=src_proj,unit=unit)
+
+def calculateGeometryArea(geometry,src_proj="EPSG:4326",unit='ha'):
+    geometry = extractPolygons(geometry)
+    if not geometry :
+        return 0
+
+    valid,msg = geometry.check_valid
+    if not valid:
+        print("geometry is invalid.{}", msg)
+
+    geometry_aea = transform(geometry,src_proj=src_proj,target_proj='aea')
+
+    return  getGeometryArea(geometry_aea,unit,'aea')
+
+
 def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
     # needs gdal 1.10+
     layers = options["layers"]
@@ -338,8 +470,10 @@ def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
     if not valid:
         status["invalid"] = msg
 
+    geometry_aea = transform(geometry,target_proj='aea')
+
     try:
-        area_data["total_area"] = getGeometryArea(geometry,unit)
+        area_data["total_area"] = getGeometryArea(geometry_aea,unit,'aea')
     except:
         traceback.print_exc()
         if "invalid" in status:
@@ -352,29 +486,53 @@ def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
     if not layers:
         return result
 
-    area_data["layers"] = {}
+    if settings.EXPORT_CALCULATE_AREA_FILES_4_DEBUG:
+        #export geometry for debug
+        properties = feature["properties"]
+        properties.update({"area":area_data["total_area"]})
+        exportGeojson((geometry_aea,properties),"/tmp/feature.geojson")
 
+    for layer in layers:
+        if "layerid" not in layer and "id" not in layer:
+            raise Exception("Both 'id' and 'layerid' are missing in layer declaration")
+        elif "layerid" not in layer:
+            layer["layerid"] = layer["id"]
+        elif "id" not in layer:
+            layer["id"] = layer["layerid"]
+        if not layer.get("kmiservice"):
+            layer["kmiservice"] = settings.KMI_SERVER
+
+    area_data["layers"] = {}
     areas_map = {} if merge_result else None
     for layer in layers:
         try:
             layer_area_data = []
             total_layer_area = 0
             area_data["layers"][layer["id"]] = {"areas":layer_area_data}
+
+            if layer.get('cqlfilter'):
+                layer_url="{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&cql_filter=BBOX({},{},{},{},{}) AND {}".format(layer["kmiservice"],layer["layerid"],layerdefinition(layer)["geometry_property"]["name"],geometry.bounds[1],geometry.bounds[0],geometry.bounds[3],geometry.bounds[2],layer['cqlfilter'])
+            else:
+                layer_url="{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&bbox={},{},{},{}".format(layer["kmiservice"],layer["layerid"],geometry.bounds[1],geometry.bounds[0],geometry.bounds[3],geometry.bounds[2])
     
-            layer_features = retrieveFeatures(
-                "{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&bbox={},{},{},{}".format(layer["kmiservice"],layer["layerid"],geometry.bounds[1],geometry.bounds[0],geometry.bounds[3],geometry.bounds[2]),
-                session_cookies
-            )["features"]
+            print(layer_url)
+            layer_features = retrieveFeatures(layer_url,session_cookies)["features"]
+
+            if settings.EXPORT_CALCULATE_AREA_FILES_4_DEBUG:
+                #export intersected areas for debug
+                intersected_features = []
+                intersected_layer_features = []
 
             for layer_feature in layer_features:
                 layer_geometry = getShapelyGeometry(layer_feature)
+                layer_geometry = transform(layer_geometry,target_proj='aea')
                 if not isinstance(layer_geometry,Polygon) and not isinstance(layer_geometry,MultiPolygon):
                     continue
-                intersections = extractPolygons(geometry.intersection(layer_geometry))
+                intersections = extractPolygons(geometry_aea.intersection(layer_geometry))
 
                 if not intersections:
                     continue
-                
+
                 layer_feature_area_data = None
                 #try to get the area data from map
                 if merge_result:
@@ -396,9 +554,25 @@ def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
                         #save it into map
                         areas_map[area_key] = layer_feature_area_data
 
-                feature_area = getGeometryArea(intersections,unit)
+                feature_area = getGeometryArea(intersections,unit,src_proj='aea')
                 layer_feature_area_data["area"] += feature_area
                 total_layer_area  += feature_area
+                
+                if settings.EXPORT_CALCULATE_AREA_FILES_4_DEBUG:
+                    #export intersected areas for debug
+                    properties = layer_feature["properties"]
+                    properties.update({"area":feature_area})
+                    intersected_features.append((intersections,properties))
+                    intersected_layer_features.append((layer_geometry,properties))
+
+            if settings.EXPORT_CALCULATE_AREA_FILES_4_DEBUG:
+                #export intersected areas for debug
+                if intersected_features:
+                    for feat in intersected_features:
+                        feat[1].update({"total_area":total_layer_area})
+                    exportGeojson(intersected_features,'/tmp/feature_area_{}_intersection.geojson'.format(layer["id"]))
+                    exportGeojson(intersected_layer_features,'/tmp/feature_area_{}.geojson'.format(layer["id"]))
+
 
             area_data["layers"][layer["id"]]["total_area"] = total_layer_area
             total_area += total_layer_area
@@ -437,11 +611,11 @@ def layermetadata(layer):
     return layer["_layermetadata"]
 
 def layerdefinition(layer):
-    if not layer.get("layerdefinition"):
+    if not layer.get("_layerdefinition"):
         layerdefinition = kmi.get_layerdefinition(layer["layerid"],kmiserver=layer["kmiservice"])
-        layer["layerdefinition"] = layerdefinition
+        layer["_layerdefinition"] = layerdefinition
     else:
-        layerdefinition = layer["layerdefinition"]
+        layerdefinition = layer["_layerdefinition"]
 
     if not layerdefinition["geometry_property"]:
         if layerdefinition["geometry_property_msg"]:
@@ -503,15 +677,14 @@ def getFeature(feature,session_cookies,options):
         elif "id" not in layer:
             layer["id"] = layer["layerid"]
         if not layer.get("kmiservice"):
-            layer["kmiservice"] = "https://kmi.dbca.wa.gov.au/geoserver"
+            layer["kmiservice"] = settings.KMI_SERVER
 
     get_feature_data = {"id":None,"layer":None,"failed":None}
 
     geometry = getShapelyGeometry(feature)
-
     try:
         for layer in layers:
-            if not layer or not layer.get("kmiservice") or not layer["buffer"] or not layer["layerid"]:
+            if not layer or not layer.get("kmiservice") or not layer["layerid"]:
                 continue
 
             if layer.get('check_bbox'):
@@ -520,14 +693,17 @@ def getFeature(feature,session_cookies,options):
                 if not layer_bbox:
                     get_feature_data["failed"] = "Can't find layer({})'s bounding box for epsg:4326".format(layer["layerid"])
                     break
+                #buffered_bbox is  lonlatboundingbox
+                if layer.get("buffer") and isinstance(geometry,Point):
+                    checking_bbox = Polygon(buffer(geometry.x,geometry.y,layer["buffer"][-1] if isinstance(layer["buffer"],(list,tuple)) else layer["buffer"],resolution=1)).bounds
+                else:
+                    checking_bbox = geometry.bounds
 
-                if geometry.x < layer_bbox[1] or geometry.x > layer_bbox[3] or geometry.y < layer_bbox[0] or geometry.y > layer_bbox[2]:
+                if checking_bbox[2] < layer_bbox[1] or checking_bbox[0] > layer_bbox[3] or checking_bbox[3] < layer_bbox[0] or checking_bbox[1] > layer_bbox[2]:
                     #not in this layer's bounding box
                     continue
-
             if options["action"] == "getFeature":
                 get_feature_data["feature"] = None
-
                 if isinstance(geometry,Point):
                     if layerdefinition(layer)["geometry_type"] in ["point",'multipoint']:
                         get_feature_data["failed"] = "The {1} layer '{0}' doesn't support action '{2}'. ".format(layer["layerid"],layerdefinition(layer)["geometry_property"]["localType"],options["action"])
@@ -535,7 +711,7 @@ def getFeature(feature,session_cookies,options):
                     else:
                         #polygon or line
                         layer_features = retrieveFeatures(
-                            "{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&cql_filter=CONTAINS({},POINT({} {}))".format(layer["kmiservice"],layer["layerid"],layerdefinition(layer)["geometry_property"]["name"],geometry.x,geometry.y),
+                            "{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&cql_filter=CONTAINS({},POINT({} {}))".format(layer["kmiservice"],layer["layerid"],layerdefinition(layer)["geometry_property"]["name"],geometry.y,geometry.x),
                             session_cookies
                         )["features"]
 
@@ -545,10 +721,10 @@ def getFeature(feature,session_cookies,options):
             elif options["action"] == "getIntersectedFeatures":
                 get_feature_data["features"] = None
                 if isinstance(geometry,Point):
-                    if not layer.get("buff"):
-                        get_feature_data["failed"] = "'buff' is missing in layer '{}'".format(layer["id"])
+                    if not layer.get("buffer"):
+                        get_feature_data["failed"] = "'buffer' is missing in layer '{}'".format(layer["id"])
                         break
-                    buff_polygon = Polygon(buffer(geometry.x,geometry.y,layer["buff"]))
+                    buff_polygon = Polygon(buffer(geometry.x,geometry.y,layer["buffer"]))
                     layer_features = retrieveFeatures(
                         "{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&cql_filter=INTERSECTS({},POLYGON(({})))".format(layer["kmiservice"],layer["layerid"],layerdefinition(layer)["geometry_property"]["name"],"%2C".join(["{} {}".format(coord[0],coord[1]) for coord in list(buff_polygon.exterior.coords)])),
                         session_cookies

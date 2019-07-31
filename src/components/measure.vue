@@ -835,7 +835,7 @@
             Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
 
         var bearing = this._radians2degrees * Math.atan2(a, b); 
-        return bearing = (bearing >= 0)?bearing:bearing + 360
+        return (bearing >= 0)?bearing:bearing + 360
       },
       getDirection:function(bearing,mode){
         if (!this._direction) {

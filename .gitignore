@@ -17,6 +17,7 @@ uwsgi.ini
 .build_cordova.sh
 build_cordova.env
 venv/
+tmp/
 
 # Database/fixture dumps
 *.pgdump

@@ -1265,7 +1265,7 @@
                                     "The features from the following layers are overlaped.",
                                     [["",1],["cddp:legislated_lands_and_waters",11]],
                                     [["",1],["cddp:dept_interest_lands_and_waters",11]],
-                                    [["",1],["cddp:other_tenures",11]],
+                                    [["",1],["cddp:other_tenures_new",11]],
                                     "Do you want to continue?"
                                 ],
                                 defaultOption:false,
@@ -1390,7 +1390,59 @@
                         }
 
                     }
-
+                    var layers =  null
+                    if (["new","initial"].indexOf(feat.get('status')) >= 0 )  {
+                        layers =  null
+                    } else {
+                        layers = [
+                            {
+                                id:"legislated_lands_and_waters",
+                                layerid:getLayerId("cddp:legislated_lands_and_waters"),
+                                cqlfilter:"category<>'State Forest'",
+                                kmiservice:vm.env.kmiService,
+                                properties:{
+                                    category:"category"
+                                },
+                                primary_key:"ogc_fid"
+                            },
+                            {
+                                id:"state_forest_plantation_distribution",
+                                layerid:getLayerId("cddp:state_forest_plantation_distribution"),
+                                kmiservice:vm.env.kmiService,
+                                properties:{
+                                    category:"fbr_fire_r"
+                                },
+                                primary_key:"ogc_fid"
+                            },
+                            {
+                                id:"dept_interest_lands_and_waters",
+                                layerid:getLayerId("cddp:dept_interest_lands_and_waters"),
+                                kmiservice:vm.env.kmiService,
+                                properties:{
+                                    category:"category"
+                                },
+                                primary_key:"ogc_fid"
+                            },
+                            {
+                                id:"other_tenures",
+                                layerid:getLayerId("cddp:other_tenures_new"),
+                                kmiservice:vm.env.kmiService,
+                                properties:{
+                                    category:"brc_fms_le"
+                                },
+                                primary_key:"ogc_fid"
+                            },
+                            {
+                                id:"sa_nt_burntarea",
+                                layerid:getLayerId("cddp:sa_nt_state_polygons_burntarea"),
+                                kmiservice:vm.env.kmiService,
+                                properties:{
+                                    category:"name"
+                                },
+                                primary_key:"ogc_fid"
+                            }
+                        ]
+                    }
                     $.ajax({
                         url:vm.env.gokartService + "/spatial",
                         dataType:"json",
@@ -1402,38 +1454,7 @@
                                         layer_overlap:false,
                                         merge_result:true,
                                         unit:"ha",
-                                        layers:[
-                                            {
-                                                id:"legislated_lands_and_waters",
-                                                layerid:getLayerId("cddp:legislated_lands_and_waters"),
-                                                kmiservice:vm.env.kmiService,
-                                                properties:{
-                                                    name:"name",
-                                                    category:"category"
-                                                },
-                                                primary_key:"ogc_fid"
-                                            },
-                                            {
-                                                id:"dept_interest_lands_and_waters",
-                                                layerid:getLayerId("cddp:dept_interest_lands_and_waters"),
-                                                kmiservice:vm.env.kmiService,
-                                                properties:{
-                                                    name:"name",
-                                                    category:"category"
-                                                },
-                                                primary_key:"ogc_fid"
-                                            },
-                                            {
-                                                id:"other_tenures",
-                                                layerid:getLayerId("cddp:other_tenures"),
-                                                kmiservice:vm.env.kmiService,
-                                                properties:{
-                                                    name:"cdg_label",
-                                                    category:"cdg_label"
-                                                },
-                                                primary_key:"ogc_fid"
-                                            }
-                                        ],
+                                        layers:layers
                                     }
                                 })
                         },
@@ -1481,6 +1502,14 @@
                 if (tenure_origin_point_task) {
                     tenure_origin_point_task.setStatus(utils.RUNNING)
                     tenure_layers = [{
+                        id:"cddp:state_forest_plantation_distribution",
+                        geom_field:"wkb_geometry",
+                        properties:{
+                            id:"ogc_fid",
+                            name:"fbr_fire_r",
+                            category:"fbr_fire_r"
+                        },
+                    },{
                         id:"cddp:legislated_lands_and_waters",
                         geom_field:"wkb_geometry",
                         properties:{
@@ -1497,12 +1526,20 @@
                             category:"category"
                         },
                     },{
-                        id:"cddp:other_tenures",
+                        id:"cddp:other_tenures_new",
                         geom_field:"wkb_geometry",
                         properties:{
                             id:"ogc_fid",
-                            name:"cdg_label",
-                            category:"cdg_label"
+                            name:"brc_fms_le",
+                            category:"brc_fms_le"
+                        },
+                    },{
+                        id:"cddp:sa_nt_state_polygons_burntarea",
+                        geom_field:"wkb_geometry",
+                        properties:{
+                            id:"ogc_fid",
+                            name:"name",
+                            category:"name"
                         },
                     }]
                     vm.map.getFeature(tenure_layers,originPoint,function(feature){
@@ -1519,7 +1556,6 @@
         
                 if (fire_position_task) {
                     fire_position_task.setStatus(utils.RUNNING)
-                    var buffers = [50,100,150,200,300,400,1000,2000,100000]
                     vm.map.getPosition(originPoint,function(position){
                         spatialData["fire_position"] = position
                         fire_position_task.setStatus(utils.SUCCEED)
@@ -2555,7 +2591,6 @@
                                 features.splice(i,1)
                             } else if (feat.getGeometry() instanceof ol.geom.GeometryCollection) {
                                 $.each(features[i].getGeometry().getPolygons(),function(index,p) {
-                                    feat.getGeometry().appendPolygon(p)
                                     feat.getGeometry().getGeometriesArray()[1].appendPolygon(p)
                                 })
                                 mergeProperties(feat,features[i])
