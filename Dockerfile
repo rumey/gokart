@@ -5,6 +5,7 @@ ENV TZ=Australia/Perth
 RUN apt-get update -y
 RUN apt-get install --no-install-recommends -y wget git libmagic-dev gcc binutils libproj-dev \
   python python-setuptools python-dev python-pip tzdata python-numpy g++ software-properties-common \
+  tesseract-ocr tesseract-ocr-eng libtesseract-dev \
   # Everything below is required to install GDAL.
   && add-apt-repository ppa:ubuntugis/ppa \
   && apt-get update -y \
@@ -25,5 +26,6 @@ COPY dist/release ./dist/release
 COPY ftp_sync ./ftp_sync
 COPY gokart ./gokart
 COPY uwsgi.ini ./
+COPY tessdata/bom.traineddata /usr/local/share/tessdata/
 EXPOSE 8080
 CMD ["uwsgi", "--ini", "/app/uwsgi.ini"]
