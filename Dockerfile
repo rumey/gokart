@@ -2,15 +2,17 @@ FROM ubuntu:18.04 as builder_base_gokart
 MAINTAINER asi@dbca.wa.gov.au
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Australia/Perth
-RUN apt-get update -y
-RUN apt-get install --no-install-recommends -y wget git libmagic-dev gcc binutils libproj-dev \
+RUN apt-get update -y \
+  && apt-get upgrade -y \
+  && apt-get install --no-install-recommends -y wget git libmagic-dev gcc binutils libproj-dev \
   python python-setuptools python-dev python-pip tzdata python-numpy g++ software-properties-common \
   tesseract-ocr tesseract-ocr-eng libtesseract-dev \
-  # Everything below is required to install GDAL.
-  && add-apt-repository ppa:ubuntugis/ppa \
+  && pip install --upgrade pip
+# Everything below is required to install GDAL.
+RUN add-apt-repository ppa:ubuntugis/ppa \
   && apt-get update -y \
   && apt-get install -y gdal-bin libgdal-dev \
-  && pip install --upgrade pip
+  && rm -rf /var/lib/apt/lists/*
 ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
 ENV C_INCLUDE_PATH=/usr/include/gdal
 
@@ -27,5 +29,6 @@ COPY ftp_sync ./ftp_sync
 COPY gokart ./gokart
 COPY uwsgi.ini ./
 COPY tessdata/bom.traineddata /usr/local/share/tessdata/
+USER www-data
 EXPOSE 8080
 CMD ["uwsgi", "--ini", "/app/uwsgi.ini"]
