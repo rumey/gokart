@@ -18,4 +18,5 @@ var env = {
     },
     layerMapping:{
     },
+    overviewLayer:"dbca:mapbox-outdoors",
 };
