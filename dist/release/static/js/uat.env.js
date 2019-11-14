@@ -1,13 +1,13 @@
 var env = {
     appType: (window.location.protocol == "file:")?"cordova":"webapp",
 
-    cswService:"https://csw.dbca.wa.gov.au/catalogue/api/records/",
-    catalogueAdminService:"https://csw.dbca.wa.gov.au",
+    cswService:"https://csw.dpaw.wa.gov.au/catalogue/api/records/",
+    catalogueAdminService:"https://csw.dpaw.wa.gov.au",
 
-    kmiService:"https://kmi.dbca.wa.gov.au/geoserver",
-    legendSrc:"https://kmi.dbca.wa.gov.au/geoserver/gwc/service/wms?REQUEST=GetLegendGraphic&VERSION=1.0.0&FORMAT=image/png&legend_options=fontName:Times%20New%20Roman;fontAntiAliasing:true;fontSize:14;bgColor:0xFFFFEE;dpi:120;labelMargin:10&LAYER=",
+    kmiService:"https://kmi.dpaw.wa.gov.au/geoserver",
+    legendSrc:"https://kmi.dpaw.wa.gov.au/geoserver/gwc/service/wms?REQUEST=GetLegendGraphic&VERSION=1.0.0&FORMAT=image/png&legend_options=fontName:Times%20New%20Roman;fontAntiAliasing:true;fontSize:14;bgColor:0xFFFFEE;dpi:120;labelMargin:10&LAYER=",
 
-    gokartService:"https://sss-uat.dbca.wa.gov.au",
+    gokartService:"https://sss-uat.dpaw.wa.gov.au",
     resourceTrackingService:"https://resourcetracking-uat.dbca.wa.gov.au",
     bfrsService:"https://bfrs-uat.dbca.wa.gov.au",
     staticService:"https://static.dbca.wa.gov.au",
@@ -26,9 +26,8 @@ var env = {
         "dpaw:bushfire_fireboundary"                : "dpaw:bushfire_fireboundary_uat",
         "dpaw:resource_tracking_live"               : "dpaw:resource_tracking_live_uat",
         "dpaw:resource_tracking_history"            : "dpaw:resource_tracking_history_uat"
-
     },
-
+    overviewLayer:"dbca:mapbox-outdoors",
 }
 
 
