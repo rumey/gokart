@@ -1263,9 +1263,9 @@
                                 messages:[
                                     "The sum of the burning areas in individual layers are " + Math.abs(feature_area["other_area"]).toFixed(2) + " greater than the total burning area " + feature_area["total_area"].toFixed(2) + ".",
                                     "The features from the following layers are overlaped.",
-                                    [["",1],["cddp:legislated_lands_and_waters",11]],
-                                    [["",1],["cddp:dept_interest_lands_and_waters",11]],
-                                    [["",1],["cddp:other_tenures_new",11]],
+                                    [["",1],[getLayerId("cddp:legislated_lands_and_waters"),11]],
+                                    [["",1],[getLayerId("cddp:dept_interest_lands_and_waters"),11]],
+                                    [["",1],[getLayerId("cddp:other_tenures"),11]],
                                     "Do you want to continue?"
                                 ],
                                 defaultOption:false,
@@ -1425,7 +1425,7 @@
                             },
                             {
                                 id:"other_tenures",
-                                layerid:getLayerId("cddp:other_tenures_new"),
+                                layerid:getLayerId("cddp:other_tenures"),
                                 kmiservice:vm.env.kmiService,
                                 properties:{
                                     category:"brc_fms_le"
@@ -1526,7 +1526,7 @@
                             category:"category"
                         },
                     },{
-                        id:"cddp:other_tenures_new",
+                        id:"cddp:other_tenures",
                         geom_field:"wkb_geometry",
                         properties:{
                             id:"ogc_fid",

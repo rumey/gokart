@@ -14,6 +14,7 @@ uwsgi.ini
 *.sw*
 *.pyc
 .env
+.env*
 .build_cordova.sh
 build_cordova.env
 venv/

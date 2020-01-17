@@ -515,7 +515,7 @@ def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
             else:
                 layer_url="{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&bbox={},{},{},{}".format(layer["kmiservice"],layer["layerid"],geometry.bounds[1],geometry.bounds[0],geometry.bounds[3],geometry.bounds[2])
     
-            print(layer_url)
+            #print(layer_url)
             layer_features = retrieveFeatures(layer_url,session_cookies)["features"]
 
             if settings.EXPORT_CALCULATE_AREA_FILES_4_DEBUG:
