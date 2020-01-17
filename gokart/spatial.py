@@ -1,15 +1,13 @@
 import bottle
-import os
+#import os
 import sys
 import requests
 import json
 import pyproj
 import traceback
-import threading
 import math
-import pyproj
-from datetime import datetime
-from multiprocessing import Process,Pipe
+#from datetime import datetime
+from multiprocessing import Process, Pipe
 
 from shapely.geometry import shape,MultiPoint,Point,mapping
 from shapely.geometry.polygon import Polygon
@@ -23,6 +21,7 @@ import settings
 import kmi
 
 proj_aea = lambda geometry: pyproj.Proj("+proj=aea +lat_1=-17.5 +lat_2=-31.5 +lat_0=0 +lon_0=121 +x_0=5000000 +y_0=10000000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
+
 
 def exportGeojson(feat,fname):
     if isinstance(feat,BaseGeometry):
@@ -91,6 +90,7 @@ def buffer(lon, lat, meters,resolution=16):
     buf = Point(0, 0).buffer(meters,resolution=resolution)  # distance in metres
     return ops.transform(project, buf).exterior.coords[:]
 
+
 def getShapelyGeometry(feature):
     if not feature["geometry"]:
         return None
@@ -98,6 +98,7 @@ def getShapelyGeometry(feature):
         return GeometryCollection([shape(g) for g in feature["geometry"]["geometries"]])
     else:
         return shape(feature["geometry"])
+
 
 def transform(geometry,src_proj="EPSG:4326",target_proj='aea'):
     if src_proj == target_proj:
@@ -142,9 +143,9 @@ def getGeometryArea(geometry,unit,src_proj="EPSG:4326"):
         )
     data = geometry_aea.area
     if unit == "ha" :
-        return data / 10000.00 
+        return data / 10000.00
     elif unit == "km2":
-        return data / 1000000.00 
+        return data / 1000000.00
     else:
         return data
 
@@ -158,7 +159,7 @@ def getBearing(p1,p2):
     a = math.sin(lon2 - lon1) * math.cos(lat2)
     b = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(lon2 - lon1);
 
-    bearing = radians2degrees * math.atan2(a, b); 
+    bearing = radians2degrees * math.atan2(a, b);
     return bearing if bearing >= 0 else bearing + 360
 
 directions = {
@@ -207,7 +208,7 @@ def getDistance(p1,p2,unit="m",p1_proj="EPSG:4326",p2_proj="EPSG:4326"):
 
     data = p1_aea.distance(p2_aea)
     if unit == "km" :
-        return data / 1000.00 
+        return data / 1000.00
     else:
         return data
 
@@ -227,7 +228,7 @@ def extractPolygons(geom):
                 result = p
             elif isinstance(result,MultiPolygon):
                 result = [geom1 for geom1 in result.geoms]
-                if isinstance(p,Polygon): 
+                if isinstance(p,Polygon):
                     result.append(p)
                     result = MultiPolygon(result)
                 else:
@@ -235,7 +236,7 @@ def extractPolygons(geom):
                         result.append(geom1)
                     result = MultiPolygon(result)
             else:
-                if isinstance(p,Polygon): 
+                if isinstance(p,Polygon):
                     result = MultiPolygon([result,p])
                 else:
                     result = [result]
@@ -259,7 +260,7 @@ def extractPoints(geom):
                 result = p
             elif isinstance(result,MultiPoint):
                 result = [geom1 for geom1 in result.geoms]
-                if isinstance(p,Point): 
+                if isinstance(p,Point):
                     result.append(p)
                     result = MultiPoint(result)
                 else:
@@ -267,7 +268,7 @@ def extractPoints(geom):
                         result.append(geom1)
                     result = MultiPoint(result)
             else:
-                if isinstance(p,Point): 
+                if isinstance(p,Point):
                     result = MultiPoint([result,p])
                 else:
                     result = [result]
@@ -291,7 +292,7 @@ def checkOverlap(session_cookies,feature,options,logfile):
 
     if not geometry :
         return
-    
+
     features = {}
     #retrieve all related features from layers
     for layer in layers:
@@ -362,21 +363,21 @@ def checkOverlap(session_cookies,feature,options,logfile):
                     with open(logfile,"a") as f:
                         f.write(msg)
                         f.write("\n")
-                
+
 
 def calculateArea(feature,session_cookies,options):
     """
     return:{
         status {
-             "invalid" : invalid message; 
-             "failed" : failed message; 
+             "invalid" : invalid message;
+             "failed" : failed message;
              "overlapped" : overlap message
 
         }
         data: {
             total_area: 100   //exist if status_code = 1
             other_area: 10    //exist if status_code = 1 and len(layers) > 0
-            layers: {   //exist if status_code = 1 and len(layers) > 0 
+            layers: {   //exist if status_code = 1 and len(layers) > 0
                 layer id: {
                     total_area: 12
                     areas:[
@@ -514,7 +515,7 @@ def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
                 layer_url="{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&cql_filter=BBOX({},{},{},{},{}) AND {}".format(layer["kmiservice"],layer["layerid"],layerdefinition(layer)["geometry_property"]["name"],geometry.bounds[1],geometry.bounds[0],geometry.bounds[3],geometry.bounds[2],layer['cqlfilter'])
             else:
                 layer_url="{}/wfs?service=wfs&version=2.0&request=GetFeature&typeNames={}&outputFormat=json&bbox={},{},{},{}".format(layer["kmiservice"],layer["layerid"],geometry.bounds[1],geometry.bounds[0],geometry.bounds[3],geometry.bounds[2])
-    
+
             #print(layer_url)
             layer_features = retrieveFeatures(layer_url,session_cookies)["features"]
 
@@ -539,7 +540,7 @@ def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
                     area_key = []
                     for key,value in layer["properties"].iteritems():
                         area_key.append(layer_feature["properties"][value])
-                    
+
                     area_key = tuple(area_key)
                     layer_feature_area_data = areas_map.get(area_key)
 
@@ -557,7 +558,7 @@ def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
                 feature_area = getGeometryArea(intersections,unit,src_proj='aea')
                 layer_feature_area_data["area"] += feature_area
                 total_layer_area  += feature_area
-                
+
                 if settings.EXPORT_CALCULATE_AREA_FILES_4_DEBUG:
                     #export intersected areas for debug
                     properties = layer_feature["properties"]
@@ -578,7 +579,7 @@ def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
             total_area += total_layer_area
             if not overlap and total_area >= area_data["total_area"] :
                 break
-        
+
         except:
             traceback.print_exc()
             status["failed"] = "Calculate intersection area between fire boundary and layer '{}' failed.{}".format(layer["layerid"] or layer["id"],traceback.format_exception_only(sys.exc_type,sys.exc_value))
@@ -626,7 +627,7 @@ def layerdefinition(layer):
             raise Exception("Failed to identify the geometry property of the layer '{}'".format(layer["layerid"]))
 
     return layerdefinition
-    
+
 
 def getFeature(feature,session_cookies,options):
     """
@@ -637,7 +638,7 @@ def getFeature(feature,session_cookies,options):
             {
                 id:     //if missing, use 'layerid' as id
                 layerid: //layerid in kmi, in most cases, layerid is equal with id, if missing, use 'id' as layerid
-                kmiservice: //optinoal, 
+                kmiservice: //optinoal,
                 properties:{  //optional
                     name:column in dataset
                 }
@@ -649,7 +650,7 @@ def getFeature(feature,session_cookies,options):
     getFeature result:[
         {
             id:
-            layer: 
+            layer:
             failed:  message if failed; otherwise is null
             properties: {
                 name:value
@@ -755,7 +756,7 @@ def getFeature(feature,session_cookies,options):
                     if len(layer_features) == 1:
                         layer_feature = layer_features[0]
                         break
-                    elif len(layer_features) > 1:   
+                    elif len(layer_features) > 1:
                         layer_feature = None
                         minDistance = None
                         for feat in layer_features:
@@ -778,7 +779,7 @@ def getFeature(feature,session_cookies,options):
                 if "feature" in get_feature_data and len(layer_features) > 1:
                     get_feature_data["failed"] = "Found {1} features in layer '{0}' ".format(layer["layerid"],len(layer_features))
                     break
-                if layer_features:    
+                if layer_features:
                     get_feature_data["id"] = layer["id"]
                     get_feature_data["layer"] = layer["layerid"]
                     for layer_feature in layer_features:
@@ -789,7 +790,7 @@ def getFeature(feature,session_cookies,options):
                         else:
                             for key,value in layer_feature["properties"].iteritems():
                                 feat[key] = value
-                                
+
                         if options.get("format") == "geojson":
                             #return geojson
                             layer_feature["properties"] = feat
@@ -808,6 +809,7 @@ def getFeature(feature,session_cookies,options):
         traceback.print_exc()
         get_feature_data["failed"] = "{} from layers ({}) failed.{}".format(options["action"],layers,traceback.format_exception_only(sys.exc_type,sys.exc_value))
     return get_feature_data
+
 
 def spatial():
     # needs gdal 1.10+
@@ -846,4 +848,3 @@ def spatial():
         bottle.response.set_header("Content-Type","text/plain")
         traceback.print_exc()
         return traceback.format_exception_only(sys.exc_type,sys.exc_value)
-    

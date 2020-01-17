@@ -3,7 +3,7 @@
   "description": "A Vue.js project",
   "author": "Adon Metcalfe <adonm@fastmail.fm>",
   "license": "Apache-2.0",
-  "repository": "https://github.com/parksandwildlife",
+  "repository": "https://github.com/dbca-wa/gokart",
   "config": {
     "app": "sss",
     "description":"Spatial Support System v3",
