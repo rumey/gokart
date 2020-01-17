@@ -134,6 +134,7 @@
                       <option value="" selected>Date range</option> 
                       <option value="21024">Last 24 hours </option>
                       <option value="31007">Last 7 days </option>
+                      <option value="70001">Current Financial Year </option>
                       <option value="-1">User Defined</option> 
                     </select>
                   </div>
@@ -901,7 +902,7 @@
                         if (validateType === "getSpatialData") {
                             //during saving, check agaist the fire boundary
                             $.ajax({
-                                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetPropertyValue&valueReference=fire_number&typeNames=" + getLayerId("dpaw:bushfire_final_fireboundary_latest") + "&cql_filter=(fire_number='" + feat.get('fire_number') + "')and (CONTAINS(fire_boundary,POINT(" + originPoint[1]  + " " + originPoint[0] + ")))",
+                                url:vm.env.kmiService + "/wfs?service=wfs&version=2.0&request=GetPropertyValue&valueReference=fire_number&typeNames=" + getLayerId("dpaw:bushfire_final_fireboundary_latest") + "&cql_filter=(fire_number='" + feat.get('fire_number') + "')and (CONTAINS(fire_boundary,POINT(" + originPoint[1]  + " " + originPoint[0] + ")))",
                                 dataType:"xml",
                                 success: function (response, stat, xhr) {
                                     if (response.firstChild && response.firstChild.children && response.firstChild.children.length > 0) {
@@ -1122,19 +1123,34 @@
                                     $("#userdialog input[name='other_capturemethod']").prop("disabled",false)
                                 }
                             },
-                            "buttons":[
-                                [true,"Select","",true,function(button,data){
-                                    if (!data["capturemethod"]) {
-                                        alert("Please choose a capture method.")
-                                        return false
+                            "footer":[[
+                                ["",3],
+                                [true,2,{
+                                    type:"button",
+                                    disabled:true,
+                                    title:"Select",
+                                    click:"close",
+                                    is_valid:function(button,data){
+                                        if (!data["capturemethod"]) {
+                                            alert("Please choose a capture method.")
+                                            return false
 
-                                    } else if (parseInt(data["capturemethod"]) === vm.whoami["bushfire"]["othermethod_id"] && (!data["other_capturemethod"])) {
-                                        alert("Please input the other capture method.")
-                                        return false
+                                        } else if (parseInt(data["capturemethod"]) === vm.whoami["bushfire"]["othermethod_id"] && (!data["other_capturemethod"])) {
+                                            alert("Please input the other capture method.")
+                                            return false
+                                        }
                                     }
                                 }],
-                                [false,"Cancel","",false]
-                            ],
+                                ["",2],
+                                [false,2,{
+                                    type:"button",
+                                    disabled:false,
+                                    click:"close",
+                                    title:"Cancel"
+                                    }
+                                ],
+                                ["",3]
+                            ]],
                             "defaultOption":false,
                             "callback":function(isOk,data) {
                                 if (isOk) {
@@ -1209,6 +1225,7 @@
                 }
                 var tenure_origin_point_task = null
                 var fire_position_task = null
+                var originpoint_grid_task = null
                 var region_task = null
                 var district_task = null
                 var plantation_task = null
@@ -1222,6 +1239,7 @@
                 if (originPoint && (modifyType & 1) === 1) {
                     tenure_origin_point_task = vm._taskManager.addTask(feat,"getSpatialData","tenure_origin_point","Get the tenure of ignition point",utils.WAITING)
                     fire_position_task = vm._taskManager.addTask(feat,"getSpatialData","fire_position","Get the fire position",utils.WAITING)
+                    originpoint_grid_task = vm._taskManager.addTask(feat,"getSpatialData","originpoint_grid","Get origin point's grid data",utils.WAITING)
                     if (["new","initial"].indexOf(feat.get('status')) >= 0) {
                         region_task = vm._taskManager.addTask(feat,"getSpatialData","region","Get bushfire's region",utils.WAITING)
                         district_task = vm._taskManager.addTask(feat,"getSpatialData","district","Get bushfire's district",utils.WAITING)
@@ -1245,13 +1263,27 @@
                                 messages:[
                                     "The sum of the burning areas in individual layers are " + Math.abs(feature_area["other_area"]).toFixed(2) + " greater than the total burning area " + feature_area["total_area"].toFixed(2) + ".",
                                     "The features from the following layers are overlaped.",
-                                    [["",1],["cddp:legislated_lands_and_waters",11]],
-                                    [["",1],["cddp:dept_interest_lands_and_waters",11]],
-                                    [["",1],["cddp:other_tenures",11]],
+                                    [["",1],[getLayerId("cddp:legislated_lands_and_waters"),11]],
+                                    [["",1],[getLayerId("cddp:dept_interest_lands_and_waters"),11]],
+                                    [["",1],[getLayerId("cddp:other_tenures"),11]],
                                     "Do you want to continue?"
                                 ],
                                 defaultOption:false,
-                                buttons:[[true,"Yes"],[false,"No"]],
+                                footer:[[
+                                    ["",3],
+                                    [true,2,{
+                                        type:"button",
+                                        title:"Yes",
+                                        click:"close"
+                                    }],
+                                    ["",2],
+                                    [false,2,{
+                                        type:"button",
+                                        title:"No",
+                                        click:"close"
+                                    }],
+                                    ["",3]
+                                ]],
                                 callback:function(option){
                                     setTimeout(function() {
                                         if (option) {
@@ -1285,14 +1317,42 @@
                             vm.dialog.show({
                                 messages:msg,
                                 defaultOption:false,
-                                buttons:[[false,"Ok"],[true,"Override"]],
+                                footer:[[
+                                    ["",3],
+                                    [false,2,{
+                                        type:"button",
+                                        title:"Ok",
+                                        click:"close"
+                                    }],
+                                    ["",2],
+                                    [true,2,{
+                                        type:"button",
+                                        title:"Override",
+                                        click:"close"
+                                    }],
+                                    ["",3]
+                                ]],
                                 callback:function(option){
                                     if (option) {
                                         setTimeout(function() {
                                             vm.dialog.show({
                                                 messages:"I acknowledge a geometry check has been run and passed in ArcGIS Geometry Tool and this is a valid shape.",
                                                 defaultOption:false,
-                                                buttons:[[true,"Yes"],[false,"Cancel"]],
+                                                footer:[[
+                                                    ["",3],
+                                                    [true,2,{
+                                                        type:"button",
+                                                        title:"Yes",
+                                                        click:"close"
+                                                    }],
+                                                    ["",2],
+                                                    [false,2,{
+                                                        type:"button",
+                                                        title:"Cancel",
+                                                        click:"close"
+                                                    }],
+                                                    ["",3]
+                                                ]],
                                                 callback:function(option){
                                                     setTimeout(function() {
                                                         if (option) {
@@ -1330,48 +1390,71 @@
                         }
 
                     }
-
+                    var layers =  null
+                    if (["new","initial"].indexOf(feat.get('status')) >= 0 )  {
+                        layers =  null
+                    } else {
+                        layers = [
+                            {
+                                id:"legislated_lands_and_waters",
+                                layerid:getLayerId("cddp:legislated_lands_and_waters"),
+                                cqlfilter:"category<>'State Forest'",
+                                kmiservice:vm.env.kmiService,
+                                properties:{
+                                    category:"category"
+                                },
+                                primary_key:"ogc_fid"
+                            },
+                            {
+                                id:"state_forest_plantation_distribution",
+                                layerid:getLayerId("cddp:state_forest_plantation_distribution"),
+                                kmiservice:vm.env.kmiService,
+                                properties:{
+                                    category:"fbr_fire_r"
+                                },
+                                primary_key:"ogc_fid"
+                            },
+                            {
+                                id:"dept_interest_lands_and_waters",
+                                layerid:getLayerId("cddp:dept_interest_lands_and_waters"),
+                                kmiservice:vm.env.kmiService,
+                                properties:{
+                                    category:"category"
+                                },
+                                primary_key:"ogc_fid"
+                            },
+                            {
+                                id:"other_tenures",
+                                layerid:getLayerId("cddp:other_tenures"),
+                                kmiservice:vm.env.kmiService,
+                                properties:{
+                                    category:"brc_fms_le"
+                                },
+                                primary_key:"ogc_fid"
+                            },
+                            {
+                                id:"sa_nt_burntarea",
+                                layerid:getLayerId("cddp:sa_nt_state_polygons_burntarea"),
+                                kmiservice:vm.env.kmiService,
+                                properties:{
+                                    category:"name"
+                                },
+                                primary_key:"ogc_fid"
+                            }
+                        ]
+                    }
                     $.ajax({
                         url:vm.env.gokartService + "/spatial",
                         dataType:"json",
-        
                         data:{
                                 features:vm.$root.geojson.writeFeatures([feat]),
                                 options:JSON.stringify({
                                     area: {
-                                        name:"area",
+                                        action:"getArea",
                                         layer_overlap:false,
                                         merge_result:true,
                                         unit:"ha",
-                                        layers:[
-                                            {
-                                                id:"legislated_lands_and_waters",
-                                                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:legislated_lands_and_waters"),
-                                                properties:{
-                                                    name:"name",
-                                                    category:"category"
-                                                },
-                                                primary_key:"ogc_fid"
-                                            },
-                                            {
-                                                id:"dept_interest_lands_and_waters",
-                                                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:dept_interest_lands_and_waters"),
-                                                properties:{
-                                                    name:"name",
-                                                    category:"category"
-                                                },
-                                                primary_key:"ogc_fid"
-                                            },
-                                            {
-                                                id:"other_tenures",
-                                                url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:other_tenures"),
-                                                properties:{
-                                                    name:"cdg_label",
-                                                    category:"cdg_label"
-                                                },
-                                                primary_key:"ogc_fid"
-                                            }
-                                        ],
+                                        layers:layers
                                     }
                                 })
                         },
@@ -1419,6 +1502,14 @@
                 if (tenure_origin_point_task) {
                     tenure_origin_point_task.setStatus(utils.RUNNING)
                     tenure_layers = [{
+                        id:"cddp:state_forest_plantation_distribution",
+                        geom_field:"wkb_geometry",
+                        properties:{
+                            id:"ogc_fid",
+                            name:"fbr_fire_r",
+                            category:"fbr_fire_r"
+                        },
+                    },{
                         id:"cddp:legislated_lands_and_waters",
                         geom_field:"wkb_geometry",
                         properties:{
@@ -1439,8 +1530,16 @@
                         geom_field:"wkb_geometry",
                         properties:{
                             id:"ogc_fid",
-                            name:"cdg_label",
-                            category:"cdg_label"
+                            name:"brc_fms_le",
+                            category:"brc_fms_le"
+                        },
+                    },{
+                        id:"cddp:sa_nt_state_polygons_burntarea",
+                        geom_field:"wkb_geometry",
+                        properties:{
+                            id:"ogc_fid",
+                            name:"name",
+                            category:"name"
                         },
                     }]
                     vm.map.getFeature(tenure_layers,originPoint,function(feature){
@@ -1457,7 +1556,6 @@
         
                 if (fire_position_task) {
                     fire_position_task.setStatus(utils.RUNNING)
-                    var buffers = [50,100,150,200,300,400,1000,2000,100000]
                     vm.map.getPosition(originPoint,function(position){
                         spatialData["fire_position"] = position
                         fire_position_task.setStatus(utils.SUCCEED)
@@ -1469,11 +1567,23 @@
                         vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
                     })
                 }
+                if (originpoint_grid_task) {
+                    originpoint_grid_task.setStatus(utils.RUNNING)
+                    vm.map.getGridData(originPoint,function(grid_data){
+                        spatialData["origin_point_grid"] = grid_data
+                        originpoint_grid_task.setStatus(utils.SUCCEED)
+                        vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
+                    },
+                    function(msg){
+                        originpoint_grid_task.setStatus(utils.FAILED,msg)
+                        vm._getSpatialDataCallback(feat,caller,callback,failedCallback,spatialData)
+                    })
+                }
         
                 if (region_task) {
                     region_task.setStatus(utils.RUNNING)
                     $.ajax({
-                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:dpaw_regions") + "&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
+                        url:vm.env.kmiService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:dpaw_regions") + "&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
                         dataType:"json",
                         success: function (response, stat, xhr) {
                             if (response.totalFeatures === 0) {
@@ -1498,7 +1608,7 @@
                 if (district_task) {
                     district_task.setStatus(utils.RUNNING)
                     $.ajax({
-                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("dpaw:pw_districts_fssvers") + "&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
+                        url:vm.env.kmiService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("dpaw:pw_districts_fssvers") + "&outputFormat=json&cql_filter=CONTAINS(wkb_geometry,POINT(" + originPoint[1]  + " " + originPoint[0] + "))",
                         dataType:"json",
                         success: function (response, stat, xhr) {
                             if (response.totalFeatures === 0) {
@@ -1533,7 +1643,7 @@
                         coordinates:originPoint
                     }
                 },3,"kilometers").geometry.coordinates[0]
-                var url = vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:plantation_annual_report") + "&outputFormat=json&cql_filter=INTERSECTS(wkb_geometry,POLYGON((" + point_buffer.map(function(p){return p[1] + " " + p[0]}).join("%2C") + ")))"
+                var url = vm.env.kmiService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + getLayerId("cddp:plantation_annual_report") + "&outputFormat=json&cql_filter=INTERSECTS(wkb_geometry,POLYGON((" + point_buffer.map(function(p){return p[1] + " " + p[0]}).join("%2C") + ")))"
                 $.ajax({
                     url:url,
                     dataType:"json",
@@ -1632,7 +1742,7 @@
                                     var checkTask = vm._taskManager.addTask(feat,"postsave","check_originpoint","Check origin within fire shape",utils.RUNNING)
                                     originPoint = originPoint.getCoordinates()
                                     $.ajax({
-                                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetPropertyValue&valueReference=fire_number&typeNames=" + getLayerId("dpaw:bushfire_final_fireboundary_latest") + "&cql_filter=(fire_number='" + feat.get('fire_number') + "')and (CONTAINS(fire_boundary,POINT(" + originPoint[1]  + " " + originPoint[0] + ")))",
+                                        url:vm.env.kmiService + "/wfs?service=wfs&version=2.0&request=GetPropertyValue&valueReference=fire_number&typeNames=" + getLayerId("dpaw:bushfire_final_fireboundary_latest") + "&cql_filter=(fire_number='" + feat.get('fire_number') + "')and (CONTAINS(fire_boundary,POINT(" + originPoint[1]  + " " + originPoint[0] + ")))",
                                         dataType:"xml",
                                         success: function (response, stat, xhr) {
                                             if (!response.firstChild || !response.firstChild.children || response.firstChild.children.length === 0) {
@@ -1999,7 +2109,7 @@
         var cql_filter = ""
         this.dialog.show({
             messages:"Downloading bushfires...",
-            buttons:null
+            footer:null
         })
         var bbox = ""
         var originpoint_filter = ""
@@ -2065,7 +2175,7 @@
                     layer:"bushfire_fireboundary",
                     ignore_if_empty:true,
                     sourcelayers:{
-                        url:vm.env.wfsService + "/wfs?servicea=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
+                        url:vm.env.kmiService + "/wfs?servicea=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
                         fields:["fire_number","name","district","financial_year","fire_detected_date","cause","dfes_incident_no","other_info",{name:"author",src:"fireboundary_uploaded_by"},"capt_meth","capt_desc"],
                     },
                     geometry_column:{name:"fire_boundary",type:"MULTIPOLYGON"},
@@ -2080,7 +2190,7 @@
                     layer:"initial_bushfire_originpoint",
                     ignore_if_empty:true,
                     sourcelayers:{
-                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + bushfireLayer + originpoint_filter  + bbox,
+                        url:vm.env.kmiService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + bushfireLayer + originpoint_filter  + bbox,
                         where:"report_status='Initial Fire Report'",
                     },
                     geometry_column:{name:"origin_point",type:"POINT"},
@@ -2088,7 +2198,7 @@
                     layer:"final_bushfire_originpoint",
                     ignore_if_empty:true,
                     sourcelayers:{
-                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + bushfireLayer + originpoint_filter + bbox,
+                        url:vm.env.kmiService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + bushfireLayer + originpoint_filter + bbox,
                         where:"report_status<>'Initial Fire Report'",
                     },
                     geometry_column:{name:"origin_point",type:"POINT"},
@@ -2096,7 +2206,7 @@
                     layer:"initial_bushfire_fireboundary",
                     ignore_if_empty:true,
                     sourcelayers:{
-                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
+                        url:vm.env.kmiService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
                         where:"report_status='Initial Fire Report'",
                     },
                     geometry_column:{name:"fire_boundary",type:"MULTIPOLYGON"},
@@ -2104,7 +2214,7 @@
                     layer:"final_bushfire_fireboundary",
                     ignore_if_empty:true,
                     sourcelayers:{
-                        url:vm.env.wfsService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
+                        url:vm.env.kmiService + "/wfs?service=wfs&version=2.0&request=GetFeature&typeNames=" + fireboundaryLayer + fireboundary_filter + bbox,
                         where:"report_status<>'Initial Fire Report'",
                     },
                     geometry_column:{name:"fire_boundary",type:"MULTIPOLYGON"},
@@ -2221,7 +2331,7 @@
                 vm.dialog.show({
                     messages:"Importing bushfires...",
                     tasks: features.length,
-                    buttons:null
+                    footer:null
                 })
             }
             var featureImported = function(status,message) {
@@ -2347,6 +2457,7 @@
                     }
                 })
 
+                targetFeatureFound = false
                 for(var i = features.length - 1;i >= 0;i--) {
                     feature = features[i]
                     if (targetFeature && (feature.get('fire_number') === undefined || feature.get('fire_number') === null)) {
@@ -2358,7 +2469,9 @@
                         features.splice(i,1)
                         featureImported(utils.IGNORED)
                         continue
-                    } 
+                    }  else if (targetOnly){
+                        targetFeatureFound = true
+                    }
                     if (feature.getGeometry() instanceof ol.geom.Point) {
                         if (uploadType === "fireboundary") {
                             featureImported(utils.IGNORED)
@@ -2396,7 +2509,11 @@
             }
             if (features && features.length == 0) {
                 if (targetFeature) {
-                    import_task.setStatus(utils.WARNING,"Bushfire(" + targetFeature.get('fire_number') + ") not found")
+                    if (targetFeatureFound) {
+                        import_task.setStatus(utils.WARNING,"No suitable spataial data for Bushfire(" + targetFeature.get('fire_number') + ") in uploaded file.")
+                    } else {
+                        import_task.setStatus(utils.WARNING,"Bushfire(" + targetFeature.get('fire_number') + ") not found")
+                    }
                     vm._taskManager.clearTasks(targetFeature)
                 } else {
                     alert("No bushfire to import")
@@ -2474,7 +2591,6 @@
                                 features.splice(i,1)
                             } else if (feat.getGeometry() instanceof ol.geom.GeometryCollection) {
                                 $.each(features[i].getGeometry().getPolygons(),function(index,p) {
-                                    feat.getGeometry().appendPolygon(p)
                                     feat.getGeometry().getGeometriesArray()[1].appendPolygon(p)
                                 })
                                 mergeProperties(feat,features[i])
@@ -2648,7 +2764,7 @@
                                         feature.setGeometry(new ol.geom.GeometryCollection([feature.getGeometry()]))
                                     }
                                     vm.newFeature(feature)
-                                    vm.measure.remeasureFeature(feature)
+                                    //vm.measure.remeasureFeature(feature)
                                     selectedFeatures.push(feature)
                                     featureImported(utils.SUCCEED)
                                 } else {
@@ -2675,7 +2791,7 @@
                                     feature.setGeometry(new ol.geom.GeometryCollection([feature.getGeometry()]))
                                 }
                                 vm.newFeature(feature)
-                                vm.measure.remeasureFeature(feature)
+                                //vm.measure.remeasureFeature(feature)
                                 selectedFeatures.push(feature)
                                 featureImported(utils.SUCCEED)
                             } catch(ex) {
@@ -3632,8 +3748,8 @@
               ],
               sketchStyle: vm.annotations.getIconStyleFunction(vm.tints),
               scope:[],
-              measureLength:true,
-              measureArea:true,
+              measureLength:false,
+              measureArea:false,
               keepSelection:true,
               showName: true,
               getMeasureGeometry:function() {

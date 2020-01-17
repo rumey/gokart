@@ -67,13 +67,17 @@
       map: function () { return this.$root.map },
       env: function () { return this.$root.env },
       components:function() {
-        return [this.$root.weatheroutlook,this.$root.featuredetail,this.$root.measure]
+        if (env.weatherForecastUrl) {
+            return [this.$root.weatheroutlook,this.$root.weatherforecast,this.$root.featuredetail,this.$root.measure]
+        } else {
+            return [this.$root.weatheroutlook,this.$root.featuredetail,this.$root.measure]
+        }
       },
       enabled:function() {
         return this.layers.length > 0
       },
       topPosition:function() {
-        return this.$root.measure.topPosition + this.$root.measure.height;
+        return 180;
       },
       topPositionStyle:function() {
         return "top:" + this.topPosition + "px";

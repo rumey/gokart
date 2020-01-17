@@ -15,6 +15,13 @@ import tour from './sss-tour.js'
 import profile from './sss-profile.js'
 import gokartListener from './gokart-listener.js'
 
+//merge _env into env
+if (global._env) {
+    $.each(global._env,function(key,value){env[key] = value})
+
+    global._env = undefined
+}
+
 global.tour = tour
 //Return an environment dependent layer id
 global.getLayerId = function(id) {
@@ -202,6 +209,7 @@ if (result) {
           scales: function () { return this.$refs.app.$refs.map.$refs.scales },
           search: function () { return this.$refs.app.$refs.map.$refs.search },
           featuredetail: function () { return this.$refs.app.$refs.map.$refs.featuredetail },
+          weatherforecast: function () { return this.$refs.app.$refs.map.$refs.weatherforecast },
           toolbox: function () { return this.$refs.app.$refs.map.$refs.toolbox },
           measure: function () { return this.$refs.app.$refs.map.$refs.measure },
           info: function() { return this.$refs.app.$refs.map.$refs.info},
@@ -533,6 +541,14 @@ if (result) {
             fetchTimelineUrl:function(lastUpdatetime){
                 return "/bom/IDZ71115?basetimelayer=bom:IDZ71115_datetime&timelinesize=56&layertimespan=10800&updatetime=" + lastUpdatetime
             }
+          }, {
+            type: 'TileLayer',
+            name: 'mslp',
+            id: 'bom:mslp',
+            timelineRefresh:300,
+            fetchTimelineUrl:function(lastUpdatetime){
+                return "/bom/IDY25300mslp?basetimelayer=bom:IDY25300_datetime&timelinesize=73&layeridpattern=IDY25300{:0>3}mslp&layertimespan=3600&updatetime=" + lastUpdatetime
+            }
           }])
     
           // load custom annotation tools
@@ -753,6 +769,7 @@ if (result) {
                 }
               },function(reason){
                 self.loading.app.phaseEnd("load_catalogue")
+                alert(reason)
               })
           } catch(err) {
               //some exception happens

@@ -1,16 +1,19 @@
 <template>
     <div class="{{classes}} reveal" id="userdialog" data-reveal data-close-on-click='false' > 
         <h3 v-show="title">{{title}}</h3>
-        <div v-for="line in messages" class="row" track-by="$index" >
-            <div v-for="message in line" class="small-{{message[1]}} columns {{messageClass(message)}}" track-by="$index">
+        <div style="max-height:600px;" class="scroller">
+        <div v-for="line in messages" class="row"  track-by="$index">
+            <div v-for="message in line" class="small-{{message[1]}} columns {{messageClass(message)}}" track-by="$index" v-bind:style="messageAttr(message,'style')">
                  <div v-if="messageType(message) === 'show'" style="white-space:pre-wrap;">{{message[0]}}</div>
                  <a v-if="messageType(message) === 'link'" href="{{message[0]}}" @click.stop.prevent="utils.editResource($event)" target="{{messageAttr(message,'target')}}">{{message[0]}}</a>
-                 <input v-if="['radio','checkbox'].indexOf(messageType(message)) >= 0" type="{{message[2]['type']}}" name="{{messageAttr(message,'name')}}" value="{{message[0]}}" @click.stop="processEvent(messageAttr(message,'click'),$event)" disabled="{{messageAttr(message,'disabled',false)}}" checked="{{isChecked(message)}}">
+                 <button v-if="messageType(message) === 'button'"  @click.stop.prevent="processEvent(message,'click')" :disabled="messageAttr(message,'disabled')" id="userdialog-button-{{message[0]}}">{{messageAttr("title")}}</button>
+                 <img v-if="messageType(message) === 'img'"  @click.stop.prevent="processEvent(message,'click')" v-bind:src="message[0]"></img>
+                 <input v-if="['radio','checkbox'].indexOf(messageType(message)) >= 0" type="{{message[2]['type']}}" name="{{messageAttr(message,'name')}}" value="{{message[0]}}" @click.stop="processEvent(message,'click',$event)" disabled="{{messageAttr(message,'disabled',false)}}" checked="{{isChecked(message)}}">
                  <input v-if="messageType(message) === 'text'" type="text" name="{{messageAttr(message,'name')}}"  disabled="{{messageAttr(message,'disabled')}}" value="{{getValue(message)}}">
             </div>
         </div>
 
-        <div class="row align-center" v-if="hasProgressBar">
+        <div class="row align-center" v-if="isProgressBar">
             <div class="small-2 columns small-centered" >
                 Total: {{tasks}}
             </div>
@@ -41,13 +44,17 @@
                 </div>
             </div>
         </div>
+        </div>
 
-        <br>
-        <div class="row align-center" v-if="hasButton">
-            <div class="small-12 columns small-centered" >
-                <button  v-for="button in buttons" class="button {{button[2] || ''}}" @click="close(button)" track-by="$index" id="userdialog-button-{{button[0]}}" :disabled="button[3]">
-                    {{button[1]}}
-                </button>
+        <div v-for="line in footer" track-by="$index" class="row"  >
+            <br>
+            <div v-for="message in revision && line" class="small-{{message[1]}} columns {{messageClass(message)}}" track-by="$index" v-bind:style="messageAttr(message,'style')">
+                 <button v-if="messageType(message) === 'button'"  @click.stop.prevent="processEvent(message,'click')" :disabled="messageAttr(message,'disabled')" class="button" style="cursor:pointer" id="userdialog-button-{{message[0]}}">{{messageAttr(message,"title")}}</button>
+                 <img v-if="messageType(message) === 'img'"  @click.stop.prevent="processEvent(message,'click')" v-bind:src="message[0]" style="cursor:pointer"></img>
+                 <div v-if="messageType(message) === 'show'" style="white-space:pre-wrap;">{{message[0]}}</div>
+                 <a v-if="messageType(message) === 'link'" href="{{message[0]}}" @click.stop.prevent="utils.editResource($event)" target="{{messageAttr(message,'target')}}">{{message[0]}}</a>
+                 <input v-if="['radio','checkbox'].indexOf(messageType(message)) >= 0" type="{{message[2]['type']}}" name="{{messageAttr(message,'name')}}" value="{{message[0]}}" @click.stop="processEvent(message,'click',$event)" disabled="{{messageAttr(message,'disabled',false)}}" checked="{{isChecked(message)}}">
+                 <input v-if="messageType(message) === 'text'" type="text" name="{{messageAttr(message,'name')}}"  disabled="{{messageAttr(message,'disabled')}}" value="{{getValue(message)}}">
             </div>
         </div>
 
@@ -92,8 +99,6 @@
         title:"",
         //[['msg',columnSize,'classes'],]
         //[['buttonvalue','buttontext','classes'],]
-        buttons:[],
-        messages:[],
         tasks:null,
         succeedTasks:null,
         mergedTasks:null,
@@ -104,15 +109,17 @@
         value:null,
         defaultValue:null,
         targetWindow:null,
+        revision:1,
+
       }
     },
     computed: {
       loading: function () { return this.$root.loading },
       utils: function () { return this.$root.utils },
-      hasButton:function() {
-        return this.buttons.length > 0
+      hasFooter:function() {
+        return this.footer.length > 0
       },
-      hasProgressBar:function() {
+      isProgressBar:function() {
         return this.tasks > 0
       },
       completedTasks:function() {
@@ -121,14 +128,25 @@
       fillstyle:function() {
         return "width:" + (this.completedTasks / this.tasks) * 100 + "%"
       },
+      messages:function() {
+        return this.revision && this._messages
+      },
+      footer:function() {
+        return this.revision && this._footer
+      }
+
     },
     methods: {
       //options
       //title: dialog title
-      //messages: 
+      //body: 
       // 1. string. 
-      // 2. array of string or [message(string), columns,type(link, radio, checkbox,input,text(default)), {element properies,event handlers,classes}  ]
-      //buttons: array of [value,"button name",button class,disable status,click event]
+      // 2. array of string 
+      // 3. array of array of string or [message(string), columns,type(link, radio, checkbox,input,text(default),img,button), {element properies,event handlers,classes}  ]
+      //footer:
+      // 1. string. 
+      // 2. array of string 
+      // 3. array of array of string or [message(string), columns,type(link, radio, checkbox,input,text(default),img,button), {element properies,event handlers,classes}  ]
       //defaultOption: used if user close the dialog 
       //callback: called if user click one button or have a defaultOption
       show:function(options) {
@@ -139,27 +157,34 @@
         var vm = this
         this.classes = options.classes || "small"
         this.title = options.title || ""
-        this.messages.splice(0,this.messages.length)
+        this._messages.splice(0,this._messages.length)
         var messageLine = null
         if (Array.isArray(options.messages)) {
             $.each(options.messages,function(index,line){
-                vm.addMessage(line,false)
+                vm.addMessage(line)
             })
         } else {
-            this.messages.push([[options.messages,12]])
+            this._messages.push([[options.messages,12]])
         }
-        this.buttons = (options.buttons === undefined)?[[true,"Ok"],[false,"Cancel"]]:(options.buttons || [])
+        if (Array.isArray(options.footer)) {
+            $.each(options.footer,function(index,line){
+                vm.addMessage(line,vm._footer)
+            })
+        } else {
+            this._footer.push([[options.footer,12]])
+        }
         this.callback = options.callback
         this.defaultOption = options.defaultOption === undefined?null:options.defaultOption
         this.option = null
         this.tasks = options.tasks
-        this.succeedTasks = this.hasProgressBar?0:null
-        this.failedTasks = this.hasProgressBar?0:null
-        this.warningTasks = this.hasProgressBar?0:null
-        this.ignoredTasks = this.hasProgressBar?0:null
-        this.mergedTasks = this.hasProgressBar?0:null
+        this.succeedTasks = this.isProgressBar?0:null
+        this.failedTasks = this.isProgressBar?0:null
+        this.warningTasks = this.isProgressBar?0:null
+        this.ignoredTasks = this.isProgressBar?0:null
+        this.mergedTasks = this.isProgressBar?0:null
         this._initData = options.initData || null
         this._initFunc = options.initFunc || null
+        this.revision += 1
         this.$nextTick(function(){
             if (vm._initFunc) {
                 vm._initFunc()
@@ -167,18 +192,33 @@
             $("#userdialog").foundation('open')
         })
       },
-      close:function(button) {
-        if (button && button[4]) {
-            if (button[4](button,this.getData()) === false) {
+      close:function(button,handler) {
+        if (button && button[2]["is_valid"]) {
+            if (button[2]["is_valid"](button,this.getData()) === false) {
                 return
             }
         }
         this.option = (button && button[0] !== undefined)?button[0]:this.defaultOption
         $("#userdialog").foundation('close')
       },
-      addMessage:function(message) {
+      rerend:function() {
+        var messages = this._messages
+        this._messages = []
+        var footer = this._footer
+        this._footer = []
+        this.revision += 1
+        var vm = this
+        this.$nextTick(function(){
+            vm._messages = messages
+            vm._footer = footer
+            vm.revision += 1
+        })
+      },
+      //messages is optional, default is this.messages
+      addMessage:function(message,messages) {
+        messages = messages || this._messages
         messageLine = []
-        this.messages.push(messageLine)
+        messages.push(messageLine)
         if (Array.isArray(message)) {
             $.each(message,function(index,column){
                 if (Array.isArray(column)) {
@@ -268,14 +308,21 @@
         })
         return result
       },
-      processEvent:function(eventHandler,ev) {
-        if (eventHandler) {
-            eventHandler(ev)
+      processEvent:function(message,event_key,ev) {
+        var eventHandler = this.messageAttr(message,event_key)
+        if (!eventHandler) {
+            return
+        } else if (eventHandler === "close") {
+            this.close(message)
+        } else {
+            eventHandler.call(this,ev,message)
         }
       }
     },
     ready: function () {
       var vm = this
+      this._messages = []
+      this._footer = []
       var dialogStatus = this.loading.register("dialog","Dialog Component")
       dialogStatus.phaseBegin("initialize",100,"Initialize")
 
@@ -284,8 +331,8 @@
       })
 
       $("#userdialog").on("closed.zf.reveal",function(){
-        vm.messages.splice(0,vm.messages.length)
-        vm.buttons.splice(0,vm.buttons.length)
+        vm._messages.splice(0,vm._messages.length)
+        vm._footer.splice(0,vm._footer.length)
         vm.revision += 1
         if (vm.callback) {
             var value = ((vm.option === null || vm.option === undefined )?vm.defaultOption:vm.option)

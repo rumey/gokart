@@ -17,6 +17,13 @@
     <link rel="stylesheet" type="text/css" href="dist/static/css/font-awesome/css/font-awesome.css" />
   </head>
   <body>
+    <script type="text/javascript">
+        var _env = {
+            {%- if weatherforecast_url -%} 
+            "weatherForecastUrl":"{{weatherforecast_url}}",
+            {% endif %}
+        }
+    </script>
     <!-- main global styles down here to load after all packaged styles -->
     <link rel="stylesheet" property="stylesheet" type="text/css" href="dist/static/css/style.css?version={{profile["dependents"]["styleMD5"]}}" />
     <app v-ref:app></app>

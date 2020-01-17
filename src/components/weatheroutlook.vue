@@ -216,22 +216,6 @@
       </div>
     </div>
 
-    <div style="display:none">
-    <div id="weatheroutlook_control" class="ol-selectable ol-control" v-bind:style="topPositionStyle">
-        <button type="button" title="{{outlookTool.title}}" @click="toggleTool()" v-bind:class="{'selected':isControlSelected}" style="width:48px;height:36px;border-bottom-left-radius:0px;border-bottom-right-radius:0px">
-            <img v-bind:src="outlookTool.icon" width="36" height="36">
-        </button>
-        <button type="button" style="height:16px;border-top-left-radius:0px;border-top-right-radius:0px"  @click="showSettings=!showSettings" >
-            <i class="fa fa-angle-double-down" aria-hidden="true"></i>
-        </button>
-        <div v-show="showSettings" style="position:absolute;width:300px;right:0px">
-            <button type="button" v-for="s in outlookTools" title="{{s.title}}"  style="margin:1px;float:right" track-by="$index" @click.stop.prevent="selectSetting(s)">
-                <img v-bind:src="s.icon" width="36" height="36">
-            </button>
-        </div>
-    </div>
-    </div>
-
     <form id="get_weatheroutlook" name="weatheroutlook" action="{{env.gokartService + '/weatheroutlook/html'}}" method="post" target="weatheroutlook">
         <input type="hidden" name="data" id="weatheroutlook_data">
     </form>
@@ -407,15 +391,6 @@
             this.setReportTimes(value)
         }
       },
-      mapControl:function() {
-        if (!this._controller) {
-            this._controller = new ol.control.Control({
-                element: $('#weatheroutlook_control').get(0),
-        	target: $('#external-controls').get(0)
-            })
-        }
-        return this._controller
-      },
       isControlSelected:function() {
         if (this.annotations) {
             return this.annotations.tool === this._weatheroutlookTool
@@ -444,21 +419,6 @@
                 this.selectedColumn.options["title"] = value
             }
         }
-      },
-      height:function() {
-        if (!this.$root.toolbox || this.$root.toolbox.inToolbox(this)) {
-            return 0
-        } else if (!this.showSettings) {
-            return 52 + 9
-        } else {
-            return 52 + Math.ceil(this.outlookTools.length / 6) * 50 + 9
-        }
-      },
-      topPosition:function() {
-        return 180;
-      },
-      topPositionStyle:function() {
-        return "top:" + this.topPosition + "px";
       },
       tools:function() {
         return this.outlookTools
@@ -1402,8 +1362,8 @@
             vm._weatheroutlookStatus.phaseEnd("load_datasources")
             vm.initialized = true
             vm.columnRevision += 1
-        },function(){
-            vm._weatheroutlookStatus.phaseFailed("load_datasources","Failed to loading datasources. status = " + xhr.status + " , message = " + (xhr.responseText || message))
+        },function(msg){
+            vm._weatheroutlookStatus.phaseFailed("load_datasources","Failed to loading datasources. status = " + msg)
         })
       },
       refreshDatasources:function(refresh,callback,failedCallback) {
@@ -1445,8 +1405,9 @@
                 if (callback) {callback()}
             },
             error: function (xhr,status,message) {
-                alert(xhr.status + " : " + (xhr.responseText || message))
-                if (failedCallback) {failedCallback()}
+                var msg = xhr.status + " : " + (xhr.responseText || message)
+                alert(msg)
+                if (failedCallback) {failedCallback(msg)}
             },
             xhrFields: {
               withCredentials: true
@@ -1569,14 +1530,6 @@
       this._weatheroutlookStatus = vm.loading.register("weatheroutlook","BOM Spot Outlook Component")
 
       this._weatheroutlookStatus.phaseBegin("initialize",20,"Initialize")
-
-      if (!vm.$root.toolbox.inToolbox(vm)) {
-          vm.map.mapControls["weatheroutlook"] = {
-              enabled:false,
-            autoenable:false,
-            controls:vm.mapControl
-        }
-      }
 
       this.editingReportHours = this.reportHours
 

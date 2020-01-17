@@ -21,11 +21,14 @@ except:
     import Image
 
 import bottle
+import shapely_extension
 import settings
 
 import sys
 import traceback
 
+
+from .jinja2settings import settings as jinja2settings
 
 import spatial
 bottle.route("/spatial", "POST", spatial.spatial)
@@ -38,6 +41,9 @@ bottle.route("/download/<fmt>", "POST", gdal.download)
 import raster
 bottle.route('/outlookmetadata', "GET", raster.outlookmetadata)
 bottle.route('/weatheroutlook/<fmt>', "POST", raster.weatheroutlook)
+
+import kmi
+bottle.route('/kmi/layer',"GET",kmi.layermetadata)
 
 @bottle.route('/client')
 def server_static():
@@ -190,7 +196,31 @@ def index(app):
         profile = _get_profile(app)
         if profile["dependents"]["vendorMD5"] != profile["build"]["vendorMD5"]:
             raise Exception("Application was built base on outdated vendor library, please build application again.")
-        return bottle.template('index.html', app=app,envType=settings.ENV_TYPE,profile=profile)
+        return bottle.template('index.html',template_adapter=bottle.Jinja2Template,template_settings=jinja2settings, app=app,envType=settings.ENV_TYPE,profile=profile,weatherforecast_url=settings.WEATHERFORECAST_URL)
+    except:
+        bottle.response.status = 400
+        bottle.response.set_header("Content-Type","text/plain")
+        traceback.print_exc()
+        return traceback.format_exception_only(sys.exc_type,sys.exc_value)
+
+@bottle.route("/weatherforecast",method="POST")
+def weatherforecast():
+    #weather forecast
+    try:
+        if settings.WEATHERFORECAST_URL:
+            requestData = bottle.request.forms.get("data")
+            if requestData:
+                requestData = json.loads(requestData)
+            else:
+                raise Exception("Request data are missing")
+            requestData["weatherforecast_url"] = settings.WEATHERFORECAST_URL
+            requestData["weatherforecast_user"] = settings.WEATHERFORECAST_USER
+            requestData["weatherforecast_password"] = settings.WEATHERFORECAST_PASSWORD
+            return bottle.template('weatherforecast.html',template_adapter=bottle.Jinja2Template,template_settings=jinja2settings,envType=settings.ENV_TYPE,request_time=datetime.datetime.now(settings.PERTH_TIMEZONE), **requestData)
+        else:
+            bottle.response.status = 404
+            bottle.response.set_header("Content-Type","text/plain")
+            return "Path '/weatherforecast' Not Found"
     except:
         bottle.response.status = 400
         bottle.response.set_header("Content-Type","text/plain")
@@ -285,7 +315,7 @@ def getTimelineFromWmsLayer(current_timeline, layerIdFunc):
     try:
         # import ipdb;ipdb.set_trace()
         localfile = tempfile.NamedTemporaryFile(mode='w+b', delete=False, prefix=basetimeLayer.replace(":", "_"), suffix=".gif").name
-        subprocess.check_call(["curl", "-G", "--cookie", "{}={}".format(settings.sso_cookie_name, settings.get_session_cookie()), basetime_url.format(basetimeLayer), "--output", localfile])
+        subprocess.check_call(["curl", "-G", "--cookie", settings.get_session_cookie(template="{0}={1}"), basetime_url.format(basetimeLayer), "--output", localfile])
         md5 = settings.get_file_md5(localfile)
         if current_timeline and current_timeline["md5"] == md5:
             return current_timeline
@@ -313,19 +343,26 @@ def getTimelineFromWmsLayer(current_timeline, layerIdFunc):
                 layerId = layerIdFunc(i, layerTimespan)
                 layers.append([layertime.strftime("%a %b %d %Y %H:%M:%S AWST"), layerId, None])
             return {"refreshtime": datetime.datetime.now().strftime("%a %b %d %Y %H:%M:%S"), "layers": layers, "md5": md5, "updatetime": basetime.strftime("%a %b %d %Y %H:%M:%S AWST")}
+    except:
+        traceback.print_exc()
+        if localfile:
+            #keep the file in tmp folder if failed
+            print("Can't extract base time from file '{}'".format(localfile))
+            localfile = None
+        raise
     finally:
         if localfile:
             os.remove(localfile)
 
 
-def bomLayerIdFunc(target):
+def bomLayerIdFunc(layeridpattern):
     def _func(i, timespan):
         if timespan >= 86400:
             # unit is day
-            return "bom:{}{:0>3}".format(target, i * int(timespan / 86400))
+            return layeridpattern.format(i * int(timespan / 86400))
         else:
             # unit is hour
-            return "bom:{}{:0>3}".format(target, i * int(timespan / 3600))
+            return layeridpattern.format(i * int(timespan / 3600))
     return _func
 
 start_date = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=pytz.timezone("UTC")).astimezone(pytz.timezone("Australia/Perth"))
@@ -334,6 +371,11 @@ start_date = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=pytz.timezone("UTC")).as
 @bottle.route("/bom/<target>")
 def bom(target):
     last_updatetime = bottle.request.query.get("updatetime")
+    layeridpattern = bottle.request.query.get("layeridpattern")
+    if layeridpattern:
+        layeridpattern = "bom:{}".format(layeridpattern)
+    else:
+        layeridpattern = "bom:{}{{:0>3}}".format(target)
     current_timeline = None
     try:
         current_timeline = json.loads(uwsgi.cache_get(target))
@@ -351,7 +393,7 @@ def bom(target):
         else:
             return {"layers": current_timeline["layers"], "updatetime": current_timeline["updatetime"]}
 
-    timeline = getTimelineFromWmsLayer(current_timeline, bomLayerIdFunc(target))
+    timeline = getTimelineFromWmsLayer(current_timeline, bomLayerIdFunc(layeridpattern))
 
     if not timeline:
         raise "Missing some of http parameters 'basetimelayer', 'timelinesize', 'layertimespan'."
