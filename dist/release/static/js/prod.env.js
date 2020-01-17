@@ -17,6 +17,7 @@ var env = {
     appMapping:{
     },
     layerMapping:{
+        "cddp:other_tenures"                        : "cddp:other_tenures_new"
     },
     overviewLayer:"dbca:mapbox-outdoors",
 };

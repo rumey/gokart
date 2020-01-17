@@ -9,6 +9,7 @@ gokart/static
 gokart/tmp
 src/apps/*-profile.js
 uwsgi.ini
+.env
 
 *.log
 *.sw*
