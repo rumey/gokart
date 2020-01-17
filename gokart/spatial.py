@@ -1,15 +1,13 @@
 import bottle
-import os
+#import os
 import sys
 import requests
 import json
 import pyproj
 import traceback
-import threading
 import math
-import pyproj
-from datetime import datetime
-from multiprocessing import Process,Pipe
+#from datetime import datetime
+from multiprocessing import Process, Pipe
 
 from shapely.geometry import shape,MultiPoint,Point,mapping
 from shapely.geometry.polygon import Polygon
@@ -23,6 +21,7 @@ import settings
 import kmi
 
 proj_aea = lambda geometry: pyproj.Proj("+proj=aea +lat_1=-17.5 +lat_2=-31.5 +lat_0=0 +lon_0=121 +x_0=5000000 +y_0=10000000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
+
 
 def exportGeojson(feat,fname):
     if isinstance(feat,BaseGeometry):
@@ -91,6 +90,7 @@ def buffer(lon, lat, meters,resolution=16):
     buf = Point(0, 0).buffer(meters,resolution=resolution)  # distance in metres
     return ops.transform(project, buf).exterior.coords[:]
 
+
 def getShapelyGeometry(feature):
     if not feature["geometry"]:
         return None
@@ -98,6 +98,7 @@ def getShapelyGeometry(feature):
         return GeometryCollection([shape(g) for g in feature["geometry"]["geometries"]])
     else:
         return shape(feature["geometry"])
+
 
 def transform(geometry,src_proj="EPSG:4326",target_proj='aea'):
     if src_proj == target_proj:
@@ -809,6 +810,7 @@ def getFeature(feature,session_cookies,options):
         get_feature_data["failed"] = "{} from layers ({}) failed.{}".format(options["action"],layers,traceback.format_exception_only(sys.exc_type,sys.exc_value))
     return get_feature_data
 
+
 def spatial():
     # needs gdal 1.10+
     try:
@@ -846,4 +848,3 @@ def spatial():
         bottle.response.set_header("Content-Type","text/plain")
         traceback.print_exc()
         return traceback.format_exception_only(sys.exc_type,sys.exc_value)
-
