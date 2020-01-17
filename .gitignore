@@ -8,7 +8,6 @@ dist/release/static/js/local.env.js
 gokart/static
 gokart/tmp
 src/apps/*-profile.js
-uwsgi.ini
 .env
 
 *.log

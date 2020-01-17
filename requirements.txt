@@ -6,8 +6,8 @@ pyproj>=1.9.5.1
 gevent==1.2.2
 six>=1.10.0
 pytz>=2016.4
-requests==2.18.4
-uWSGI==2.0.15
+requests==2.22.0
+uWSGI==2.0.18
 boto3==1.4.7
 pytesseract>=0.1.6
 Pillow>=4.0.0
