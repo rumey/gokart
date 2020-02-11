@@ -10,6 +10,9 @@ gokart/tmp
 src/apps/*-profile.js
 .env
 
+#ignore env file in ftp_sync folder
+ftp_sync/.*
+
 *.log
 *.sw*
 *.pyc

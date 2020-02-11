@@ -73,7 +73,36 @@ bool_options["not-sync"]=1
 #other option is set to null_value
 declare -A options=()
 for op in ${all_options[@]}; do
-    if [[ ${bool_options[$op]} -eq 1 ]]; then
+   env_var="$( echo -e "$op" | tr '-' '_' )"
+   env_var="ftpsync_${env_var}"
+   #echo "options=${op}  env_var_name=${env_var}  env_var_value=${!env_var}"
+   if [[ -v "${env_var}" ]]; then
+       if [[ ${bool_options[$op]} -eq 1 ]]; then
+           env_value=${!env_var}
+           #convert to lower case
+           env_value=${env_value,,}
+           if [[ "${env_value}" =~ ^(true|yes|on|1|t|y)$ ]]; then
+               options[$op]=1
+           else
+               options[$op]=0
+           fi
+
+       else
+           options[$op]="${!env_var}"
+       fi
+   elif [[ "$op" == "remote-dir"  ]]; then
+        options["remote-dir"]=""
+   elif [[ "$op" == "sync-list-filter"  ]]; then
+        options["sync-list-filter"]=""
+   elif [[ "$op" == "log-level"  ]]; then
+        options["log-level"]="warning"
+   elif [[ "$op" == "parallel"  ]]; then
+        options["parallel"]="5"
+   elif [[ "$op" == "log-file"  ]]; then
+        options["log-file"]="/var/log/ftp_sync.log"
+   elif [[ "$op" == "log-files"  ]]; then
+        options["log-files"]="14"
+   elif [[ ${bool_options[$op]} -eq 1 ]]; then
        options[$op]=0
    else
        options[$op]=$null_value
@@ -86,14 +115,6 @@ done
 #else
 #    options["env-file"]=$null_value
 #fi
-
-#set the option's default value
-options["remote-dir"]=""
-options["sync-list-filter"]=""
-options["log-level"]="warning"
-options["parallel"]="5"
-options["log-file"]="/var/log/ftp_sync.log"
-options["log-files"]="14"
 
 #decalre IEEE option
 declare -A options_ieee=()
@@ -282,6 +303,25 @@ done
 if [[ $missing_option -eq 1 ]]; then
     error ""
     error "$usage"
+
+    for op in ${all_options[@]}; do
+        if [[ "${options[$op]}" == "$null_value" ]]; then
+            error "$op Not Declared"
+        elif [[ ! ${credential_options[$op]} -eq 1 ]]; then
+            if [[ ${bool_options[$op]} -eq 1  ]]; then
+                if [[ ${options[$op]} -eq 0  ]]; then
+                    error "$op = false"
+                else
+                    error "$op = true"
+                fi
+            else
+                error "$op = ${options[$op]}"
+            fi
+        else
+            error "$op = ********"
+        fi
+    done
+
     exit 1
 fi
 
@@ -358,21 +398,24 @@ if [[ ${options["only-existing"]} -eq 1 ]]; then
         fi
     fi
 fi
-
 #print all options if debug is enabled
-for op in "${!options[@]}"; do 
-    if [[ "$op" =~ ^_.* ]]; then
-        continue
-    elif [[ ! ${credential_options[$op]} -eq 1 ]]; then
-        if [[ ${bool_options[$op]} -eq 1  ]]; then
-            if [[ ${options[$op]} -eq 0  ]]; then
-                debug "$op = false"
+if [[ "${options["_log-level"]}" -ge "${log_levels["debug"]}" ]]; then
+    for op in "${!options[@]}"; do 
+        if [[ "$op" =~ ^_.* ]]; then
+            continue
+        elif [[ ! ${credential_options[$op]} -eq 1 ]]; then
+            if [[ ${bool_options[$op]} -eq 1  ]]; then
+                if [[ ${options[$op]} -eq 0  ]]; then
+                    debug "$op = false"
+                else
+                    debug "$op = true"
+                fi
             else
-                debug "$op = true"
-            fi
+                debug "$op = ${options[$op]}"
+           fi
         else
-            debug "$op = ${options[$op]}"
-       fi
-    fi
-done
+            debug "$op = ******"
+        fi
+    done
+fi
 
