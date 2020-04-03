@@ -507,7 +507,7 @@
         }
         var filter = ""
         if (this.showDBCAResource) {
-            filter += "'iriditrak','dplus','spot','other'"
+            filter += "'fleetcare','iriditrak','dplus','spot','other'"
         }
         if (this.showDFESResource) {
             if (filter !== "") filter += ","
