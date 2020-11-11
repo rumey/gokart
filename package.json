@@ -6,8 +6,8 @@
   "repository": "https://github.com/dbca-wa/gokart",
   "config": {
     "app": "sss",
-    "description":"Spatial Support System v3",
-    "version":"16.11.1"
+    "description": "Spatial Support System v3",
+    "version": "16.11.1"
   },
   "scripts": {
     "serve": "uwsgi -i uwsgi.ini",
@@ -79,12 +79,12 @@
     "tether-shepherd": "~1.8.1",
     "vue": "~1.0.28",
     "vue-stash": "~1.0.0",
-    "jspdf":"~1.3.2",
-    "interact.js":"~1.2.6",
-    "object-hash":"~1.1.5",
-    "turf":"~3.0.14",
-    "foundation-datepicker":"~1.5.6",
-    "jstree":"~3.3.4"
+    "jspdf": "~1.3.2",
+    "interact.js": "~1.2.6",
+    "object-hash": "~1.1.5",
+    "turf": "~3.0.14",
+    "foundation-datepicker": "~1.5.6",
+    "jstree": "~3.3.4"
   },
   "devDependencies": {
     "babel-core": "^6.0.0",
@@ -98,6 +98,7 @@
     "browserify-css": "^0.9.1",
     "browserify-hmr": "^0.3.1",
     "browserify-shim": "^3.8.12",
+    "bufferutil": "^4.0.1",
     "cross-env": "^1.0.5",
     "eslint": "^3.0.1",
     "eslint-config-standard": "^5.3.5",
@@ -117,6 +118,7 @@
     "phantomjs-prebuilt": "^2.1.3",
     "proxyquireify": "^3.0.1",
     "uglify-js": "^2.5.0",
+    "utf-8-validate": "^5.0.2",
     "vueify": "^8.5.2",
     "watchify": "^3.4.0"
   }

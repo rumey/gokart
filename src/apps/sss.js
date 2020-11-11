@@ -501,13 +501,22 @@ if (result) {
             id: 'landgate:dfes_active_fireshapes',
             refresh: 60
           */
-          }, {
+          /*}, {
             type: 'TileLayer',
             name: 'Forest Fire Danger Index',
             id: 'bom:forest_fire_danger_index',
             timelineRefresh:300,
             fetchTimelineUrl:function(lastUpdatetime){
                 return "/bom/IDZ71117?basetimelayer=bom:IDZ71117_datetime&timelinesize=72&layertimespan=3600&updatetime=" + lastUpdatetime
+            }*/
+		  }, {
+            type: 'TileLayer',
+            name: 'Forest Fire Danger Index',
+            id: 'bom:forest_fire_danger_index',
+            timelineRefresh: 300,
+            fetchTimelineUrl: function(lastUpdatetime){
+                //return "/bom/IDZ71117?basetimelayer=bom:IDZ71117_datetime&timelinesize=72&layertimespan=3600&updatetime=" + lastUpdatetime
+				return "/bom/IDZ71117?basetimelayer=bom:IDZ71117_datetime&timelinesize=72&layertimespan=3600&updatetime=" + lastUpdatetime
             }
           }, {
             type: 'TileLayer',
@@ -541,7 +550,8 @@ if (result) {
             fetchTimelineUrl:function(lastUpdatetime){
                 return "/bom/IDZ71115?basetimelayer=bom:IDZ71115_datetime&timelinesize=56&layertimespan=10800&updatetime=" + lastUpdatetime
             }
-          }, {
+          }
+		  /*, {
             type: 'TileLayer',
             name: 'mslp',
             id: 'bom:mslp',
@@ -549,7 +559,8 @@ if (result) {
             fetchTimelineUrl:function(lastUpdatetime){
                 return "/bom/IDY25300mslp?basetimelayer=bom:IDY25300_datetime&timelinesize=73&layeridpattern=IDY25300{:0>3}mslp&layertimespan=3600&updatetime=" + lastUpdatetime
             }
-          }])
+          }*/
+		  ])
     
           // load custom annotation tools
     
