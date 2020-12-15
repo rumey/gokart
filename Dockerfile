@@ -37,7 +37,7 @@ FROM python_libs_gokart
 COPY dist/release ./dist/release
 COPY ftp_sync ./ftp_sync
 COPY gokart ./gokart
-COPY uwsgi.ini ./
+COPY uwsgi.ini.prod ./uwsgi.ini
 COPY tessdata/bom.traineddata /usr/local/share/tessdata/
 USER www-data
 EXPOSE 8080
