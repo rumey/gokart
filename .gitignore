@@ -9,6 +9,7 @@ gokart/static
 gokart/tmp
 src/apps/*-profile.js
 .env
+uwsgi.ini
 
 #ignore env file in ftp_sync folder
 ftp_sync/.*
