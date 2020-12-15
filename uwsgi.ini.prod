@@ -9,17 +9,16 @@ memory-report   = true
 disable-logging = true
 
 # Django-related settings
-chdir           = /app/
+chdir           = ./
 module          = gokart
 
 # Process-related settings
 auto-procname   = true
-processes       = 16
+processes       = 1
 static-map      = /dist=%(chdir)dist/release
 static-map      = /static=%(chdir)gokart/static
 static-map      = /fetch=%(chdir)gokart/tmp
 static-safe     = %(chdir)/dist
 static-cache-paths = 30
 die-on-term     = true
-uid             = www-data
-gui             = www-data
+

@@ -100,28 +100,28 @@
                 <th >Position:</th>
                 <td colspan="3">
                     {{position}} 
-                    {%- if False -%}
+                    {#%- if False -% #}
                     <input type="hidden" id="position" name="position" value="{{position}}" >
-                    <button onclick="copy('position')" style="padding:0px">COPY</button></td>
-                    {% endif%}
+                    <button  onclick="copy('position')" style="padding:0px">COPY</button></td>
+                    {# % endif% #}
             </tr>
             <tr> 
                 <th >Latitude:</th>
                 <td colspan="3">
-                    {{point[1]}}
-                    {%- if False -%}
-                    <input type="hidden" id="latitude" name="latitude" value="{{point[1]}}" >
+                    {{point[1] | round(6)}}
+                    {# %- if False -% #}
+                    <input type="hidden" id="latitude" name="latitude" value="{{point[1] | round(6)}}" >
                     <button onclick="copy('latitude')" style="padding:0px">COPY</button></td>
-                    {% endif%}
+                    {# % endif% #}
             </tr>
             <tr> 
                 <th >Longitude:</th>
                 <td colspan="3">
-                    {{point[0]}} 
-                    {%- if False -%}
-                    <input type="hidden" id="longitude" name="longitude" value="{{point[0]}}" >
+                    {{point[0] | round(6)}} 
+                    {# %- if False -% #}
+                    <input type="hidden" id="longitude" name="longitude" value="{{point[0] | round(6)}}" >
                     <button onclick="copy('longitude')" style="padding:0px">COPY</button></td>
-                    {% endif%}
+                    {# % endif% #}
             </tr>
             <tr> 
                 <th >Username:</th>
