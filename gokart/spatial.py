@@ -844,10 +844,10 @@ def spatial():
 
         bottle.response.set_header("Content-Type", "application/json")
         #print("{}:return response to client.{}".format(datetime.now(),results))
-        return {"total_features":len(results),"features":results}
+        return {"total_features": len(results), "features": results}
     except:
         if bottle.response.status < 400 :
             bottle.response.status = 400
-        bottle.response.set_header("Content-Type","text/plain")
+        bottle.response.set_header("Content-Type", "text/plain")
         traceback.print_exc()
         return traceback.format_exception_only(sys.exc_type,sys.exc_value)
