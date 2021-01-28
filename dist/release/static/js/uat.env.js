@@ -26,7 +26,7 @@ var env = {
         "dpaw:bushfire_fireboundary"                : "dpaw:bushfire_fireboundary_uat",
         "dpaw:resource_tracking_live"               : "dpaw:resource_tracking_live_uat",
         "dpaw:resource_tracking_history"            : "dpaw:resource_tracking_history_uat",
-        "cddp:other_tenures"                        : "cddp:other_tenures_new"
+        //"cddp:other_tenures"                        : "cddp:other_tenures_new"
 
     },
     overviewLayer:"dbca:mapbox-outdoors",

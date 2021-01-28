@@ -526,6 +526,9 @@ def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
 
             for layer_feature in layer_features:
                 layer_geometry = getShapelyGeometry(layer_feature)
+                if not layer_geometry.is_valid:
+                   layer_geometry = layer_geometry.buffer(0)      #Times out if reserves is a single massive poly
+                  #  return {"status":"failed","data":"invalid polygon in tenure layer, probably the other_tenures layer"}
                 layer_geometry = transform(layer_geometry,target_proj='aea')
                 if not isinstance(layer_geometry,Polygon) and not isinstance(layer_geometry,MultiPolygon):
                     continue
