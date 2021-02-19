@@ -30,8 +30,15 @@ import 'foundation-sites'
 import 'foundation-datepicker'
 // IE9+ support for SVG sprites
 import svg4everybody from 'svg4everybody'
+//emailer(s)
+//import emailjs from 'emailjs-com'
+import nodemailer from 'nodemailer'
+import postmark from 'postmark'
+import * as Msal from 'msal'
 // QR code generator
 import kjua from 'kjua'
+import qs from 'qs'
+import axios from 'axios'
 // Timestamp parsing library
 //import moment from 'moment'
 import moment from 'moment-timezone'
@@ -50,7 +57,7 @@ import hash from "object-hash"
 import utils from './utils.js'
 import turf from 'turf'
 
-var saveAs = function (blob,name,no_auto_bom) {
+var saveAs = function (blob, name, no_auto_bom) {
     if (env.appType == "cordova") {
         var formData = new window.FormData();
         formData.append('file', blob, name);
@@ -211,7 +218,12 @@ export {
   VueStash,
   svg4everybody,
   saveAs,
+  postmark,
+  Msal,
+  qs,
+  axios,
   kjua,
+  nodemailer,
   moment,
   dragula,
   localforage,

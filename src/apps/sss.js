@@ -142,7 +142,7 @@ var systemSettings = {
 
 var persistentData = {
   view: {
-    center: [123.75, -24.966],
+    center: [123.75,  -24.966],
     scale:4026092
   },
   // id followed by properties to merge into catalogue
@@ -155,9 +155,9 @@ var persistentData = {
     type: 'FeatureCollection',
     features: []
   },
-  drawingLogs:[],
-  redoPointer:0,//pointer to the next redo log 
-  drawingSequence:0,
+  drawingLogs: [],
+  redoPointer: 0, //pointer to the next redo log 
+  drawingSequence: 0,
 
   //data in settings will survive across reset
   settings:JSON.parse(JSON.stringify(systemSettings))
@@ -218,7 +218,8 @@ if (result) {
           catalogue: function () { return this.$refs.app.$refs.layers.$refs.catalogue },
           export: function () { return this.$refs.app.$refs.layers.$refs.export },
           annotations: function () { return this.$refs.app.$refs.annotations },
-          tracking: function () { return this.$refs.app.$refs.tracking },
+		  tracking: function () { return this.$refs.app.$refs.tracking },
+		  thermal: function () { return this.$refs.app.$refs.thermal },
           settings: function () { return this.$refs.app.$refs.settings },
           systemsetting: function () { return this.$refs.app.$refs.settings.$refs.systemsetting },
           bfrs: function () { return this.$refs.app.$refs.bfrs },
@@ -255,18 +256,18 @@ if (result) {
           },
         },
         watch: {
-            tourVersion:function(newValue,oldValue) {
+            tourVersion:function(newValue, oldValue) {
                 if (newValue !== tour.version) {
                   this.takeTour()
                 }
             },
-            hints:function(newValue,oldValue) {
+            hints:function(newValue, oldValue) {
                 var vm = this
                 this.$nextTick(function(){
                     vm.setHintsHeight()
                 })
             },
-            menuRevision:function(newValue,oldValue) {
+            menuRevision:function(newValue, oldValue) {
                 var vm = this
                 //var module = this.store.activeSubmenu || this.store.activeMenu
                 //if (this[module]["adjustHeight"]) {
@@ -277,7 +278,7 @@ if (result) {
                     vm.setHintsHeight()
                 })
             },
-            screenHeight:function(newValue,oldValue) {
+            screenHeight:function(newValue, oldValue) {
                 var module = this.store.activeSubmenu || this.store.activeMenu
                 if (this[module]["adjustHeight"]) {
                     this[module]["adjustHeight"]()
@@ -318,7 +319,7 @@ if (result) {
         },
         ready: function () {
           var self = this
-          self.loading.app.phaseBegin("initialize",20,"Initialize")
+          self.loading.app.phaseBegin("initialize", 20, "Initialize")
           // setup foundation, svg url support
           $(document).foundation()
           svg4everybody()
@@ -336,9 +337,9 @@ if (result) {
                 method:"GET",
                 dataType:"json",
                 success: function (response, stat, xhr) {
-                    $.extend(self.store.whoami,response)
+                    $.extend(self.store.whoami, response)
                 },
-                error: function (xhr,status,message) {
+                error: function (xhr, status, message) {
                     alert("Get user profile failed.  " + status + " : " + (xhr.responseText || message))
                 },
                 xhrFields: {
@@ -366,7 +367,7 @@ if (result) {
           })
     
           // pack-in catalogue
-          self.fixedLayers = self.fixedLayers.concat([{
+		  self.fixedLayers = self.fixedLayers.concat([{
           /*
             type: 'TileLayer',
             name: 'Firewatch Hotspots 72hrs',
@@ -385,7 +386,7 @@ if (result) {
             fetchTimelineUrl:function(lastUpdatetime){
                 return self.env.gokartService + '/hi8/AHI_TKY_FHS?updatetime=' + lastUpdatetime
             },
-            setTimeIndex:function(layer,tileLayer,previousTimeline,defaultFunc) {
+            setTimeIndex:function(layer, tileLayer, previousTimeline, defaultFunc) {
                 var timeIndex = null
                 if (previousTimeline && previousTimeline.length > 1 && tileLayer.get('timeIndex') && tileLayer.get('timeIndex') < previousTimeline.length && tileLayer.get('timeIndex') >= 1) {
                     timeIndex = tileLayer.get('timeIndex')
@@ -393,16 +394,16 @@ if (result) {
                 if (timeIndex == null || timeIndex == previousTimeline.length - 1) {
                     var newTimeIndex = layer.timeline.length - 1
                     if (previousTimeline && previousTimeline[timeIndex][0] === layer.timeline[newTimeIndex][0]) {
-                        tileLayer.set('timeIndex',layer.timeline.length - 1,true)
+                        tileLayer.set('timeIndex', layer.timeline.length - 1, true)
                     } else {
-                        tileLayer.set('timeIndex',layer.timeline.length - 1)
+                        tileLayer.set('timeIndex', layer.timeline.length - 1)
                     }
                 } else {
                     var newTimeIndex = layer.timeline.findIndex(function(o) {return o[0] === previousTimeline[timeIndex][0]})
                     if (newTimeIndex >= 0) {
-                        tileLayer.set('timeIndex',newTimeIndex,true)
+                        tileLayer.set('timeIndex', newTimeIndex, true)
                     } else {
-                        defaultFunc(layer,tileLayer,previousTimeline)
+                        defaultFunc(layer, tileLayer, previousTimeline)
                     }
                 }
             }
@@ -721,11 +722,11 @@ if (result) {
           self.loading.app.phaseEnd("initialize")
     
           // load map without layers
-          self.loading.app.phaseBegin("init_olmap",10,"Initialize olmap")
+          self.loading.app.phaseBegin("init_olmap", 10, "Initialize olmap")
           self.map.init()
           self.loading.app.phaseEnd("init_olmap")
     
-          self.loading.app.phaseBegin("load_catalogue",20,"Load catalogue",true,true)
+          self.loading.app.phaseBegin("load_catalogue", 20, "Load catalogue", true, true)
           try {
               self.catalogue.loadRemoteCatalogue( function () {
                 //add default layers
@@ -733,24 +734,24 @@ if (result) {
                 try {
                     self.loading.app.phaseEnd("load_catalogue")
     
-                    self.loading.app.phaseBegin("init_map_layers",10,"Initialize map layers")
+                    self.loading.app.phaseBegin("init_map_layers", 10, "Initialize map layers")
                     failed_phase = "init_map_layers"
                     self.map.initLayers(self.fixedLayers, self.store.activeLayers)
                     self.loading.app.phaseEnd("init_map_layers")
     
                     // tell other components map is ready
-                    self.loading.app.phaseBegin("gk-init",15,"Broadcast 'go-init' event")
+                    self.loading.app.phaseBegin("gk-init", 15, "Broadcast 'go-init' event")
                     failed_phase = "gk-init"
                     self.$broadcast('gk-init')
                     self.loading.app.phaseEnd("gk-init")
     
                     // after catalogue load trigger a tour
-                    self.loading.app.phaseBegin("gk-postinit",15,"Broadcast 'go-init' event")
+                    self.loading.app.phaseBegin("gk-postinit", 15, "Broadcast 'go-init' event")
                     failed_phase = "gk-postinit"
                     self.$broadcast('gk-postinit')
                     self.loading.app.phaseEnd("gk-postinit")
     
-                    self.loading.app.phaseBegin("post_init",10,"Post initialization")
+                    self.loading.app.phaseBegin("post_init", 10, "Post initialization")
                     failed_phase = "post-init"
                     self.store.layout.screenHeight = $(window).height()
                     self.store.layout.screenWidth = $(window).width()
@@ -761,7 +762,7 @@ if (result) {
                         if ($(window).width() !== self.store.layout.screenWidth) {
                             self.store.layout.screenWidth = $(window).width()
                         }
-                    },200))
+                    }, 200))
                     $("#menu-tab-layers-label").trigger("click")
                     self.store.activeMenu = "layers"
                     self.layers.setup()
@@ -772,7 +773,7 @@ if (result) {
                     self.loading.app.phaseEnd("post_init")
                 } catch(err) {
                     //some exception happens
-                    self.loading.app.phaseFailed(failed_phase,err)
+                    self.loading.app.phaseFailed(failed_phase, err)
                     throw err
                 }
                 if (self.store.settings.tourVersion !== tour.version) {

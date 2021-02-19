@@ -151,8 +151,8 @@
                     <div class="switch tiny">
                       <input class="switch-input" id="resourceHistory" type="checkbox" v-model="toggleHistory" @change="clearHistory" />
                       <label class="switch-paddle" for="resourceHistory">
-                    <span class="show-for-sr">Query history</span>
-                  </label>
+						<span class="show-for-sr">Query history</span>
+					  </label>
                     </div>
                     <label for="resourceHistory" class="side-label">Query history</label>
                   </div>
@@ -218,12 +218,12 @@
   </div>
 </template>
 <style>
-#historyFromDate,#historyToDate {
+#historyFromDate, #historyToDate {
     cursor:pointer
 }
 </style>
 <script>
-  import { ol, moment,utils } from 'src/vendor.js'
+  import { ol, moment, utils } from 'src/vendor.js'
   export default {
     store: {
         resourceLabels:'settings.resourceLabels',
@@ -240,11 +240,11 @@
       var stroke = '#7c3100'
       return {
         toggleHistory: false,
-        showToggles:false,
+        showToggles: false,
         clippedOnly: false,
         search: '',
         groupFilter: '',
-        sourceflag:3,
+        sourceflag: 3,
         tools: [],
         historyRange: '21001',
         fields: ['id', 'registration', 'rin_display', 'deviceid', 'symbol', 'district_display', 'usual_driver', 'callsign_display', 'usual_location', 'current_driver', 'contractor_details', 'source_device_type'],
@@ -300,7 +300,7 @@
             this.setSourceFlag(1,show)
         }
       },
-      showDBCAResource:{
+      showDBCAResource: {
         get: function() {
             return (this.sourceflag & 2) === 2
         },
@@ -308,7 +308,7 @@
             this.setSourceFlag(2,show)
         }
       },
-      showDFESResource:{
+      showDFESResource: {
         get: function() {
             return (this.sourceflag & 4) === 4
         },
@@ -402,7 +402,7 @@
             $("#tracking-list").height(this.screenHeight - this.leftPanelHeadHeight - 41 - $("#tracking-list-controller-container").height() - this.hintsHeight)
         }
       },
-      changeHistoryRange:function() {
+      changeHistoryRange: function() {
         if (this.historyRange === "-1") {
             //customized
             if (!this.historyFromDate) {
@@ -419,7 +419,7 @@
                 this.changeHistoryToDate()
             }
         } else { 
-            var range = utils.getDateRange(this.historyRange,"YYYY-MM-DD HH:mm")
+            var range = utils.getDateRange(this.historyRange, "YYYY-MM-DD HH:mm")
             this.historyFromDate = range[0] || ""
             this.historyToDate = range[1] || ""
         }
@@ -441,6 +441,7 @@
         }
       },
       changeHistoryToDate:function() {
+	  alert('track L445 changeHistoryToDate')
         if (this.historyRange !== "-1") {
             //not in editing mode
             return
@@ -455,26 +456,25 @@
         } catch(ex) {
         }
       },
-      historyDateFilter:function() {
+      historyDateFilter: function() {
         if (this.historyRange !== "-1") {
             //in predefined range, reset the historyFromDate and historyToDate
             this.changeHistoryRange()
         }
-        var startDate = (this.historyFromDate)?moment(this.historyFromDate,"YYYY-MM-DD HH:mm",true):null
+        var startDate = (this.historyFromDate)?moment(this.historyFromDate,"YYYY-MM-DD HH:mm", true):null
         if (startDate && !startDate.isValid()) {
             throw "From date is under changing."
         }
 
-        var endDate = (this.historyToDate && this.historyToDate < moment().format("YYYY-MM-DD HH:mm"))?moment(this.historyToDate,"YYYY-MM-DD HH:mm",true):null
+        var endDate = (this.historyToDate && this.historyToDate < moment().format("YYYY-MM-DD HH:mm"))?moment(this.historyToDate,"YYYY-MM-DD HH:mm", true):null
         if (endDate && !endDate.isValid()) {
             throw "To date is under changing."
         }
 
-
         if (startDate) {
             if (endDate) {
                 if (startDate >= endDate) {
-                    throw "Start date must be less than end date."
+                    throw "Start date must be earlier than end date."
                 }
                 return "seen BETWEEN '" + startDate.utc().format("YYYY-MM-DDTHH:mm:ssZ") + "' AND '" + utils.nextDate(endDate,"YYYY-MM-DD HH:mm").utc().format("YYYY-MM-DDTHH:mm:ssZ") + "'"
             } else {
@@ -660,7 +660,7 @@
                 } catch(ex) {
                     alert(ex)
                 }
-            },500)
+            }, 500)
         }
         if (wait === 0) {
             vm._updateCQLFilter.call({wait:1})
@@ -720,9 +720,9 @@
                 if (vm.selectedFeatures.getLength() > 0) {
                     if (list.length === 0) {
                         vm.selectedFeatures.clear()
-                        vm.clippedFeatures.splice(0,vm.clippedFeatures.length)
+                        vm.clippedFeatures.splice(0, vm.clippedFeatures.length)
                     } else {
-                        for(var index = vm.selectedFeatures.getLength() - 1;index >= 0;index--) {
+                        for(var index = vm.selectedFeatures.getLength() - 1; index >= 0; index--) {
                             if (!list.find(function(f){return f === vm.selectedFeatures.item(index)})) {
                                 vm.selectedFeatures.removeAt(index)
                             }
@@ -730,7 +730,7 @@
                     }
                 }
                 vm.revision += 1;
-            },500)
+            }, 500)
         }
         if (wait === 0) {
             vm._updateFeatureFilter.call({wait:1})
@@ -811,22 +811,23 @@
     },
     ready: function () {
       var vm = this
-      var trackingStatus = this.loading.register("tracking","Resource Tracking Component")
+      var trackingStatus = this.loading.register("tracking", "Resource Tracking Component")
       vm._featurelist = new ol.Collection()
 
-      trackingStatus.phaseBegin("initialize",20,"Initialize")
+      trackingStatus.phaseBegin("initialize", 20, "Initialize")
 
       //init datepicker
       $('#historyFromDate').fdatepicker({
-	format: 'yyyy-mm-dd hh:ii',
-	disableDblClickSelection: true,
-	leftArrow:'<<',
-	rightArrow:'>>',
-        startDate:moment().subtract(10,"years").format("YYYY-MM-DD") + " 00:00",
+		format: 'yyyy-mm-dd hh:ii',
+		disableDblClickSelection: true,
+		leftArrow:'<<',
+		rightArrow:'>>',
+        startDate:moment().subtract(10, "years").format("YYYY-MM-DD") + " 00:00",
         endDate:moment().format("YYYY-MM-DD") + " 23:59",
         pickTime:true,
         minuteStep:1
       });
+	  
       try {
           this._historyFromDatePicker = $("#historyFromDate").data().datepicker
       } catch(ex) {
@@ -914,7 +915,7 @@
 
       var deviceLabel = function(device) {
         var name = ''
-	var rin_symbols = ['heavy duty','gang truck','dozer','loader','grader','tender','float'];
+		var rin_symbols = ['heavy duty','gang truck','dozer','loader','grader','tender','float'];
         var symbol = device.get('symbol');
         var district = device.get('district_display');
         var callsign_display = device.get('callsign_display');
@@ -950,21 +951,21 @@
               tint = 'green'
             };
             if (f.get("source_device_type") === "dfes") {
-                f.set('icon', ['dist/static/symbols/device/external_d.svg','dist/static/symbols/device/dfes_generic.svg'],true)
+                f.set('icon', ['dist/static/symbols/device/external_d.svg','dist/static/symbols/device/dfes_generic.svg'], true)
             } else if (f.get("source_device_type") === "tracplus") {
-                f.set('icon', ['dist/static/symbols/device/external_e.svg','dist/static/symbols/device/' + f.get('symbolid') + '.svg'],true)
+                f.set('icon', ['dist/static/symbols/device/external_e.svg','dist/static/symbols/device/' + f.get('symbolid') + '.svg'], true)
             } else {
-                f.set('icon', 'dist/static/symbols/device/' + f.get('symbolid') + '.svg',true)
+                f.set('icon', 'dist/static/symbols/device/' + f.get('symbolid') + '.svg', true)
             }
-            f.set('tint', tint,true)
-            f.set('originalTint', tint,true)
+            f.set('tint', tint, true)
+            f.set('originalTint', tint, true)
             f.set('label', deviceLabel(f), true)
-            f.set('time', timestamp.toLocaleString(),true)
+            f.set('time', timestamp.toLocaleString(), true)
             // Set a different vue template for rendering
-            f.set('partialId', 'resourceInfo',true)
+            f.set('partialId', 'resourceInfo', true)
             // Set id for select tools
-            f.set('selectId', f.get('deviceid'),true)
-            f.setStyle(styleFunc,true)
+            f.set('selectId', f.get('deviceid'), true)
+            f.setStyle(styleFunc, true)
         }
       }
 
@@ -1025,37 +1026,37 @@
           return return_label
       }
 
-      trackingStatus.phaseBegin("load_resources",30,"Load resources",false,true)
+      trackingStatus.phaseBegin("load_resources", 30, "Load resources", false, true)
       var _addResourceFunc = addResourceFunc(resourceTrackingStyleFunc('dpaw:resource_tracking_live'))
       this.$root.fixedLayers.push({
         type: 'WFSLayer',
         name: 'Resource Tracking',
         id: 'dpaw:resource_tracking_live',
-        features:vm._featurelist,
-        cql_filter:vm.getSourceFilter(),
-        getFeatureInfo:function (f) {
+        features: vm._featurelist,
+        cql_filter: vm.getSourceFilter(),
+        getFeatureInfo: function (f) {
             var extra_device_label = deviceExtraHoverLabel(f)
-            return {name:f.get("label"), img:vm.map.getBlob(f, ['icon', 'tint']),
+            return {name: f.get("label"), img:vm.map.getBlob(f, ['icon', 'tint']),
                 comments:"(" + vm.ago(f.get("seen")) + " ago, Heading:" + f.get("heading") + "&deg;)<br>" +
                     extra_device_label}
         },
         refresh: 60,
-        onerror: function(status,message) {
-            trackingStatus.phaseFailed("load_resources",status + " : " + message)
+        onerror: function(status, message) {
+            trackingStatus.phaseFailed("load_resources", status + " : " + message)
         },
-        onload: function(loadType,vectorSource,features,defaultOnload) {
+        onload: function(loadType, vectorSource, features, defaultOnload) {
             function processResources() {
-                $.each(features,function(index,f){
+                $.each(features, function(index, f){
                     _addResourceFunc(f)
                 })
                 
                 if (vm.selectedFeatures.getLength() > 0) {
                     var loadedFeature = null
-                    for(var index = vm.selectedFeatures.getLength() - 1;index >= 0;index--) {
+                    for(var index = vm.selectedFeatures.getLength() - 1; index >= 0; index--) {
                         var f = vm.selectedFeatures.item(index)
                         loadedFeature = features.find(function(f1){return f1.get('deviceid') === f.get('deviceid')})
                         if (loadedFeature) {
-                            vm.selectedFeatures.setAt(index,loadedFeature)
+                            vm.selectedFeatures.setAt(index, loadedFeature)
                         } else {
                             vm.selectedFeatures.removeAt(index)
                         }
@@ -1068,9 +1069,9 @@
                 vm.updateFeatureFilter(0)
                 //remove nonexisted deviceid from clippedFeatures
                 if (loadType === "querySavedSelection") {
-                    for(var index = vm.clippedFeatures.length - 1;index >= 0;index--) {
+                    for(var index = vm.clippedFeatures.length - 1; index >= 0; index--) {
                         if (!features.find(function(f){return f.get("deviceid") === vm.clippedFeatures[index]})) {
-                            vm.clippedFeatures.splice(index,1)
+                            vm.clippedFeatures.splice(index, 1)
                         }
                     }
                 }
@@ -1102,7 +1103,7 @@
             }
         }(addResourceFunc(resourceTrackingStyleFunc('dpaw:resource_tracking_history'))),
         cql_filter: false,
-        getFeatureInfo:function (f) {
+        getFeatureInfo: function (f) {
             if (f.getGeometry() instanceof ol.geom.Point) {
                 var name = deviceLabel(f)
                 var extra_device_label = deviceExtraHoverLabel(f)
@@ -1113,7 +1114,7 @@
                 return {name:f.get("name"), img:vm.map.getBlob(f, ['icon', 'tint']), comments:"(" + f.get("startTime") + " - " + f.get("endTime") + ")"}
             }
         },
-        onload: function(loadType,vectorSource,features,defaultOnload) {
+        onload: function(loadType, vectorSource, features, defaultOnload) {
             defaultOnload(loadType,vectorSource,features)
             // callback to draw the line trail after the points information is loaded
             var devices = {}
@@ -1205,12 +1206,12 @@
 
       trackingStatus.phaseEnd("initialize")
 
-      trackingStatus.phaseBegin("gk-init",30,"Listen 'gk-init' event")
+      trackingStatus.phaseBegin("gk-init", 30, "Listen 'gk-init' event")
       // post init event hookup
       this.$on('gk-init', function () {
         trackingStatus.phaseEnd("gk-init")
 
-        trackingStatus.phaseBegin("attach_events",10,"Attach events")
+        trackingStatus.phaseBegin("attach_events", 10, "Attach events")
         vm.map.olmap.getView().on('propertychange', function() {vm.updateViewport()})
 
         /*var layersAdded = global.debounce(function () {
@@ -1250,7 +1251,7 @@
 
         trackingStatus.phaseEnd("attach_events")
 
-        trackingStatus.phaseBegin("init_tools",10,"Initialize tools")
+        trackingStatus.phaseBegin("init_tools", 10, "Initialize tools")
         //vm.annotations.setDefaultTool('tracking','Pan')
         
         $.each([vm.annotations.ui.defaultPan],function(index,t) {

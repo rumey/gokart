@@ -14,3 +14,5 @@ Pillow>=4.0.0
 GDAL==2.1.0
 affine==2.1.0
 demjson==2.2.4
+pyqrcode>=1.2.1
+pypng==0.0.20

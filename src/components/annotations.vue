@@ -147,7 +147,7 @@
 </style>
 
 <script>
-  import { $, ol, Vue,turf } from 'src/vendor.js'
+  import { $, ol, Vue, turf } from 'src/vendor.js'
   import gkDrawinglogs from './drawinglogs.vue'
 
   var noteOffset = 0
@@ -1523,7 +1523,7 @@
         }
         feature.changed()
       },
-      getStyleProperty:function(f,property,defaultValue,tool) {
+      getStyleProperty:function(f, property, defaultValue, tool) {
         var result = f[property] || f.get(property) || (tool || this.getTool(f.get('toolName')) || {})[property] || ((defaultValue === undefined)?'default':defaultValue)
         return (typeof result === "function")?result(f):result
       },
@@ -1609,7 +1609,7 @@
             return style
         }
       },
-      getLabelStyleFunc:function(tints,labelProperty) {
+      getLabelStyleFunc: function(tints, labelProperty) {
         var vm = this
         labelProperty = labelProperty || 'label'
         return function() {
@@ -1620,8 +1620,8 @@
             } else {
                 tool = vm.tool
             }
-            var strokeTint = vm.getStyleProperty(f,"tint","",tool) + ".textStroke"
-            var fillTint = vm.getStyleProperty(f,"tint","",tool) + ".textFill"
+            var strokeTint = vm.getStyleProperty(f, "tint", "", tool) + ".textStroke"
+            var fillTint = vm.getStyleProperty(f, "tint", "", tool) + ".textFill"
             var labelStyle = tool.labelStyle || {}
             return new ol.style.Style({
                 text: new ol.style.Text({
@@ -1896,6 +1896,7 @@
       }
     },
     ready: function () {
+	  //alert("annotations ready start")
       var vm = this
       var annotationStatus = this.loading.register("annotation","Annotation Component")
       annotationStatus.phaseBegin("initialize",20,"Initialize")
@@ -2307,7 +2308,8 @@
         vm.setDefaultTool('annotations','Edit')
         annotationStatus.phaseEnd("init_tools")
       })
-    }
+    //alert("annotations ready done")
+	}
 
   }
 </script>

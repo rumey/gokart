@@ -1,4 +1,4 @@
-import { $,moment } from 'src/vendor.js'
+import { $, moment } from 'src/vendor.js'
 
 
 let FeatureTask = function(manager,scope,taskId,description,status,message) {
@@ -76,7 +76,7 @@ let FeatureTaskManager = function(changeCallback) {
     this.changeCallback = changeCallback
 }
 
-//return true if init succeed;otherwise return false
+//return true if init succeed; otherwise return false
 FeatureTaskManager.prototype.initTasks = function(feat) {
     if (this.changeCallback) this.changeCallback()
     if (feat.tasks && feat.tasks.length > 0) {
@@ -159,7 +159,7 @@ Utils.prototype.getFeatureTaskManager = function(changeCallback) {
     return new FeatureTaskManager(changeCallback)
 }
 
-Utils.prototype.checkPermission = function(url,method,callback) {
+Utils.prototype.checkPermission = function(url, method, callback) {
     method = method || "GET"
     var pos = url.indexOf('?')
     if  (pos >= 0) {
@@ -174,7 +174,7 @@ Utils.prototype.checkPermission = function(url,method,callback) {
     var parameters = null
     if (arguments.length > 3) {
         parameters = []
-        for(var index = 3;index < arguments.length;index++) {
+        for(var index = 3; index < arguments.length; index++) {
             parameters.push(arguments[index])
         }
     }
@@ -183,9 +183,9 @@ Utils.prototype.checkPermission = function(url,method,callback) {
             withCredentials: true
         },
         method:method,
-        success:function(data,status,jqXHR) {
+        success:function(data, status, jqXHR) {
             if (parameters) {
-                parameters.splice(0,0,true)
+                parameters.splice(0, 0, true)
                 callback.apply(null,parameters)
             } else {
                 callback(true)
@@ -194,11 +194,11 @@ Utils.prototype.checkPermission = function(url,method,callback) {
         error:function(jqXHR) {
             if (parameters) {
                 if (jqXHR.status === 401) {
-                    parameters.splice(0,0,false)
+                    parameters.splice(0, 0 ,false)
                 } else if(jqXHR.status >= 500) {
-                    parameters.splice(0,0,false)
+                    parameters.splice(0, 0 ,false)
                 } else {
-                    parameters.splice(0,0,true)
+                    parameters.splice(0, 0, true)
                 }
                 callback.apply(null,parameters)
             } else {
@@ -217,7 +217,7 @@ Utils.prototype.checkPermission = function(url,method,callback) {
         ajaxSetting["contentType"] = "application/json"
         ajaxSetting["data"] = JSON.stringify({})
     }
-    $.ajax(url ,ajaxSetting)
+    $.ajax(url, ajaxSetting)
 }
 var defaultWinOptions = [
     ["scrollbars","yes"],
@@ -473,14 +473,14 @@ Utils.prototype.nextDate = function(d,format) {
     var precision = this.getDateFormatPrecision(format)
     return moment(d).add(1,precision)
 }
-//dateRange is consisted with 5 digits XXXXX or 6 digits XXXXXX
+//dateRange consists of 5 digits XXXXX or 6 digits XXXXXX
 //The sixth digit(optional) is the precision type; 1 : minute; 2: hour; 3: day; 4:week; 5: month; 6: year,7:financial year, 8:seconds, 9 milliseconds
 //The fifth digit is the range type; 1 : minute; 2: hour; 3: day; 4:week; 5: month; 6: year,7:financial year
 //The fourth digit is the range mode: 0: current ; 1: last
 //the first three digit is the range value
-//For example :last 24 hours; dateRange is 21024
-//return a array [startDate(inclusive),endDate(inclusive)], if endDate is current time, set endDate to null
-Utils.prototype.getDateRange = function(range,format) {
+//For example last 24 hours; dateRange is 21024
+//return an array [startDate(inclusive),endDate(inclusive)], if endDate is current time, set endDate to null
+Utils.prototype.getDateRange = function(range, format) {
     var dateRange = parseInt(range)
     if (dateRange === -1) {
         //customized

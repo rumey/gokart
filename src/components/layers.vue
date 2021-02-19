@@ -63,7 +63,7 @@
             if (this.activeSubmenu && this.$root[this.activeSubmenu].setup) {
                 this.$root[this.activeSubmenu].setup()
             }
-            this.menu = menu
+			this.menu = menu
         }
     }, 
     ready: function () {

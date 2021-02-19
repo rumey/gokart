@@ -122,13 +122,13 @@
       },
       appStatus:function() {
         if (!this.app) {
-            this.register("app",this.application)
+            this.register("app", this.application)
         }
         return  this.revision && this.app
       },
     },
     watch:{
-        revision:function(newValue,oldValue) {
+        revision: function(newValue, oldValue) {
             this.adjustHeight()
         }
     },
@@ -171,7 +171,7 @@
             return o.id === componentId
         })
       },
-      register: function(componentId,componentName) {
+      register: function(componentId, componentName) {
         componentName = componentName || componentId
         var vm = this
         if (!vm.Status) {
@@ -189,7 +189,7 @@
                     }
                     if (index > 0) {
                         //already registered, replace
-                        vm.componets[index] = this
+                        vm.components[index] = this
                     } else {
                         //not registered, add it
                         vm.components.push(this)
@@ -282,8 +282,8 @@
             }
         }()
         //vm.register("app",this.application)
-        var loadingStatus = vm.register("LoadingStatus","Loading Status Component")
-        loadingStatus.phaseBegin("initialize",100,"Override console")
+        var loadingStatus = vm.register("LoadingStatus", "Loading Status Component")
+        loadingStatus.phaseBegin("initialize", 100, "Override console")
         vm._sequence = 0
         var addMessage = function(message) {
             if (message && message.length > 0) {
@@ -292,7 +292,7 @@
             }
         }
         //override console.error
-        var getArguments = function(args,startIndex) {
+        var getArguments = function(args, startIndex) {
             var result = []
             startIndex = (startIndex === null||startIndex === undefined)?0:startIndex
             for(var i = startIndex; i < args.length ; i++) {
@@ -346,6 +346,6 @@
             }
         })()
         loadingStatus.phaseEnd("initialize")
-    }
+	}
   }
 </script>
