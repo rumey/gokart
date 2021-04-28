@@ -14,7 +14,6 @@
             <div id="thermal-list-controller-container">
             <div class="tool-slice row collapse">
               <div class="small-12">
-			  
 				<div class="expanded button-group">
 				  <a v-for="t in tools" class="button button-tool" v-bind:class="{'selected': t.name == annotations.tool.name}"
 					@click="annotations.setTool(t)" v-bind:title="t.label" style="font-size: 0.9rem;">{{{ annotations.icon(t) }}} {{t.showName?t.label:""}}</a>
@@ -149,7 +148,8 @@
 				
    				</p>
 				<div>
-				<input id="emailText" placeholder="Type message here" style="width:360px; height:190px; color:#000; opacity:1"></input>
+				<!--input id="emailText" placeholder="Type message here" style="width:360px; height:190px; color:#000; opacity:1"></input-->
+				<textarea id="emailText" placeholder="Type message here" style="width:360px; height:190px; color:#000; opacity:1"></textarea>
 				<p></p>
 				</div>
 				<!--div style="line-height:60px"-->
@@ -164,6 +164,7 @@
 		<div id="hotspot-list" class="layers-flexibleframe scroller" style="margin-left:-15px; margin-right:-15px;">
               <!--template v-for="f in featurelist" track-by="get('hotspot_no')"-->
 			  <template v-for="f in featurelist" >
+			    <div v-if="showFeature(f)" class="row feature-row" v-bind:class="{\'feature-selected\': isFeatureSelected(f) }" @click="toggleSelect(f)"> 
 			    <button class="collapsible" v-on:click="toggleImageList">{{f.get('flight_datetime')}} {{f.get('hotspot_no')}}</button>
 				<!--button class="collapsible" @click="toggleImageList(event, f.get('flight_datetime'), f.get('hotspot_no'))">{{f.get('flight_datetime')}} {{f.get('hotspot_no')}}</button-->
 			    <div class="showImages">
@@ -181,7 +182,7 @@
 					  </div-->
 				  </template>
 				</div>
-
+				</div>
 			  </template>
 		</div>
       </div>
@@ -252,7 +253,7 @@
 		showDateRange: false,
 		showEmailComposer: false,
 		flights: [],
-        clippedOnly: false,
+        //clippedOnly: false,
         search: '',
         groupFilter: '',
         tools: [],
@@ -388,11 +389,15 @@
     },
     
 	methods: {
-      adjustHeight: function() {
+      adjustHeight_OLD: function() {
         if (this.activeMenu === "thermal") {
             $("#hotspot-list").height(this.screenHeight - this.leftPanelHeadHeight - 41 - $("#hotspot-list-controller-container").height() - this.hintsHeight)
         }
       },
+	  
+	  adjustHeight: function() {
+		"thermal"===this.activeMenu&&$("#hotspot-list").height(this.screenHeight-this.leftPanelHeadHeight-$("#hotspot-list-controller-container").height()-50)
+	  },
 	  
       changeThermalDateRange: function() {
         if (this.thermalDateRange === "-1") {
@@ -500,7 +505,9 @@
 		if (this.showDateRange || this.thermalSingleDate != undefined) {dateFilterSpecified = true}
 		return dateFilterSpecified
 	  },
-	  
+
+	  showFeature:function(feat){return this.revision&&(!this.viewportOnly||feat.inViewport)},
+
       scrollToSelected: function() {
         if (this.selectedFeatures.getLength() === 0) return
         var index = -1
@@ -598,24 +605,12 @@
 		}
       },
 	  
-	  toggleDateRange: function() {
-		alert('602 ' + toggleDateRange)
-		this.showDateRange = !this.showDateRange
-		if (this.showDateRange) {this.thermalSingleDate = undefined; alert(this.thermalSingleDate)}
-		
-        //this.export.saveState()
-		//alert("date range")
-		
-		/*if (this.showDateRange){
-			try {
-				  this._thermalFromDatePicker = $("#thermalFromDate").data().datepicker
-			} catch(ex) {
-				  console.log(ex)
-				  alert('thermal 952: ' + ex)
-				  this._thermalFromDatePicker = null
-			}
-		}*/
-      },
+	  toggleDateRange: function(){
+		this.thermalSingleDate = undefined
+		if (!this.showDateRange) {
+		    this.thermalFromDate = undefined, this.thermalToDate = undefined
+		}	
+	  },
 	  
       isFeatureSelected: function(f) {
         return this.selectedFeatures.getArray().findIndex(function(o){return f === o}) >= 0
@@ -649,23 +644,7 @@
             vm._updateCQLFilter.call({wait:wait})
         }
       },
-	  
-	  getDateInfoForMosaicsOLD: function(vm) {
-		var dateInfo = []
-		if (vm.thermalSingleDate != undefined) {
-			var singleDate = vm.thermalSingleDate.replace(/-/g, "")
-			dateInfo.push(singleDate)
-		}
-		else if (vm.showDateRange) {
-			var start = vm.thermalFromDate.replace(/-/g, "").replace(' ', '_').replace(':', '')
-			var end = vm.thermalToDate.replace(/-/g, "").replace(' ', '_').replace(':', '')
-			dateInfo.push(start)
-			if (end==="") {dateInfo.push("now")}
-			else {dateInfo.push(end)}
-		}
-		return dateInfo
-	 },
-	 
+
 	  getDateInfoForMosaics: function(vm) {
 		var dateInfo = []
 		if (vm.showDateRange) {
@@ -682,7 +661,7 @@
 		return dateInfo
 	  },
 	  
-      removeImages: function(){
+      removeImages_OLD: function(){
 		var hotspotButtons = document.getElementById("hotspot-list").querySelectorAll(".collapsible")
 		hotspotButtons.forEach(function(button){
 			var imageListContent = button.nextElementSibling
@@ -701,8 +680,15 @@
 		
 		return
 	  },
+	   
+	  removeImages:function(){
+		var hotspotButtons=(this.$root.map,document.getElementById("hotspot-list").querySelectorAll(".collapsible"))
+		var i = 0
+		return hotspotButtons.forEach(function(button){
+			"block"===button.nextElementSibling.style.display&&(setTimeout(function(){button.click()},10),i+=1)})
+			, i},
 	  
-	  loadHotspotLayers: function() {
+	  loadHotspotLayers_OLD: function() {
 		var vm = this
 	    var map = vm.$root.map
 		this.imagesShow = {}
@@ -765,7 +751,27 @@
 		}
 	  },
 
-
+	  loadHotspotLayers:function(){
+		var _this = this
+		var vm = this
+		var map = vm.$root.map
+		var imagesRemoved = vm.removeImages();
+		
+		timeout = 10 * imagesRemoved
+		setTimeout(function(){
+			map.olmap.getLayers().getArray().slice().forEach(function(layer){
+				"Flight footprints"===layer.get("name")&&map.olmap.removeLayer(layer),"Flight mosaics"===layer.get("name")&&map.olmap.removeLayer(layer)
+		})
+		var mosaicPosition=map.olmap.getLayers().getArray().length-1
+		if (vm.showFlightFootprint){
+			vm.flightFootprintLayer.style = vm.footprintStyle
+			var footprintOLLayer = map.createWFSLayer(vm.flightFootprintLayer)
+			map.olmap.addLayer(footprintOLLayer)
+			footprintOLLayer.refresh()}
+		if(vm.hotspotMapLayer?vm.active.isHidden(vm.hotspotMapLayer)?vm.active.toggleHidden(vm.hotspotMapLayer):(vm.catalogue.onLayerChange(vm.hotspotLayer,!1),vm.catalogue.onLayerChange(vm.hotspotLayer,!0)):vm.catalogue.onLayerChange(vm.hotspotLayer,!0),vm.showRawImageMosaic){
+			var dateInfo=_this.getDateInfoForMosaics(vm)
+			map.createWMSLayer(mosaicPosition,dateInfo)}},timeout)},
+		
       featureFilter: function (f) {
         var search = this.search?this.search.toLowerCase().trim():""
         var found = !search || this.fields.some(function (key) {
@@ -1053,7 +1059,7 @@
 		}
     },
 
-	  showEmailComposerPanel: function() {
+	  showEmailComposerPanel_OLD: function() {
 		this.showEmailComposer = !this.showEmailComposer
 		var vm = this
 		if (vm.emailList.length == 0){
@@ -1070,8 +1076,10 @@
 			})
 		}
 	  },
+	  
+	  showEmailComposerPanel:function(){if(0==this.flights.length&&0==this.showEmailComposer)return void alert("The email function is designed to work only if one or more hotspot flights are loaded in the map.");this.showEmailComposer=!this.showEmailComposer;var vm=this;0==vm.emailList.length&&((this.env.gokartService="")&&this.env.gokartServicewindow.location.href.slice(0,-4),$.get(this.env.gokartService+"/hotspot_email_list").then(function(response){var jsonObject=JSON.parse(response);vm.emailList=jsonObject.objects,select=document.getElementById("emailRecipient");for(email in vm.emailList)select.add(new Option(vm.emailList[email]))}))},
 	 
-	 sendEmail: function() {
+	  sendEmail_OLD: function() {
 		var  recipient = document.getElementById("emailRecipient").value
 		var messageText = document.getElementById("emailText").value
 		var vm = this
@@ -1092,9 +1100,11 @@
 		$.get(this.env.gokartService + '/send_hotspot_email/' + recipient + '/' + messageText + '/' + vm.flights + '/' + cqlFilter).then(function(response) {
 			alert(response)
 		})
-	 },
+	  },
 
-      setExtentFeatureSize: function() {
+	  sendEmail:function(){var recipient=document.getElementById("emailRecipient").value,messageText=document.getElementById("emailText").value,vm=this,cqlFilter="";if(vm.hasDateFilter()&&void 0!=vm.thermalSingleDate){cqlFilter="strStartsWith(flight_datetime, '"+vm.thermalSingleDate.replace(/-/g,"")+"') = true"}this.getDateInfoForMosaics(vm);if(0==messageText.length)return void alert("You need to type in a message.");try{$.get(this.env.gokartService+"/send_hotspot_email/"+recipient+"/"+messageText+"/"+vm.flights+"/"+cqlFilter).then(function(response){alert(response)})}catch(err){alert(err.name+": "+err.message)}},
+
+      setExtentFeatureSize_OLD: function() {
         var vm = this
         var size = 0
         this._featurelist.forEach(function(feat){
@@ -1105,6 +1115,13 @@
         this.extentFeaturesSize = size;
       },
 	  
+	  setExtentFeatureSize: function(){
+		var vm = this
+		var size=0
+		this._featurelist.forEach(function(feat){feat.inViewport&&++size}),this.extentFeaturesSize=size
+		//alert(this.extentFeaturesSize)
+		},
+
       updateViewport: function(wait) {
         var vm = this
         if (!vm._updateViewport) {
@@ -1122,13 +1139,24 @@
         if (wait === 0) {
             vm._updateViewport.call({wait:1})
         } else if (wait === undefined || wait === null){
-            vm._updateViewport()
+            //vm._updateViewport()
+			vm._updateViewport.call({wait:1})
         } else {
             vm._updateViewport.call({wait:wait})
         }
       },
 	  
-      clipToSelection:function() {
+      updateViewport_NEW: function(wait){
+		var vm = this
+		vm._updateViewport||(vm._updateViewport=debounce(function(){
+			var viewportExtent=vm.map.extent
+			vm.features.forEach(function(feat){
+				feat.inViewport = feat.getGeometry() && ol.extent.containsCoordinate(viewportExtent, feat.getGeometry().getCoordinates())
+			})
+			vm.setExtentFeatureSize()
+			vm.viewportOnly&&(vm.revision+=1)},500)),0===wait?vm._updateViewport.call({wait:1}):void 0===wait||null===wait?vm._updateViewport():vm._updateViewport.call({wait:wait})},
+	  
+	  clipToSelection:function() {
         if (this.selectedFeatures.getLength() === 0) {
             return
         }
@@ -1153,8 +1181,7 @@
             this.info.hoverable.push(this.historyMapLayer)
         }
         this.annotations.setTool()*/
-		//alert('thermal 987 setup')
-        //this.$nextTick(this.adjustHeight)
+        this.$nextTick(this.adjustHeight)
       },
       
 	  teardown:function() {
@@ -1226,9 +1253,9 @@
 				return new ol.style.Style({
 						text: new ol.style.Text({
 						  text: hotspot_no,
-						  font: '13px Calibri,sans-serif',
+						  font: '16px Calibri,sans-serif',
 						  fill: new ol.style.Fill({ color: '#fff' }),
-						  stroke: new ol.style.Stroke({color: '#fff', width: 2})
+						  stroke: new ol.style.Stroke({color: '#fff', width: 0.8})
 						}),
 						image : new ol.style.Circle({
 							fill: new ol.style.Fill({color: [0, 0, 255]}),
