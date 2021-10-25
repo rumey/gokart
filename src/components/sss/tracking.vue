@@ -203,8 +203,10 @@
               <template v-for="f in featurelist" track-by="get('id')">
               <div class="row feature-row" v-if="showFeature(f)" v-bind:class="{'feature-selected': isFeatureSelected(f) }" @click="toggleSelect(f)">
                 <div class="columns">
-                  <a v-if="whoami.editVehicle && ['tracplus','dfes'].indexOf(f.get('source_device_type')) < 0" @click.stop.prevent="utils.editResource($event)" title="Edit resource" href="{{env.resourceTrackingService}}/sss_admin/tracking/device/{{ f.get('id') }}/change/" target="{{env.resourceTrackingService}}" class="button tiny secondary float-right"><i class="fa fa-pencil"></i></a>
-                  <div class="feature-title"><img class="feature-icon" id="device-icon-{{f.get('id')}}" v-bind:src="featureIconSrc(f)" /> {{ f.get('label') }} <i><small>({{ ago(f.get('seen')) }})</small></i>
+                  <!--a v-if="whoami.editVehicle && ['tracplus','dfes'].indexOf(f.get('source_device_type')) < 0" @click.stop.prevent="utils.editResource($event)" title="Edit resource" href="{{env.resourceTrackingService}}/sss_admin/tracking/device/{{ f.get('id') }}/change/" target="{{env.resourceTrackingService}}" class="button tiny secondary float-right"><i class="fa fa-pencil"></i></a-->
+                  <a v-if=" ['tracplus','dfes'].indexOf(f.get('source_device_type')) < 0" @click.stop.prevent="utils.editResource($event)" title="Edit resource" href="{{env.resourceTrackingService}}/sss_admin/tracking/device/{{ f.get('id') }}/change/" target="{{env.resourceTrackingService}}" class="button tiny secondary float-right"><i class="fa fa-pencil"></i></a>
+                  
+				  <div class="feature-title"><img class="feature-icon" id="device-icon-{{f.get('id')}}" v-bind:src="featureIconSrc(f)" /> {{ f.get('label') }} <i><small>({{ ago(f.get('seen')) }})</small></i>
                   </div>
                 </div>
               </div>
@@ -441,7 +443,6 @@
         }
       },
       changeHistoryToDate:function() {
-	  alert('track L445 changeHistoryToDate')
         if (this.historyRange !== "-1") {
             //not in editing mode
             return
@@ -918,10 +919,11 @@
 		var rin_symbols = ['heavy duty','gang truck','dozer','loader','grader','tender','float'];
         var symbol = device.get('symbol');
         var district = device.get('district_display');
-        var callsign_display = device.get('callsign_display');
+        //var callsign_display = device.get('callsign_display');
+		var callsign = device.get('callsign');
         var registration = device.get('registration');
-        if (!district || district == 'Aviation' || district == 'Other'){
-	    if (!callsign_display || rin_symbols.indexOf(symbol) === -1){
+        /*if (!district || district == 'Aviation' || district == 'Other'){
+			if (!callsign_display || rin_symbols.indexOf(symbol) === -1){
                 name = registration
             } else {
                 name = callsign_display +' '+ registration
@@ -933,7 +935,11 @@
                 name = callsign_display +' '+ registration
             }
         }
-        return name
+        return name*/
+		//name = callsign_display +' '+ registration
+		name = callsign + ' ' + registration
+		name = name.replace("null", "")
+		return name
       }
 
       var addResourceFunc = function(styleFunc) {
@@ -1077,6 +1083,7 @@
                 }
                 trackingStatus.phaseEnd("load_resources")
             }
+			//alert(vm.whoami.editVehicle)
             if ((vm.whoami.editVehicle === null || vm.whoami.editVehicle === undefined ) && features.length > 0) {
                 var f = features.find(function(f) {return f.get('source_device_type') != "tracplus"})
                 if (f){

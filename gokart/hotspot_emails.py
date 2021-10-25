@@ -50,7 +50,9 @@ def get_email_addresses():
     'Content-Type': 'application/json'
     }
     
-    url = "https://itassets.dbca.wa.gov.au/api/options/?list=dept_user"
+    #url = "https://itassets.dbca.wa.gov.au/api/options/?list=dept_user"
+    #url = "https://itassets.dbca.wa.gov.au/api/v3/departmentuser/?selectlist="
+    url = "https://itassets.dbca.wa.gov.au/api/v3/departmentuser/"
     response_data = requests.get(url, headers=headers, auth=(settings.EMAIL_USER, settings.EMAIL_PWD))
     
     return response_data

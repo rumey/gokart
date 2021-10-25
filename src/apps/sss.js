@@ -333,7 +333,7 @@ if (result) {
           // get user info
           (function () {
             $.ajax({
-                url: "/sso/auth",
+                url: self.env.authUrl || "/sso/auth",
                 method:"GET",
                 dataType:"json",
                 success: function (response, stat, xhr) {

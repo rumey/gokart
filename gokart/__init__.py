@@ -204,7 +204,8 @@ def index(app):
     except:
         bottle.response.status = 400
         bottle.response.set_header("Content-Type","text/plain")
-        traceback.print_exc()
+        #if app.isalnum():
+        #   traceback.print_exc()
         return traceback.format_exception_only(sys.exc_type,sys.exc_value)
 
 @bottle.route("/weatherforecast",method="POST")

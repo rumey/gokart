@@ -130,7 +130,7 @@
                 </div>
               </div>
 		    </div>
-			<div class="row">
+			<!--div class="row">
               <div class="small-9 columns" >
                 <div class="row">
                     <a class="button" @click="showEmailComposerPanel" title="Show Email Composer"><i class="fa fa-envelope" aria-hidden="true" v-model="mdlShowEmailComposer"></i> Email </a>
@@ -140,25 +140,20 @@
 			<div v-show="showEmailComposer" id="emailPanel" >
 				<form id="emailForm">
 				<p>Email to
-				<!--input type="search" id="emailRecipient" placeholder="Recipient" v-model="region"-->
 				<select id="emailRecipient">
-				<!--option value="">Recipient</option>
-				<option value="patrick.maslen@dbca.wa.gov.au">PWM</option-->
 				</select>
 				
    				</p>
 				<div>
-				<!--input id="emailText" placeholder="Type message here" style="width:360px; height:190px; color:#000; opacity:1"></input-->
 				<textarea id="emailText" placeholder="Type message here" style="width:360px; height:190px; color:#000; opacity:1"></textarea>
 				<p></p>
 				</div>
-				<!--div style="line-height:60px"-->
 				<div v-show="showEmailComposer">
 				<input v-on:click="sendEmail" type="button" id="sendEmail" style="background-color:#39e" value="Send">
 				<input v-on:click="showEmailComposer = !showEmailComposer" type="reset" id="cancelEmail" style="background-color:#39e" value="Cancel">
 				</div>
 				</form>
-			</div>
+			</div-->
         </div>
 		
 		<div id="hotspot-list" class="layers-flexibleframe scroller" style="margin-left:-15px; margin-right:-15px;">
@@ -258,7 +253,6 @@
         groupFilter: '',
         tools: [],
         thermalDateRange: '21024',
-        //fields: ['id', 'registration', 'rin_display', 'deviceid', 'symbol', 'district_display', 'usual_driver', 'callsign_display', 'usual_location', 'current_driver', 'contractor_details', 'source_device_type'],
         features: new ol.Collection(),
         extentFeaturesSize: 0,
 		footprints: new ol.Collection(),
@@ -1077,7 +1071,22 @@
 		}
 	  },
 	  
-	  showEmailComposerPanel:function(){if(0==this.flights.length&&0==this.showEmailComposer)return void alert("The email function is designed to work only if one or more hotspot flights are loaded in the map.");this.showEmailComposer=!this.showEmailComposer;var vm=this;0==vm.emailList.length&&((this.env.gokartService="")&&this.env.gokartServicewindow.location.href.slice(0,-4),$.get(this.env.gokartService+"/hotspot_email_list").then(function(response){var jsonObject=JSON.parse(response);vm.emailList=jsonObject.objects,select=document.getElementById("emailRecipient");for(email in vm.emailList)select.add(new Option(vm.emailList[email]))}))},
+	  showEmailComposerPanel: function() {
+		if (this.flights.length == 0 && this.showEmailComposer == 0)
+		return void alert("The email function is designed to work only if one or more hotspot flights are loaded in the map.");
+		this.showEmailComposer = !this.showEmailComposer
+		var vm = this
+		if (vm.emailList.length == 0){
+		    if (this.env.gokartService = "") { 
+				this.env.gokartServicewindow.location.href.slice(0, -4)
+			}
+			$.get(this.env.gokartService+"/hotspot_email_list").then(function(response){
+			vm.emailList = JSON.parse(response)
+			select=document.getElementById("emailRecipient")
+			for( item in vm.emailList) {
+					select.add( new Option(vm.emailList[item]['email']))
+				}
+			})}},
 	 
 	  sendEmail_OLD: function() {
 		var  recipient = document.getElementById("emailRecipient").value
@@ -1102,7 +1111,7 @@
 		})
 	  },
 
-	  sendEmail:function(){var recipient=document.getElementById("emailRecipient").value,messageText=document.getElementById("emailText").value,vm=this,cqlFilter="";if(vm.hasDateFilter()&&void 0!=vm.thermalSingleDate){cqlFilter="strStartsWith(flight_datetime, '"+vm.thermalSingleDate.replace(/-/g,"")+"') = true"}this.getDateInfoForMosaics(vm);if(0==messageText.length)return void alert("You need to type in a message.");try{$.get(this.env.gokartService+"/send_hotspot_email/"+recipient+"/"+messageText+"/"+vm.flights+"/"+cqlFilter).then(function(response){alert(response)})}catch(err){alert(err.name+": "+err.message)}},
+	  sendEmail: function(){var recipient=document.getElementById("emailRecipient").value,messageText=document.getElementById("emailText").value,vm=this,cqlFilter="";if(vm.hasDateFilter()&&void 0!=vm.thermalSingleDate){cqlFilter="strStartsWith(flight_datetime, '"+vm.thermalSingleDate.replace(/-/g,"")+"') = true"}this.getDateInfoForMosaics(vm);if(0==messageText.length)return void alert("You need to type in a message.");try{$.get(this.env.gokartService+"/send_hotspot_email/"+recipient+"/"+messageText+"/"+vm.flights+"/"+cqlFilter).then(function(response){alert(response)})}catch(err){alert(err.name+": "+err.message)}},
 
       setExtentFeatureSize_OLD: function() {
         var vm = this

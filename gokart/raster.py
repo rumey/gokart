@@ -296,7 +296,6 @@ def prepareDatasource(datasource):
                     datasource["datasource"] = None
     
             if not datasource.get("datasource"):
-                print(repr(datasource))
                 try:
                     fileLock.acquire()
                     #check whether the file is decompressed before
