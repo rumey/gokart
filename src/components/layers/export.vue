@@ -893,7 +893,6 @@
         var overviewmap_composing = null
         var canvas = null
         var overviewmap_canvas = null
-
         var postcomposeFunc = function() {
           timer && clearTimeout(timer)
           timer = setTimeout(function () {
