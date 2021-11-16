@@ -1,14 +1,19 @@
 var env = {
-    appType: (window.location.protocol == "file:")?"cordova":"webapp",
+    authUrl:'/sso/profile',
+	
+	appType: (window.location.protocol == "file:")?"cordova":"webapp",
 
-    cswService:"https://csw.dbca.wa.gov.au/catalogue/api/records/",
-    catalogueAdminService:"https://csw.dbca.wa.gov.au",
+    cswService:"https://csw-uat.dbca.wa.gov.au/catalogue/api/records/",
+    catalogueAdminService:"https://csw-uat.dbca.wa.gov.au",
 
-    kmiService:"https://kmi.dbca.wa.gov.au/geoserver",
-    legendSrc:"https://kmi.dbca.wa.gov.au/geoserver/gwc/service/wms?REQUEST=GetLegendGraphic&VERSION=1.0.0&FORMAT=image/png&legend_options=fontName:Times%20New%20Roman;fontAntiAliasing:true;fontSize:14;bgColor:0xFFFFEE;dpi:120;labelMargin:10&LAYER=",
+    kmiService:"https://kmi-uat.dbca.wa.gov.au/geoserver",
+    legendSrc:"https://kmi-uat.dbca.wa.gov.au/geoserver/gwc/service/wms?REQUEST=GetLegendGraphic&VERSION=1.0.0&FORMAT=image/png&legend_options=fontName:Times%20New%20Roman;fontAntiAliasing:true;fontSize:14;bgColor:0xFFFFEE;dpi:120;labelMargin:10&LAYER=",
+	
+	hotspotService:"https://hotspots.dbca.wa.gov.au/geoserver/hotspots/ows",
 
     gokartService:"",
     resourceTrackingService:"https://resourcetracking-uat.dbca.wa.gov.au",
+	//resourceTrackingService:"https://resourcetracking.dbca.wa.gov.au",
     bfrsService:"https://bfrs-uat.dbca.wa.gov.au",
     staticService:"https://static.dbca.wa.gov.au",
 
@@ -25,8 +30,7 @@ var env = {
         "dpaw:bushfire"                             : "dpaw:bushfire_uat",
         "dpaw:bushfire_fireboundary"                : "dpaw:bushfire_fireboundary_uat",
         "dpaw:resource_tracking_live"               : "dpaw:resource_tracking_live_uat",
-        "dpaw:resource_tracking_history"            : "dpaw:resource_tracking_history_uat",
-        //"cddp:other_tenures"                        : "cddp:other_tenures_new"
+        //"dpaw:resource_tracking_history"            : "dpaw:resource_tracking_history_uat"
 
     },
     overviewLayer:"dbca:mapbox-outdoors",
@@ -45,3 +49,4 @@ document.body.onload = function() {
     }
     setTimeout(setStyle,500)
 }
+

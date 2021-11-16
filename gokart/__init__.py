@@ -43,7 +43,11 @@ bottle.route('/outlookmetadata', "GET", raster.outlookmetadata)
 bottle.route('/weatheroutlook/<fmt>', "POST", raster.weatheroutlook)
 
 import kmi
-bottle.route('/kmi/layer',"GET",kmi.layermetadata)
+bottle.route('/kmi/layer', "GET", kmi.layermetadata)
+
+import hotspot_emails
+bottle.route("/hotspot_email_list", "GET", hotspot_emails.get_email_addresses)
+bottle.route("/send_hotspot_email/<recipient>/<msg_text>/<flights>/<cql_filter>", "GET", hotspot_emails.send_email)
 
 @bottle.route('/client')
 def server_static():
@@ -195,12 +199,13 @@ def index(app):
     try:
         profile = _get_profile(app)
         if profile["dependents"]["vendorMD5"] != profile["build"]["vendorMD5"]:
-            raise Exception("Application was built base on outdated vendor library, please build application again.")
+            raise Exception("Application was built based on outdated vendor library, please build application again.")
         return bottle.template('index.html',template_adapter=bottle.Jinja2Template,template_settings=jinja2settings, app=app,envType=settings.ENV_TYPE,profile=profile,weatherforecast_url=settings.WEATHERFORECAST_URL)
     except:
         bottle.response.status = 400
         bottle.response.set_header("Content-Type","text/plain")
-        traceback.print_exc()
+        #if app.isalnum():
+        #   traceback.print_exc()
         return traceback.format_exception_only(sys.exc_type,sys.exc_value)
 
 @bottle.route("/weatherforecast",method="POST")

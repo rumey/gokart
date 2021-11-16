@@ -65,12 +65,12 @@
     }, 
     ready: function () {
       var vm = this
-      $("#settings-tabs").on("change.zf.tabs",function(target,selectedTab){
+      $("#settings-tabs").on("change.zf.tabs", function(target, selectedTab){
           var menu = selectedTab.attr('menu')
-          vm.info.hoverable.splice(0,vm.info.hoverable.length)
+          vm.info.hoverable.splice(0, vm.info.hoverable.length)
           vm.switchMenu(menu)
           vm.$root.menuChanged()
       })
-    }
+	}
   }
 </script>

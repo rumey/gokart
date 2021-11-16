@@ -131,7 +131,7 @@ div.ol-previewmap.ol-uncollapsible {
 </style>
 
 <script>
-  import { $, ol, Vue,utils } from 'src/vendor.js'
+  import { $, ol, Vue, utils } from 'src/vendor.js'
   Vue.filter('lessThan', function(value, length) {
     return value.length < length
   })
@@ -216,13 +216,16 @@ div.ol-previewmap.ol-uncollapsible {
         var switches = $(this.$el).find('input.ctlgsw')
         switches.attr('checked', !checked).trigger('click')
       },
+	  
       // helper function to simulate a <label> style click on a row
       onToggle: function (index) {
         $(this.$el).find('#ctlgsw' + index).trigger('click')
       },
+	  
       // toggle a layer in the Layer Catalogue
       //return true if layer's state is changed; otherwise return false
       onLayerChange: function (layer, checked) {
+		//alert('catalogue 228 onLayerChange: ' + layer.id)
         var vm = this
         var active = this.$root.active
         var map = this.$root.map
@@ -232,7 +235,7 @@ div.ol-previewmap.ol-uncollapsible {
         }
         // make the layer match the state
         if (checked) {
-          var olLayer = map['create' + layer.type](layer)
+		  var olLayer = map['create' + layer.type](layer)
           olLayer.setOpacity(layer.opacity || 1)
           if (layer.base) {
             // "Switch out base layers automatically" is enabled, remove
@@ -250,14 +253,15 @@ div.ol-previewmap.ol-uncollapsible {
           } else {
             map.olmap.addLayer(olLayer)
           }
-          this.map.olmap.dispatchEvent(this.map.createEvent(this.map,"addLayer",{mapLayer:olLayer}))
+          this.map.olmap.dispatchEvent(this.map.createEvent(this.map, "addLayer", {mapLayer:olLayer}))
         } else {
           active.removeLayer(map.getMapLayer(layer))
         }
         return true
       },
+
       // helper to populate the catalogue from a remote service
-      loadRemoteCatalogue: function (callback,failedCallback) {
+      loadRemoteCatalogue: function (callback, failedCallback) {
         var vm = this
         var req = new window.XMLHttpRequest()
         req.withCredentials = true
@@ -266,10 +270,11 @@ div.ol-previewmap.ol-uncollapsible {
           var layers = []
           JSON.parse(this.responseText).forEach(function (l) {
             // overwrite layers in the catalogue with the same identifier
-            if (vm.getLayer(l.identifier)) {
+            i = 0
+			if (vm.getLayer(l.identifier)) {
                 vm.catalogue.remove(vm.getLayer(l.identifier))
+				i += 1
             }
-            
             l.systemid = l.id;
             l.id = getIndependentLayerId(l.identifier);
             // add the base flag for layers tagged 'basemap'
@@ -288,13 +293,16 @@ div.ol-previewmap.ol-uncollapsible {
             if (!checkingLayer) {
                 checkingLayer = l
             }
-
             layers.push(l)
           })
           if (checkingLayer) { 
-              utils.checkPermission(vm.env.catalogueAdminService + "/admin/catalogue/record/" + checkingLayer.systemid + "/change/","GET",function(allowed){
+			 utils.checkPermission(vm.env.catalogueAdminService + "/admin/catalogue/record/" + checkingLayer.systemid + "/change/", "GET", function(allowed){
                 vm.whoami.editLayer = allowed
-                vm.catalogue.extend(layers)
+				vm.catalogue.extend(layers)
+				/*var my_array = vm.catalogue.getArray()
+				var arrayLength = my_array.length;
+				for (var i = 0; i < arrayLength; i++) {
+				alert(my_array[i]['name'] + ", "  + my_array[i]['id']  + ", "  +  my_array[i]['title'] )}*/
                 callback()
               })
           } else {
@@ -303,6 +311,7 @@ div.ol-previewmap.ol-uncollapsible {
               callback()
           }
         }
+
         req.onerror = function (ev) {
           var msg ='Couldn\'t load layer catalogue!' +  (req.statusText? (" (" + req.statusText + ")") : '')
           if (failedCallback) {
@@ -311,7 +320,7 @@ div.ol-previewmap.ol-uncollapsible {
             console.error(msg)
           }
         }
-        req.open('GET', vm.env.cswService + "?format=json&application__name=" + getAppId(this.app.toLowerCase()))
+		req.open('GET', vm.env.cswService + "?format=json&application__name=" + getAppId(this.app.toLowerCase()))
         req.send()
       },
       getLayer: function (id) {
@@ -326,13 +335,14 @@ div.ol-previewmap.ol-uncollapsible {
       }
     },
     ready: function () {
-      var vm = this
-      var catalogueStatus = vm.loading.register("catalogue","Catalogue Component")
+	  var vm = this
+      var catalogueStatus = vm.loading.register("catalogue", "Catalogue Component")
       this.catalogue.on('add', function (event) {
         var l = event.element
         l.id = l.id || l.identifier
         l.name = l.name || l.title
         l.type = l.type || 'TileLayer'
+		
         if (l.type === 'TileLayer') {
           if (l.legend) {
             if (!(l.legend.toLowerCase().startsWith("http"))) {
@@ -353,11 +363,11 @@ div.ol-previewmap.ol-uncollapsible {
             vm.map.setRefreshInterval(l,l.refresh)
         }
       })
-      catalogueStatus.phaseBegin("gk-init",80,"Listen 'gk-init' event",true,true)
+      catalogueStatus.phaseBegin("gk-init", 80, "Listen 'gk-init' event", true, true)
       this.$on('gk-init', function() {
         catalogueStatus.phaseEnd("gk-init")
 
-        catalogueStatus.phaseBegin("initialize",20,"Initialize",true,false)
+        catalogueStatus.phaseBegin("initialize", 20, "Initialize", true, false)
         $(this.$root.map.olmap.getTargetElement()).on('mouseleave', '.ol-previewmap', function() {
             vm.preview(false)
         })

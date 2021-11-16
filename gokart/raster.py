@@ -296,7 +296,6 @@ def prepareDatasource(datasource):
                     datasource["datasource"] = None
     
             if not datasource.get("datasource"):
-                print(repr(datasource))
                 try:
                     fileLock.acquire()
                     #check whether the file is decompressed before
@@ -2184,7 +2183,7 @@ def outlookmetadata():
 def weatheroutlook(fmt):
     """
     Get data from raster datasources
-    Request datas
+    Request data
         point: the coordinate of the point whose data will be retrieved from raster datasources
         srs: the spatial reference system of the coordinate, if missing, epsg:4326 will be used
         outlooks:  raster datasources and related options

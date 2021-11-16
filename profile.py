@@ -59,10 +59,13 @@ def generate_app_profile():
         for k,v in [(b"commit","commit"),(b"Author:","commit_author"),(b"Merge:",""),(b"Date:","commit_date"),(b"","commit_message")]:
             if line[:len(k)] == k:
                 if v and line[len(k):].strip() :
+                    text = remove_non_ascii(line[len(k):])
                     if v in commit_info:
-                        commit_info[v] =  "{}\\n{}".format(commit_info[v],line[len(k):].strip().decode('utf-8'))
+                        #commit_info[v] =  "{}\\n{}".format(commit_info[v],line[len(k):].strip().decode('utf-8'))
+                        commit_info[v] =  "{}\\n{}".format(commit_info[v],text.strip().decode('utf-8'))
                     else:
-                        commit_info[v] = line[len(k):].strip().decode('utf-8')
+                        #commit_info[v] = line[len(k):].strip().decode('utf-8')
+                        commit_info[v] = text.strip().decode('utf-8')
                 break
     if 'commit' in commit_info:
         commit_info['commit'] = commit_info['commit'][:7]
@@ -99,5 +102,6 @@ def remove_non_ascii(text):
 
 if __name__ == "__main__":
     generate_app_profile()
+
 
 

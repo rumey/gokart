@@ -9,6 +9,7 @@
                     <gk-layers v-ref:layers></gk-layers>
                     <gk-annotations v-ref:annotations></gk-annotations>
                     <gk-tracking v-ref:tracking></gk-tracking>
+					<gk-thermal v-ref:thermal></gk-thermal>
                     <gk-bfrs v-ref:bfrs></gk-bfrs>
                     <gk-dialog v-ref:dialog></gk-dialog>
                 </div>
@@ -50,6 +51,11 @@
                             <i class="fa fa-truck" aria-hidden="true"></i>
                         </a>
                     </li>
+					<li class="tabs-title side-button"  menu="thermal">
+                        <a href="#menu-tab-thermal" title="Thermal Imaging">
+                            <i class="fa fa-plane" aria-hidden="true"></i>
+                        </a>
+                    </li>
                     <li class="tabs-title side-button" menu="bfrs">
                         <a href="#menu-tab-bfrs" title="Bushfire Report System">
                             <i class="fa fa-fire" aria-hidden="true"></i>
@@ -73,6 +79,7 @@
     import gkLayers from '../components/layers.vue'
     import gkAnnotations from '../components/annotations.vue'
     import gkTracking from '../components/sss/tracking.vue'
+	import gkThermal from '../components/sss/thermal.vue'
     import gkLoading from '../components/loading.vue'
     import gkSettings from '../components/settings.vue'
     import gkBfrs from '../components/sss/bfrs.vue'
@@ -96,9 +103,10 @@
           systemsetting: function () { return this.$root.systemsetting },
           settings: function () { return this.$root.settings },
       },
-      components: { gkMap, gkLayers, gkAnnotations, gkTracking, gkLoading,gkSettings , gkBfrs ,gkDialog},
+      components: {gkMap, gkLayers, gkAnnotations, gkTracking, gkThermal, gkLoading, gkSettings, gkBfrs, gkDialog},
       methods:{
-        switchMenu:function(menu) {
+        switchMenu: function(menu) {
+			//alert('sss.vue L110 switchMenu')
             if ((this.activeMenu === menu) || (!this.activeMenu && !menu)) {
                 //new active menu is equal to current active menu, do nothing
                 return
@@ -109,10 +117,10 @@
             this.activeMenu = menu || null
             this.activeSubmenu = null
 
-            if (this.activeMenu && this.$root[this.activeMenu].setup) {
+			if (this.activeMenu && this.$root[this.activeMenu].setup) {
                 this.$root[this.activeMenu].setup()
             }
-            if (["layers","settings"].indexOf(menu) < 0) {
+            if (["layers", "settings"].indexOf(menu) < 0) {
                 this.activeSubmenu = null
             }
             this.$root.menuChanged()
@@ -120,9 +128,9 @@
       },
       ready: function () {
         var vm = this
-        $("#menu-tabs").on("change.zf.tabs",function(target,selectedTab){
+        $("#menu-tabs").on("change.zf.tabs", function(target, selectedTab){
             var menu = selectedTab.attr('menu')
-            vm.info.hoverable.splice(0,vm.info.hoverable.length)
+            vm.info.hoverable.splice(0, vm.info.hoverable.length)
             vm.switchMenu(menu)
         })
       }

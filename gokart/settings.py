@@ -48,7 +48,7 @@ BASE_PATH = os.path.dirname(__file__)
 ENV_TYPE = (os.environ.get("ENV_TYPE") or "prod").lower()
 DIST_TYPE = (os.environ.get("DIST_TYPE") or "release").lower()
 BASE_DIST_PATH = os.path.join(os.path.dirname(BASE_PATH),"dist")
-DIST_PATH = os.path.join(os.path.dirname(BASE_PATH),"dist",DIST_TYPE)
+DIST_PATH = os.path.join(os.path.dirname(BASE_PATH), "dist", DIST_TYPE)
 
 KMI_SERVER = os.environ.get("KMI_SERVER") or "https://kmi.dbca.wa.gov.au/geoserver"
 
@@ -63,6 +63,9 @@ CALCULATE_AREA_IN_SEPARATE_PROCESS = (os.environ.get("CALCULATE_AREA_IN_SEPARATE
 EXPORT_CALCULATE_AREA_FILES_4_DEBUG = (os.environ.get("EXPORT_CALCULATE_AREA_FILES_4_DEBUG") or "false").lower() in ["true","yes","on"]
 
 PERTH_TIMEZONE = datetime.datetime.now(pytz.timezone('Australia/Perth')).tzinfo
+
+EMAIL_USER = "aws.trackingpoints@dbca.wa.gov.au"
+EMAIL_PWD = "BronzeM0ngoose"
 
 def get_bool(name,defaultValue=None):
     value = os.environ.get(name)
