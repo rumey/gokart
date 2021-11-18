@@ -50,7 +50,7 @@ DIST_TYPE = (os.environ.get("DIST_TYPE") or "release").lower()
 BASE_DIST_PATH = os.path.join(os.path.dirname(BASE_PATH),"dist")
 DIST_PATH = os.path.join(os.path.dirname(BASE_PATH), "dist", DIST_TYPE)
 
-KMI_SERVER = os.environ.get("KMI_SERVER") or "https://kmi.dbca.wa.gov.au/geoserver"
+KMI_SERVERS = dict([ name.split(':',1) for name in (os.environ.get("KMI_SERVERS") or ".dbca.wa.gov.au:https://kmi.dbca.wa.gov.au/geoserver,.dpaw.wa.gov.au:https://kmi.dpaw.wa.gov.au/geoserver").split(",") ])
 
 CHECK_OVERLAP_IF_CALCULATE_AREA_FAILED = (os.environ.get("CHECK_OVERLAP_IF_CALCULATE_AREA_FAILED") or "false").lower() in ["true","yes","on"]
 
@@ -64,8 +64,13 @@ EXPORT_CALCULATE_AREA_FILES_4_DEBUG = (os.environ.get("EXPORT_CALCULATE_AREA_FIL
 
 PERTH_TIMEZONE = datetime.datetime.now(pytz.timezone('Australia/Perth')).tzinfo
 
-EMAIL_USER = "aws.trackingpoints@dbca.wa.gov.au"
-EMAIL_PWD = "BronzeM0ngoose"
+EMAIL_USER = os.environ.get("EMAIL_USER_TRACKING_POINT")
+EMAIL_PWD = os.environ.get("EMAIL_PWD_TRACKING_POINT")
+BOM_BASETIME_URL = os.environ.get("BOM_BASETIME_URL") or "/bom/wms?service=WMS&version=1.1.0&request=GetMap&styles=&bbox=70.0,-55.0, 195.0, 20.0&width=768&height=460&srs=EPSG:4283&format=image%2Fgif&layers={}"
+if BOM_BASETIME_URL[0] == "/":
+    BOM_BASETIME_URL = "{{}}{}".format(BOM_BASETIME_URL)
+else:
+    BOM_BASETIME_URL = "{{}}/{}".format(BOM_BASETIME_URL)
 
 def get_bool(name,defaultValue=None):
     value = os.environ.get(name)
@@ -78,7 +83,7 @@ def get_string(name,defaultValue=None):
     return os.environ.get(name,defaultValue)
 
 session_key_header = "X-Session-Key"
-sso_cookie_names = dict([ name.split(':') for name in (os.environ.get("SSO_COOKIE_NAME") or ".dbca.wa.gov.au:dbca_wa_gov_au_sessionid,.dpaw.wa.gov.au:dpaw_wa_gov_au_sessionid").split(",") ])
+sso_cookie_names = dict([ name.split(':',1) for name in (os.environ.get("SSO_COOKIE_NAME") or ".dbca.wa.gov.au:dbca_wa_gov_au_sessionid,.dpaw.wa.gov.au:dpaw_wa_gov_au_sessionid").split(",") ])
 
 def get_request_domain():
     return bottle.request.urlparts[1]
@@ -95,6 +100,19 @@ def get_sso_cookie_name():
                 return value
 
         raise "Please configure sso cookie name for domain '{}'".format(domain)
+
+def get_kmiserver():
+    domain = get_request_domain()
+
+    try:
+        return KMI_SERVERS[domain]
+    except:
+        for key,value in KMI_SERVERS.iteritems():
+            if domain.endswith(key):
+                KMI_SERVERS[domain] = value
+                return value
+
+        raise "Please configure kmi server for domain '{}'".format(domain)
 
 def get_session_cookie(template=None):
     """ 
@@ -144,14 +162,6 @@ def typename(url):
     m = typename_re.search(url.lower())
     return m.group('name').replace("%3a",":") if m else None
 
-kmiserver_re = re.compile("^(?P<url>[hH][tT][tT][pP][sS]?://[a-zA-Z0-9\-\_\./]+/geoserver)",re.DOTALL)
-def kmiserver(url):
-    m = kmiserver_re.search(url)
-    if m:
-        return "{}/".format(m.group('url'))
-    else:
-        return KMI_SERVER
-
 def datetime_encoder(self,o):
     if isinstance(o,datetime.datetime):
         return o.strftime("%Y-%m-%d %H:%M:%S")
@@ -160,3 +170,14 @@ def datetime_encoder(self,o):
     else:
         raise TypeError("Unknown type {}".format(type(o)))
 json.JSONEncoder.default = datetime_encoder
+
+def getEnvDomain():
+    domain = get_request_domain()
+    if domain.endswith(".dpaw.wa.gov.au"):
+        return "dpaw"
+    elif domain.endswith(".dbca.wa.gov.au"):
+        return "dbca"
+    else:
+        raise Exception("Domain({}) Not Support".format(domain))
+
+

@@ -365,7 +365,7 @@ def checkOverlap(session_cookies,feature,options,logfile):
                         f.write("\n")
 
 
-def calculateArea(feature,session_cookies,options):
+def calculateArea(feature,kmiserver,session_cookies,options):
     """
     return:{
         status {
@@ -392,13 +392,13 @@ def calculateArea(feature,session_cookies,options):
     The reason to calculate the area in another process is to releace the memory immediately right after area is calculated.
     """
     if not settings.CALCULATE_AREA_IN_SEPARATE_PROCESS:
-        return  _calculateArea(feature,session_cookies,options,False)
+        return  _calculateArea(feature,kmiserver,session_cookies,options,False)
 
     parent_conn,child_conn = Pipe(True)
     p = Process(target=calculateAreaInProcess,args=(child_conn,))
     p.daemon = True
     p.start()
-    parent_conn.send([feature,session_cookies,options])
+    parent_conn.send([feature,kmiserver,session_cookies,options])
     result = parent_conn.recv()
     parent_conn.close()
     #p.join()
@@ -407,8 +407,8 @@ def calculateArea(feature,session_cookies,options):
 
 
 def calculateAreaInProcess(conn):
-    feature,session_cookies,options = conn.recv()
-    result = _calculateArea(feature,session_cookies,options,True)
+    feature,kmiserver,session_cookies,options = conn.recv()
+    result = _calculateArea(feature,kmiserver,session_cookies,options,True)
     if "overlap_logfile" in result:
         overlapLogfile = result["overlap_logfile"]
         del result["overlap_logfile"]
@@ -445,7 +445,7 @@ def calculateGeometryArea(geometry,src_proj="EPSG:4326",unit='ha'):
     return  getGeometryArea(geometry_aea,unit,'aea')
 
 
-def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
+def _calculateArea(feature,kmiserver,session_cookies,options,run_in_other_process=False):
     # needs gdal 1.10+
     layers = options["layers"]
     unit = options["unit"] or "ha"
@@ -501,7 +501,8 @@ def _calculateArea(feature,session_cookies,options,run_in_other_process=False):
         elif "id" not in layer:
             layer["id"] = layer["layerid"]
         if not layer.get("kmiservice"):
-            layer["kmiservice"] = settings.KMI_SERVER
+            layer["kmiservice"] = kmi_server
+
 
     area_data["layers"] = {}
     areas_map = {} if merge_result else None
@@ -632,7 +633,7 @@ def layerdefinition(layer):
     return layerdefinition
 
 
-def getFeature(feature,session_cookies,options):
+def getFeature(feature,kmiserver,session_cookies,options):
     """
     options:{
         format: properties or geojson//optional default is properties
@@ -681,7 +682,7 @@ def getFeature(feature,session_cookies,options):
         elif "id" not in layer:
             layer["id"] = layer["layerid"]
         if not layer.get("kmiservice"):
-            layer["kmiservice"] = settings.KMI_SERVER
+            layer["kmiservice"] = kmiserver
 
     get_feature_data = {"id":None,"layer":None,"failed":None}
 
@@ -824,6 +825,7 @@ def spatial():
         else:
             options = {}
 
+        kmiserver = settings.get_kmiserver()
         cookies = settings.get_session_cookie()
         results = []
 
@@ -838,9 +840,9 @@ def spatial():
                 if "action" not in val:
                     val["action"] = key
                 if val["action"] == "getArea":
-                    feature_result[key] = calculateArea(feature,cookies,val)
+                    feature_result[key] = calculateArea(feature,kmiserver,cookies,val)
                 else:
-                    feature_result[key] = getFeature(feature,cookies,val)
+                    feature_result[key] = getFeature(feature,kmiserver,cookies,val)
 
         bottle.response.set_header("Content-Type", "application/json")
         #print("{}:return response to client.{}".format(datetime.now(),results))

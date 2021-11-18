@@ -2486,13 +2486,14 @@ def weatheroutlook(fmt):
                         if datasource["status"] :
                             formatBandsData(datasource,result["options"].get("no_data") or "")
 
+            envDomain = settings.getEnvDomain()
             if fmt == "amicus":
                 bottle.response.set_header("Content-Type", "application/xml")
                 bottle.response.set_header("Content-Disposition", "attachment;filename='weather_outlook_for_amicus_{}.xml'".format(datetime.datetime.strftime(datetime.datetime.now(),"%Y%m%d_%H%M%S")))
-                return bottle.template('weatheroutlook_amicus.xml',template_adapter=bottle.Jinja2Template,template_settings=jinja2settings, staticService=settings.STATIC_SERVICE,data=result,envType=settings.ENV_TYPE)
+                return bottle.template('weatheroutlook_amicus.xml',template_adapter=bottle.Jinja2Template,template_settings=jinja2settings, staticService=settings.STATIC_SERVICE,data=result,envType=settings.ENV_TYPE,envDomain=envDomain)
             else:
                 bottle.response.set_header("Content-Type", "text/html")
-                return bottle.template('weatheroutlook.html',template_adapter=bottle.Jinja2Template,template_settings=jinja2settings, staticService=settings.STATIC_SERVICE,data=result,envType=settings.ENV_TYPE)
+                return bottle.template('weatheroutlook.html',template_adapter=bottle.Jinja2Template,template_settings=jinja2settings, staticService=settings.STATIC_SERVICE,data=result,envType=settings.ENV_TYPE,envDomain=envDomain)
 
     except:
         bottle.response.status = 400

@@ -54,7 +54,7 @@ def server_static():
     return bottle.static_file('client.html', root=settings.BASE_PATH)
 
 profile_re = re.compile("gokartProfile\s*=\s*(?P<profile>\{.+\})\s*;?\s*exports.+default.+gokartProfile", re.DOTALL)
-def _get_profile(app):
+def _get_profile(app,envDomain):
     # get app profile
     profile = None
     appPath = os.path.join(settings.DIST_PATH, "{}.js".format(app))
@@ -118,11 +118,11 @@ def _get_profile(app):
             uwsgi.cache_set(key, json.dumps(vendorProfile))
     profile["profile"]["dependents"]["vendorMD5"] = vendorProfile["vendorMD5"]
     # get env profile
-    envPath = os.path.join(settings.BASE_DIST_PATH, 'release', 'static', 'js', "{}.env.js".format(settings.ENV_TYPE))
+    envPath = os.path.join(settings.BASE_DIST_PATH, 'release', 'static', 'js', "{}.{}.env.js".format(settings.ENV_TYPE,envDomain))
     if not os.path.exists(envPath):
-        raise Exception("'{}.env.js' is missing.".format(settings.ENV_TYPE))
+        raise Exception("'{}.{}.env.js' is missing.".format(settings.ENV_TYPE,envDomain))
     else:
-        key = "{}_{}_profile".format("env", settings.ENV_TYPE)
+        key = "{}_{}_{}_profile".format("env", settings.ENV_TYPE,envDomain)
         profileChanged = False
         envProfile = None
         if uwsgi.cache_exists(key):
@@ -184,7 +184,9 @@ def _get_profile(app):
 def profile(app):
     #get app profile
     try:
-        profile = _get_profile(app)
+        envDomain = settings.getEnvDomain()
+
+        profile = _get_profile(app,envDomain)
         bottle.response.set_header("Content-Type", "application/json")
         return profile
     except:
@@ -197,10 +199,12 @@ def profile(app):
 @bottle.route('/<app>')
 def index(app):
     try:
-        profile = _get_profile(app)
-        if profile["dependents"]["vendorMD5"] != profile["build"]["vendorMD5"]:
+        envDomain = settings.getEnvDomain()
+
+        profile = _get_profile(app,envDomain)
+        if profile["dependents"]["vendorMD5"] != profile["build"]["vendorMD5"] and settings.ENV_TYPE == "prod":
             raise Exception("Application was built based on outdated vendor library, please build application again.")
-        return bottle.template('index.html',template_adapter=bottle.Jinja2Template,template_settings=jinja2settings, app=app,envType=settings.ENV_TYPE,profile=profile,weatherforecast_url=settings.WEATHERFORECAST_URL)
+        return bottle.template('index.html',template_adapter=bottle.Jinja2Template,template_settings=jinja2settings, app=app,envType=settings.ENV_TYPE,envDomain=envDomain,profile=profile,weatherforecast_url=settings.WEATHERFORECAST_URL)
     except:
         bottle.response.status = 400
         bottle.response.set_header("Content-Type","text/plain")
@@ -213,6 +217,7 @@ def weatherforecast():
     #weather forecast
     try:
         if settings.WEATHERFORECAST_URL:
+            envDomain = settings.getEnvDomain()
             requestData = bottle.request.forms.get("data")
             if requestData:
                 requestData = json.loads(requestData)
@@ -221,7 +226,7 @@ def weatherforecast():
             requestData["weatherforecast_url"] = settings.WEATHERFORECAST_URL
             requestData["weatherforecast_user"] = settings.WEATHERFORECAST_USER
             requestData["weatherforecast_password"] = settings.WEATHERFORECAST_PASSWORD
-            return bottle.template('weatherforecast.html',template_adapter=bottle.Jinja2Template,template_settings=jinja2settings,envType=settings.ENV_TYPE,request_time=datetime.datetime.now(settings.PERTH_TIMEZONE), **requestData)
+            return bottle.template('weatherforecast.html',template_adapter=bottle.Jinja2Template,template_settings=jinja2settings,envType=settings.ENV_TYPE,envDomain=envDomain,request_time=datetime.datetime.now(settings.PERTH_TIMEZONE), **requestData)
         else:
             bottle.response.status = 404
             bottle.response.set_header("Content-Type","text/plain")
@@ -303,10 +308,7 @@ def himawari8(target):
     else:
         return result
 
-basetime_url = os.environ.get("BOM_BASETIME_URL") or "https://kmi.dbca.wa.gov.au/geoserver/bom/wms?service=WMS&version=1.1.0&request=GetMap&styles=&bbox=70.0,-55.0, 195.0, 20.0&width=768&height=460&srs=EPSG:4283&format=image%2Fgif&layers={}"
 basetime_re = re.compile("(\d{4})-(\d{2})-(\d{2})\s*(\d{2})\D*(\d{2})\s*(UTC)")
-
-
 def getTimelineFromWmsLayer(current_timeline, layerIdFunc):
     basetimeLayer = bottle.request.query.get("basetimelayer")
     timelineSize = bottle.request.query.get("timelinesize")
@@ -320,7 +322,7 @@ def getTimelineFromWmsLayer(current_timeline, layerIdFunc):
     try:
         # import ipdb;ipdb.set_trace()
         localfile = tempfile.NamedTemporaryFile(mode='w+b', delete=False, prefix=basetimeLayer.replace(":", "_"), suffix=".gif").name
-        subprocess.check_call(["curl", "-G", "--cookie", settings.get_session_cookie(template="{0}={1}"), basetime_url.format(basetimeLayer), "--output", localfile])
+        subprocess.check_call(["curl", "-G", "--cookie", settings.get_session_cookie(template="{0}={1}"), settings.BOM_BASETIME_URL.format(settings.get_kmiserver(),basetimeLayer), "--output", localfile])
         md5 = settings.get_file_md5(localfile)
         if current_timeline and current_timeline["md5"] == md5:
             return current_timeline

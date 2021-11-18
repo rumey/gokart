@@ -27,7 +27,7 @@
     <!-- main global styles down here to load after all packaged styles -->
     <link rel="stylesheet" property="stylesheet" type="text/css" href="dist/static/css/style.css?version={{profile["dependents"]["styleMD5"]}}" />
     <app v-ref:app></app>
-    <script src="dist/static/js/{{ envType }}.env.js?version={{profile["dependents"]["envMD5"]}}"></script>
+    <script src="dist/static/js/{{ envType }}.{{envDomain}}.env.js?version={{profile["dependents"]["envMD5"]}}"></script>
     <script src="dist/vendor.js?version={{profile["dependents"]["vendorMD5"]}}"></script>
     <script src="dist/sss.js?version={{profile["build"]["md5"]}}"></script>
   </body>

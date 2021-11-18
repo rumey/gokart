@@ -25,13 +25,13 @@ def layermetadatakey(layerid):
 def layerdefinitionkey(layerid):
     return "layerdefinition_{}".format(layerid)
 
-def get_kmiserver(kmiserver=settings.KMI_SERVER):
-    kmiserver = kmiserver or settings.KMI_SERVER
+def get_kmiserver(kmiserver=None):
+    kmiserver = kmiserver or settings.get_kmiserver()
     if  kmiserver.endswith("/"):
         kmiserver = kmiserver[:-1]
     return kmiserver
 
-def get_layermetadata(layerids,kmiserver=settings.KMI_SERVER,results={}):
+def get_layermetadata(layerids,kmiserver=None,results={}):
     multiple_layers = True
     if isinstance(layerids,basestring):
         layerids = [layerids]
@@ -167,9 +167,7 @@ def get_layermetadata(layerids,kmiserver=settings.KMI_SERVER,results={}):
     else:
         return results[layerids[0]]
 
-def get_layerdefinition(layerids,kmiserver=settings.KMI_SERVER,results={}):
-    kmiserver = get_kmiserver(kmiserver)
-
+def get_layerdefinition(layerids,kmiserver=None,results={}):
     multiple_layers = True
     if isinstance(layerids,basestring):
         layerids = [layerids]

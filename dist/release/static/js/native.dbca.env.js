@@ -1,4 +1,6 @@
 var env = {
+    authUrl:'/sso/profile',
+
     appType: (window.location.protocol == "file:")?"cordova":"webapp",
 
     cswService:"https://csw-local.dbca.wa.gov.au/catalogue/api/records/",
