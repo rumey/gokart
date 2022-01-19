@@ -177,6 +177,8 @@ def getEnvDomain():
         return "dpaw"
     elif domain.endswith(".dbca.wa.gov.au"):
         return "dbca"
+    elif ".dbca.wa.gov.au:" in domain:      # Picks up development environment
+        return "dbca"
     else:
         raise Exception("Domain({}) Not Support".format(domain))
 

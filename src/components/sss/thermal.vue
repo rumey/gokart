@@ -68,7 +68,7 @@
                       <span class="show-for-sr">Date range</span>
                     </label>
                   </div>
-                  <label v-if="showDateRange" for="dateRange" class="side-label">Date range (on)</label>
+                  <label v-if="showDateRange" for="dateRange" class="side-label">Date range (up to 72 hr)</label>
 				  <label v-else for="dateRange" class="side-label">Date range (off)</label>
                 </div>
               </div>
@@ -99,9 +99,9 @@
 					  <option value="21024">Last 24 hours</option> 
 					  <option value="31002">Last 48 hours</option> 
                       <option value="31003">Last 3 days</option> 
-                      <option value="31005">Last 5 days</option> 
+                      <!--option value="31005">Last 5 days</option> 
                       <option value="31007">Last 7 days</option> 
-                      <option value="31030">Last 30 days</option> 
+                      <option value="31030">Last 30 days</option--> 
                       <option value="-1">User Defined</option> 
                 </select>
                 </div>
@@ -126,7 +126,7 @@
 			<div class="row">
               <div class="small-9 columns" >
                 <div class="row">
-                    <a class="button" @click="loadHotspotLayers" title="Show Hotspots">Show Hotspots </a>
+                    <a class="button" :disabled="invalidDateFilter"@click="loadHotspotLayers" title="Show Hotspots">Show Hotspots </a>
                 </div>
               </div>
 		    </div>
@@ -229,10 +229,7 @@
   import { ol, moment, Msal, nodemailer, postmark, kjua, qs, axios, utils } from 'src/vendor.js'		//kjua is here for QR codes
   export default {
     store: {
-        //showFootprint:'settings.showFlightFootprint',
-        //showMosaic:'settings.showRawImageMosaic',
-		//showDateRange:'settings.showDateRange',
-		hotspotLabels: true,	//boolean defining whether to show labels (can be later changed to use settings.
+        hotspotLabels: true,	//boolean defining whether to show labels (can be later changed to use settings.
         viewportOnly: 'settings.viewportOnly',
         hintsHeight: 'layout.hintsHeight',
         screenHeight: 'layout.screenHeight',
@@ -268,6 +265,7 @@
 		extent: null
       }
     },
+	
     computed: {
       map: function () { return this.$root.map },
       env: function () { return this.$root.env },
@@ -282,9 +280,11 @@
       selectedFeatures: function () {
         return this.annotations.getSelectedFeatures("thermal")
       },
+	  
       selectedFeaturesSize: function () {
         return this.selectRevision && this.selectedFeatures.getLength()
       },
+	  
       /*queryThermalDateRangeDisabled: function() {
         return !(this.selectRevision && this.selectedFeatures && this.selectedFeatures.getLength() && this.thermalFromDate !== "")
       },*/
@@ -323,6 +323,7 @@
         }
         return this._hotspotStyleFunc
       },
+	  
 	  flightFootprintLayer: function() {
         return this.$root.catalogue.getLayer("hotspots:hotspot_flight_footprints")
       },
@@ -368,8 +369,41 @@
       hasFeatureFilter: function () {		//prob replace with a hasDateFilter function based on whether a date or date range is specified
         return (this.search && this.search.trim())?true:false
       },
+	  
+	  invalidDateFilter: function() {
+		var invalid = true
+		if (!this.showDateRange){
+			if (this.thermalSingleDate != undefined && this.thermalSingleDate != "")
+				{invalid = false}
+		}	
+		if (this.showDateRange){
+			if (this.thermalDateRange!= undefined && this.thermalDateRange != "-1")
+				{invalid = false}
+			if (this.thermalDateRange == "-1") {
+				var startDatetime = this.thermalFromDate.replace(/-/g, "").replace(' ', '_').replace(':', '')
+				var endDatetime = this.thermalToDate.replace(/-/g, "").replace(' ', '_').replace(':', '')
+				if (endDatetime == ""){endDatetime = moment().format("YYYYMMDD_HHmm")}
+				var startYear = parseInt(startDatetime.substring(0,4))
+				var startMonth = parseInt(startDatetime.substring(4,6)) - 1
+				var startDay = startDatetime.substring(6,8)
+				var startHr = startDatetime.substring(9,11)
+				var startMin = startDatetime.substring(11,13)
+				var endYear = parseInt(endDatetime.substring(0,4))
+				var endMonth = parseInt(endDatetime.substring(4,6)) - 1
+				var endDay = endDatetime.substring(6,8)
+				var endHr = endDatetime.substring(9,11)
+				var endMin = endDatetime.substring(11,13)
+				var start = new Date(startYear, startMonth, startDay, startHr, startMin, 0)
+				var end = new Date(endYear, endMonth, endDay, endHr, endMin, 0)
+				var timeDiff = end - start
+				if (timeDiff <= 259200000) {invalid = false}		//25... is number of millisec in 72 hr
+			}
+		}
+		return invalid
+      },
 
-    },
+	},
+	  
     watch:{
       thermalDateRange: function(newValue, oldValue) {
         this.changeThermalDateRange()
@@ -383,15 +417,11 @@
     },
     
 	methods: {
-      adjustHeight_OLD: function() {
+      adjustHeight: function() {
         if (this.activeMenu === "thermal") {
-            $("#hotspot-list").height(this.screenHeight - this.leftPanelHeadHeight - 41 - $("#hotspot-list-controller-container").height() - this.hintsHeight)
+            $("#hotspot-list").height(this.screenHeight - this.leftPanelHeadHeight - 350 - $("#hotspot-list-controller-container").height() - this.hintsHeight)
         }
       },
-	  
-	  adjustHeight: function() {
-		"thermal"===this.activeMenu&&$("#hotspot-list").height(this.screenHeight-this.leftPanelHeadHeight-$("#hotspot-list-controller-container").height()-50)
-	  },
 	  
       changeThermalDateRange: function() {
         if (this.thermalDateRange === "-1") {
@@ -447,52 +477,6 @@
         } catch(ex) {
         }
       },
-	  
-	  thermalSingleDateFilter: function() {
-		if (this.showFlightFootprint){
-			alert("showFlightFootprint")
-		}
-		else {
-			alert("DON'T showFlightFootprint")
-		}
-		if (this.showMosaicRawImage){
-			alert("showMosaicRawImage")
-		}
-		else {
-			alert("DON'T showMosaicRawImage")
-		}
-	  },
-	  
-      /*thermalDateRangeFilter: function() {
-        if (this.thermalDateRange !== "-1") {
-            //in predefined range, reset the thermalFromDate and thermalToDate
-            this.changeThermalDateRange()
-        }
-        var startDate = (this.thermalFromDate)?moment(this.thermalFromDate,"YYYY-MM-DD HH:mm", true):null
-        if (startDate && !startDate.isValid()) {
-            throw "From date is under changing."
-        }
-
-        var endDate = (this.thermalToDate && this.thermalToDate < moment().format("YYYY-MM-DD HH:mm"))?moment(this.thermalToDate,"YYYY-MM-DD HH:mm", true):null
-        if (endDate && !endDate.isValid()) {
-            throw "To date is under changing."
-        }
-
-        if (startDate) {
-            if (endDate) {
-                if (startDate >= endDate) {
-                    throw "Start date must be earlier than end date."
-                }
-                return "seen BETWEEN '" + startDate.utc().format("YYYY-MM-DDTHH:mm:ssZ") + "' AND '" + utils.nextDate(endDate,"YYYY-MM-DD HH:mm").utc().format("YYYY-MM-DDTHH:mm:ssZ") + "'"
-            } else {
-                return "seen >= '" + startDate.utc().format("YYYY-MM-DDTHH:mm:ssZ") + "'"
-            }
-        } else if (endDate) {
-            return "seen < '" + utils.nextDate(endDate, "YYYY-MM-DD HH:mm").utc().format("YYYY-MM-DDTHH:mm:ssZ") + "'"
-        } else {
-            throw "Please specify date range."
-        }
-      },*/
 	  
 	  hasDateFilter: function() {
 	    var dateFilterSpecified = false
@@ -601,6 +585,11 @@
 	  
 	  toggleDateRange: function(){
 		this.thermalSingleDate = undefined
+		if (this.showDateRange) {
+			this.thermalFromDate = undefined, this.thermalToDate = undefined
+			this.ThermalDateRange = 21024
+			this.changeThermalDateRange()
+		}
 		if (!this.showDateRange) {
 		    this.thermalFromDate = undefined, this.thermalToDate = undefined
 		}	
@@ -611,7 +600,6 @@
       },
 	  
       updateCQLFilter: function (wait) {
-	  //alert('625: updateCQLFilter')
         var vm = this
         if (!vm._updateCQLFilter) {
             vm._updateCQLFilter = debounce(function(updateType){
@@ -682,72 +670,28 @@
 			"block"===button.nextElementSibling.style.display&&(setTimeout(function(){button.click()},10),i+=1)})
 			, i},
 	  
-	  loadHotspotLayers_OLD: function() {
-		var vm = this
-	    var map = vm.$root.map
-		this.imagesShow = {}
-		var layersToRemove = []
-		
-		map.olmap.getLayers().forEach(function (layer) {
-			/*if (layer.get('name') === 'Hotspots') {
-				map.olmap.removeLayer(layer)
-			}
-			if (layer.get('name') === 'Flight footprints') {
-				map.olmap.removeLayer(layer)
-			}*/
-			//alert("698: " + layer.get('name'))
-			if (layer.get('name') === 'Flight mosaics') {
-				map.olmap.removeLayer(layer)
-				//layersToRemove.push(layer)
-			}
-			if (layer.get('name').startsWith('Hotspot image')) {
-				//map.olmap.removeLayer(layer)
-				layersToRemove.push(layer)
-			}
-		})
-
-		if (layersToRemove.length > 0) {
-			alert('You need to remove the images before you can look at a new set of hotspots.  Close images by clicking on the names of any hotspots in the list with an image ON')
+	  loadHotspotLayers: function(){
+	    if (this.invalidDateFilter) {
 			return
 		}
-
-		var mosaicPosition = map.olmap.getLayers().getArray().length - 1
-	
-		if (vm.showFlightFootprint){
-			vm.flightFootprintLayer.style = vm.footprintStyle
-			var footprintOLLayer = map['createWFSLayer'](vm.flightFootprintLayer)
-			map.olmap.addLayer(footprintOLLayer)
-			footprintOLLayer.refresh()
-		}
-		
-	    // enable hotspot layer, if disabled
-        if (!vm.hotspotMapLayer) {
-            vm.catalogue.onLayerChange(vm.hotspotLayer, true)
-        } else if (vm.active.isHidden(vm.hotspotMapLayer)) {
-            vm.active.toggleHidden(vm.hotspotMapLayer)
-        }
-		else {
-			//switch off then on, should apply new filter if any
-			vm.hotspotMapLayer.getSource().loadSource('query')
-			vm.catalogue.onLayerChange(vm.hotspotLayer, false)
-			vm.catalogue.onLayerChange(vm.hotspotLayer, true)
-			//vm.hotspotMapLayer.refresh()
-			//vm.hotspotMapLayer.getSource().changed()
-			//vm.catalogue.onLayerChange(vm.hotspotLayer, true)
-			//vm.hotspotMapLayer.getSource().loadSource('query')
-			//this.catalogue.onLayerChange(this.flightFootprintLayer, false)
-			//this.catalogue.onLayerChange(this.flightFootprintLayer, true)
-		}
-		
-		if (vm.showRawImageMosaic){
-			var dateInfo = this.getDateInfoForMosaics(vm)
-			map['createWMSLayer'](mosaicPosition, dateInfo)
-		}
-	  },
-
-	  loadHotspotLayers:function(){
-		var _this = this
+	    var _this = this
 		var vm = this
+		vm._featurelist.clear()
+		vm.setExtentFeatureSize()
+		var cqlFilter = ""
+		if (vm.hasDateFilter()) {
+			if (vm.thermalSingleDate != undefined) {
+					var singleDate = vm.thermalSingleDate.replace(/-/g, "")
+					cqlFilter = "strStartsWith(flight_datetime,'" + singleDate + "')=true"
+				}
+			else if (vm.thermalToDate == ""){
+				var fromDate = vm.thermalFromDate.replace(/-/g, "")
+				cqlFilter = "flight_datetime>'" + fromDate + "'"}
+			else {
+				var toDate = vm.thermalToDate.replace(/-/g, "")
+				var fromDate = vm.thermalFromDate.replace(/-/g, "")
+				cqlFilter = "flight_datetime between '" + fromDate + "' and '" + toDate + "'"}
+		}
 		var map = vm.$root.map
 		var imagesRemoved = vm.removeImages();
 		
@@ -755,16 +699,48 @@
 		setTimeout(function(){
 			map.olmap.getLayers().getArray().slice().forEach(function(layer){
 				"Flight footprints"===layer.get("name")&&map.olmap.removeLayer(layer),"Flight mosaics"===layer.get("name")&&map.olmap.removeLayer(layer)
-		})
-		var mosaicPosition=map.olmap.getLayers().getArray().length-1
-		if (vm.showFlightFootprint){
+				if (layer.get("name") == "Hotspots"){
+					map.olmap.removeLayer(layer)
+				}
+				if (layer.get("name").startsWith("Hotspot image")){
+					map.olmap.removeLayer(layer)
+				}
+			})
+			vm.hotspotLayer.hotspotFilter = cqlFilter
+			//Use footprint to set extent,then remove
+			vm.flightFootprintLayer.hotspotFilter = cqlFilter
 			vm.flightFootprintLayer.style = vm.footprintStyle
 			var footprintOLLayer = map.createWFSLayer(vm.flightFootprintLayer)
 			map.olmap.addLayer(footprintOLLayer)
-			footprintOLLayer.refresh()}
-		if(vm.hotspotMapLayer?vm.active.isHidden(vm.hotspotMapLayer)?vm.active.toggleHidden(vm.hotspotMapLayer):(vm.catalogue.onLayerChange(vm.hotspotLayer,!1),vm.catalogue.onLayerChange(vm.hotspotLayer,!0)):vm.catalogue.onLayerChange(vm.hotspotLayer,!0),vm.showRawImageMosaic){
-			var dateInfo=_this.getDateInfoForMosaics(vm)
-			map.createWMSLayer(mosaicPosition,dateInfo)}},timeout)},
+			footprintOLLayer.refresh()
+			map.olmap.getLayers().getArray().slice().forEach(function(layer){
+				if (layer.get("name") == "Flight footprints"){
+						map.olmap.removeLayer(layer)
+					}})
+			var insertPosition = map.olmap.getLayers().getArray().length-1
+			map.createWMSLayerHotspots(cqlFilter, insertPosition)
+			var mosaicPosition = map.olmap.getLayers().getArray().length-2
+			if (vm.showFlightFootprint){
+				//vm.flightFootprintLayer.style = vm.footprintStyle
+				map.olmap.addLayer(footprintOLLayer)
+				footprintOLLayer.refresh()}
+			
+			if(vm.showRawImageMosaic){
+			var dateInfo =_this.getDateInfoForMosaics(vm)
+			map.createWMSLayer(mosaicPosition, dateInfo)}
+			var hotspotOLLayer = map.createWFSLayer(vm.hotspotLayer)
+			hotspotOLLayer.getSource().retrieveFeatures(cqlFilter, function(features){
+				vm.features.clear()
+				vm.updateFeatureFilter(0)
+				vm.features.extend(features.sort(vm.featureOrder))
+				$.each(features, function (index, feature){
+					var imagesString = feature.get('images')
+					var imagesArray = imagesString.split(',')
+					feature.shortImages = imagesArray
+				})
+			})
+			}, timeout)
+		},
 		
       featureFilter: function (f) {
         var search = this.search?this.search.toLowerCase().trim():""
@@ -772,17 +748,6 @@
           return ('' + f.get(key)).toLowerCase().indexOf(search) > -1
         })
         return found
-      },
-
-	  featureOrderOLD: function (a, b) {
-        var as = a.get('hotspot_no')
-        var bs = b.get('hotspot_no')
-        if (as < bs) {
-          return 1
-        } else if (as > bs) {
-          return -1
-        }
-        return 0
       },
 	  
 	  featureOrder: function (a, b) {
@@ -996,26 +961,19 @@
 					hotspots_position = map.olmap.getLayers().getArray().findIndex(function(l){return l === layer})
 					hotspotsLoaded = true
 			}
-			//if (layer.get('name').startsWith('Hotspot image')) {
-			//	other_hotspot_images += 1
-			//	alert(other_hotspot_images.toString() + " other_hotspot_images")
-			//}
 		})
-		//position = hotspots_position + other_hotspot_images + 1
 		position = hotspots_position
 		map.createWMSLayerSingleImage(position, flight_datetime, hotspot_no, file)
-		//this.imagesShow[parentIndex] = index
 	  },
 	  
 	  changeButtons: function(event) {
 	    var siblingButtons = this.getSiblingButtons(event.target)
 		if (!event.target.innerHTML.endsWith(" ON") && !event.target.innerHTML.endsWith(" ON</b>")) {	
 			event.target.innerHTML = event.target.innerHTML.replace("image ", "<b>image ") + " ON</b>"
-			//event.target.outerHTML = event.target.outerHTML.replace("<button ", '<button style="background-color:blue" ')	//altering outerHTML cuts link to on-click function
+			
 		}
 		siblingButtons.forEach(function (item, index) {
 			item.innerHTML = item.innerHTML.replace("<b>", "").replace(" ON</b>", "")
-			//item.outerHTML = item.outerHTML.replace('style="background-color:blue" ', '')
 		})
 	  },
 	  
@@ -1105,7 +1063,6 @@
 			alert ("You need to type in a message.")
 			return
 		}
-		//alert('1040 flights: ' + this.env.gokartService + '/send_hotspot_email/' + recipient + '/' + messageText + '/' + vm.flights + '/' + cqlFilter)
 		$.get(this.env.gokartService + '/send_hotspot_email/' + recipient + '/' + messageText + '/' + vm.flights + '/' + cqlFilter).then(function(response) {
 			alert(response)
 		})
@@ -1113,7 +1070,7 @@
 
 	  sendEmail: function(){var recipient=document.getElementById("emailRecipient").value,messageText=document.getElementById("emailText").value,vm=this,cqlFilter="";if(vm.hasDateFilter()&&void 0!=vm.thermalSingleDate){cqlFilter="strStartsWith(flight_datetime, '"+vm.thermalSingleDate.replace(/-/g,"")+"') = true"}this.getDateInfoForMosaics(vm);if(0==messageText.length)return void alert("You need to type in a message.");try{$.get(this.env.gokartService+"/send_hotspot_email/"+recipient+"/"+messageText+"/"+vm.flights+"/"+cqlFilter).then(function(response){alert(response)})}catch(err){alert(err.name+": "+err.message)}},
 
-      setExtentFeatureSize_OLD: function() {
+      setExtentFeatureSize: function() {
         var vm = this
         var size = 0
         this._featurelist.forEach(function(feat){
@@ -1121,15 +1078,8 @@
                 ++size
             }
         })
-        this.extentFeaturesSize = size;
+        this.extentFeaturesSize = size
       },
-	  
-	  setExtentFeatureSize: function(){
-		var vm = this
-		var size=0
-		this._featurelist.forEach(function(feat){feat.inViewport&&++size}),this.extentFeaturesSize=size
-		//alert(this.extentFeaturesSize)
-		},
 
       updateViewport: function(wait) {
         var vm = this
@@ -1180,16 +1130,6 @@
 
       //filter the loaded features based on report name and fire number
       setup: function() {
-
-        //restore the selected features
-        //this.annotations.restoreSelectedFeatures()
-		
-        /*this.annotations.selectable.push(this.trackingMapLayer)
-        this.info.hoverable.push(this.trackingMapLayer)
-        if (this.historyMapLayer) {
-            this.info.hoverable.push(this.historyMapLayer)
-        }
-        this.annotations.setTool()*/
         this.$nextTick(this.adjustHeight)
       },
       
@@ -1222,7 +1162,6 @@
           this._thermalFromDatePicker = $("#thermalFromDate").data().datepicker
       } catch(ex) {
           console.log(ex)
-		  alert('thermal 952: ' + ex)
           this._thermalFromDatePicker = null
       }
 
@@ -1258,7 +1197,10 @@
             thermalStatus.phaseFailed("load_hotspots", status + " : " + message)
         },
 		onload: function (loadType, vectorSource, features, defaultOnload) {
-			var s = function(hotspot_no) {
+			vm.features.clear()
+			vm.updateFeatureFilter(0)
+			vm.features.extend(features.sort(vm.featureOrder))
+			/*var s = function(hotspot_no) {
 				return new ol.style.Style({
 						text: new ol.style.Text({
 						  text: hotspot_no,
@@ -1271,18 +1213,15 @@
 							radius: 15
 						})
 					})
-			}
+			}*/
+
 			$.each(features, function (index, feature){
-				var hotspot_no = feature.get('hotspot_no').toString()
-				feature.setStyle(s(hotspot_no))
-				
+				//var hotspot_no = feature.get('hotspot_no').toString()
+				//feature.setStyle(s(hotspot_no))
 				var imagesString = feature.get('images')
 				var imagesArray = imagesString.split(',')
 				feature.shortImages = imagesArray
 			})
-			vm.features.clear()
-			vm.features.extend(features.sort(vm.featureOrder))
-			vm.updateFeatureFilter(0)		
 		}
       })
 	  
@@ -1301,6 +1240,17 @@
 			vm.footprints.clear()
 			vm.footprints.extend(features)
 			vm.updateFootprintFilter(0)
+			
+			$.each(features, function (index, feature){
+				feature.setStyle(
+					new ol.style.Style({
+						stroke: new ol.style.Stroke({
+							width: 5,
+							color: [0, 0, 255]
+						})
+					})
+				)
+			})
 		}
       })
 	  

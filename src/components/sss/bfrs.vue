@@ -1262,7 +1262,7 @@
                         if (caller === "import") {
                             vm.dialog.show({
                                 messages:[
-                                    "The sum of the burning areas in individual layers are " + Math.abs(feature_area["other_area"]).toFixed(2) + " greater than the total burning area " + feature_area["total_area"].toFixed(2) + ".",
+                                    "The sum of the burning areas in individual layers is " + Math.abs(feature_area["other_area"]).toFixed(2) + " greater than the total burning area " + feature_area["total_area"].toFixed(2) + ".",
                                     "The features from the following layers are overlaped.",
                                     [["",1],[getLayerId("cddp:legislated_lands_and_waters"),11]],
                                     [["",1],[getLayerId("cddp:dept_interest_lands_and_waters"),11]],
