@@ -13,7 +13,10 @@ var env = {
 	//hotspotService:"https://hotspots-uat.dbca.wa.gov.au/geoserver/hotspots",
 	hotspotService:"https://hotspots.dbca.wa.gov.au/geoserver/hotspots",
 
-    gokartService:"",
+    //gokartService:"http://sss-local.dbca.wa.gov.au:8050",
+	//gokartService:"http://sss-uat.dbca.wa.gov.au",
+	//gokartService:"http://sss.dbca.wa.gov.au",
+	gokartService: "",
     resourceTrackingService:"https://resourcetracking-uat.dbca.wa.gov.au",
 	//resourceTrackingService:"https://resourcetracking.dbca.wa.gov.au",
     bfrsService:"https://bfrs-uat.dbca.wa.gov.au",

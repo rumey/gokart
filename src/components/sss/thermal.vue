@@ -671,6 +671,14 @@
 			, i},
 	  
 	  loadHotspotLayers: function(){
+		  
+		$.get(this.env.gokart + "/hotspots_creds").then(function(response){
+			vm.hotspotLayer.user = response['user']
+			vm.hotspotLayer.pwd = response['pwd']
+			vm.flightFootprintLayer.user = response['user']
+			vm.flightFootprintLayer.pwd = response['pwd']
+		})
+		  
 	    if (this.invalidDateFilter) {
 			return
 		}
@@ -1141,7 +1149,7 @@
     ready: function () {
       var vm = this
       var thermalStatus = this.loading.register("thermal", "Thermal Imaging Component")
-      vm._featurelist = new ol.Collection()
+	  vm._featurelist = new ol.Collection()
 	  vm._footprintlist = new ol.Collection()
 
       thermalStatus.phaseBegin("initialize", 20, "Initialize")
