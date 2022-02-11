@@ -200,7 +200,6 @@ def profile(app):
 def index(app):
     try:
         envDomain = settings.getEnvDomain()
-
         profile = _get_profile(app,envDomain)
         if profile["dependents"]["vendorMD5"] != profile["build"]["vendorMD5"] and settings.ENV_TYPE == "prod":
             raise Exception("Application was built based on outdated vendor library, please build application again.")
@@ -374,7 +373,6 @@ def bomLayerIdFunc(layeridpattern):
 
 start_date = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=pytz.timezone("UTC")).astimezone(pytz.timezone("Australia/Perth"))
 
-
 @bottle.route("/bom/<target>")
 def bom(target):
     last_updatetime = bottle.request.query.get("updatetime")
@@ -414,5 +412,9 @@ def bom(target):
     else:
         return {"layers": timeline["layers"], "updatetime": timeline["updatetime"]}
 
+@bottle.route("/hotspots_creds")
+def hotspots_creds():
+    creds = {'user': settings.HOTSPOTS_USER, 'pwd': settings.HOTSPOTS_PWD}
+    return creds
 
 application = bottle.default_app()

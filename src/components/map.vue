@@ -852,6 +852,7 @@
           tileLoader(tile, src)
         }
       },
+	  
       setUrlTimestamp:function(tileSource,time) {
         if (!tileSource.setUrlTimestamp) {
           tileSource.setUrlTimestamp = function() {
@@ -865,6 +866,7 @@
         }
         tileSource.setUrlTimestamp(time)
       },
+	  
       refreshLayerTile : function (tileLayer) {
         var vm = this
         //for timeline layer, layer's source will be changed when change timeline index
@@ -881,6 +883,7 @@
         }
         tileLayer.getSource().load()
       },
+	  
       refreshTimelineFunc:function(layerOptions,postFetchTimelineFunc) {
         var vm = this
         var _func = null
@@ -1139,8 +1142,8 @@
 		var url = this.env.kmiService + "/wfs"
 		var withCredentialsSetting = true
 		if (options.id.startsWith('hotspots:')) {
-			var url = this.env.hotspotService
 			withCredentialsSetting = false
+			var url = this.env.hotspotService  + "/wfs"
 		}
 
         // default overridable params sent to the WFS source
@@ -1151,10 +1154,12 @@
           outputFormat: 'application/json',
           srsname: 'EPSG:4326',
           typename: getLayerId(options.id)
+		  //cql_filter: options.cqlFilter
         }, options.params || {})
 
         var vectorSource = new ol.source.Vector({
-            features: options.features || undefined
+            features: options.features || undefined,
+			params: options.params
         })
 		var vector = new ol.layer.Vector({
           opacity: options.opacity || 1,
@@ -1171,11 +1176,10 @@
           } else if (params.cql_filter) {
             delete params.cql_filter
           }
-		  
-          $.ajax({
-            url: url + '?' + $.param(params),
-            success: function (response, stat, xhr) {
-              var features = vm.$root.geojson.readFeatures(response)
+		  $.ajax({
+            url: url + '?' + $.param(params) + "&user=" + options.user + "&password=" + options.pwd,
+			  success: function (response, stat, xhr) {
+              var features = vm.$root.geojson.readFeatures(response)		
               onSuccess(features)
             },
             error: function () {
@@ -1190,6 +1194,7 @@
             }
           })
         }
+		
         vectorSource.loadSource = function (loadType, onSuccess) {
           if (options.cql_filter) {
             options.params.cql_filter = options.cql_filter
@@ -1198,7 +1203,8 @@
           }
           vm.$root.active.refreshRevision += 1
           vector.progress = 'loading'
-		  
+		  if (options.hotspotFilter){
+		  options.params.cql_filter = options.hotspotFilter}
           $.ajax({
             url: url + '?' + $.param(options.params),
             success: function (response, stat, xhr) {
@@ -1284,9 +1290,8 @@
         return vector
       },
 	  
-	  //createWMSLayer: function (mosaicLayers, mosaicPosition, dateInfo) {
 	  createWMSLayer: function (mosaicPosition, dateInfo) {
-		  // Added Nov 2020 to enable loading of hotspot imagery
+		  // Added Nov 2020 to enable loading of hotspot imosaic magery
 		  //mosaicPosition is the position within the map layers array in which the mosaic layers should be loaded (immediately below hotspots and footprints)
 		  //dateInfo is an array of length 0, 1 or 2
 		  // length = 0: no date filter
@@ -1297,12 +1302,11 @@
 		  var layerNames = []		// Will be used to hold names of all layers in geoserver hotspots.dbca.wa.gov.au
 		  var mosaicLayersString = ""	// Will be used to form string of layers passed in (mosaicLayers) which exist on geoserver
 		  // Fill layerNames (all geoserver layer names)
-		  $.get('https://hotspots.dbca.wa.gov.au/geoserver/hotspots/wms?service=WMS&version=1.1.0&request=GetCapabilities').then(function(response) {
+		  $.get(this.env.hotspotService + '/wms?service=WMS&version=1.1.0&request=GetCapabilities').then(function(response) {
 			  var capabilities = parser.read(response)
 			  $.each(Object.keys(capabilities.Capability.Layer.Layer), function(index) {		//Object.keys(capabilities.Capability.Layer.Layer) gives array of indices of layers e.g. [0,1,2,3]
 				  layerNames.push(capabilities.Capability.Layer.Layer[index].Name)
 			  })
-		  
 			  if (dateInfo.length == 0) {
 				  mosaicLayersString += 'vrt-test'
 			  }
@@ -1330,10 +1334,10 @@
 					}
 				  })
 			  }
-		  
-			  // Create map layer
+			  // Create map layer NB this.env.hotSpotService does not work inside $get so URL is created from the GetCapabilities run above
+			  var url = vm.env.hotSpotService + '/wms'
 			  var imgSource = new ol.source.ImageWMS({
-				  url: 'http://hotspots.dbca.wa.gov.au/geoserver/hotspots/wms',
+				  url: capabilities.Service.OnlineResource + '/hotspots/wms',
 				  serverType: 'geoserver',
 				  params: {
 					LAYERS: mosaicLayersString
@@ -1347,6 +1351,7 @@
 				  name: 'Flight mosaics',
 				  //id: 'hotspots:vrt-test'
 			  })
+			  
 			  vm.olmap.getLayers().insertAt(mosaicPosition, imgLayer)
 			  })
 	},
@@ -1355,9 +1360,8 @@
 		  // Added Nov/Dec 2020 to enable loading of hotspot imagery
 		  //position is the position within the map layers array in which the mosaic layers should be loaded (immediately below hotspots and footprints)
 		  var vm = this
-		  //alert('map 1358 ' +  flight_datetime + '_img_' + image_name)
 		  var imgSource = new ol.source.ImageWMS({
-			  url: 'http://hotspots.dbca.wa.gov.au/geoserver/hotspots/wms',
+			  url: this.env.hotspotService + '/wms',
 			  serverType: 'geoserver',
 			  params: {
 				LAYERS: flight_datetime + '_img_' + image_name
@@ -1370,6 +1374,28 @@
 			  name: 'Hotspot image ' + flight_datetime + ' ' + hotspot_no
 		  })
 		  vm.olmap.getLayers().insertAt(position, imgLayer)  
+	  },
+	  
+	  createWMSLayerHotspots: function (filter, insertPosition) {
+		  // Added Nov/Dec 2020 to enable loading of hotspot imagery
+		  //position is the position within the map layers array in which the mosaic layers should be loaded (immediately below hotspots and footprints)
+		  var vm = this
+		  var imgSource = new ol.source.ImageWMS({
+			  url: this.env.hotspotService + '/wms',
+			  serverType: 'geoserver',
+			  params: {
+				LAYERS: 'hotspot_centroids_uat',
+				cql_filter: filter
+			  },
+			  projection: 'EPSG:4326'
+		  })
+		  var imgLayer = new ol.layer.Image({
+			  opacity: 1,
+			  source: imgSource,
+			  name: 'Hotspots'
+		  })
+		  
+		  vm.olmap.getLayers().insertAt(insertPosition, imgLayer)
 	  },
 	  
       createAnnotations: function (layer) {
@@ -1664,14 +1690,16 @@
             }
         }
       },
-      getMapLayer: function (id) {
+      
+	  getMapLayer: function (id) {
         if (!this.olmap) {return undefined}
         if (id && id.mapLayerId) { id = id.mapLayerId} // if passed a catalogue layer, get actual id
         return this.olmap.getLayers().getArray().find(function (layer) {
           return layer.get('id') === id
         })
       },
-      // initialise map
+      
+	  // initialise map
       init: function (options) {
         var vm = this
         options = options || {}
@@ -1990,7 +2018,8 @@
             }
         }
       },
-      setRefreshInterval: function(layer, interval) {
+      
+	  setRefreshInterval: function(layer, interval) {
           var vm = this
           layer.refresh = interval
           if (layer.dependentLayers) {
@@ -2052,7 +2081,8 @@
         }
         _getFeature(0)
       },
-      getGridData:function(coordinate, successCallback, failedCallback) {
+      
+	  getGridData:function(coordinate, successCallback, failedCallback) {
           if (!successCallback) {
               successCallback = function(data) {alert(data)}
           }
@@ -2112,7 +2142,8 @@
               }
           })
       },
-      getPosition:function(coordinate, successCallback, failedCallback) {
+      
+	  getPosition:function(coordinate, successCallback, failedCallback) {
           if (!successCallback) {
               successCallback = function(data) {alert(data)}
           }

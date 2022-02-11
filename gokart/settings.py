@@ -71,6 +71,9 @@ if BOM_BASETIME_URL[0] == "/":
     BOM_BASETIME_URL = "{{}}{}".format(BOM_BASETIME_URL)
 else:
     BOM_BASETIME_URL = "{{}}/{}".format(BOM_BASETIME_URL)
+    
+HOTSPOTS_USER = os.environ.get("HOTSPOTS_USER") or None
+HOTSPOTS_PWD = os.environ.get("HOTSPOTS_PWD") or None
 
 def get_bool(name,defaultValue=None):
     value = os.environ.get(name)
@@ -176,6 +179,8 @@ def getEnvDomain():
     if domain.endswith(".dpaw.wa.gov.au"):
         return "dpaw"
     elif domain.endswith(".dbca.wa.gov.au"):
+        return "dbca"
+    elif ".dbca.wa.gov.au:" in domain:      # Picks up development environment
         return "dbca"
     else:
         raise Exception("Domain({}) Not Support".format(domain))

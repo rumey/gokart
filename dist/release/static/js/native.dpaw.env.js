@@ -8,6 +8,7 @@ var env = {
     legendSrc:"https://kmi-local.dpaw.wa.gov.au/geoserver/gwc/service/wms?REQUEST=GetLegendGraphic&VERSION=1.0.0&FORMAT=image/png&legend_options=fontName:Times%20New%20Roman;fontAntiAliasing:true;fontSize:14;bgColor:0xFFFFEE;dpi:120;labelMargin:10&LAYER=",
 
 	hotspotService:"https://hotspots.dbca.wa.gov.au/geoserver/hotspots/ows",
+	//hotspotService:"https://hotspots-uat.dbca.wa.gov.au/geoserver/hotspots/ows",
 
     gokartService:"https://sss-local.dpaw.wa.gov.au",
     resourceTrackingService:"https://resourcetracking-uat.dpaw.wa.gov.au",
