@@ -1176,9 +1176,9 @@
           } else if (params.cql_filter) {
             delete params.cql_filter
           }
-		  $.ajax({
-            url: url + '?' + $.param(params) + "&user=" + options.user + "&password=" + options.pwd,
-			  success: function (response, stat, xhr) {
+	  $.ajax({
+            url: url + '?' + $.param(params),
+	      success: function (response, stat, xhr) {
               var features = vm.$root.geojson.readFeatures(response)		
               onSuccess(features)
             },
