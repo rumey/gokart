@@ -414,7 +414,7 @@ def bom(target):
 
 @bottle.route("/hotspots_creds")
 def hotspots_creds():
-    creds = {'user': settings.HOTSPOTS_USER, 'pwd': settings.HOTSPOTS_PWD}
-    return creds
+    # Placeholder if required
+    return
 
 application = bottle.default_app()
