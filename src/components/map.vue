@@ -1177,7 +1177,7 @@
             delete params.cql_filter
           }
 		  $.ajax({
-            url: url + '?' + $.param(params) + "&user=" + options.user + "&password=" + options.pwd,
+			url: url + '?' + $.param(params),
 			  success: function (response, stat, xhr) {
               var features = vm.$root.geojson.readFeatures(response)		
               onSuccess(features)
