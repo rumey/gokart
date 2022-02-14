@@ -72,8 +72,8 @@ if BOM_BASETIME_URL[0] == "/":
 else:
     BOM_BASETIME_URL = "{{}}/{}".format(BOM_BASETIME_URL)
     
-HOTSPOTS_USER = os.environ.get("HOTSPOTS_USER") or None
-HOTSPOTS_PWD = os.environ.get("HOTSPOTS_PWD") or None
+#HOTSPOTS_USER = os.environ.get("HOTSPOTS_USER") or None
+#HOTSPOTS_PWD = os.environ.get("HOTSPOTS_PWD") or None
 
 def get_bool(name,defaultValue=None):
     value = os.environ.get(name)

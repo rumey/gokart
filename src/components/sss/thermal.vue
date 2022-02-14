@@ -671,14 +671,6 @@
 			, i},
 	  
 	  loadHotspotLayers: function(){
-		  
-		$.get(this.env.gokart + "/hotspots_creds").then(function(response){
-			vm.hotspotLayer.user = response['user']
-			vm.hotspotLayer.pwd = response['pwd']
-			vm.flightFootprintLayer.user = response['user']
-			vm.flightFootprintLayer.pwd = response['pwd']
-		})
-		  
 	    if (this.invalidDateFilter) {
 			return
 		}
