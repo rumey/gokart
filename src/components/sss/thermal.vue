@@ -126,7 +126,9 @@
 			<div class="row">
               <div class="small-9 columns" >
                 <div class="row">
-                    <a class="button" :disabled="invalidDateFilter"@click="loadHotspotLayers" title="Show Hotspots">Show Hotspots </a>
+                    <a class="button" :disabled="invalidDateFilter"@click="loadHotspotLayers" title="Show Hotspots"button style="margin:5px;">Show Hotspots </a>
+					<a class="button" :disabled="invalidDateFilter"@click="clearHotspotLayers" title="Clear Hotspots" button style="margin:5px;">Clear Hotspots </a>
+					<!--a class="button" :disabled="invalidDateFilter"@click="removeHotspotMosaic" title="Clear Mosaic" button style="margin:5px;">Clear Mosaic </a-->
                 </div>
               </div>
 		    </div>
@@ -643,24 +645,23 @@
 		return dateInfo
 	  },
 	  
-      removeImages_OLD: function(){
+      removeHotspotList: function(){
+	    //alert(this.$root.active.activeLayers())
+	    //alert(this.$root.active.activeLayers()[0][0])
+	    //alert(this.$root.active.activeLayers()[1][0])
+		//alert(this.$root.active.activeLayers()[2][0])
 		var hotspotButtons = document.getElementById("hotspot-list").querySelectorAll(".collapsible")
 		hotspotButtons.forEach(function(button){
-			var imageListContent = button.nextElementSibling
-			if (imageListContent.style.display === "block") {
-				imageListContent.style.display = "none"
-			}
+			button.parentNode.remove()
 		})
-				
-				var map = this.$root.map
+				//var map = this.$root.map
 				// Close any single images for this hotspot
-				map.olmap.getLayers().forEach(function (layer) {
-					if (layer.get('name').startsWith('Hotspot image ')) {
-						map.olmap.removeLayer(layer)
-					}
-				})
-		
-		return
+				//map.olmap.getLayers().forEach(function (layer) {
+					//if (layer.get('name').startsWith('Hotspot image ')) {
+						//map.olmap.removeLayer(layer)
+					//}
+				//})
+		//return
 	  },
 	   
 	  removeImages:function(){
@@ -717,9 +718,9 @@
 				if (layer.get("name") == "Flight footprints"){
 						map.olmap.removeLayer(layer)
 					}})
-			var insertPosition = map.olmap.getLayers().getArray().length-1
+			var insertPosition = map.olmap.getLayers().getArray().length
 			map.createWMSLayerHotspots(cqlFilter, insertPosition)
-			var mosaicPosition = map.olmap.getLayers().getArray().length-2
+			var mosaicPosition = insertPosition
 			if (vm.showFlightFootprint){
 				//vm.flightFootprintLayer.style = vm.footprintStyle
 				map.olmap.addLayer(footprintOLLayer)
@@ -741,6 +742,17 @@
 			})
 			}, timeout)
 		},
+
+	  clearHotspotLayers: function(){	  
+		//this.removeHotspotMosaic()
+		//alert(this.$root.active.activeLayers())
+		this.removeImages()
+		this.removeHotspotLayers()
+		this.removeHotspotList()
+		setTimeout(()=>{
+			this.removeHotspotMosaic()
+			}, 100);
+		},  
 		
       featureFilter: function (f) {
         var search = this.search?this.search.toLowerCase().trim():""
@@ -1001,6 +1013,19 @@
 				if (layer.get('name') === 'Flight footprints') {
 					map.olmap.removeLayer(layer)
 				}
+			})
+		}
+        catch(ex) {
+            alert(ex)
+		}
+    },
+	
+	  removeHotspotMosaic: function() {	//not used at present (the removal is done in map.vue L1811)
+        try {
+            var vm = this
+			var map = this.$root.map			
+			// Remove layers if exist
+			map.olmap.getLayers().forEach(function (layer) {
 				if (layer.get('name') === 'Flight mosaics') {
 					map.olmap.removeLayer(layer)
 				}

@@ -1353,6 +1353,7 @@
 			  })
 			  
 			  vm.olmap.getLayers().insertAt(mosaicPosition, imgLayer)
+			  //vm.olmap.getLayers().insertAt(1, imgLayer)
 			  })
 	},
 	  
@@ -1373,7 +1374,8 @@
 			  source: imgSource,
 			  name: 'Hotspot image ' + flight_datetime + ' ' + hotspot_no
 		  })
-		  vm.olmap.getLayers().insertAt(position, imgLayer)  
+		  //vm.olmap.getLayers().insertAt(position, imgLayer)  
+		  vm.olmap.getLayers().insertAt(1, imgLayer)  
 	  },
 	  
 	  createWMSLayerHotspots: function (filter, insertPosition) {
@@ -1394,8 +1396,8 @@
 			  source: imgSource,
 			  name: 'Hotspots'
 		  })
-		  
 		  vm.olmap.getLayers().insertAt(insertPosition, imgLayer)
+		  //vm.olmap.getLayers().insertAt(1, imgLayer)
 	  },
 	  
       createAnnotations: function (layer) {
@@ -1856,10 +1858,10 @@
             return vm.$root.catalogue.getLayer(activeLayer[0]) && true
         })
 		
-		// Filter out any thermal imaging layers
+		/*// Filter out any thermal imaging layers
 		activeLayers = activeLayers.filter(function(activeLayer){
             return activeLayer[0] != "hotspots:hotspot_centroids" && activeLayer[0] != "hotspots:hotspot_flight_footprints" && activeLayer[0] != "hotspots:vrt-test" && true
-        })
+        })*/
 		
         //merge custom options of active layer to catalogue layer
         var initialLayers = activeLayers.reverse().map(function (activeLayer) {
