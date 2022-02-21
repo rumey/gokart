@@ -1374,8 +1374,8 @@
 			  source: imgSource,
 			  name: 'Hotspot image ' + flight_datetime + ' ' + hotspot_no
 		  })
-		  //vm.olmap.getLayers().insertAt(position, imgLayer)  
-		  vm.olmap.getLayers().insertAt(1, imgLayer)  
+		  vm.olmap.getLayers().insertAt(position, imgLayer)  
+		  //vm.olmap.getLayers().insertAt(1, imgLayer)  
 	  },
 	  
 	  createWMSLayerHotspots: function (filter, insertPosition) {
@@ -1397,7 +1397,6 @@
 			  name: 'Hotspots'
 		  })
 		  vm.olmap.getLayers().insertAt(insertPosition, imgLayer)
-		  //vm.olmap.getLayers().insertAt(1, imgLayer)
 	  },
 	  
       createAnnotations: function (layer) {

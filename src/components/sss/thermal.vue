@@ -646,22 +646,10 @@
 	  },
 	  
       removeHotspotList: function(){
-	    //alert(this.$root.active.activeLayers())
-	    //alert(this.$root.active.activeLayers()[0][0])
-	    //alert(this.$root.active.activeLayers()[1][0])
-		//alert(this.$root.active.activeLayers()[2][0])
 		var hotspotButtons = document.getElementById("hotspot-list").querySelectorAll(".collapsible")
 		hotspotButtons.forEach(function(button){
 			button.parentNode.remove()
 		})
-				//var map = this.$root.map
-				// Close any single images for this hotspot
-				//map.olmap.getLayers().forEach(function (layer) {
-					//if (layer.get('name').startsWith('Hotspot image ')) {
-						//map.olmap.removeLayer(layer)
-					//}
-				//})
-		//return
 	  },
 	   
 	  removeImages:function(){
@@ -743,9 +731,7 @@
 			}, timeout)
 		},
 
-	  clearHotspotLayers: function(){	  
-		//this.removeHotspotMosaic()
-		//alert(this.$root.active.activeLayers())
+	  clearHotspotLayers: function(){
 		this.removeImages()
 		this.removeHotspotLayers()
 		this.removeHotspotList()
