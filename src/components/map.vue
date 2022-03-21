@@ -1293,7 +1293,7 @@
       },
 	  
 	  createWMSLayer: function (mosaicPosition, dateInfo) {
-		  // Added Nov 2020 to enable loading of hotspot imosaic magery
+		  // Added Nov 2020 to enable loading of hotspot mosaic magery
 		  //mosaicPosition is the position within the map layers array in which the mosaic layers should be loaded (immediately below hotspots and footprints)
 		  //dateInfo is an array of length 0, 1 or 2
 		  // length = 0: no date filter
@@ -1341,6 +1341,7 @@
 			  var imgSource = new ol.source.ImageWMS({
 				  url: capabilities.Service.OnlineResource + '/hotspots/wms',
 				  serverType: 'geoserver',
+				  crossOrigin :'anonymous',
 				  params: {
 					LAYERS: mosaicLayersString
 				  },
@@ -1365,7 +1366,8 @@
 		  var vm = this
 		  var imgSource = new ol.source.ImageWMS({
 			  url: this.env.hotspotService + '/wms',
-			  serverType: 'geoserver',
+			  serverType: 'geoserver',			  
+			  crossOrigin : 'anonymous',
 			  params: {
 				LAYERS: flight_datetime + '_img_' + image_name
 			  },
@@ -1387,6 +1389,7 @@
 		  var imgSource = new ol.source.ImageWMS({
 			  url: this.env.hotspotService + '/wms',
 			  serverType: 'geoserver',
+			  crossOrigin : 'anonymous',
 			  params: {
 				LAYERS: 'hotspot_centroids_uat',
 				cql_filter: filter
@@ -1396,7 +1399,7 @@
 		  var imgLayer = new ol.layer.Image({
 			  opacity: 1,
 			  source: imgSource,
-			  name: 'Hotspots'
+			  name: 'Thermal Imaging Hotspots'
 		  })
 		  vm.olmap.getLayers().insertAt(insertPosition, imgLayer)
 	  },
@@ -1601,7 +1604,7 @@
           opacity: layer.opacity || 1,
           source: imgSource
         })
-
+		
         // hook the tile loading function to update progress indicator
         imgLayer.progress = ''
 
@@ -1834,23 +1837,23 @@
         var vm = this
         //add fixed layers to category
         $.each(fixedLayers, function(index, fixedLayer) {
-            var catLayer = vm.$root.catalogue.getLayer(fixedLayer.mapLayerId || fixedLayer.id)
-            if (catLayer) {
-                //fixed layer already exist, update the properties 
-                $.extend(catLayer, fixedLayer, {
-                    name:catLayer["name"] || fixedLayer["name"],
-                    title:catLayer["title"] || fixedLayer["title"],
-                    abstract:catLayer["abstract"] || fixedLayer["abstract"],
-                })
-                if (catLayer.dependentLayers) {
-                    $.each(catLayer.dependentLayers, function(index, layer){
-                        layer.mapLayerId = layer.mapLayerId || layer.id
-                    })
-                }
-            } else {
-                //fixed layer not exist, add it
-                vm.$root.catalogue.catalogue.push(fixedLayer)
-            }
+			var catLayer = vm.$root.catalogue.getLayer(fixedLayer.mapLayerId || fixedLayer.id)
+			if (catLayer) {
+				//fixed layer already exist, update the properties 
+				$.extend(catLayer, fixedLayer, {
+					name:catLayer["name"] || fixedLayer["name"],
+					title:catLayer["title"] || fixedLayer["title"],
+					abstract:catLayer["abstract"] || fixedLayer["abstract"],
+				})
+				if (catLayer.dependentLayers) {
+					$.each(catLayer.dependentLayers, function(index, layer){
+						layer.mapLayerId = layer.mapLayerId || layer.id
+					})
+				}
+			} else {
+				//fixed layer not exist, add it
+				vm.$root.catalogue.catalogue.push(fixedLayer)
+			}
         })
         vm._overviewLayer = vm._overviewLayer || $.extend({}, vm.$root.catalogue.getLayer(vm.env.overviewLayer || "dpaw:mapbox_outdoors"))
 
