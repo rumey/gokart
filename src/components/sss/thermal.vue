@@ -530,10 +530,10 @@
 		var footprintsLoaded = false
 		var hotspotsLoaded = false
 		map.olmap.getLayers().forEach(function (layer) {
-			if (layer.get('name') === 'Flight footprints') {
+			if (layer.get('name') === 'Thermal Imaging Flight Footprints') {
 					footprintsLoaded = true
 			}
-			if (layer.get('name') === 'Hotspots') {
+			if (layer.get('name') === 'Thermal Imaging Hotspots') {
 					hotspotsLoaded = true
 			}
 		})
@@ -545,7 +545,7 @@
 		}
 		else if (hotspotsLoaded && !this.showFlightFootprint) {
 			map.olmap.getLayers().forEach(function (layer) {
-				if (layer.get('name') === 'Flight footprints') {
+				if (layer.get('name') === 'Thermal Imaging Flight Footprints') {
 						map.olmap.removeLayer(layer)
 				}
 			})
@@ -564,7 +564,7 @@
 			if (layer.get('name') === 'Flight mosaics') {
 					mosaicLoaded = true
 			}
-			if (layer.get('name') === 'Hotspots') {
+			if (layer.get('name') === 'Thermal Imaging Hotspots') {
 					mosaicPosition = map.olmap.getLayers().getArray().findIndex(function(l){return l === layer})
 					hotspotsLoaded = true
 			}
@@ -683,12 +683,11 @@
 		}
 		var map = vm.$root.map
 		var imagesRemoved = vm.removeImages();
-		
 		timeout = 10 * imagesRemoved
 		setTimeout(function(){
 			map.olmap.getLayers().getArray().slice().forEach(function(layer){
-				"Flight footprints"===layer.get("name")&&map.olmap.removeLayer(layer),"Flight mosaics"===layer.get("name")&&map.olmap.removeLayer(layer)
-				if (layer.get("name") == "Hotspots"){
+				"Thermal Imaging Flight Footprints"===layer.get("name")&&map.olmap.removeLayer(layer),"Flight mosaics"===layer.get("name")&&map.olmap.removeLayer(layer)
+				if (layer.get("name") == "Thermal Imaging Hotspots"){
 					map.olmap.removeLayer(layer)
 				}
 				if (layer.get("name").startsWith("Hotspot image")){
@@ -703,7 +702,7 @@
 			map.olmap.addLayer(footprintOLLayer)
 			footprintOLLayer.refresh()
 			map.olmap.getLayers().getArray().slice().forEach(function(layer){
-				if (layer.get("name") == "Flight footprints"){
+				if (layer.get("name") == "Thermal Imaging Flight Footprints"){
 						map.olmap.removeLayer(layer)
 					}})
 			var insertPosition = map.olmap.getLayers().getArray().length
@@ -955,7 +954,7 @@
 			if (layer.get('name') === 'Flight mosaics') {
 					mosaicLoaded = true
 			}
-			if (layer.get('name') === 'Hotspots') {
+			if (layer.get('name') === 'Thermal Imaging Hotspots') {
 					hotspots_position = map.olmap.getLayers().getArray().findIndex(function(l){return l === layer})
 					hotspotsLoaded = true
 			}
@@ -993,10 +992,10 @@
 			var map = this.$root.map			
 			// Remove layers if exist
 			map.olmap.getLayers().forEach(function (layer) {
-				if (layer.get('name') === 'Hotspots') {
+				if (layer.get('name') === 'Thermal Imaging Hotspots') {
 					map.olmap.removeLayer(layer)
 				}
-				if (layer.get('name') === 'Flight footprints') {
+				if (layer.get('name') === 'Thermal Imaging Flight Footprints') {
 					map.olmap.removeLayer(layer)
 				}
 			})
@@ -1198,7 +1197,7 @@
 	  thermalStatus.phaseBegin("load_hotspots", 30, "Load hotspots", false, true)
 	  this.$root.fixedLayers.push({
         type: 'WFSLayer',
-        name: 'Hotspots',
+        name: 'Thermal Imaging Hotspots',
         id: 'hotspots:hotspot_centroids',
         features: vm._featurelist,
         getFeatureInfo: function (f) {
@@ -1238,7 +1237,7 @@
 	  
 	 this.$root.fixedLayers.push({
         type: 'WFSLayer',
-        name: 'Flight footprints',
+        name: 'Thermal Imaging Flight Footprints',
         id: 'hotspots:hotspot_flight_footprints',
         features: vm._footprintlist,
         getFeatureInfo: function (f) {
@@ -1264,21 +1263,7 @@
 			})
 		}
       })
-	  
-	  /*this.$root.fixedLayers.push({
-        type: 'WMSLayer',
-        name: 'Flight mosaics',
-        id: 'hotspots:vrt-test',		//will need changing once testing done
-        onerror: function (status, message) {
-            thermalStatus.phaseFailed("load_hotspots", status + " : " + message)
-        },
-		onload:  function (loadType, vectorSource, features, defaultOnload) {	//needs changing
-			vm.footprints.clear()
-			vm.footprints.extend(features)
-			vm.updateFootprintFilter(0)
-		}
-      })*/
-	  
+ 
 	  thermalStatus.phaseEnd('load_hotspots')
 
       var tools = [
