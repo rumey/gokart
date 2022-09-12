@@ -215,8 +215,11 @@ def loadDatasource(datasource):
         if "message" in datasource["loadstatus"]:
             del datasource["loadstatus"]["message"]
 
-
-        bandTimeout = int(math.ceil(datasource["metadata"].get("band_timeout",0) / 3600))
+        bandTimeout = 0
+        try:
+            bandTimeout =  int(math.ceil(datasource["metadata"].get("band_timeout",0) / 3600))
+        except:
+            print ("Band Timeout Error")
         if bandTimeout >= 24:
             datasource["metadata"]["type"] = "Daily"
         elif bandTimeout == 1:
@@ -1677,7 +1680,8 @@ raster_datasources={
             }
         },
         "IDW71139_WA_Curing_SFC":{
-            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71139_WA_Curing_SFC.nc.gz"),
+            #"file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71139_WA_Curing_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDZ10148_AUS_FSE_curing_SFC.nc.gz"),
             "name":"Grassland curing index",
             "sort_key":("bushfire","grassland"),
             "metadata_f":{
