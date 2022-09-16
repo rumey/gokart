@@ -1850,8 +1850,8 @@ raster_datasources={
         },
         "IDZ10135_AUS_AFDRS_fbi_SFC":{
             "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDZ10135_AUS_AFDRS_fbi_SFC.nc.gz"),
-            "name":"FBI SFC",
-            "sort_key":("bushfire","grassland"),
+            "name":"FBI",
+            "sort_key":("fbi","index"),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
                 "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
@@ -1874,7 +1874,7 @@ raster_datasources={
         "IDZ10137_AUS_AFDRS_max_fbi_SFC":{
             "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDZ10137_AUS_AFDRS_max_fbi_SFC.nc.gz"),
             "name":"FBI MAX",
-            "sort_key":("bushfire","grassland"),
+            "sort_key":("fire","max"),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
                 "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
@@ -1889,6 +1889,29 @@ raster_datasources={
             },
             "options":{
                 "title":"FBI MAX",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDZ10134_AUS_AFDRS_fdr_SFC":{
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDZ10134_AUS_AFDRS_fdr_SFC.nc.gz"),
+            "name":"Fire Danger Rating",
+            "sort_key":("fire","rating"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"FDR",
                 "pattern":"{:-.0f}",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
