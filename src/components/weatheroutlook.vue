@@ -637,7 +637,10 @@
                       workspace:"bom",
                       id:"IDZ10137_AUS_AFDRS_max_fbi_SFC",
                   },
-
+                  {
+                      workspace:"bom",
+                      id:"IDZ10134_AUS_AFDRS_fdr_SFC",
+                  },
                 ]
             } else if (toolid === "weather-outlook-customized") {
                 columns = [
@@ -698,7 +701,10 @@
                       workspace:"bom",
                       id:"IDZ10137_AUS_AFDRS_max_fbi_SFC",
                   },
-
+                  {
+                      workspace:"bom",
+                      id:"IDZ10134_AUS_AFDRS_fdr_SFC",
+                  },
 
                 ]
             } else {
