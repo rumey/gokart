@@ -8,6 +8,8 @@ RUN apt-get update -y \
   python python-setuptools python-dev python-pip tzdata python-numpy g++ software-properties-common \
   tesseract-ocr tesseract-ocr-eng libtesseract-dev lftp unzip zip curl \
   && pip install --upgrade pip
+RUN apt-get install vim-common
+
 # Everything below is required to install GDAL.
 RUN add-apt-repository ppa:ubuntugis/ppa \
   && apt-get update -y \
