@@ -622,20 +622,7 @@
                   },
                   {
                       workspace:"bom",
-                      id:"IDW71117_WA_FFDI_SFC",
-                  },
-                  {
-                      workspace:"bom",
-                      id:"IDW71122_WA_GFDI_SFC",
-                  },
-
-                  {
-                      workspace:"bom",
                       id:"IDZ10135_AUS_AFDRS_fbi_SFC",
-                  },
-                  {
-                      workspace:"bom",
-                      id:"IDZ10137_AUS_AFDRS_max_fbi_SFC",
                   },
                   {
                       workspace:"bom",
