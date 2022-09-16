@@ -422,6 +422,14 @@ WEATHER_ICONS = {
     19:{"icon":"/dist/static/images/weather/tropicalcyclone.png","desc":"Cyclone"},
 }
 
+FIRE_DANGER_RATING = {
+        0: {'name': 'No Rating', 'bgcolor': '#d9d9d9', 'fontcolor': '#000000'},
+        1: {'name': 'Moderate','bgcolor': '#a2be42', 'fontcolor': '#FFFFFF'},
+        2: {'name': 'High','bgcolor': '#ffce35', 'fontcolor': '#FFFFFF'},
+        3: {'name': 'Extreme','bgcolor': '#ff6931', 'fontcolor': '#FFFFFF'},
+        4: {'name': 'Catastrophic','bgcolor': '#aa1d1d', 'fontcolor': '#FFFFFF'}
+}
+
 for value in WEATHER_ICONS.itervalues():
     if "night-icon" not in value:
         value["night-icon"] = value["icon"]
@@ -445,6 +453,16 @@ def getWeather(band,data):
         return None
     else:
         return icon["desc"]
+
+
+def getFireDangerRatingFriendly(band,data):
+    if data is None:
+        return None
+    fdr_index = FIRE_DANGER_RATING.get(int(data))
+    if fdr_index is None:
+        return None
+    else:
+        return "<b style='background-color: {}; color: {}; padding:10px; border-radius: 5px;'>{}</b>".format(fdr_index["bgcolor"], fdr_index["fontcolor"],fdr_index["name"])
 
 raster_datasources={
     "bom":{
@@ -1909,10 +1927,10 @@ raster_datasources={
             },
             "band_f":{
                 "band_match":isInBandFunc,
+                "data":getFireDangerRatingFriendly,
             },
             "options":{
                 "title":"FDR",
-                "pattern":"{:-.0f}",
                 "srs":"EPSG:4326",
                 "style":"text-align:center",
             }
