@@ -20,13 +20,12 @@ ENV C_INCLUDE_PATH=/usr/include/gdal
 # Lines below are required to install pdktk in Ubuntu 18.04.
 # Reference: https://askubuntu.com/a/1046476/4364
 COPY external_libs/*.deb /tmp/
-RUN apt-get update \
-  && cd /tmp \
+RUN apt-get update
+RUN apt-get install -y vim-common
+RUN  cd /tmp \
   && apt-get install -y ./libgcj17_6.4.0-8ubuntu1_amd64.deb ./libgcj-common_6.4-3ubuntu1_all.deb ./pdftk_2.02-4build1_amd64.deb ./pdftk-dbg_2.02-4build1_amd64.deb \
   && rm /tmp/*.deb \
   && rm -rf /var/lib/apt/lists/*
-
-RUN apt-get install vim-common
 
 # Install Python libs from requirements.txt.
 FROM builder_base_gokart as python_libs_gokart
