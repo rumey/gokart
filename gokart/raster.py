@@ -1848,6 +1848,52 @@ raster_datasources={
                 "style":"text-align:center",
             }
         },
+        "IDZ10135_AUS_AFDRS_fbi_SFC":{
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDZ10135_AUS_AFDRS_fbi_SFC.nc.gz"),
+            "name":"FBI SFC",
+            "sort_key":("bushfire","grassland"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"FBI",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDZ10137_AUS_AFDRS_max_fbi_SFC":{
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDZ10137_AUS_AFDRS_max_fbi_SFC.nc.gz"),
+            "name":"FBI MAX",
+            "sort_key":("bushfire","grassland"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+            },
+            "options":{
+                "title":"FBI MAX",
+                "pattern":"{:-.0f}",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
     }
 }
 
