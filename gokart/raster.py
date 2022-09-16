@@ -1681,7 +1681,7 @@ raster_datasources={
         },
         "IDW71139_WA_Curing_SFC":{
             #"file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDW71139_WA_Curing_SFC.nc.gz"),
-            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDZ10148_AUS_FSE_curing_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDZ10148_AUS_FSE_curing_SFC.nc"),
             "name":"Grassland curing index",
             "sort_key":("bushfire","grassland"),
             "metadata_f":{
@@ -1849,7 +1849,7 @@ raster_datasources={
             }
         },
         "IDZ10135_AUS_AFDRS_fbi_SFC":{
-            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDZ10135_AUS_AFDRS_fbi_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDZ10135_AUS_AFDRS_fbi_SFC.nc"),
             "name":"FBI",
             "sort_key":("fbi","index"),
             "metadata_f":{
@@ -1872,7 +1872,7 @@ raster_datasources={
             }
         },
         "IDZ10137_AUS_AFDRS_max_fbi_SFC":{
-            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDZ10137_AUS_AFDRS_max_fbi_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDZ10137_AUS_AFDRS_max_fbi_SFC.nc"),
             "name":"FBI MAX",
             "sort_key":("fire","max"),
             "metadata_f":{
@@ -1895,7 +1895,7 @@ raster_datasources={
             }
         },
         "IDZ10134_AUS_AFDRS_fdr_SFC":{
-            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDZ10134_AUS_AFDRS_fdr_SFC.nc.gz"),
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDZ10134_AUS_AFDRS_fdr_SFC.nc"),
             "name":"Fire Danger Rating",
             "sort_key":("fire","rating"),
             "metadata_f":{
