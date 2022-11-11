@@ -40,6 +40,7 @@ COPY ftp_sync ./ftp_sync
 COPY gokart ./gokart
 COPY uwsgi.ini.prod ./uwsgi.ini
 COPY tessdata/bom.traineddata /usr/local/share/tessdata/
+COPY .git ./.git
 USER www-data
 EXPOSE 8080
 CMD ["uwsgi", "--ini", "/app/uwsgi.ini"]
