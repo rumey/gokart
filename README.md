@@ -22,5 +22,14 @@ npm run lint
 
 # run unit tests
 npm test
+
+# installation version required for npm install / npm run build
+npm: 6.14.16   
+node 8.10.0   
+   
+npm install npm@6.14.16   
+curl -fsSL https://deb.nodesource.com/setup_8.x | sudo -E bash -    
+apt-get install -y nodejs   
+
 ```
 

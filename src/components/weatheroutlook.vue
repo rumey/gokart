@@ -761,6 +761,27 @@
                           title:"FDR"
                         }
                     },
+                    {
+                        workspace:"bom",
+                        id:"IDW71127_WA_DF_SFC",
+                        options:{
+                          title:"DF"
+                        }
+                    },
+                    {
+                        workspace:"bom",
+                        id:"IDW71139_WA_Curing_SFC",
+                        options:{
+                          title:"Curing"
+                        }
+                    },
+                    {
+                        workspace:"bom",
+                        id:"IDZ10135_AUS_AFDRS_fbi_SFC",
+                        options:{
+                          title:"FBI"
+                        }
+                    },
 
 
                 ]
