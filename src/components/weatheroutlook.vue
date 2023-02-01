@@ -754,6 +754,15 @@
                           title:"grassland_fire_danger_index"
                         }
                     },
+                    {
+                        workspace:"bom",
+                        id:"IDZ10134_AUS_AFDRS_fdr_SFC",
+                        options:{
+                          title:"FDR"
+                        }
+                    },
+
+
                 ]
             }
         }

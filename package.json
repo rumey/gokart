@@ -79,6 +79,7 @@
     "moment-timezone": "~0.5.14",
     "msal": "~1.4.4",
     "nodemailer": "^6.4.11",
+    "npm": "^6.14.16",
     "object-hash": "~1.1.5",
     "openlayers": "~3.20.1",
     "postmark": "^2.5.5",
