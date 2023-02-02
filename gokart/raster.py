@@ -463,6 +463,7 @@ def getFireDangerRatingFriendly(band,data):
     if fdr_index is None:
         return None
     else:
+        return fdr_index["name"]
         if WEATHER_OUTLOOK_FORMAT == 'html':
             return "<b style='background-color: {}; color: {}; padding:10px; border-radius: 5px;'>{}</b>".format(fdr_index["bgcolor"], fdr_index["fontcolor"],fdr_index["name"])
         else:
