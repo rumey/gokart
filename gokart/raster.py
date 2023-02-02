@@ -2567,7 +2567,7 @@ def weatheroutlook(fmt):
                                     unit = raster_datasources[ds["workspace"]][ds["id"]].get("metadata",{}).get("unit")
                                     if html_unit_map.get(unit,unit):
                                         hum = ''
-                                        if datasource["options"]["title"] == 'FDR':
+                                        if ds["options"]["title"] == 'FDR':
                                             hum = 'DD'+html_unit_map.get(unit,unit)
                                         else:
                                             hum = html_unit_map.get(unit,unit)
