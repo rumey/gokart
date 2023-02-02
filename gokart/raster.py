@@ -16,7 +16,6 @@ import settings
 from .jinja2settings import settings as jinja2settings
 from .file_lock import FileLock
 
-WEATHER_OUTLOOK_FORMAT = 'html'
 def convertEpochTimeToDatetime(t):
     """
     Convert the epoch time to the datetime with perth timezone
@@ -463,11 +462,16 @@ def getFireDangerRatingFriendly(band,data):
     if fdr_index is None:
         return None
     else:
+        return "<b style='background-color: {}; color: {}; padding:10px; border-radius: 5px;'>{}</b>".format(fdr_index["bgcolor"], fdr_index["fontcolor"],fdr_index["name"])
+
+def getFireDangerRating(band,data):
+    if data is None:
+        return None
+    fdr_index = FIRE_DANGER_RATING.get(int(data))
+    if fdr_index is None:
+        return None
+    else:
         return fdr_index["name"]
-        if WEATHER_OUTLOOK_FORMAT == 'html':
-            return "<b style='background-color: {}; color: {}; padding:10px; border-radius: 5px;'>{}</b>".format(fdr_index["bgcolor"], fdr_index["fontcolor"],fdr_index["name"])
-        else:
-            return fdr_index["name"]
 
 raster_datasources={
     "bom":{
@@ -1917,7 +1921,7 @@ raster_datasources={
                 "style":"text-align:center",
             }
         },
-        "IDZ10134_AUS_AFDRS_fdr_SFC":{
+        "IDZ10134_AUS_AFDRS_fdr_SFC_HTML":{
             "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDZ10134_AUS_AFDRS_fdr_SFC.nc"),
             "name":"Fire Danger Rating",
             "sort_key":("fire","rating"),
@@ -1933,6 +1937,29 @@ raster_datasources={
             "band_f":{
                 "band_match":isInBandFunc,
                 "data":getFireDangerRatingFriendly,
+            },
+            "options":{
+                "title":"FDR",
+                "srs":"EPSG:4326",
+                "style":"text-align:center",
+            }
+        },
+        "IDZ10134_AUS_AFDRS_fdr_SFC_NOHTML":{
+            "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDZ10134_AUS_AFDRS_fdr_SFC.nc"),
+            "name":"Fire Danger Rating",
+            "sort_key":("fire","rating"),
+            "metadata_f":{
+                "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
+                "band_timeout":getBandTimeoutFunc("NETCDF_DIM_time"),
+                "name":getMetadataFunc("long_name",1),
+                "unit":getUnitFunc("units",1),
+            },
+            "band_metadata_f":{
+                "start_time":getEpochTimeFunc("NETCDF_DIM_time"),
+            },
+            "band_f":{
+                "band_match":isInBandFunc,
+                "data":getFireDangerRating,
             },
             "options":{
                 "title":"FDR",
@@ -2332,7 +2359,6 @@ def weatheroutlook(fmt):
     Response: json or html or others
     """
     fmt = (fmt or "json").lower()
-    WEATHER_OUTLOOK_FORMAT = fmt
     try:
         requestData = bottle.request.forms.get("data")
         if requestData:
