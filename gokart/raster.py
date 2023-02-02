@@ -2566,13 +2566,7 @@ def weatheroutlook(fmt):
                                     #add unit to datasource title only if output format is html
                                     unit = raster_datasources[ds["workspace"]][ds["id"]].get("metadata",{}).get("unit")
                                     if html_unit_map.get(unit,unit):
-                                        hum = ''
-                                        if ds["options"]["title"] == 'FDR':
-                                            hum = 'DD'+html_unit_map.get(unit,unit)
-                                        else:
-                                            hum = html_unit_map.get(unit,unit)
-
-                                        ds["options"]["title"] = "{}<br>({})".format(ds["options"]["title"],hum)
+                                        ds["options"]["title"] = "{}<br>({})".format(ds["options"]["title"],html_unit_map.get(unit,unit))
 
                             if ds["status"]:
                                 formatBandsData(ds,result["options"].get("no_data") or "")
@@ -2584,12 +2578,7 @@ def weatheroutlook(fmt):
                                 #add unit to datasource title only if output format is html
                                 unit = raster_datasources[datasource["workspace"]][datasource["id"]].get("metadata",{}).get("unit")
                                 if html_unit_map.get(unit,unit):
-                                    hum = ''
-                                    if datasource["options"]["title"] == 'FDR':
-                                        hum = 'FF'+html_unit_map.get(unit,unit)
-                                    else:
-                                        hum = html_unit_map.get(unit,unit)
-                                    datasource["options"]["title"] = "{}<br>({})".format(datasource["options"]["title"],hum)
+                                    datasource["options"]["title"] = "{}<br>({})".format(datasource["options"]["title"],html_unit_map.get(unit,unit))
 
                         if datasource["status"] :
                             formatBandsData(datasource,result["options"].get("no_data") or "")
