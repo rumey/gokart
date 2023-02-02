@@ -1923,7 +1923,7 @@ raster_datasources={
         },
         "IDZ10134_AUS_AFDRS_fdr_SFC_HTML":{
             "file":os.path.join(settings.get_string("BOM_HOME","/var/www/bom_data"),"adfd","IDZ10134_AUS_AFDRS_fdr_SFC.nc"),
-            "name":"Fire Danger Rating",
+            "name":"Fire Danger Rating Icon",
             "sort_key":("fire","rating"),
             "metadata_f":{
                 "refresh_time":getEpochTimeFunc("NETCDF_DIM_time",1),
