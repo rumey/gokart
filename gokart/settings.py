@@ -58,6 +58,7 @@ STATIC_SERVICE=os.environ.get("STATIC_SERVICE") or "https://static.dbca.wa.gov.a
 WEATHERFORECAST_URL=os.environ.get("WEATHERFORECAST_URL") or ""
 WEATHERFORECAST_USER=os.environ.get("WEATHERFORECAST_USER") or None
 WEATHERFORECAST_PASSWORD=os.environ.get("WEATHERFORECAST_PASSWORD") or None
+KMI_URL=os.environ.get("KMI_URL") or None
 
 CALCULATE_AREA_IN_SEPARATE_PROCESS = (os.environ.get("CALCULATE_AREA_IN_SEPARATE_PROCESS") or "true").lower() in ["true","yes","on"]
 EXPORT_CALCULATE_AREA_FILES_4_DEBUG = (os.environ.get("EXPORT_CALCULATE_AREA_FILES_4_DEBUG") or "false").lower() in ["true","yes","on"]

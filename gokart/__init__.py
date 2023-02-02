@@ -203,7 +203,7 @@ def index(app):
         profile = _get_profile(app,envDomain)
         if profile["dependents"]["vendorMD5"] != profile["build"]["vendorMD5"] and settings.ENV_TYPE == "prod":
             raise Exception("Application was built based on outdated vendor library, please build application again.")
-        return bottle.template('index.html',template_adapter=bottle.Jinja2Template,template_settings=jinja2settings, app=app,envType=settings.ENV_TYPE,envDomain=envDomain,profile=profile,weatherforecast_url=settings.WEATHERFORECAST_URL)
+        return bottle.template('index.html',template_adapter=bottle.Jinja2Template,template_settings=jinja2settings, app=app,envType=settings.ENV_TYPE,envDomain=envDomain,profile=profile,weatherforecast_url=settings.WEATHERFORECAST_URL,kmi_url=settings.KMI_URL)
     except:
         bottle.response.status = 400
         bottle.response.set_header("Content-Type","text/plain")
