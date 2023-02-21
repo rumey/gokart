@@ -430,6 +430,13 @@ FIRE_DANGER_RATING = {
         4: {'name': 'Catastrophic','bgcolor': '#aa1d1d', 'fontcolor': '#FFFFFF'}
 }
 
+FIRE_DANGER_RATING_IMAGES = {
+        0: {'img': '/dist/static/images/fdr/norating.png'},
+        1: {'img': '/dist/static/images/fdr/moderate.png'},
+        2: {'img': '/dist/static/images/fdr/high.png'},
+        3: {'img': '/dist/static/images/fdr/extreme.png'},
+        4: {'img': '/dist/static/images/fdr/catastrophic.png'}
+}
 for value in WEATHER_ICONS.itervalues():
     if "night-icon" not in value:
         value["night-icon"] = value["icon"]
@@ -458,11 +465,12 @@ def getWeather(band,data):
 def getFireDangerRatingFriendly(band,data):
     if data is None:
         return None
-    fdr_index = FIRE_DANGER_RATING.get(int(data))
+    fdr_index = FIRE_DANGER_RATING_IMAGES.get(int(data))
     if fdr_index is None:
         return None
     else:
-        return "<b style='background-color: {}; color: {}; padding:10px; border-radius: 5px;'>{}</b>".format(fdr_index["bgcolor"], fdr_index["fontcolor"],fdr_index["name"])
+        return "<img src='{}'/>".format(fdr_index["img"])
+        #return "<b style='background-color: {}; color: {}; padding:10px; border-radius: 5px;'>{}</b>".format(fdr_index["bgcolor"], fdr_index["fontcolor"],fdr_index["name"])
 
 def getFireDangerRating(band,data):
     if data is None:
