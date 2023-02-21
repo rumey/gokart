@@ -431,11 +431,11 @@ FIRE_DANGER_RATING = {
 }
 
 FIRE_DANGER_RATING_IMAGES = {
-        0: {'img': '/dist/static/images/fdr/norating.png'},
-        1: {'img': '/dist/static/images/fdr/moderate.png'},
-        2: {'img': '/dist/static/images/fdr/high.png'},
-        3: {'img': '/dist/static/images/fdr/extreme.png'},
-        4: {'img': '/dist/static/images/fdr/catastrophic.png'}
+        0: {'img': '/dist/static/images/fdr/norating_50.png'},
+        1: {'img': '/dist/static/images/fdr/moderate_50.png'},
+        2: {'img': '/dist/static/images/fdr/high_50.png'},
+        3: {'img': '/dist/static/images/fdr/extreme_50.png'},
+        4: {'img': '/dist/static/images/fdr/catastrophic_50.png'}
 }
 for value in WEATHER_ICONS.itervalues():
     if "night-icon" not in value:
