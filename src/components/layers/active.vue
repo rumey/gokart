@@ -40,7 +40,7 @@
             <a title="Start auto refresh" v-if="layerRefreshStopped"class="button tiny secondary float-right" @click="startLayerRefresh()" ><i class="fa fa-play"></i></a>
           </div>
         </div>
-        <div class="tool-slice row" v-if="layer" nokey="&& mapLayer()">
+        <div class="tool-slice row" vifii="layer && mapLayer()">
           <div class="columns small-3"><label class="tool-label">Transparency:<br/>{{ layerOpacity }}%</label></div>
           <div class="columns small-9"><input class="layer-opacity" type="range" min="0" max="100" step="1" v-model="layerOpacity"></div>
         </div>
