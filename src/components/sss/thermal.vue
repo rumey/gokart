@@ -570,14 +570,18 @@
 		})
 		if (hotspotsLoaded && this.showRawImageMosaic) {
 			/*var mosaicLayers = []
-			if (!this.hasDateFilter()) {mosaicLayers.push('vrt-test')}
+			if (!this.hasDateFilter()) {
+				mosaicLayers.push('vrt-test')
+				console.log('mosaicLayers');
+				console.log(mosaicLayers);
+			}
 			var mosaicLayersOLLayer = map['createWMSLayer'](mosaicLayers, position)*/
 			// map.olmap.addLayer(mosaicLayersOLLayer)
 			// mosaicLayersOLLayer.refresh()
 			var dateInfo = this.getDateInfoForMosaics(vm)
 			var mosaicPositionOLLayer = map['createWMSLayer'](mosaicPosition, dateInfo)
-			map.olmap.addLayer(mosaicPositionOLLayer)
-			mosaicPositionOLLayer.refresh()
+			// map.olmap.addLayer(mosaicPositionOLLayer)
+			// mosaicPositionOLLayer.refresh()
 			
  			
 		}
