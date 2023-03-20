@@ -572,8 +572,8 @@
 			/*var mosaicLayers = []
 			if (!this.hasDateFilter()) {mosaicLayers.push('vrt-test')}
 			var mosaicLayersOLLayer = map['createWMSLayer'](mosaicLayers, position)*/
-			map.olmap.addLayer(mosaicLayersOLLayer)
-			mosaicLayersOLLayer.refresh()
+			// map.olmap.addLayer(mosaicLayersOLLayer)
+			// mosaicLayersOLLayer.refresh()
 			var dateInfo = this.getDateInfoForMosaics(vm)
 			var mosaicPositionOLLayer = map['createWMSLayer'](mosaicPosition, dateInfo)
 			mosaicPositionOLLayer.refresh()
