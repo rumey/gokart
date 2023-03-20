@@ -566,10 +566,10 @@
 			if (layer.get('name') === 'Thermal Imaging Hotspots') {
 					mosaicPosition = map.olmap.getLayers().getArray().findIndex(function(l){return l === layer})
 					hotspotsLoaded = true
-					mosaicPosition.refresh()
 			}
 		})
 		if (hotspotsLoaded && this.showRawImageMosaic) {
+			console.log("HOT SPOT IS LOADED mosaicLoaded");
 			/*var mosaicLayers = []
 			if (!this.hasDateFilter()) {
 				mosaicLayers.push('vrt-test')
