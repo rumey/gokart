@@ -576,6 +576,7 @@
 			// mosaicLayersOLLayer.refresh()
 			var dateInfo = this.getDateInfoForMosaics(vm)
 			var mosaicPositionOLLayer = map['createWMSLayer'](mosaicPosition, dateInfo)
+			map.olmap.addLayer(mosaicPositionOLLayer)
 			mosaicPositionOLLayer.refresh()
 			
  			
