@@ -551,9 +551,9 @@
 		}
       },
 	  
-	  toggleRawImageMosaic: function() {
+      toggleRawImageMosaic: function() {
 		this.showRawImageMosaic = !this.showRawImageMosaic
-        this.export.saveState()
+     		this.export.saveState()
 		var vm = this
 		var map = this.$root.map			
 		// Check if mosaic layer already loaded
@@ -566,6 +566,7 @@
 			if (layer.get('name') === 'Thermal Imaging Hotspots') {
 					mosaicPosition = map.olmap.getLayers().getArray().findIndex(function(l){return l === layer})
 					hotspotsLoaded = true
+					mosaicPosition.refresh()
 			}
 		})
 		if (hotspotsLoaded && this.showRawImageMosaic) {
