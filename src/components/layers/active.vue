@@ -152,7 +152,9 @@
     },
     watch: {
       "layer": function() {
-        this.layerRefreshStopped = this.layer.refresh?(this.layer.autoRefreshStopped || false):true
+	if (this.layer) { 
+	        this.layerRefreshStopped = this.layer.refresh?(this.layer.autoRefreshStopped || false):true
+	}
       },
     },
     // methods callable from inside the template
