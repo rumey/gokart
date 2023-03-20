@@ -520,10 +520,9 @@
         this.viewportOnly = !this.viewportOnly
         this.export.saveState()
       },
-	  
       toggleFlightFootprint: function() {
 		this.showFlightFootprint = !this.showFlightFootprint
-        this.export.saveState()
+	        this.export.saveState()
 		var vm = this
 		var map = this.$root.map			
 		// Check if footprints layer already loaded
@@ -572,9 +571,14 @@
 		if (hotspotsLoaded && this.showRawImageMosaic) {
 			/*var mosaicLayers = []
 			if (!this.hasDateFilter()) {mosaicLayers.push('vrt-test')}
-			map['createWMSLayer'](mosaicLayers, position)*/
+			var mosaicLayersOLLayer = map['createWMSLayer'](mosaicLayers, position)*/
+			map.olmap.addLayer(mosaicLayersOLLayer)
+			mosaicLayersOLLayer.refresh()
 			var dateInfo = this.getDateInfoForMosaics(vm)
-			map['createWMSLayer'](mosaicPosition, dateInfo)
+			var mosaicPositionOLLayer = map['createWMSLayer'](mosaicPosition, dateInfo)
+			mosaicPositionOLLayer.refresh()
+			
+ 			
 		}
 		else if (hotspotsLoaded && !this.showRawImageMosaic) {
 			map.olmap.getLayers().forEach(function (layer) {
@@ -645,7 +649,7 @@
 		return dateInfo
 	  },
 	  
-      removeHotspotList: function(){
+	  removeHotspotList: function(){
 		var hotspotButtons = document.getElementById("hotspot-list").querySelectorAll(".collapsible")
 		hotspotButtons.forEach(function(button){
 			button.parentNode.remove()
@@ -672,7 +676,7 @@
 			if (vm.thermalSingleDate != undefined) {
 					var singleDate = vm.thermalSingleDate.replace(/-/g, "")
 					cqlFilter = "strStartsWith(flight_datetime,'" + singleDate + "')=true"
-				}
+			}
 			else if (vm.thermalToDate == ""){
 				var fromDate = vm.thermalFromDate.replace(/-/g, "")
 				cqlFilter = "flight_datetime>'" + fromDate + "'"}
@@ -939,7 +943,7 @@
 	  
 	  showImage: function(flight_datetime, hotspot_no, file, index, parentIndex) {
 		file = file.replace(" ", "")		// Get rid of whitespace
-	    var map = this.$root.map
+	    	var map = this.$root.map
 		var hotspots_position = 0
 		var other_hotspot_images = 0	// counts number of other hotpsots with an image displayed
 		// Close any other single images for the same hotspot
@@ -988,7 +992,7 @@
 
 	  removeHotspotLayers: function() {	//not used at present (the removal is done in map.vue L1811)
         try {
-            var vm = this
+            		var vm = this
 			var map = this.$root.map			
 			// Remove layers if exist
 			map.olmap.getLayers().forEach(function (layer) {
@@ -1000,8 +1004,8 @@
 				}
 			})
 		}
-        catch(ex) {
-            alert(ex)
+  		catch(ex) {
+		            alert(ex)
 		}
     },
 	
@@ -1192,10 +1196,10 @@
           this._thermalToDatePicker = null
       }
 
-	  this.changeThermalDateRange()
+	this.changeThermalDateRange()
 
-	  thermalStatus.phaseBegin("load_hotspots", 30, "Load hotspots", false, true)
-	  this.$root.fixedLayers.push({
+	thermalStatus.phaseBegin("load_hotspots", 30, "Load hotspots", false, true)
+	this.$root.fixedLayers.push({
         type: 'WFSLayer',
         name: 'Thermal Imaging Hotspots',
         id: 'hotspots:hotspot_centroids',
