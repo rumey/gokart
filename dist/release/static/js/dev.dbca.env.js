@@ -2,7 +2,7 @@ var env = {
     authUrl:'/sso/profile',
 	appType: (window.location.protocol == "file:")?"cordova":"webapp",
 
-    cswService:"https://csw-uat.dbca.wa.gov.au/catalogue/api/records/",
+    cswService:"https://csw-uat.dbca.wa.gov.au/catalogue/api2/application/records",
     catalogueAdminService:"https://csw-uat.dbca.wa.gov.au",
 
     kmiService:"https://kmi.dbca.wa.gov.au/geoserver",

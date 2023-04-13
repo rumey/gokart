@@ -3,7 +3,7 @@ var env = {
 
     appType: (window.location.protocol == "file:")?"cordova":"webapp",
 
-    cswService:"https://csw-local.dbca.wa.gov.au/catalogue/api/records/",
+    cswService:"https://csw-local.dbca.wa.gov.au/catalogue/api2/application/records",
     catalogueAdminService:"https://csw-local.dbca.wa.gov.au",
 
     kmiService:"https://kmi-local.dbca.wa.gov.au/geoserver",
